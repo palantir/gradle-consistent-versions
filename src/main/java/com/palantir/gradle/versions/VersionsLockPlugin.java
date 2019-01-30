@@ -235,25 +235,30 @@ public class VersionsLockPlugin implements Plugin<Project> {
         project.getPluginManager().withPlugin("base", plugin -> {
             project.getConfigurations().register(SUBPROJECT_UNIFIED_CONFIGURATION_NAME, conf -> {
                 conf.setVisible(false).setCanBeResolved(false);
-                conf.extendsFrom(project.getConfigurations().getByName(Dependency.DEFAULT_CONFIGURATION));
+                addDependency(conf, project, Dependency.DEFAULT_CONFIGURATION);
                 // Mark it so it doesn't receive constraints from VersionsPropsPlugin
                 conf.getAttributes().attribute(VersionsPropsPlugin.CONFIGURATION_EXCLUDE_ATTRIBUTE, true);
             });
             // Depend on this "sink" configuration from our global aggregating configuration `unifiedClasspath`.
-            Dependency projectDep = rootProject.getDependencies().project(ImmutableMap.of(
-                            "path", project.getPath(),
-                            "configuration", SUBPROJECT_UNIFIED_CONFIGURATION_NAME));
-            unifiedClasspath.getDependencies().add(projectDep);
+            addDependency(unifiedClasspath, project, SUBPROJECT_UNIFIED_CONFIGURATION_NAME);
         });
         project.getPluginManager().withPlugin("java", plugin -> {
-            project.getConfigurations().named(SUBPROJECT_UNIFIED_CONFIGURATION_NAME).configure(conf -> {
-                Stream.of(
-                        JavaPlugin.COMPILE_CLASSPATH_CONFIGURATION_NAME,
-                        JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME)
-                        .map(project.getConfigurations()::getByName)
-                        .forEach(conf::extendsFrom);
-            });
+            project.getConfigurations().named(SUBPROJECT_UNIFIED_CONFIGURATION_NAME).configure(conf -> Stream.of(
+                    JavaPlugin.COMPILE_CLASSPATH_CONFIGURATION_NAME,
+                    JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME)
+                    .forEach(c -> addDependency(conf, project, c)));
         });
+    }
+
+    /**
+     * Adds a dependency from {@code fromConfiguration} to {@code toConfiguration}, where the latter should exist
+     * in the given {@code project}.
+     */
+    private static void addDependency(
+            Configuration fromConfiguration, Project project, String toConfiguration) {
+        fromConfiguration.getDependencies().add(
+                project.getDependencies().project(
+                        ImmutableMap.of("path", project.getPath(), "configuration", toConfiguration)));
     }
 
     private static void checkPreconditions(Project project) {
@@ -332,6 +337,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
                     }
 
                     Configuration copiedConf = targetConf.copyRecursive();
+                    // Necessary so we can depend on it when aggregating dependencies.
+                    copiedConf.setCanBeConsumed(true);
                     copiedConf.setDescription(String.format("Copy of the '%s' configuration that can be resolved by "
                                     + "com.palantir.consistent-versions without resolving the '%s' configuration "
                                     + "itself.",
