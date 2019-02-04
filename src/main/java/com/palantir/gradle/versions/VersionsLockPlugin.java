@@ -339,6 +339,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
                     Configuration copiedConf = targetConf.copyRecursive();
                     // Necessary so we can depend on it when aggregating dependencies.
                     copiedConf.setCanBeConsumed(true);
+                    copiedConf.setCanBeResolved(false);
                     copiedConf.setDescription(String.format("Copy of the '%s' configuration that can be resolved by "
                                     + "com.palantir.consistent-versions without resolving the '%s' configuration "
                                     + "itself.",
