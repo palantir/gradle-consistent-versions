@@ -1,0 +1,42 @@
+policy:
+  approval:
+    - or:
+      - repo owner approval
+      - excavator only touched baseline, gradle files or versions.props
+  disapproval:
+    requires:
+      organizations: [ "palantir" ]
+
+approval_rules:
+
+  - name: repo owner approval
+    options:
+      allow_contributor: false
+    requires:
+      count: 1
+      admins: true
+
+  - name: multi-contributor approval
+    options:
+      allow_contributor: true
+    requires:
+      count: 2
+      admins: true
+
+  - name: excavator only touched baseline, gradle files or versions.props
+    requires:
+      count: 0
+    if:
+      has_author_in:
+        users: [ "svc-excavator" ]
+      only_changed_files:
+        paths:
+          - "^\\.baseline/.*$"
+          - "^.*gradle$"
+          - "^gradle/wrapper/.*"
+          - "^gradlew$"
+          - "^gradlew.bat$"
+          - "^gradle.properties$"
+          - "^settings.gradle$"
+          - "^versions.props$"
+          - "^versions.lock$"

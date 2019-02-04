@@ -1,0 +1,78 @@
+buildscript {
+    repositories {
+        jcenter()
+        maven {
+            url 'https://dl.bintray.com/palantir/releases/'
+        }
+        maven {
+            url 'https://plugins.gradle.org/m2/'
+        }
+    }
+
+    dependencies {
+        classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:1.8.4'
+        classpath 'com.netflix.nebula:nebula-publishing-plugin:9.0.2'
+        classpath 'com.palantir.baseline:gradle-baseline-java:0.47.0'
+        classpath 'com.palantir.gradle.consistentversions:gradle-consistent-versions:0.14.0'
+        classpath 'gradle.plugin.com.palantir.gradle.gitversion:gradle-git-version:0.7.3'
+        classpath 'gradle.plugin.org.inferred:gradle-processors:2.1.0'
+    }
+}
+
+repositories {
+    jcenter()
+    maven {
+        url 'https://dl.bintray.com/palantir/releases/'
+    }
+}
+
+apply plugin: 'com.palantir.git-version'
+apply plugin: 'com.palantir.consistent-versions'
+
+group 'com.palantir.gradle.consistentversions'
+version gitVersion()
+
+apply plugin: 'com.palantir.baseline'
+apply plugin: 'java-gradle-plugin'
+apply plugin: 'groovy'
+apply plugin: 'org.inferred.processors'
+apply from: "$rootDir/gradle/publish-jar.gradle"
+
+sourceCompatibility = 1.8
+
+dependencies {
+    compile 'com.palantir.configurationresolver:gradle-configuration-resolver-plugin'
+    implementation 'com.google.guava:guava'
+    implementation 'com.netflix.nebula:nebula-dependency-recommender'
+
+    testCompile 'com.netflix.nebula:nebula-test'
+
+    annotationProcessor "org.immutables:value"
+    compileOnly "org.immutables:value::annotations"
+}
+
+tasks.withType(JavaCompile) {
+    // necessary until https://github.com/palantir/gradle-baseline/issues/389
+    options.errorprone.errorproneArgs += ['-Xep:Slf4jLogsafeArgs:OFF', '-Xep:PreferSafeLoggableExceptions:OFF']
+    options.compilerArgs += ['-Werror']
+}
+
+gradlePlugin {
+    // do not add new task to publish to plugins.gradle.org
+    automatedPublishing = false
+
+    plugins {
+        consistentVersions {
+            id = 'com.palantir.consistent-versions'
+            implementationClass = 'com.palantir.gradle.versions.ConsistentVersionsPlugin'
+        }
+        versionsLock {
+            id = 'com.palantir.versions-lock'
+            implementationClass = 'com.palantir.gradle.versions.VersionsLockPlugin'
+        }
+        versionsProps {
+            id = 'com.palantir.versions-props'
+            implementationClass = 'com.palantir.gradle.versions.VersionsPropsPlugin'
+        }
+    }
+}
