@@ -112,7 +112,7 @@ Both of these problems are solved by this plugin because the new gradle lock fil
 
 ### Comparison to manual verifyDependencyLocksAreCurrent task
 
-http-remoting still uses lock files and defines a [custom task](https://github.com/palantir/http-remoting/blob/3.33.0/build.gradle#L69) to check they are up to date.  This is no longer necessary because lockfiles are now a first-class feature in Gradle 4.8.
+[conjure-java-runtime](https://github.com/palantir/conjure-java-runtime) still uses lock files and defines a [custom task](https://github.com/palantir/conjure-java-runtime/blob/4.13.0/build.gradle#L47) to check they are up to date.  This is no longer necessary because lockfiles are now a first-class feature in Gradle 4.8.
 
 ```gradle
 // no longer necessary
