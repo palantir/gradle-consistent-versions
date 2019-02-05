@@ -238,6 +238,18 @@ With vanilla Gradle 4.8 lockfiles, this scenario would have merged but then fail
 The lockfile is sourced from the _compileClasspath_ and _runtimeClasspath_ configurations.
 (Test-only dependencies will not appear in `versions.lock`.)
 
+#### How to make this work with Baseline
+
+[`com.palantir.baseline`](https://github.com/palantir/gradle-baseline/#usage) applies `nebula.dependency-recommender`,
+and attempts to configure it against the root `versions.props`.
+In order to use this plugin, we need nebula to not be configured, which we can achieve by adding this to `gradle.properties`:
+```diff
+ org.gradle.parallel=true
++com.palantir.baseline-versions.disable=true
+```
+
+This should become unnecessary in a future version of Baseline.
+
 #### Known limitation: root project must have a unique name
 
 This plugin requires the settings.gradle to declare a `rootProject.name` which is unique, due to a Gradle internal implementation detail.
