@@ -11,6 +11,9 @@ Direct dependencies are specified in a top level `versions.props` file and then 
      dependencies {
 +        classpath 'com.palantir.gradle.consistentversions:gradle-consistent-versions:<latest>'
      }
++    repositories {
++        maven { url "http://palantir.bintray.com/releases" }
++    }
  }
 
 +apply plugin: 'com.palantir.consistent-versions'
