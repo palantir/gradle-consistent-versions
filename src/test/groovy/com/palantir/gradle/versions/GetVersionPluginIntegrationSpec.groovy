@@ -40,17 +40,6 @@ class GetVersionPluginIntegrationSpec extends ProjectSpec {
         noExceptionThrown()
     }
 
-    def 'function is callable from groovy with one arg'() {
-        when:
-        project.apply plugin: GetVersionPlugin
-        project.apply plugin: JavaPlugin
-        project.ext.getVersion('com.google.guava:guava')
-
-        then:
-        def ex = thrown(GradleException)
-        ex.message.contains "Unable to find 'com.google.guava:guava' in configuration ':runtimeClasspath'"
-    }
-
     def 'function is callable from groovy with two args'() {
         when:
         project.apply plugin: GetVersionPlugin

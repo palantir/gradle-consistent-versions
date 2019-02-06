@@ -34,23 +34,17 @@ public final class GetVersionPlugin implements Plugin<Project> {
 
     @Override
     public void apply(Project project) {
-        project.getExtensions().getExtraProperties().set("getVersion", new Closure<String>(project, project){
-
-            public String doCall(Object arg) {
-                Preconditions.checkNotNull(arg, "getVersion() requires arguments,"
-                        + " e.g. getVersion('com.google.guava:guava') or getVersion('com.google.guava:guava', "
-                        + "configurations.runtimeClasspath)");
-
-                return doCall(arg, project.getConfigurations().getByName("runtimeClasspath"));
-            }
+        project.getExtensions().getExtraProperties().set("getVersion", new Closure<String>(project, project) {
 
             public String doCall(Object moduleVersion, Configuration configuration) {
                 List<String> strings = Splitter.on(':').splitToList(moduleVersion.toString());
                 Preconditions.checkState(
                         strings.size() == 2,
-                        "Expected 'group:name', found: " + moduleVersion.toString());
+                        "Expected 'group:name', found: %s",
+                        moduleVersion.toString());
 
                 return getVersion(
+                        project,
                         strings.get(0),
                         strings.get(1),
                         configuration);
@@ -58,18 +52,26 @@ public final class GetVersionPlugin implements Plugin<Project> {
         });
     }
 
-    private static String getVersion(String group, String name, Configuration configuration) {
-        List<ModuleVersionIdentifier> list =
-                configuration.getIncoming().getResolutionResult().getAllComponents().stream()
-                        .map(ResolvedComponentResult::getModuleVersion)
-                        .filter(item -> item.getGroup().equals(group) && item.getName().equals(name))
-                        .collect(toList());
+    private static String getVersion(Project project, String group, String name, Configuration configuration) {
+        Preconditions.checkState(
+                !GradleWorkarounds.isConfiguring(project.getState()),
+                "Not allowed to call getVersion at configuration time - try using a doLast block");
+
+        List<ModuleVersionIdentifier> list = configuration.getIncoming()
+                .getResolutionResult()
+                .getAllComponents()
+                .stream()
+                .map(ResolvedComponentResult::getModuleVersion)
+                .filter(item -> item.getGroup().equals(group) && item.getName().equals(name))
+                .collect(toList());
 
         if (list.isEmpty()) {
-            List<ModuleVersionIdentifier> actual =
-                    configuration.getIncoming().getResolutionResult().getAllComponents().stream()
-                            .map(ResolvedComponentResult::getModuleVersion)
-                            .collect(toList());
+            List<ModuleVersionIdentifier> actual = configuration.getIncoming()
+                    .getResolutionResult()
+                    .getAllComponents()
+                    .stream()
+                    .map(ResolvedComponentResult::getModuleVersion)
+                    .collect(toList());
             throw new GradleException(String.format("Unable to find '%s:%s' in %s: %s",
                     group, name, configuration, actual));
         }
