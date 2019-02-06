@@ -28,5 +28,6 @@ public class ConsistentVersionsPlugin implements Plugin<Project> {
         }
         project.getPluginManager().apply(VersionsLockPlugin.class);
         project.getPluginManager().apply(VersionsPropsPlugin.class);
+        project.getPluginManager().apply(GetVersionPlugin.class);
     }
 }

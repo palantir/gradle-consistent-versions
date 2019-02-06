@@ -263,3 +263,26 @@ This plugin requires the settings.gradle to declare a `rootProject.name` which i
  include 'sls-status-api:sls-status-api-objects'
  include 'sls-status-dropwizard'
 ```
+
+#### What about `dependencyRecommendations.getRecommendedVersion`?
+
+If you rely on this Nebula function, then gradle-consistent-versions has a similar alternative:
+
+```diff
+-println dependencyRecommendations.getRecommendedVersion('com.google.guava:guava')
++println getVersion('com.google.guava:guava')
+```
+
+Note that you can't invoke this function at configuration time (e.g. in the body of a task declaration), because the plugin needs to resolve dependencies to return the answer and Gradle [strongly discourages](https://guides.gradle.org/performance/#don_t_resolve_dependencies_at_configuration_time) resolving dependencies at configuration time.
+
+Alternatives:
+
+- if you rely on this function for sls-packaging `productDependencies`, use `detectConstraints = true` or upgrade to 3.X
+- if you rely on this function to configure the `from` or `to` parameters of a `Copy` task, use a closure or move the whole thing into a doLast block.
+
+```diff
+ task copySomething(type: Copy) {
+-    from "$buildDir/foo/bar-${dependencyRecommendations.getRecommendedVersion('group:bar')}"
++    from { "$buildDir/foo/bar-${getVersion('group:bar')}" }
+     ...
+```
