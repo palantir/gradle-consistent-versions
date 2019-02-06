@@ -23,6 +23,7 @@ import com.google.common.base.Splitter;
 import com.google.common.collect.Iterables;
 import groovy.lang.Closure;
 import java.util.List;
+import javax.annotation.Nullable;
 import org.gradle.api.GradleException;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
@@ -36,7 +37,13 @@ public final class GetVersionPlugin implements Plugin<Project> {
     public void apply(Project project) {
         project.getExtensions().getExtraProperties().set("getVersion", new Closure<String>(project, project) {
 
-            public String doCall(Object moduleVersion, Configuration configuration) {
+            public String doCall(Object moduleVersion) {
+                return doCall(moduleVersion, project.getRootProject()
+                        .getConfigurations()
+                        .getByName(VersionsLockPlugin.UNIFIED_CLASSPATH_CONFIGURATION_NAME));
+            }
+
+            public String doCall(Object moduleVersion, @Nullable Configuration configuration) {
                 List<String> strings = Splitter.on(':').splitToList(moduleVersion.toString());
                 Preconditions.checkState(
                         strings.size() == 2,

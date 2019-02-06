@@ -93,4 +93,23 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationTestKitSpec {
         expect:
         runTasks('demo').output.contains("demo=1.7.25")
     }
+
+    def "getVersion function works even when writing locks"() {
+        buildFile << '''
+            repositories { jcenter() }
+            apply plugin: 'java'
+            dependencies {
+                compile 'org.slf4j:slf4j-api'
+            }
+
+            task demo {
+                doLast { println "demo=" + getVersion('org.slf4j:slf4j-api') }
+            }
+        '''.stripIndent()
+
+        file('versions.props') << 'org.slf4j:* = 1.7.25'
+
+        expect:
+        runTasks('demo', '--write-locks').output.contains("demo=1.7.25")
+    }
 }
