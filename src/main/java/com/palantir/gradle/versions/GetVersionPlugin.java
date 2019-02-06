@@ -23,7 +23,6 @@ import com.google.common.base.Splitter;
 import com.google.common.collect.Iterables;
 import groovy.lang.Closure;
 import java.util.List;
-import javax.annotation.Nullable;
 import org.gradle.api.GradleException;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
@@ -43,7 +42,7 @@ public final class GetVersionPlugin implements Plugin<Project> {
                         .getByName(VersionsLockPlugin.UNIFIED_CLASSPATH_CONFIGURATION_NAME));
             }
 
-            public String doCall(Object moduleVersion, @Nullable Configuration configuration) {
+            public String doCall(Object moduleVersion, Configuration configuration) {
                 List<String> strings = Splitter.on(':').splitToList(moduleVersion.toString());
                 Preconditions.checkState(
                         strings.size() == 2,
@@ -73,14 +72,7 @@ public final class GetVersionPlugin implements Plugin<Project> {
                 .collect(toList());
 
         if (list.isEmpty()) {
-            List<ModuleVersionIdentifier> actual = configuration.getIncoming()
-                    .getResolutionResult()
-                    .getAllComponents()
-                    .stream()
-                    .map(ResolvedComponentResult::getModuleVersion)
-                    .collect(toList());
-            throw new GradleException(String.format("Unable to find '%s:%s' in %s: %s",
-                    group, name, configuration, actual));
+            throw notFound(group, name, configuration);
         }
 
         if (list.size() > 1) {
@@ -89,5 +81,16 @@ public final class GetVersionPlugin implements Plugin<Project> {
         }
 
         return Iterables.getOnlyElement(list).getVersion();
+    }
+
+    private static GradleException notFound(String group, String name, Configuration configuration) {
+        List<ModuleVersionIdentifier> actual = configuration.getIncoming()
+                .getResolutionResult()
+                .getAllComponents()
+                .stream()
+                .map(ResolvedComponentResult::getModuleVersion)
+                .collect(toList());
+        return new GradleException(String.format("Unable to find '%s:%s' in %s: %s",
+                group, name, configuration, actual));
     }
 }
