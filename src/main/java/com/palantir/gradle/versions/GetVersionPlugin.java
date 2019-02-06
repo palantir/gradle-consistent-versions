@@ -49,11 +49,7 @@ public final class GetVersionPlugin implements Plugin<Project> {
                         "Expected 'group:name', found: %s",
                         moduleVersion.toString());
 
-                return getVersion(
-                        project,
-                        strings.get(0),
-                        strings.get(1),
-                        configuration);
+                return getVersion(project, strings.get(0), strings.get(1), configuration);
             }
         });
     }

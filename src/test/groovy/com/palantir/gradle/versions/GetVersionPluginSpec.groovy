@@ -21,7 +21,7 @@ import nebula.test.ProjectSpec
 import org.gradle.api.GradleException
 import org.gradle.api.plugins.JavaPlugin
 
-class GetVersionPluginIntegrationSpec extends ProjectSpec {
+class GetVersionPluginSpec extends ProjectSpec {
 
     def 'apply does not throw exceptions'() {
         when:
