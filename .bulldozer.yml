@@ -1,7 +1,5 @@
 version: 1
 merge:
-  whitelist:
-    labels: ["merge when ready"]
   blacklist:
     labels: ["do not merge"]
   method: squash
