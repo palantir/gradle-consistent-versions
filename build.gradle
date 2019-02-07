@@ -74,5 +74,9 @@ gradlePlugin {
             id = 'com.palantir.versions-props'
             implementationClass = 'com.palantir.gradle.versions.VersionsPropsPlugin'
         }
+        publishBom {
+            id = 'com.palantir.publish-bom'
+            implementationClass = 'com.palantir.gradle.versions.PublishBomPlugin'
+        }
     }
 }

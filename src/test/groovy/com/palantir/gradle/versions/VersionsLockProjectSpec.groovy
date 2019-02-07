@@ -17,6 +17,7 @@
 package com.palantir.gradle.versions
 
 import nebula.test.ProjectSpec
+import org.gradle.api.provider.ListProperty
 
 class VersionsLockProjectSpec extends ProjectSpec {
 
@@ -39,5 +40,26 @@ class VersionsLockProjectSpec extends ProjectSpec {
 
         then:
         noExceptionThrown()
+    }
+
+    def 'list property behaviour'() {
+        ListProperty<Integer> list = project.objects.listProperty(Integer)
+        ListProperty<Integer> list2 = project.objects.listProperty(Integer)
+        list.addAll([1, 2])
+        list2.set(list)
+
+        when:
+        list2.add(4)
+
+        then:
+        list.get() == [1, 2]
+        list2.get() == [1, 2, 4]
+
+        when:
+        list.add(3)
+
+        then:
+        list.get() == [1, 2, 3]
+        list2.get() == [1, 2, 3, 4]
     }
 }

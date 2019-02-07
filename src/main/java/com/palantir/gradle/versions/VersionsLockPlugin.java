@@ -89,12 +89,6 @@ public class VersionsLockPlugin implements Plugin<Project> {
     private static final String LOCK_CONSTRAINTS_CONFIGURATION_NAME = "lockConstraints";
     private static final Attribute<Boolean> CONSISTENT_VERSIONS_CONSTRAINT_ATTRIBUTE =
             Attribute.of("consistent-versions", Boolean.class);
-    /**
-     * Copied from {@link org.gradle.api.internal.artifacts.dsl.dependencies.PlatformSupport#COMPONENT_CATEGORY} since
-     * that's internal.
-     */
-    private static final Attribute<String> COMPONENT_CATEGORY =
-            Attribute.of("org.gradle.component.category", String.class);
 
     @NotNull
     static Path getRootLockFile(Project project) {
@@ -194,6 +188,15 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 t.fullLockState(project.provider(fullLockStateSupplier::get));
             });
         }
+    }
+
+    /**
+     * Also apply constraints from the locks to the given configuration in the given project.
+     */
+    static void applyLocksTo(Project project, String configurationName) {
+        project.getConfigurations().named(configurationName).configure(conf -> {
+            conf.extendsFrom(project.getConfigurations().getByName(LOCK_CONSTRAINTS_CONFIGURATION_NAME));
+        });
     }
 
     private static void ensureLockStateIsUpToDate(LockState currentLockState, LockState persistedLockState) {
@@ -399,10 +402,10 @@ public class VersionsLockPlugin implements Plugin<Project> {
             return Optional.empty();
         }
         // Don't lock any platforms, since these are not actual dependencies.
-        if (component.getDependents().stream().anyMatch(rdr -> {
-            String category = rdr.getRequested().getAttributes().getAttribute(COMPONENT_CATEGORY);
-            return category != null && category.contains("platform");
-        })) {
+        if (component
+                .getDependents()
+                .stream()
+                .anyMatch(rdr -> GradleUtils.isPlatform(rdr.getRequested().getAttributes()))) {
             log.debug("Not locking component because it's a platform: {}", component.getId());
             return Optional.empty();
         }

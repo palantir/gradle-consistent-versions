@@ -43,6 +43,12 @@ public class VersionRecommendationsExtension {
         excludeConfigurations.addAll(DEFAULT_EXCLUDED_CONFIGURATIONS);
     }
 
+    @Inject
+    public VersionRecommendationsExtension(Project project, VersionRecommendationsExtension rootExtension) {
+        excludeConfigurations = project.getObjects().setProperty(String.class);
+        excludeConfigurations.set(rootExtension.getExcludeConfigurations());
+    }
+
     public final void excludeConfigurations(String... configurations) {
         excludeConfigurations.addAll(configurations);
     }
