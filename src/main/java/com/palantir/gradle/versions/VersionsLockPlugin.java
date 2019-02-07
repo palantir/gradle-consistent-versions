@@ -73,10 +73,16 @@ import org.gradle.api.artifacts.result.ResolutionResult;
 import org.gradle.api.artifacts.result.ResolvedComponentResult;
 import org.gradle.api.artifacts.result.UnresolvedDependencyResult;
 import org.gradle.api.attributes.Attribute;
+import org.gradle.api.attributes.AttributeCompatibilityRule;
+import org.gradle.api.attributes.AttributeMatchingStrategy;
+import org.gradle.api.attributes.AttributesSchema;
+import org.gradle.api.attributes.CompatibilityCheckDetails;
+import org.gradle.api.attributes.Usage;
 import org.gradle.api.invocation.Gradle;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 import org.gradle.api.logging.configuration.ShowStacktrace;
+import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.plugins.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 
@@ -96,6 +102,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
     private static final String LOCK_CONSTRAINTS_CONFIGURATION_NAME = "lockConstraints";
     private static final Attribute<Boolean> CONSISTENT_VERSIONS_CONSTRAINT_ATTRIBUTE =
             Attribute.of("consistent-versions", Boolean.class);
+    private static final String CONSISTENT_VERSIONS_USAGE_NAME = "consistentVersionsUsage";
     /**
      * Copied from {@link org.gradle.api.internal.artifacts.dsl.dependencies.PlatformSupport#COMPONENT_CATEGORY} since
      * that's internal.
@@ -103,10 +110,12 @@ public class VersionsLockPlugin implements Plugin<Project> {
     private static final Attribute<String> COMPONENT_CATEGORY =
             Attribute.of("org.gradle.component.category", String.class);
 
+    private final Usage consistentVersionsUsage;
     private final ShowStacktrace showStacktrace;
 
     @Inject
-    public VersionsLockPlugin(Gradle gradle) {
+    public VersionsLockPlugin(ObjectFactory objectFactory, Gradle gradle) {
+        consistentVersionsUsage = objectFactory.named(Usage.class, CONSISTENT_VERSIONS_USAGE_NAME);
         showStacktrace = gradle.getStartParameter().getShowStacktrace();
     }
 
@@ -123,9 +132,16 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
         Configuration unifiedClasspath = project
                 .getConfigurations()
-                .create(UNIFIED_CLASSPATH_CONFIGURATION_NAME, c -> {
-                    c.setVisible(false).setCanBeConsumed(false);
+                .create(UNIFIED_CLASSPATH_CONFIGURATION_NAME, conf -> {
+                    conf.setVisible(false).setCanBeConsumed(false);
+                    // Mark it as accepting dependencies with our own usage
+                    conf.getAttributes().attribute(Usage.USAGE_ATTRIBUTE, consistentVersionsUsage);
                 });
+
+        // Add a compatibility rule
+        AttributesSchema attributesSchema = project.getDependencies().getAttributesSchema();
+        AttributeMatchingStrategy<Usage> matchingStrategy = attributesSchema.attribute(Usage.USAGE_ATTRIBUTE);
+        matchingStrategy.getCompatibilityRules().add(ConsistentVersionsCompatibilityRules.class);
 
         project.allprojects(subproject -> {
             sourceDependenciesFromProject(project, unifiedClasspath, subproject);
@@ -244,17 +260,24 @@ public class VersionsLockPlugin implements Plugin<Project> {
                     ResolveConfigurationsTask.class, task -> task.mustRunAfter(":resolveConfigurations"));
         }
 
-        // Since we apply the forces to compileClasspath, runtimeClasspath, we should at least check what
-        // dependencies they have.
-        project.getPluginManager().withPlugin("base", plugin -> {
-            project.getConfigurations().register(SUBPROJECT_UNIFIED_CONFIGURATION_NAME, conf -> {
-                conf.setVisible(false).setCanBeResolved(false);
-                addDependency(conf, project, Dependency.DEFAULT_CONFIGURATION);
-                // Mark it so it doesn't receive constraints from VersionsPropsPlugin
-                conf.getAttributes().attribute(VersionsPropsPlugin.CONFIGURATION_EXCLUDE_ATTRIBUTE, true);
+        project.getConfigurations().register(SUBPROJECT_UNIFIED_CONFIGURATION_NAME, conf -> {
+            conf.setVisible(false).setCanBeResolved(false);
+
+            // Mark it so it doesn't receive constraints from VersionsPropsPlugin
+            conf.getAttributes().attribute(VersionsPropsPlugin.CONFIGURATION_EXCLUDE_ATTRIBUTE, true);
+        });
+        // Depend on this "sink" configuration from our global aggregating configuration `unifiedClasspath`.
+        addDependency(unifiedClasspath, project, SUBPROJECT_UNIFIED_CONFIGURATION_NAME);
+
+        project.getPluginManager().withPlugin("java", plugin -> {
+            project.getConfigurations().named(SUBPROJECT_UNIFIED_CONFIGURATION_NAME).configure(conf -> {
+                Stream.of(
+                        JavaPlugin.COMPILE_ONLY_CONFIGURATION_NAME,
+                        JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME,
+                        JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME)
+                        .map(project.getConfigurations()::getByName)
+                        .forEach(conf::extendsFrom);
             });
-            // Depend on this "sink" configuration from our global aggregating configuration `unifiedClasspath`.
-            addDependency(unifiedClasspath, project, SUBPROJECT_UNIFIED_CONFIGURATION_NAME);
         });
     }
 
@@ -352,6 +375,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
                                     + "com.palantir.consistent-versions without resolving the '%s' configuration "
                                     + "itself.",
                             targetConf.getName(), targetConf.getName()));
+                    // Mark it so that it tells consumers it exports our own usage
+                    copiedConf.getAttributes().attribute(Usage.USAGE_ATTRIBUTE, consistentVersionsUsage);
 
                     // Update state about what we've seen
                     copiedConfigurationsCache.put(targetConf, copiedConf.getName());
@@ -528,5 +553,15 @@ public class VersionsLockPlugin implements Plugin<Project> {
                     });
                 }))
                 .collect(Collectors.toList());
+    }
+
+    static class ConsistentVersionsCompatibilityRules implements AttributeCompatibilityRule<Usage> {
+        @Override
+        public void execute(CompatibilityCheckDetails<Usage> details) {
+            if (details.getConsumerValue().getName().equals(CONSISTENT_VERSIONS_USAGE_NAME)
+                    && details.getProducerValue().getName().equals(Usage.JAVA_RUNTIME)) {
+                details.compatible();
+            }
+        }
     }
 }
