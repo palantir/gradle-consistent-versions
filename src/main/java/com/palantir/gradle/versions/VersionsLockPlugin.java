@@ -46,7 +46,6 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import netflix.nebula.dependency.recommender.RecommendationStrategies;
 import netflix.nebula.dependency.recommender.provider.RecommendationProviderContainer;
 import org.gradle.api.GradleException;
@@ -241,12 +240,6 @@ public class VersionsLockPlugin implements Plugin<Project> {
             });
             // Depend on this "sink" configuration from our global aggregating configuration `unifiedClasspath`.
             addDependency(unifiedClasspath, project, SUBPROJECT_UNIFIED_CONFIGURATION_NAME);
-        });
-        project.getPluginManager().withPlugin("java", plugin -> {
-            project.getConfigurations().named(SUBPROJECT_UNIFIED_CONFIGURATION_NAME).configure(conf -> Stream.of(
-                    JavaPlugin.COMPILE_CLASSPATH_CONFIGURATION_NAME,
-                    JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME)
-                    .forEach(c -> addDependency(conf, project, c)));
         });
     }
 
