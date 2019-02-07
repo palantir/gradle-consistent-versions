@@ -18,7 +18,7 @@ package com.palantir.gradle.versions
 
 import nebula.test.ProjectSpec
 
-class VersionsLockProjectSpec extends ProjectSpec {
+class ConsistentVersionsProjectSpec extends ProjectSpec {
 
     String getPluginName() {
         return "com.palantir.consistent-versions"
