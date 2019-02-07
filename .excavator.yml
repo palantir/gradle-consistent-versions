@@ -4,4 +4,3 @@ auto-label:
     excavator/manage-circleci: [ "merge when ready" ]
   tags:
     roomba: [ "merge when ready" ]
-    swiffer: [ "merge when ready" ]
