@@ -22,6 +22,7 @@ import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.MapDifference;
 import com.google.common.collect.MapDifference.ValueDifference;
 import com.google.common.collect.Maps;
@@ -55,7 +56,9 @@ import javax.inject.Inject;
 import netflix.nebula.dependency.recommender.RecommendationStrategies;
 import netflix.nebula.dependency.recommender.provider.RecommendationProviderContainer;
 import org.gradle.api.GradleException;
+import org.gradle.api.Named;
 import org.gradle.api.NamedDomainObjectProvider;
+import org.gradle.api.NamedDomainObjectSet;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
@@ -73,17 +76,17 @@ import org.gradle.api.artifacts.result.ResolutionResult;
 import org.gradle.api.artifacts.result.ResolvedComponentResult;
 import org.gradle.api.artifacts.result.UnresolvedDependencyResult;
 import org.gradle.api.attributes.Attribute;
-import org.gradle.api.attributes.AttributeCompatibilityRule;
-import org.gradle.api.attributes.AttributeMatchingStrategy;
-import org.gradle.api.attributes.AttributesSchema;
-import org.gradle.api.attributes.CompatibilityCheckDetails;
+import org.gradle.api.attributes.AttributeDisambiguationRule;
+import org.gradle.api.attributes.MultipleCandidatesDetails;
 import org.gradle.api.attributes.Usage;
+import org.gradle.api.internal.attributes.AttributeContainerInternal;
+import org.gradle.api.internal.attributes.AttributesSchemaInternal;
 import org.gradle.api.invocation.Gradle;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 import org.gradle.api.logging.configuration.ShowStacktrace;
-import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.plugins.JavaPlugin;
+import org.gradle.internal.component.model.AttributeMatcher;
 import org.jetbrains.annotations.NotNull;
 
 public class VersionsLockPlugin implements Plugin<Project> {
@@ -110,12 +113,24 @@ public class VersionsLockPlugin implements Plugin<Project> {
     private static final Attribute<String> COMPONENT_CATEGORY =
             Attribute.of("org.gradle.component.category", String.class);
 
-    private final Usage consistentVersionsUsage;
+    public enum MyUsage implements Named {
+        MAIN,
+        ORIGINAL; // for disambiguation
+
+        @Override
+        public String getName() {
+            return this.name().toLowerCase();
+        }
+    }
+
+    private static final Attribute<MyUsage> MY_USAGE_ATTRIBUTE =
+            Attribute.of("com.palantir.consistent-versions.usage", MyUsage.class);
+
+    private final MyUsage consistentVersionsUsage = MyUsage.MAIN;
     private final ShowStacktrace showStacktrace;
 
     @Inject
-    public VersionsLockPlugin(ObjectFactory objectFactory, Gradle gradle) {
-        consistentVersionsUsage = objectFactory.named(Usage.class, CONSISTENT_VERSIONS_USAGE_NAME);
+    public VersionsLockPlugin(Gradle gradle) {
         showStacktrace = gradle.getStartParameter().getShowStacktrace();
     }
 
@@ -130,18 +145,25 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
         project.getPluginManager().apply(ConfigurationResolverPlugin.class);
 
+        project.allprojects(p -> {
+            // Create the attribute
+            p.getDependencies().getAttributesSchema().attribute(MY_USAGE_ATTRIBUTE);
+        });
+
         Configuration unifiedClasspath = project
                 .getConfigurations()
                 .create(UNIFIED_CLASSPATH_CONFIGURATION_NAME, conf -> {
                     conf.setVisible(false).setCanBeConsumed(false);
                     // Mark it as accepting dependencies with our own usage
-                    conf.getAttributes().attribute(Usage.USAGE_ATTRIBUTE, consistentVersionsUsage);
+//                    conf.getAttributes().attribute(Usage.USAGE_ATTRIBUTE, consistentVersionsUsage);
+                    conf.getAttributes().attribute(MY_USAGE_ATTRIBUTE, consistentVersionsUsage);
                 });
 
-        // Add a compatibility rule
-        AttributesSchema attributesSchema = project.getDependencies().getAttributesSchema();
-        AttributeMatchingStrategy<Usage> matchingStrategy = attributesSchema.attribute(Usage.USAGE_ATTRIBUTE);
-        matchingStrategy.getCompatibilityRules().add(ConsistentVersionsCompatibilityRules.class);
+//        project.allprojects(p -> {
+//            AttributesSchema attributesSchema = p.getDependencies().getAttributesSchema();
+//            AttributeMatchingStrategy<MyUsage> matchingStrategy = attributesSchema.attribute(MY_USAGE_ATTRIBUTE);
+//            matchingStrategy.getDisambiguationRules().add(ConsistentVersionsDisambiguationRules.class);
+//        });
 
         project.allprojects(subproject -> {
             sourceDependenciesFromProject(project, unifiedClasspath, subproject);
@@ -271,14 +293,26 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
         project.getPluginManager().withPlugin("java", plugin -> {
             project.getConfigurations().named(SUBPROJECT_UNIFIED_CONFIGURATION_NAME).configure(conf -> {
+//                addDependency(conf, project, JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME);
+//                addDependency(conf, project, JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME);
+//                addDependency(conf, project, JavaPlugin.COMPILE_ONLY_CONFIGURATION_NAME);
+
+//                addDependency(conf, project, JavaPlugin.COMPILE_CLASSPATH_CONFIGURATION_NAME);
+//                addDependency(conf, project, JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME);
+
                 Stream.of(
-                        JavaPlugin.COMPILE_ONLY_CONFIGURATION_NAME,
-                        JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME,
-                        JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME)
-                        .map(project.getConfigurations()::getByName)
-                        .forEach(conf::extendsFrom);
+                        createProjectDependencyWithUsage(project, Usage.JAVA_API),
+                        createProjectDependencyWithUsage(project, Usage.JAVA_RUNTIME))
+                        .forEach(conf.getDependencies()::add);
             });
         });
+    }
+
+    private static ProjectDependency createProjectDependencyWithUsage(Project project, String usage) {
+        ProjectDependency dep = (ProjectDependency) project.getDependencies().create(project);
+        dep.attributes(attributes -> attributes.attribute(
+                Usage.USAGE_ATTRIBUTE, project.getObjects().named(Usage.class, usage)));
+        return dep;
     }
 
     /**
@@ -344,9 +378,18 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 .configureEach(dependency -> {
                     ProjectDependency projectDependency = (ProjectDependency) dependency;
                     Project projectDep = projectDependency.getDependencyProject();
-                    String targetConfiguration = Optional
+                    // This is all a massive hack copied from gradle internals
+                    boolean hasAttributes = !projectDependency.getAttributes().isEmpty();
+                    Optional<String> targetConfigurationOpt = Optional.ofNullable(Optional
                             .ofNullable(projectDependency.getTargetConfiguration())
-                            .orElse(Dependency.DEFAULT_CONFIGURATION);
+                            .orElseGet(() -> {
+                                if (hasAttributes) {
+                                    return deriveTargetConfigurationViaAttributes(currentProject, projectDependency);
+                                } else {
+                                    return null;
+                                }
+                            }));
+                    String targetConfiguration = targetConfigurationOpt.orElse(Dependency.DEFAULT_CONFIGURATION);
 
                     // We can depend on other configurations from the same project, so don't introduce a cycle.
                     if (projectDep != currentProject) {
@@ -369,14 +412,22 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
                     Configuration copiedConf = targetConf.copyRecursive();
                     // Necessary so we can depend on it when aggregating dependencies.
-                    copiedConf.setCanBeConsumed(true);
-                    copiedConf.setCanBeResolved(false);
+//                    copiedConf.setCanBeConsumed(true);
+//                    copiedConf.setCanBeResolved(false);
                     copiedConf.setDescription(String.format("Copy of the '%s' configuration that can be resolved by "
                                     + "com.palantir.consistent-versions without resolving the '%s' configuration "
                                     + "itself.",
                             targetConf.getName(), targetConf.getName()));
                     // Mark it so that it tells consumers it exports our own usage
-                    copiedConf.getAttributes().attribute(Usage.USAGE_ATTRIBUTE, consistentVersionsUsage);
+                    copiedConf.getAttributes().attribute(MY_USAGE_ATTRIBUTE, consistentVersionsUsage);
+
+                    // Mark ORIGINAL configuration with MY_USAGE_ATTRIBUTE of ORIGINAL to disambiguate
+                    targetConf.attributes(attr -> attr.attribute(MY_USAGE_ATTRIBUTE, MyUsage.ORIGINAL));
+
+                    // All dependencies also get this attribute, in order to avoid ambiguity between e.g.
+                    // runtimeClasspath and runtimeClasspathCopy -- maybe? TODO
+
+                    copiedConf.getAttributes().attribute(MY_USAGE_ATTRIBUTE, consistentVersionsUsage);
 
                     // Update state about what we've seen
                     copiedConfigurationsCache.put(targetConf, copiedConf.getName());
@@ -393,9 +444,34 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
                     projectDep.getConfigurations().add(copiedConf);
 
-                    projectDependency.setTargetConfiguration(copiedConf.getName());
+                    // Update the target configuration if there was one in the first place.
+                    targetConfigurationOpt.ifPresent(tc ->
+                            projectDependency.setTargetConfiguration(copiedConf.getName()));
+
                     resolveDependentPublications(projectDep, copiedConf.getDependencies(), copiedConfigurationsCache);
                 });
+    }
+
+    @NotNull
+    private static String deriveTargetConfigurationViaAttributes(
+            Project currentProject, ProjectDependency projectDependency) {
+        Project projectDep = projectDependency.getDependencyProject();
+        AttributesSchemaInternal thisSchema = (AttributesSchemaInternal) currentProject
+                .getDependencies()
+                .getAttributesSchema();
+        AttributesSchemaInternal depSchema = (AttributesSchemaInternal) projectDep
+                .getDependencies()
+                .getAttributesSchema();
+        AttributeMatcher matcher = thisSchema.withProducer(depSchema);
+        AttributeContainerInternal requestedAttributes =
+                (AttributeContainerInternal) projectDependency.getAttributes();
+
+        NamedDomainObjectSet<Configuration> eligibleConfigurations = projectDep
+                .getConfigurations()
+                .matching(conf -> conf.isCanBeConsumed() && !conf.getAttributes().isEmpty());
+        List<Configuration> matchingConfigurations = matcher.matches(eligibleConfigurations, requestedAttributes);
+
+        return Iterables.getOnlyElement(matchingConfigurations).getName();
     }
 
     private static boolean haveSameGroupAndName(Project project, Project subproject) {
