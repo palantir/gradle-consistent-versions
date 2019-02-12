@@ -76,8 +76,10 @@ import org.gradle.api.artifacts.result.ResolutionResult;
 import org.gradle.api.artifacts.result.ResolvedComponentResult;
 import org.gradle.api.artifacts.result.UnresolvedDependencyResult;
 import org.gradle.api.attributes.Attribute;
-import org.gradle.api.attributes.AttributeDisambiguationRule;
-import org.gradle.api.attributes.MultipleCandidatesDetails;
+import org.gradle.api.attributes.AttributeCompatibilityRule;
+import org.gradle.api.attributes.AttributeMatchingStrategy;
+import org.gradle.api.attributes.AttributesSchema;
+import org.gradle.api.attributes.CompatibilityCheckDetails;
 import org.gradle.api.attributes.Usage;
 import org.gradle.api.internal.attributes.AttributeContainerInternal;
 import org.gradle.api.internal.attributes.AttributesSchemaInternal;
@@ -85,6 +87,7 @@ import org.gradle.api.invocation.Gradle;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 import org.gradle.api.logging.configuration.ShowStacktrace;
+import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.internal.component.model.AttributeMatcher;
 import org.jetbrains.annotations.NotNull;
@@ -105,13 +108,14 @@ public class VersionsLockPlugin implements Plugin<Project> {
     private static final String LOCK_CONSTRAINTS_CONFIGURATION_NAME = "lockConstraints";
     private static final Attribute<Boolean> CONSISTENT_VERSIONS_CONSTRAINT_ATTRIBUTE =
             Attribute.of("consistent-versions", Boolean.class);
-    private static final String CONSISTENT_VERSIONS_USAGE_NAME = "consistentVersionsUsage";
     /**
      * Copied from {@link org.gradle.api.internal.artifacts.dsl.dependencies.PlatformSupport#COMPONENT_CATEGORY} since
      * that's internal.
      */
     private static final Attribute<String> COMPONENT_CATEGORY =
             Attribute.of("org.gradle.component.category", String.class);
+    private static final String COMPILE_CLASSPATH_USAGE = "compile-classpath-for-consistent-versions";
+    private final Usage compileClasspathUsage;
 
     public enum MyUsage implements Named {
         MAIN,
@@ -130,7 +134,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
     private final ShowStacktrace showStacktrace;
 
     @Inject
-    public VersionsLockPlugin(Gradle gradle) {
+    public VersionsLockPlugin(ObjectFactory objectFactory, Gradle gradle) {
+        compileClasspathUsage = objectFactory.named(Usage.class, COMPILE_CLASSPATH_USAGE);
         showStacktrace = gradle.getStartParameter().getShowStacktrace();
     }
 
@@ -159,11 +164,11 @@ public class VersionsLockPlugin implements Plugin<Project> {
                     conf.getAttributes().attribute(MY_USAGE_ATTRIBUTE, consistentVersionsUsage);
                 });
 
-//        project.allprojects(p -> {
-//            AttributesSchema attributesSchema = p.getDependencies().getAttributesSchema();
-//            AttributeMatchingStrategy<MyUsage> matchingStrategy = attributesSchema.attribute(MY_USAGE_ATTRIBUTE);
-//            matchingStrategy.getDisambiguationRules().add(ConsistentVersionsDisambiguationRules.class);
-//        });
+        project.allprojects(p -> {
+            AttributesSchema attributesSchema = p.getDependencies().getAttributesSchema();
+            AttributeMatchingStrategy<Usage> matchingStrategy = attributesSchema.attribute(Usage.USAGE_ATTRIBUTE);
+            matchingStrategy.getCompatibilityRules().add(ConsistentVersionsCompatibilityRules.class);
+        });
 
         project.allprojects(subproject -> {
             sourceDependenciesFromProject(project, unifiedClasspath, subproject);
@@ -274,7 +279,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
         }
     }
 
-    private static void sourceDependenciesFromProject(
+    private void sourceDependenciesFromProject(
             Project rootProject, Configuration unifiedClasspath, Project project) {
         // Parallel 'resolveConfigurations' sometimes breaks unless we force the root one to run first.
         if (rootProject != project) {
@@ -292,16 +297,20 @@ public class VersionsLockPlugin implements Plugin<Project> {
         addDependency(unifiedClasspath, project, SUBPROJECT_UNIFIED_CONFIGURATION_NAME);
 
         project.getPluginManager().withPlugin("java", plugin -> {
+            // Create a configuration that will collect the java-api and compile only dependencies (as java-api)
+            project.getConfigurations().register("compileClasspathForLock", conf -> {
+                conf.setDescription("Outgoing configuration for the API component of compile time dependencies");
+                conf.setCanBeConsumed(true);
+                conf.setCanBeResolved(false);
+                conf.extendsFrom(project
+                        .getConfigurations()
+                        .getByName(JavaPlugin.COMPILE_CLASSPATH_CONFIGURATION_NAME));
+                conf.attributes(attr -> attr.attribute(Usage.USAGE_ATTRIBUTE, compileClasspathUsage));
+            });
+
             project.getConfigurations().named(SUBPROJECT_UNIFIED_CONFIGURATION_NAME).configure(conf -> {
-//                addDependency(conf, project, JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME);
-//                addDependency(conf, project, JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME);
-//                addDependency(conf, project, JavaPlugin.COMPILE_ONLY_CONFIGURATION_NAME);
-
-//                addDependency(conf, project, JavaPlugin.COMPILE_CLASSPATH_CONFIGURATION_NAME);
-//                addDependency(conf, project, JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME);
-
                 Stream.of(
-                        createProjectDependencyWithUsage(project, Usage.JAVA_API),
+                        createProjectDependencyWithUsage(project, COMPILE_CLASSPATH_USAGE),
                         createProjectDependencyWithUsage(project, Usage.JAVA_RUNTIME))
                         .forEach(conf.getDependencies()::add);
             });
@@ -634,8 +643,9 @@ public class VersionsLockPlugin implements Plugin<Project> {
     static class ConsistentVersionsCompatibilityRules implements AttributeCompatibilityRule<Usage> {
         @Override
         public void execute(CompatibilityCheckDetails<Usage> details) {
-            if (details.getConsumerValue().getName().equals(CONSISTENT_VERSIONS_USAGE_NAME)
-                    && details.getProducerValue().getName().equals(Usage.JAVA_RUNTIME)) {
+            String consumer = details.getConsumerValue().getName();
+            String producer = details.getProducerValue().getName();
+            if (consumer.equals(COMPILE_CLASSPATH_USAGE) && producer.equals(Usage.JAVA_API)) {
                 details.compatible();
             }
         }
