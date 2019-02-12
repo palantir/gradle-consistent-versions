@@ -436,8 +436,6 @@ public class VersionsLockPlugin implements Plugin<Project> {
                     // All dependencies also get this attribute, in order to avoid ambiguity between e.g.
                     // runtimeClasspath and runtimeClasspathCopy -- maybe? TODO
 
-                    copiedConf.getAttributes().attribute(MY_USAGE_ATTRIBUTE, consistentVersionsUsage);
-
                     // Update state about what we've seen
                     copiedConfigurationsCache.put(targetConf, copiedConf.getName());
 
