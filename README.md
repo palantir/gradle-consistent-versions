@@ -12,7 +12,7 @@ Direct dependencies are specified in a top level `versions.props` file and then 
 +        classpath 'com.palantir.gradle.consistentversions:gradle-consistent-versions:<latest>'
      }
 +    repositories {
-+        maven { url "http://palantir.bintray.com/releases" }
++        maven { url "https://dl.bintray.com/palantir/releases" }
 +    }
  }
 
