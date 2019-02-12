@@ -388,17 +388,14 @@ public class VersionsLockPlugin implements Plugin<Project> {
                     ProjectDependency projectDependency = (ProjectDependency) dependency;
                     Project projectDep = projectDependency.getDependencyProject();
                     // This is all a massive hack copied from gradle internals
-                    boolean hasAttributes = !projectDependency.getAttributes().isEmpty();
-                    Optional<String> targetConfigurationOpt = Optional.ofNullable(Optional
+                    // Note that in the context of this function, unless a configuration has been explicitly requrested,
+                    // we *always* resolve via attributes since we triggered the resolution from unifiedClasspath,
+                    // which has attributes
+                    String targetConfiguration = Optional
                             .ofNullable(projectDependency.getTargetConfiguration())
-                            .orElseGet(() -> {
-                                if (hasAttributes) {
-                                    return deriveTargetConfigurationViaAttributes(currentProject, projectDependency);
-                                } else {
-                                    return null;
-                                }
-                            }));
-                    String targetConfiguration = targetConfigurationOpt.orElse(Dependency.DEFAULT_CONFIGURATION);
+                            .orElseGet(() -> deriveTargetConfigurationViaAttributes(currentProject, projectDependency));
+                    log.lifecycle("Found project dependency: {} -> {}. Inferred {} as target configuration.",
+                            currentProject, formatProjectDependency(projectDependency), targetConfiguration);
 
                     // We can depend on other configurations from the same project, so don't introduce a cycle.
                     if (projectDep != currentProject) {
@@ -452,8 +449,9 @@ public class VersionsLockPlugin implements Plugin<Project> {
                     projectDep.getConfigurations().add(copiedConf);
 
                     // Update the target configuration if there was one in the first place.
-                    targetConfigurationOpt.ifPresent(tc ->
-                            projectDependency.setTargetConfiguration(copiedConf.getName()));
+                    if (projectDependency.getTargetConfiguration() != null) {
+                        projectDependency.setTargetConfiguration(copiedConf.getName());
+                    }
 
                     resolveDependentPublications(projectDep, copiedConf.getDependencies(), copiedConfigurationsCache);
                 });
@@ -478,7 +476,26 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 .matching(conf -> conf.isCanBeConsumed() && !conf.getAttributes().isEmpty());
         List<Configuration> matchingConfigurations = matcher.matches(eligibleConfigurations, requestedAttributes);
 
+        Preconditions.checkArgument(matchingConfigurations.size() == 1,
+                "Expecting only one matching configuration for dependency %s -> %s but found: %s",
+                currentProject, formatProjectDependency(projectDependency), matchingConfigurations);
+
         return Iterables.getOnlyElement(matchingConfigurations).getName();
+    }
+
+    private static String formatProjectDependency(ProjectDependency dep) {
+        StringBuilder builder = new StringBuilder();
+        builder.append(dep.getDependencyProject());
+        if (dep.getTargetConfiguration() != null) {
+            builder.append(" (configuration: ");
+            builder.append(dep.getTargetConfiguration());
+            builder.append(")");
+        }
+        if (!dep.getAttributes().isEmpty()) {
+            builder.append(", attributes: ");
+            builder.append(dep.getAttributes().toString());
+        }
+        return builder.toString();
     }
 
     private static boolean haveSameGroupAndName(Project project, Project subproject) {
