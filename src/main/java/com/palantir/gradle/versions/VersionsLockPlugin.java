@@ -729,8 +729,12 @@ public class VersionsLockPlugin implements Plugin<Project> {
         public void execute(CompatibilityCheckDetails<Usage> details) {
             String consumer = details.getConsumerValue().getName();
             String producer = details.getProducerValue().getName();
-            if (consumer.equals(COMPILE_CLASSPATH_USAGE) && producer.equals(Usage.JAVA_API)) {
-                details.compatible();
+            if (consumer.equals(COMPILE_CLASSPATH_USAGE)) {
+                if (producer.equals(Usage.JAVA_API)) {
+                    details.compatible();
+                } else {
+                    details.incompatible();
+                }
             }
         }
     }
