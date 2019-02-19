@@ -19,10 +19,10 @@ package com.palantir.gradle.versions;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.Suppliers;
-import com.google.common.collect.ImmutableList;
+import com.google.common.collect.BiMap;
+import com.google.common.collect.HashBiMap;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.MapDifference;
 import com.google.common.collect.MapDifference.ValueDifference;
 import com.google.common.collect.Maps;
@@ -41,7 +41,6 @@ import java.io.StringWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -58,7 +57,6 @@ import netflix.nebula.dependency.recommender.provider.RecommendationProviderCont
 import org.gradle.api.GradleException;
 import org.gradle.api.Named;
 import org.gradle.api.NamedDomainObjectProvider;
-import org.gradle.api.NamedDomainObjectSet;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
@@ -81,17 +79,12 @@ import org.gradle.api.attributes.AttributeMatchingStrategy;
 import org.gradle.api.attributes.AttributesSchema;
 import org.gradle.api.attributes.CompatibilityCheckDetails;
 import org.gradle.api.attributes.Usage;
-import org.gradle.api.internal.attributes.AttributeContainerInternal;
-import org.gradle.api.internal.attributes.AttributesSchemaInternal;
-import org.gradle.api.internal.attributes.ImmutableAttributes;
-import org.gradle.api.internal.attributes.ImmutableAttributesFactory;
 import org.gradle.api.invocation.Gradle;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 import org.gradle.api.logging.configuration.ShowStacktrace;
 import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.plugins.JavaPlugin;
-import org.gradle.internal.component.model.AttributeMatcher;
 import org.jetbrains.annotations.NotNull;
 
 public class VersionsLockPlugin implements Plugin<Project> {
@@ -125,8 +118,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
     private final Usage consistentVersionsInternalUsage;
 
     public enum MyUsage implements Named {
-        MAIN,
-        ORIGINAL; // for disambiguation
+        COPIED,
+        ORIGINAL;
 
         @Override
         public String getName() {
@@ -137,18 +130,13 @@ public class VersionsLockPlugin implements Plugin<Project> {
     private static final Attribute<MyUsage> MY_USAGE_ATTRIBUTE =
             Attribute.of("com.palantir.consistent-versions.usage", MyUsage.class);
 
-    private final MyUsage consistentVersionsUsage = MyUsage.MAIN;
     private final ShowStacktrace showStacktrace;
-    private final ImmutableAttributesFactory attributesFactory;
 
     @Inject
-    // TODO(dsanduleac): move attributesFactory into separately instantiated object that shields from class errors
-    public VersionsLockPlugin(ObjectFactory objectFactory, Gradle gradle,
-            ImmutableAttributesFactory attributesFactory) {
+    public VersionsLockPlugin(ObjectFactory objectFactory, Gradle gradle) {
         compileClasspathUsage = objectFactory.named(Usage.class, COMPILE_CLASSPATH_USAGE);
         consistentVersionsInternalUsage = objectFactory.named(Usage.class, "consistent-versions-internal");
         showStacktrace = gradle.getStartParameter().getShowStacktrace();
-        this.attributesFactory = attributesFactory;
     }
 
     @NotNull
@@ -172,8 +160,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 .create(UNIFIED_CLASSPATH_CONFIGURATION_NAME, conf -> {
                     conf.setVisible(false).setCanBeConsumed(false);
                     // Mark it as accepting dependencies with our own usage
-//                    conf.getAttributes().attribute(Usage.USAGE_ATTRIBUTE, consistentVersionsUsage);
-                    conf.getAttributes().attribute(MY_USAGE_ATTRIBUTE, consistentVersionsUsage);
+                    conf.getAttributes().attribute(MY_USAGE_ATTRIBUTE, MyUsage.COPIED);
                 });
 
         project.allprojects(p -> {
@@ -214,15 +201,14 @@ public class VersionsLockPlugin implements Plugin<Project> {
             // ensure that unifiedClasspath does not directly depend on subproject configurations that we intend to
             // enforce constraints on.
 
-            // Recursively copy all project configurations that are depended on.
+            // from old -> new
+            BiMap<Configuration, Configuration> copiedConfigurationsCache = HashBiMap.create();
+            project.allprojects(subproject -> copyConfigurations(subproject, copiedConfigurationsCache));
+
+            // Recursively change all project dependencies to depend on the copied configuration.
             unifiedClasspath.withDependencies(depSet -> {
-                Map<Configuration, String> copiedConfigurationsCache = new HashMap<>();
                 resolveDependentPublications(
-                        project,
-                        depSet,
-                        unifiedClasspath,
-                        attributesFactory.mutable(),
-                        copiedConfigurationsCache);
+                        project, depSet, copiedConfigurationsCache);
             });
 
             // Must wire up the constraint configuration to right AFTER rootProject has written theirs
@@ -270,6 +256,51 @@ public class VersionsLockPlugin implements Plugin<Project> {
         }
     }
 
+    private void copyConfigurations(Project project, BiMap<Configuration, Configuration> copiedConfigurationsCache) {
+        project.getConfigurations().configureEach(conf -> {
+            if (UNIFIED_CLASSPATH_CONFIGURATION_NAME.equals(conf.getName())) {
+                return;
+            }
+            // this is an already copied configuration, don't do anything
+            if (copiedConfigurationsCache.inverse().containsKey(conf)) {
+                return;
+            }
+            conf.getAttributes().attribute(MY_USAGE_ATTRIBUTE, MyUsage.ORIGINAL);
+
+            Configuration copiedConf = conf.copy();
+            copiedConf.setDescription(String.format("Copy of the '%s' configuration that can be resolved by "
+                            + "com.palantir.consistent-versions without resolving the '%s' configuration "
+                            + "itself.",
+                    conf.getName(), conf.getName()));
+            // Mark it so that it tells consumers it exports our own usage
+            copiedConf.getAttributes().attribute(MY_USAGE_ATTRIBUTE, MyUsage.COPIED);
+
+            project.afterEvaluate(p -> {
+                copiedConf.setExtendsFrom(conf
+                        .getExtendsFrom()
+                        .stream()
+                        .map(extended -> extended.getName() + "Copy")
+                        .map(project.getConfigurations()::getByName)
+                        .collect(Collectors.toList()));
+
+                copiedConf.getOutgoing().capability(String.format(
+                        "%s:%s-consistent-versions-%s:%s",
+                        project.getGroup(),
+                        project.getName(),
+                        conf.getName(),
+                        project.getVersion()));
+            });
+
+            copiedConfigurationsCache.put(conf, copiedConf);
+
+            try {
+                project.getConfigurations().add(copiedConf);
+            } catch (Exception e) {
+                throw new RuntimeException("Caught exception trying to add " + copiedConf + " to " + project, e);
+            }
+        });
+    }
+
     private static void ensureLockStateIsUpToDate(LockState currentLockState, LockState persistedLockState) {
         MapDifference<MyModuleIdentifier, Line> difference = Maps.difference(
                 persistedLockState.linesByModuleIdentifier(), currentLockState.linesByModuleIdentifier());
@@ -311,7 +342,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
             conf.getAttributes().attribute(VersionsPropsPlugin.CONFIGURATION_EXCLUDE_ATTRIBUTE, true);
 
             // Mark it so that unifiedClasspath picks it up
-//            conf.getAttributes().attribute(MY_USAGE_ATTRIBUTE, MyUsage.MAIN);
+//            conf.getAttributes().attribute(MY_USAGE_ATTRIBUTE, MyUsage.COPIED);
             // TODO: in this route, we should give it a common Usage too
 
             conf.getAttributes().attribute(Usage.USAGE_ATTRIBUTE, consistentVersionsInternalUsage);
@@ -410,13 +441,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
     private void resolveDependentPublications(
             Project currentProject,
             DependencySet dependencySet,
-            Configuration configuration,
-            AttributeContainerInternal incomingRequestedAttributes,
-            Map<Configuration, String> copiedConfigurationsCache) {
-
-        ImmutableAttributes requestedAttributesForConfiguration = attributesFactory.concat(
-                incomingRequestedAttributes.asImmutable(),
-                ((AttributeContainerInternal) configuration.getAttributes()).asImmutable());
+            Map<Configuration, Configuration> configurationMap) {
 
         dependencySet
                 .matching(dependency -> ProjectDependency.class.isAssignableFrom(dependency.getClass()))
@@ -424,25 +449,16 @@ public class VersionsLockPlugin implements Plugin<Project> {
                     ProjectDependency projectDependency = (ProjectDependency) dependency;
                     Project projectDep = projectDependency.getDependencyProject();
 
-                    AttributeContainerInternal requestedAttributesForDependency =
-                            mergeAttributesFromDependency(requestedAttributesForConfiguration, projectDependency);
+                    String targetConfiguration = projectDependency.getTargetConfiguration();
+                    if (targetConfiguration == null) {
+                        // Not handling variant-based selection in this code path
+                        return;
+                    }
 
                     log.lifecycle(
-                            "Resolving project dependency: {} -> {}, given request attributes: {}",
+                            "Found project dependency: {} -> {}",
                             currentProject,
-                            formatProjectDependency(projectDependency),
-                            requestedAttributesForDependency);
-
-                    // This is all a massive hack copied from gradle internals
-                    // Note that in the context of this function, unless a configuration has been explicitly requested,
-                    // we *always* resolve via attributes since we triggered the resolution from unifiedClasspath,
-                    // which has attributes
-                    String targetConfiguration = Optional
-                            .ofNullable(projectDependency.getTargetConfiguration())
-                            .orElseGet(() -> deriveTargetConfigurationViaAttributes(
-                                    currentProject, requestedAttributesForDependency, projectDependency));
-                    log.lifecycle("Found project dependency: {} -> {}. Inferred {} as target configuration.",
-                            currentProject, formatProjectDependency(projectDependency), targetConfiguration);
+                            formatProjectDependency(projectDependency));
 
                     // We can depend on other configurations from the same project, so don't introduce a cycle.
                     if (projectDep != currentProject) {
@@ -455,101 +471,13 @@ public class VersionsLockPlugin implements Plugin<Project> {
                             currentProject,
                             projectDep);
 
-                    if (targetConf.getAttributes().contains(MY_USAGE_ATTRIBUTE)) {
-                        // it must have already been copied, nothing to see here.
-                        return;
-                    }
+                    Configuration copiedConf = Preconditions.checkNotNull(configurationMap.get(targetConf),
+                            "TODO");
 
-                    if (copiedConfigurationsCache.containsKey(targetConf)) {
-                        String copiedConf = copiedConfigurationsCache.get(targetConf);
-                        log.debug("Re-using already copied target configuration for dep {} -> {}: {}",
-                                currentProject, targetConf, copiedConf);
-                        // Update the target configuration if there was one in the first place.
-                        // Don't actually need to update otherwise, as the attribute rules will find it
-                        if (projectDependency.getTargetConfiguration() != null) {
-                            projectDependency.setTargetConfiguration(copiedConf);
-                        }
-                        return;
-                    }
+                    projectDependency.setTargetConfiguration(copiedConf.getName());
 
-                    Configuration copiedConf = targetConf.copyRecursive();
-                    // Necessary so we can depend on it when aggregating dependencies.
-//                    copiedConf.setCanBeConsumed(true);
-//                    copiedConf.setCanBeResolved(false);
-                    copiedConf.setDescription(String.format("Copy of the '%s' configuration that can be resolved by "
-                                    + "com.palantir.consistent-versions without resolving the '%s' configuration "
-                                    + "itself.",
-                            targetConf.getName(), targetConf.getName()));
-                    // Mark it so that it tells consumers it exports our own usage
-                    copiedConf.getAttributes().attribute(MY_USAGE_ATTRIBUTE, consistentVersionsUsage);
-
-                    // Mark ORIGINAL configuration with MY_USAGE_ATTRIBUTE of ORIGINAL to disambiguate
-                    targetConf.attributes(attr -> attr.attribute(MY_USAGE_ATTRIBUTE, MyUsage.ORIGINAL));
-
-                    // Update state about what we've seen
-                    copiedConfigurationsCache.put(targetConf, copiedConf.getName());
-
-                    if (log.isInfoEnabled()) {
-                        log.info(
-                                "Recursively copied {}'s '{}' configuration, which has\n"
-                                        + " - dependencies: {}\n"
-                                        + " - constraints: {}",
-                                projectDep, targetConfiguration,
-                                ImmutableList.copyOf(copiedConf.getAllDependencies()),
-                                ImmutableList.copyOf(copiedConf.getAllDependencyConstraints()));
-                    }
-
-                    projectDep.getConfigurations().add(copiedConf);
-
-                    // Update the target configuration if there was one in the first place.
-                    if (projectDependency.getTargetConfiguration() != null) {
-                        projectDependency.setTargetConfiguration(copiedConf.getName());
-                    }
-
-                    resolveDependentPublications(
-                            projectDep,
-                            copiedConf.getDependencies(),
-                            copiedConf,
-                            requestedAttributesForDependency,
-                            copiedConfigurationsCache);
+                    resolveDependentPublications(projectDep, copiedConf.getDependencies(), configurationMap);
                 });
-    }
-
-    /**
-     * Figure out what target configuration matches the requested attributes.
-     * @param requestedAttributes must already include the attributes from the dependency itself
-     */
-    @NotNull
-    private String deriveTargetConfigurationViaAttributes(
-            Project currentProject,
-            AttributeContainerInternal requestedAttributes,
-            ProjectDependency projectDependency) {
-        Project projectDep = projectDependency.getDependencyProject();
-        AttributesSchemaInternal thisSchema = (AttributesSchemaInternal) currentProject
-                .getDependencies()
-                .getAttributesSchema();
-        AttributesSchemaInternal depSchema = (AttributesSchemaInternal) projectDep
-                .getDependencies()
-                .getAttributesSchema();
-        AttributeMatcher matcher = thisSchema.withProducer(depSchema);
-
-        NamedDomainObjectSet<Configuration> eligibleConfigurations = projectDep
-                .getConfigurations()
-                .matching(conf -> conf.isCanBeConsumed() && !conf.getAttributes().isEmpty());
-        List<Configuration> matchingConfigurations = matcher.matches(eligibleConfigurations, requestedAttributes);
-
-        Preconditions.checkArgument(matchingConfigurations.size() == 1,
-                "Expecting only one matching configuration for dependency %s -> %s but found: %s",
-                currentProject, formatProjectDependency(projectDependency), matchingConfigurations);
-
-        return Iterables.getOnlyElement(matchingConfigurations).getName();
-    }
-
-    private AttributeContainerInternal mergeAttributesFromDependency(
-            AttributeContainerInternal attributesSoFar, ProjectDependency projectDependency) {
-        return attributesFactory.concat(
-                    attributesSoFar.asImmutable(),
-                    ((AttributeContainerInternal) projectDependency.getAttributes()).asImmutable());
     }
 
     private static String formatProjectDependency(ProjectDependency dep) {
