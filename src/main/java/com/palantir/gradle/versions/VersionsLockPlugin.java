@@ -244,20 +244,24 @@ public class VersionsLockPlugin implements Plugin<Project> {
                     ResolveConfigurationsTask.class, task -> task.mustRunAfter(":resolveConfigurations"));
         }
 
+        NamedDomainObjectProvider<Configuration> subprojectUnifiedClasspath =
+                project.getConfigurations().register(SUBPROJECT_UNIFIED_CONFIGURATION_NAME, conf -> {
+                    conf.setVisible(false).setCanBeResolved(false);
+                    // Mark it so it doesn't receive constraints from VersionsPropsPlugin
+                    conf.getAttributes().attribute(VersionsPropsPlugin.CONFIGURATION_EXCLUDE_ATTRIBUTE, true);
+                });
+        // Depend on this "sink" configuration from our global aggregating configuration `unifiedClasspath`.
+        Dependency projectDep = rootProject.getDependencies().project(ImmutableMap.of(
+                "path", project.getPath(),
+                "configuration", SUBPROJECT_UNIFIED_CONFIGURATION_NAME));
+        unifiedClasspath.getDependencies().add(projectDep);
+
         // Since we apply the forces to compileClasspath, runtimeClasspath, we should at least check what
         // dependencies they have.
         project.getPluginManager().withPlugin("base", plugin -> {
-            project.getConfigurations().register(SUBPROJECT_UNIFIED_CONFIGURATION_NAME, conf -> {
-                conf.setVisible(false).setCanBeResolved(false);
+            subprojectUnifiedClasspath.configure(conf -> {
                 conf.extendsFrom(project.getConfigurations().getByName(Dependency.DEFAULT_CONFIGURATION));
-                // Mark it so it doesn't receive constraints from VersionsPropsPlugin
-                conf.getAttributes().attribute(VersionsPropsPlugin.CONFIGURATION_EXCLUDE_ATTRIBUTE, true);
             });
-            // Depend on this "sink" configuration from our global aggregating configuration `unifiedClasspath`.
-            Dependency projectDep = rootProject.getDependencies().project(ImmutableMap.of(
-                            "path", project.getPath(),
-                            "configuration", SUBPROJECT_UNIFIED_CONFIGURATION_NAME));
-            unifiedClasspath.getDependencies().add(projectDep);
         });
         project.getPluginManager().withPlugin("java", plugin -> {
             project.getConfigurations().named(SUBPROJECT_UNIFIED_CONFIGURATION_NAME).configure(conf -> {
