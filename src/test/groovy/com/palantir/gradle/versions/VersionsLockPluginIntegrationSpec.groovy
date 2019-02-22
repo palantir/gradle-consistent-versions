@@ -369,4 +369,30 @@ class VersionsLockPluginIntegrationSpec extends IntegrationTestKitSpec {
         result.output.contains('org.slf4j:slf4j-api:1.7.25')
         result.output.contains('ch.qos.logback:logback-classic -> 1.7.25')
     }
+
+    def 'does not fail if subproject evaluated later applies base plugin in own build file'() {
+        buildFile << """
+            allprojects {             
+                repositories { jcenter() } 
+            }
+        """.stripIndent()
+
+        addSubproject('foo', """
+            apply plugin: 'java-library'
+            dependencies {
+                implementation project(':foo:bar')
+            }
+        """.stripIndent())
+
+        // Need to make sure bar is evaluated after foo, so we're nesting it!
+        def subdir = new File(projectDir, 'foo/bar')
+        subdir.mkdirs()
+        settingsFile << "include ':foo:bar'"
+        new File(subdir, 'build.gradle') << """
+            apply plugin: 'java-library'
+        """.stripIndent()
+
+        expect:
+        runTasks('--write-locks')
+    }
 }

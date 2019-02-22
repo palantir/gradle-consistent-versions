@@ -17,6 +17,7 @@
 package com.palantir.gradle.versions;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Splitter;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -24,6 +25,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.MapDifference;
 import com.google.common.collect.MapDifference.ValueDifference;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Streams;
 import com.palantir.configurationresolver.ConfigurationResolverPlugin;
 import com.palantir.configurationresolver.ResolveConfigurationsTask;
 import com.palantir.gradle.versions.internal.MyModuleIdentifier;
@@ -33,6 +35,8 @@ import com.palantir.gradle.versions.lockstate.FullLockState;
 import com.palantir.gradle.versions.lockstate.Line;
 import com.palantir.gradle.versions.lockstate.LockState;
 import com.palantir.gradle.versions.lockstate.LockStates;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
@@ -47,6 +51,7 @@ import java.util.TreeSet;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import javax.inject.Inject;
 import netflix.nebula.dependency.recommender.RecommendationStrategies;
 import netflix.nebula.dependency.recommender.provider.RecommendationProviderContainer;
 import org.gradle.api.GradleException;
@@ -68,8 +73,10 @@ import org.gradle.api.artifacts.result.ResolutionResult;
 import org.gradle.api.artifacts.result.ResolvedComponentResult;
 import org.gradle.api.artifacts.result.UnresolvedDependencyResult;
 import org.gradle.api.attributes.Attribute;
+import org.gradle.api.invocation.Gradle;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
+import org.gradle.api.logging.configuration.ShowStacktrace;
 import org.gradle.api.plugins.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 
@@ -89,6 +96,13 @@ public class VersionsLockPlugin implements Plugin<Project> {
     private static final String LOCK_CONSTRAINTS_CONFIGURATION_NAME = "lockConstraints";
     private static final Attribute<Boolean> CONSISTENT_VERSIONS_CONSTRAINT_ATTRIBUTE =
             Attribute.of("consistent-versions", Boolean.class);
+
+    private final ShowStacktrace showStacktrace;
+
+    @Inject
+    public VersionsLockPlugin(Gradle gradle) {
+        showStacktrace = gradle.getStartParameter().getShowStacktrace();
+    }
 
     @NotNull
     static Path getRootLockFile(Project project) {
@@ -233,20 +247,24 @@ public class VersionsLockPlugin implements Plugin<Project> {
                     ResolveConfigurationsTask.class, task -> task.mustRunAfter(":resolveConfigurations"));
         }
 
+        NamedDomainObjectProvider<Configuration> subprojectUnifiedClasspath =
+                project.getConfigurations().register(SUBPROJECT_UNIFIED_CONFIGURATION_NAME, conf -> {
+                    conf.setVisible(false).setCanBeResolved(false);
+                    // Mark it so it doesn't receive constraints from VersionsPropsPlugin
+                    conf.getAttributes().attribute(VersionsPropsPlugin.CONFIGURATION_EXCLUDE_ATTRIBUTE, true);
+                });
+        // Depend on this "sink" configuration from our global aggregating configuration `unifiedClasspath`.
+        Dependency projectDep = rootProject.getDependencies().project(ImmutableMap.of(
+                "path", project.getPath(),
+                "configuration", SUBPROJECT_UNIFIED_CONFIGURATION_NAME));
+        unifiedClasspath.getDependencies().add(projectDep);
+
         // Since we apply the forces to compileClasspath, runtimeClasspath, we should at least check what
         // dependencies they have.
         project.getPluginManager().withPlugin("base", plugin -> {
-            project.getConfigurations().register(SUBPROJECT_UNIFIED_CONFIGURATION_NAME, conf -> {
-                conf.setVisible(false).setCanBeResolved(false);
+            subprojectUnifiedClasspath.configure(conf -> {
                 conf.extendsFrom(project.getConfigurations().getByName(Dependency.DEFAULT_CONFIGURATION));
-                // Mark it so it doesn't receive constraints from VersionsPropsPlugin
-                conf.getAttributes().attribute(VersionsPropsPlugin.CONFIGURATION_EXCLUDE_ATTRIBUTE, true);
             });
-            // Depend on this "sink" configuration from our global aggregating configuration `unifiedClasspath`.
-            Dependency projectDep = rootProject.getDependencies().project(ImmutableMap.of(
-                            "path", project.getPath(),
-                            "configuration", SUBPROJECT_UNIFIED_CONFIGURATION_NAME));
-            unifiedClasspath.getDependencies().add(projectDep);
         });
         project.getPluginManager().withPlugin("java", plugin -> {
             project.getConfigurations().named(SUBPROJECT_UNIFIED_CONFIGURATION_NAME).configure(conf -> {
@@ -304,7 +322,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
      * lazy, so recursive calls don't actually execute right away, but are executed when those configurations are
      * evaluated.
      */
-    private static void resolveDependentPublications(
+    private void resolveDependentPublications(
             Project currentProject, DependencySet dependencySet, Map<Configuration, String> copiedConfigurationsCache) {
         dependencySet
                 .matching(dependency -> ProjectDependency.class.isAssignableFrom(dependency.getClass()))
@@ -365,7 +383,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 && project.getGroup().equals(subproject.getGroup());
     }
 
-    private static void failIfAnyDependenciesUnresolved(ResolvableDependencies resolvableDependencies) {
+    private void failIfAnyDependenciesUnresolved(ResolvableDependencies resolvableDependencies) {
         List<UnresolvedDependencyResult> unresolved = resolvableDependencies
                 .getResolutionResult()
                 .getAllDependencies()
@@ -379,7 +397,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
                     UNIFIED_CLASSPATH_CONFIGURATION_NAME,
                     unresolved
                             .stream()
-                            .map(VersionsLockPlugin::formatUnresolvedDependencyResult)
+                            .map(this::formatUnresolvedDependencyResult)
                             .collect(Collectors.joining("\n"))));
         }
     }
@@ -435,11 +453,20 @@ public class VersionsLockPlugin implements Plugin<Project> {
      * {@link org.gradle.api.tasks.diagnostics.internal.insight.DependencyInsightReporter#collectErrorMessages}
      * does, since that whole class is not public API.
      */
-    private static String formatUnresolvedDependencyResult(UnresolvedDependencyResult result) {
+    private String formatUnresolvedDependencyResult(UnresolvedDependencyResult result) {
         StringBuilder failures = new StringBuilder();
         for (Throwable failure = result.getFailure(); failure != null; failure = failure.getCause()) {
             failures.append("         - ");
             failures.append(failure.getMessage());
+            if (showStacktrace == ShowStacktrace.ALWAYS_FULL) {
+                failures.append("\n");
+                StringWriter out = new StringWriter();
+                failure.printStackTrace(new PrintWriter(out));
+                Streams
+                        .stream(Splitter.on('\n').split(out.getBuffer()))
+                        .map(line -> "           " + line + "\n")
+                        .forEachOrdered(failures::append);
+            }
             failures.append("\n");
         }
         return String.format(" * %s (requested: '%s' because: %s)\n      Failures:\n%s",
