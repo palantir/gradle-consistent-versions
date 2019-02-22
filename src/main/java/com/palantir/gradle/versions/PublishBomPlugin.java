@@ -17,6 +17,7 @@
 package com.palantir.gradle.versions;
 
 import org.gradle.api.GradleException;
+import org.gradle.api.Incubating;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.logging.Logger;
@@ -32,6 +33,7 @@ import org.gradle.util.GradleVersion;
  * Sets up a {@code bom} publication that publishes constraints for _all_ dependencies found in the lock file that is
  * managed by {@link VersionsLockPlugin}.
  */
+@Incubating
 public class PublishBomPlugin implements Plugin<Project> {
     private static final Logger log = Logging.getLogger(PublishBomPlugin.class);
     private static final GradleVersion MINIMUM_GRADLE_VERSION = GradleVersion.version("5.2");
