@@ -21,6 +21,7 @@ import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
+import org.gradle.api.plugins.JavaBasePlugin;
 import org.gradle.api.plugins.JavaPlatformPlugin;
 import org.gradle.api.publish.PublishingExtension;
 import org.gradle.api.publish.maven.MavenPublication;
@@ -41,9 +42,8 @@ public class PublishBomPlugin implements Plugin<Project> {
 
     @Override
     public final void apply(Project project) {
-        if (GradleVersion.current().compareTo(MINIMUM_GRADLE_VERSION) < 0) {
-            throw new GradleException("The publish-bom plugin requires at least gradle " + MINIMUM_GRADLE_VERSION);
-        }
+        checkPreconditions(project);
+
         project.getPluginManager().apply(MavenPublishPlugin.class);
         project.getPluginManager().apply(JavaPlatformPlugin.class);
 
@@ -79,5 +79,26 @@ public class PublishBomPlugin implements Plugin<Project> {
         ourPublishingExtension.getPublications().register("bom", MavenPublication.class, publication -> {
             publication.from(project.getComponents().getByName(JAVA_PLATFORM_COMPONENT));
         });
+    }
+
+    private static void checkPreconditions(Project project) {
+        if (GradleVersion.current().compareTo(MINIMUM_GRADLE_VERSION) < 0) {
+            throw new GradleException("The publish-bom plugin requires at least gradle " + MINIMUM_GRADLE_VERSION);
+        }
+
+        // JavaPlatformPlugin is incompatible with JavaBasePlugin
+        if (project.getPlugins().hasPlugin(JavaBasePlugin.class)) {
+            failBecauseJavaPluginApplied(project);
+        }
+
+        project
+                .getPlugins()
+                .withType(JavaBasePlugin.class)
+                .configureEach(plugin -> failBecauseJavaPluginApplied(project));
+    }
+
+    private static void failBecauseJavaPluginApplied(Project project) {
+        throw new GradleException("Cannot apply " + PublishBomPlugin.class + " to project that has the java "
+                + "plugin applied: " + project);
     }
 }
