@@ -79,7 +79,8 @@ public class VersionsPropsPlugin implements Plugin<Project> {
                     subproject.getExtensions().getByType(VersionRecommendationsExtension.class);
 
             subproject.getConfigurations().configureEach(conf ->
-                    setupConfiguration(subproject, extension, rootConfiguration, versionsProps.get(), conf));
+                    subproject.afterEvaluate(p ->
+                            setupConfiguration(p, extension, rootConfiguration, versionsProps.get(), conf)));
 
             // Note: don't add constraints to this, only call `create` / `platform` on it.
             DependencyConstraintHandler constraintHandler = project.getDependencies().getConstraints();
