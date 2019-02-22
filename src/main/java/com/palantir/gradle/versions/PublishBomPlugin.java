@@ -16,6 +16,7 @@
 
 package com.palantir.gradle.versions;
 
+import com.google.common.collect.ImmutableList;
 import org.gradle.api.GradleException;
 import org.gradle.api.Incubating;
 import org.gradle.api.Plugin;
@@ -42,6 +43,15 @@ public class PublishBomPlugin implements Plugin<Project> {
     private static final String PUBLISH_BOM_PLUGIN = "com.palantir.publish-bom";
     private static final String VERSIONS_PROPS_PLUGIN = "com.palantir.versions-props";
 
+    private static final ImmutableList<String> JAVA_PLATFORM_CONFIGURATIONS = ImmutableList.of(
+            JavaPlatformPlugin.API_CONFIGURATION_NAME,
+            JavaPlatformPlugin.API_ELEMENTS_CONFIGURATION_NAME,
+            JavaPlatformPlugin.ENFORCED_API_ELEMENTS_CONFIGURATION_NAME,
+            JavaPlatformPlugin.RUNTIME_CONFIGURATION_NAME,
+            JavaPlatformPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME,
+            JavaPlatformPlugin.ENFORCED_RUNTIME_ELEMENTS_CONFIGURATION_NAME,
+            JavaPlatformPlugin.CLASSPATH_CONFIGURATION_NAME);
+
     @Override
     public final void apply(Project project) {
         checkPreconditions(project);
@@ -57,17 +67,10 @@ public class PublishBomPlugin implements Plugin<Project> {
         // If versions-props is applied, make it so that it doesn't apply its recommendations to any of the
         // javaPlatform's configurations.
         project.getRootProject().getPluginManager().withPlugin(VERSIONS_PROPS_PLUGIN, plugin -> {
-            VersionRecommendationsExtension extension =
-                    project.getExtensions().getByType(VersionRecommendationsExtension.class);
-            extension.excludeConfigurations(
-                    JavaPlatformPlugin.API_CONFIGURATION_NAME,
-                    JavaPlatformPlugin.API_ELEMENTS_CONFIGURATION_NAME,
-                    JavaPlatformPlugin.ENFORCED_API_ELEMENTS_CONFIGURATION_NAME,
-                    JavaPlatformPlugin.RUNTIME_CONFIGURATION_NAME,
-                    JavaPlatformPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME,
-                    JavaPlatformPlugin.ENFORCED_RUNTIME_ELEMENTS_CONFIGURATION_NAME,
-                    JavaPlatformPlugin.CLASSPATH_CONFIGURATION_NAME
-            );
+            JAVA_PLATFORM_CONFIGURATIONS.forEach(name -> project.getConfigurations().named(name).configure(conf -> {
+                // Mark it so it doesn't receive constraints from VersionsPropsPlugin
+                conf.getAttributes().attribute(VersionsPropsPlugin.CONFIGURATION_EXCLUDE_ATTRIBUTE, true);
+            }));
         });
 
         project.getGradle().projectsEvaluated(gradle -> {

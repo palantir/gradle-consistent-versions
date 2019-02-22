@@ -499,7 +499,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
                     conf.setVisible(false);
                     conf.setCanBeConsumed(false);
                     conf.setCanBeResolved(false);
-                    // Don't want to pick up versions.props constraints in this one
+                    // Mark it so it doesn't receive constraints from VersionsPropsPlugin
                     conf.getAttributes().attribute(VersionsPropsPlugin.CONFIGURATION_EXCLUDE_ATTRIBUTE, true);
                 });
 
