@@ -33,7 +33,7 @@ import org.gradle.util.GradleVersion;
  */
 public class PublishBomPlugin implements Plugin<Project> {
     private static final Logger log = Logging.getLogger(PublishBomPlugin.class);
-    private static final GradleVersion MINIMUM_GRADLE_VERSION = GradleVersion.version("5.2-20190124021344+0000");
+    private static final GradleVersion MINIMUM_GRADLE_VERSION = GradleVersion.version("5.2");
     private static final String JAVA_PLATFORM_COMPONENT = "javaPlatform";
     private static final String VERSIONS_LOCK_PLUGIN = "com.palantir.versions-lock";
     private static final String PUBLISH_BOM_PLUGIN = "com.palantir.publish-bom";
