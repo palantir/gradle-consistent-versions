@@ -51,21 +51,13 @@ public class VersionsPropsPlugin implements Plugin<Project> {
     public final void apply(Project project) {
         checkPreconditions(project);
 
-        VersionRecommendationsExtension rootExtension = project.getExtensions()
+        VersionRecommendationsExtension extension = project.getExtensions()
                 .create(VersionRecommendationsExtension.EXTENSION, VersionRecommendationsExtension.class, project);
 
         Optional<VersionsProps> versionsProps = computeVersionsProps(project.file("versions.props").toPath());
         if (!versionsProps.isPresent()) {
             return;
         }
-
-        project.subprojects(subproject -> {
-            subproject.getExtensions().create(
-                    VersionRecommendationsExtension.EXTENSION,
-                    VersionRecommendationsExtension.class,
-                    subproject,
-                    rootExtension);
-        });
 
         project.allprojects(subproject -> {
             NamedDomainObjectProvider<Configuration> rootConfiguration =
@@ -74,9 +66,6 @@ public class VersionsPropsPlugin implements Plugin<Project> {
                         conf.setCanBeConsumed(false);
                         conf.setCanBeResolved(false);
                     });
-
-            VersionRecommendationsExtension extension =
-                    subproject.getExtensions().getByType(VersionRecommendationsExtension.class);
 
             subproject.getConfigurations().configureEach(conf ->
                     subproject.afterEvaluate(p ->
