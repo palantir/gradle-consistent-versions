@@ -499,6 +499,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
                     conf.setVisible(false);
                     conf.setCanBeConsumed(false);
                     conf.setCanBeResolved(false);
+                    // Don't want to pick up versions.props constraints in this one
+                    conf.getAttributes().attribute(VersionsPropsPlugin.CONFIGURATION_EXCLUDE_ATTRIBUTE, true);
                 });
 
         ImmutableSet<String> configurationNames = ImmutableSet.of(
