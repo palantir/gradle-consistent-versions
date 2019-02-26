@@ -286,6 +286,6 @@ Alternatives:
 ```diff
  task copySomething(type: Copy) {
 -    from "$buildDir/foo/bar-${dependencyRecommendations.getRecommendedVersion('group', 'bar')}"
-+    from { "$buildDir/foo/bar-${getVersion('group', 'bar')}" }
++    from { "$buildDir/foo/bar-${getVersion('group:bar')}" }
      ...
 ```
