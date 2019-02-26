@@ -36,12 +36,21 @@ public final class GetVersionPlugin implements Plugin<Project> {
     public void apply(Project project) {
         project.getExtensions().getExtraProperties().set("getVersion", new Closure<String>(project, project) {
 
+            /** Groovy will invoke this method if they just supply one arg, e.g. 'com.google.guava:guava'. */
             public String doCall(Object moduleVersion) {
                 return doCall(moduleVersion, project.getRootProject()
                         .getConfigurations()
                         .getByName(VersionsLockPlugin.UNIFIED_CLASSPATH_CONFIGURATION_NAME));
             }
 
+            /** This matches the signature of nebula's dependencyRecommendations.getRecommendedVersion. */
+            public String doCall(String group, String name) {
+                return getVersion(project, group, name, project.getRootProject()
+                        .getConfigurations()
+                        .getByName(VersionsLockPlugin.UNIFIED_CLASSPATH_CONFIGURATION_NAME));
+            }
+
+            /** Find a version from another configuration, e.g. from the gradle-docker plugin. */
             public String doCall(Object moduleVersion, Configuration configuration) {
                 List<String> strings = Splitter.on(':').splitToList(moduleVersion.toString());
                 Preconditions.checkState(
