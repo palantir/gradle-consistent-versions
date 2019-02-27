@@ -99,8 +99,8 @@ public final class GetVersionPlugin implements Plugin<Project> {
                 .map(ResolvedComponentResult::getModuleVersion)
                 .collect(toList());
         return new GradleException(String.format(
-                "Unable to find '%s:%s' in %s: %s. This may happen if you specify the version in versions.props but do"
-                        + " not have a dependency in the configuration",
+                "Unable to find '%s:%s' in %s. This may happen if you specify the version in versions.props but do not"
+                        + " have a dependency in the configuration. The configuration contained: \n %s",
                 group, name, configuration, actual));
     }
 }
