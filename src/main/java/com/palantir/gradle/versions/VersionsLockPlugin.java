@@ -419,14 +419,6 @@ public class VersionsLockPlugin implements Plugin<Project> {
         if (!(component.getId() instanceof ModuleComponentIdentifier)) {
             return Optional.empty();
         }
-        // Don't lock any platforms, since these are not actual dependencies.
-        if (component
-                .getDependents()
-                .stream()
-                .anyMatch(rdr -> GradleUtils.isPlatform(rdr.getRequested().getAttributes()))) {
-            log.debug("Not locking component because it's a platform: {}", component.getId());
-            return Optional.empty();
-        }
         return Optional.of(Dependents.of(component
                 .getDependents()
                 .stream()
