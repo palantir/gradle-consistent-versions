@@ -96,12 +96,6 @@ public class VersionsLockPlugin implements Plugin<Project> {
     private static final String LOCK_CONSTRAINTS_CONFIGURATION_NAME = "lockConstraints";
     private static final Attribute<Boolean> CONSISTENT_VERSIONS_CONSTRAINT_ATTRIBUTE =
             Attribute.of("consistent-versions", Boolean.class);
-    /**
-     * Copied from {@link org.gradle.api.internal.artifacts.dsl.dependencies.PlatformSupport#COMPONENT_CATEGORY} since
-     * that's internal.
-     */
-    private static final Attribute<String> COMPONENT_CATEGORY =
-            Attribute.of("org.gradle.component.category", String.class);
 
     private final ShowStacktrace showStacktrace;
 
@@ -414,14 +408,6 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
     private static Optional<Dependents> extractDependents(ResolvedComponentResult component) {
         if (!(component.getId() instanceof ModuleComponentIdentifier)) {
-            return Optional.empty();
-        }
-        // Don't lock any platforms, since these are not actual dependencies.
-        if (component.getDependents().stream().anyMatch(rdr -> {
-            String category = rdr.getRequested().getAttributes().getAttribute(COMPONENT_CATEGORY);
-            return category != null && category.contains("platform");
-        })) {
-            log.debug("Not locking component because it's a platform: {}", component.getId());
             return Optional.empty();
         }
         return Optional.of(Dependents.of(component
