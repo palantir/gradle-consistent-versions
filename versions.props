@@ -1,5 +1,5 @@
 com.netflix.nebula:nebula-dependency-recommender = 7.5.1
-com.netflix.nebula:nebula-test = 7.1.7
+com.netflix.nebula:nebula-test = 7.1.8
 com.palantir.configurationresolver:gradle-configuration-resolver-plugin = 0.3.0
 com.google.guava:guava = 23.6.1-jre
 org.immutables:value = 2.7.5
