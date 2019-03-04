@@ -102,8 +102,10 @@ public class PublishBomPlugin implements Plugin<Project> {
                         .stream()
                         .map(dep -> (ExternalDependency) dep)
                         .forEach(platformDep -> {
-                            // Remove platform dep's module from the 'existingConstraints', and add an explicit
-                            // dependency instead. This is so we don't end up with two entries instead of one.
+                            // Remove platformDep's module from the 'existingConstraints', and add an explicit
+                            // dependency instead. This is to work around a gradle bug where the BOM would contain two
+                            // entries instead of one, which is invalid:
+                            // https://github.com/gradle/gradle/issues/8238
                             DependencyConstraint constraint = existingConstraints.remove(platformDep.getModule());
                             ExternalDependency newDep = platformDep.copy();
                             newDep.version(vc -> {
