@@ -91,6 +91,47 @@ class PublishBomPluginIntegrationSpec extends IntegrationTestKitSpec {
         dependencies.collect { convertToMap(it) } as Set == expected
     }
 
+    def "includes bom dependencies from rootConfiguration"() {
+        file('versions.lock') << """\
+            org:a:1.0 (1 constraints: 0000000)
+            org:platform:2.0 (1 constraints: 0000000)
+        """.stripIndent()
+
+        buildFile << """
+            plugins { id 'com.palantir.consistent-versions' }
+            allprojects {
+                dependencies {
+                    rootConfiguration platform("org:platform")
+                }
+            }
+        """.stripIndent()
+
+        file('versions.props') << """\
+            dont:want-this = 1.0
+        """.stripIndent()
+
+        when:
+        runTasks('bom:generatePomFileForBomPublication')
+
+        then:
+        def output = new File('bom/build/publications/bom/pom-default.xml', projectDir)
+        output.exists()
+
+        def slurper = new XmlSlurper()
+        def pom = slurper.parse(output)
+        NodeChildren dependencies = pom.dependencyManagement.dependencies.dependency
+        def expected = [[groupId   : 'org',
+                         artifactId: 'a',
+                         version   : '1.0',
+                         scope     : 'compile',],
+                        [groupId   : 'org',
+                         artifactId: 'platform',
+                         version   : '2.0',
+                         type      : 'pom',
+                         scope     : 'import',]] as Set
+        dependencies.collect { convertToMap(it) } as Set == expected
+    }
+
     /**
      * Recursively converts a node's children to a map of <tt>(tag name): (value inside tag)</tt>.
      * <p>

@@ -16,14 +16,25 @@
 
 package com.palantir.gradle.versions;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import org.gradle.api.GradleException;
 import org.gradle.api.Incubating;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
+import org.gradle.api.artifacts.DependencyConstraint;
+import org.gradle.api.artifacts.DependencyConstraintSet;
+import org.gradle.api.artifacts.ExternalDependency;
+import org.gradle.api.artifacts.ModuleIdentifier;
+import org.gradle.api.artifacts.ModuleVersionSelector;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 import org.gradle.api.plugins.JavaBasePlugin;
+import org.gradle.api.plugins.JavaPlatformExtension;
 import org.gradle.api.plugins.JavaPlatformPlugin;
 import org.gradle.api.publish.PublishingExtension;
 import org.gradle.api.publish.maven.MavenPublication;
@@ -59,9 +70,12 @@ public class PublishBomPlugin implements Plugin<Project> {
         project.getPluginManager().apply(MavenPublishPlugin.class);
         project.getPluginManager().apply(JavaPlatformPlugin.class);
 
+        // Need this so we can declare BOM dependencies
+        project.getExtensions().getByType(JavaPlatformExtension.class).allowDependencies();
+
         // Configure root project versions-lock
         project.getRootProject().getPluginManager().withPlugin(VERSIONS_LOCK_PLUGIN, plugin -> {
-            VersionsLockPlugin.applyLocksTo(project, "api");
+            VersionsLockPlugin.applyLocksTo(project, JavaPlatformPlugin.API_CONFIGURATION_NAME);
         });
 
         // If versions-props is applied, make it so that it doesn't apply its recommendations to any of the
@@ -71,6 +85,48 @@ public class PublishBomPlugin implements Plugin<Project> {
                 // Mark it so it doesn't receive constraints from VersionsPropsPlugin
                 conf.getAttributes().attribute(VersionsPropsPlugin.CONFIGURATION_EXCLUDE_ATTRIBUTE, true);
             }));
+
+            // But, explicitly pick up constraints from 'rootConfiguration' that didn't come from the lock file
+            // This is so that BOM imports are picked up, for instance
+            project.getConfigurations().named(JavaPlatformPlugin.API_CONFIGURATION_NAME).configure(api -> {
+                DependencyConstraintSet existingConstraintSet = api.getAllDependencyConstraints();
+                // We explicitly won't allow multiple constraints on the same ModuleIdentifier, because it's not
+                // trivial to merge them, and you should only get constraints from the lock file anyway.
+                Map<ModuleIdentifier, DependencyConstraint> existingConstraints = existingConstraintSet
+                        .stream()
+                        .collect(Collectors.toMap(ModuleVersionSelector::getModule, cons -> cons));
+
+                project.getConfigurations()
+                        .getByName(VersionsPropsPlugin.ROOT_CONFIGURATION_NAME)
+                        .getAllDependencies()
+                        .matching(userDep -> userDep instanceof ExternalDependency
+                                && GradleUtils.isPlatform(((ExternalDependency) userDep).getAttributes()))
+                        .stream()
+                        .map(dep -> (ExternalDependency) dep)
+                        .forEach(platformDep -> {
+                            // Remove platform dep's module from the 'existingConstraints', and add an explicit
+                            // dependency instead. This is so we don't end up with two entries instead of one.
+                            DependencyConstraint constraint = existingConstraints.remove(platformDep.getModule());
+                            ExternalDependency newDep = platformDep.copy();
+                            newDep.version(vc -> {
+                                if (constraint != null) {
+                                    Preconditions.checkNotNull(constraint.getVersion(), "TODO");
+                                    vc.require(constraint.getVersion());
+                                }
+                            });
+                            api.getDependencies().add(newDep);
+                        });
+
+                List<DependencyConstraint> allFiltered =
+                        new ArrayList<>(existingConstraintSet.matching(constraint -> existingConstraints.containsKey(
+                                constraint.getModule())));
+                DependencyConstraintSet ownConstraints = api.getDependencyConstraints();
+                ownConstraints.clear();
+                ownConstraints.addAll(allFiltered);
+                // Need this to ensure that other constraints aren't being inherited anymore...
+                // Otherwise, we can't remove constraints from the lock file that clash with platform dependencies
+                api.setExtendsFrom(ImmutableList.of());
+            });
         });
 
         project.getGradle().projectsEvaluated(gradle -> {

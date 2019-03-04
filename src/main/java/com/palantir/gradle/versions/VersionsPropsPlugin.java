@@ -40,8 +40,8 @@ import org.gradle.util.GradleVersion;
 
 public class VersionsPropsPlugin implements Plugin<Project> {
     private static final Logger log = Logging.getLogger(VersionsPropsPlugin.class);
-    private static final String ROOT_CONFIGURATION_NAME = "rootConfiguration";
     private static final GradleVersion MINIMUM_GRADLE_VERSION = GradleVersion.version("5.1");
+    static final String ROOT_CONFIGURATION_NAME = "rootConfiguration";
 
     /** Marks configurations for which we shouldn't inject constraints from {@code versions.props}. */
     static final Attribute<Boolean> CONFIGURATION_EXCLUDE_ATTRIBUTE =
