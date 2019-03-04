@@ -18,8 +18,6 @@ package com.palantir.gradle.versions;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.gradle.api.GradleException;
@@ -117,12 +115,11 @@ public class PublishBomPlugin implements Plugin<Project> {
                             api.getDependencies().add(newDep);
                         });
 
-                List<DependencyConstraint> allFiltered =
-                        new ArrayList<>(existingConstraintSet.matching(constraint -> existingConstraints.containsKey(
-                                constraint.getModule())));
                 DependencyConstraintSet ownConstraints = api.getDependencyConstraints();
                 ownConstraints.clear();
-                ownConstraints.addAll(allFiltered);
+                // re-add the constraints that we didn't remove in our filtering - i.e. that don't apply to platforms
+                ownConstraints.addAll(existingConstraints.values());
+
                 // Need this to ensure that other constraints aren't being inherited anymore...
                 // Otherwise, we can't remove constraints from the lock file that clash with platform dependencies
                 api.setExtendsFrom(ImmutableList.of());
