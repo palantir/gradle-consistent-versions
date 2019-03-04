@@ -108,7 +108,10 @@ public class PublishBomPlugin implements Plugin<Project> {
                             ExternalDependency newDep = platformDep.copy();
                             newDep.version(vc -> {
                                 if (constraint != null) {
-                                    Preconditions.checkNotNull(constraint.getVersion(), "TODO");
+                                    Preconditions.checkNotNull(
+                                            constraint.getVersion(),
+                                            "Expected constraint for platform dependency to have a version: %s",
+                                            constraint);
                                     vc.require(constraint.getVersion());
                                 }
                             });
