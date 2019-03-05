@@ -16,6 +16,8 @@
 
 package com.palantir.gradle.versions;
 
+import static java.util.stream.Collectors.toSet;
+
 import com.google.common.base.Preconditions;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -31,17 +33,18 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.immutables.value.Value;
 
-public final class RawVersionsProps {
+/**
+ * Representation of a versions.props file used exclusively by {@link CheckMinimalVersionsTask}.
+ * Supports '# linter:OFF'.
+ */
+@Value.Immutable
+abstract class RawVersionsProps {
     private static final Pattern VERSION_FORCE_REGEX = Pattern.compile("([^:=\\s]+:[^:=\\s]+)\\s*=\\s*([^\\s]+)");
 
-    private RawVersionsProps() {}
+    /** Raw lines from file - may include comments. */
+    abstract List<String> lines();
 
-    @Value.Immutable
-    public interface ParsedVersionsProps {
-        List<String> lines();
-
-        List<VersionForce> forces();
-    }
+    abstract List<VersionForce> forces();
 
     @Value.Immutable
     public interface VersionForce {
@@ -54,19 +57,17 @@ public final class RawVersionsProps {
         }
     }
 
-    public static ParsedVersionsProps readVersionsProps(File propsFile) {
+    static RawVersionsProps fromFile(File propsFile) throws IOException {
         Preconditions.checkArgument(propsFile.exists(), "File not found");
         try (Stream<String> lines = Files.lines(propsFile.toPath())) {
-            return readVersionsProps(lines);
-        } catch (IOException e) {
-            throw new RuntimeException("Error reading " + propsFile.toPath() + " file", e);
+            return fromLines(lines);
         }
     }
 
-    static ParsedVersionsProps readVersionsProps(Stream<String> linesStream) {
+    static RawVersionsProps fromLines(Stream<String> linesStream) {
         List<String> lines = linesStream.map(String::trim).collect(Collectors.toList());
 
-        ImmutableParsedVersionsProps.Builder builder = ImmutableParsedVersionsProps.builder()
+        ImmutableRawVersionsProps.Builder builder = ImmutableRawVersionsProps.builder()
                 .addAllLines(lines);
 
         boolean active = true;
@@ -101,14 +102,9 @@ public final class RawVersionsProps {
         return builder.build();
     }
 
-    /**
-     * Writes back a {@link ParsedVersionsProps} to the {@code propsFile}, removing the given {@code forcesToRemove}
-     * from the file.
-     */
-    public static void writeVersionsProps(
-            ParsedVersionsProps parsedVersionsProps, Stream<VersionForce> forcesToRemove, File propsFile) {
-        List<String> lines = parsedVersionsProps.lines();
-        Set<Integer> indicesToSkip = forcesToRemove.map(VersionForce::lineNumber).collect(Collectors.toSet());
+    void writebackSubsetOfLines(Set<VersionForce> linesToRemove, File propsFile) throws IOException {
+        List<String> lines = lines();
+        Set<Integer> indicesToSkip = linesToRemove.stream().map(VersionForce::lineNumber).collect(toSet());
 
         try (BufferedWriter writer0 = Files.newBufferedWriter(propsFile.toPath(), StandardOpenOption.TRUNCATE_EXISTING);
                 PrintWriter writer = new PrintWriter(writer0)) {
@@ -117,8 +113,6 @@ public final class RawVersionsProps {
                     writer.println(lines.get(index));
                 }
             }
-        } catch (IOException e) {
-            throw new RuntimeException(e);
         }
     }
 }

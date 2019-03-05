@@ -59,8 +59,8 @@ public class VersionsPropsPlugin implements Plugin<Project> {
             return;
         }
 
-        project.getTasks().register("checkNoUnusedPin", CheckNoUnusedPinTask.class, t -> {
-            t.setPropsFile(project.file("versions.props"));
+        project.getTasks().register("checkMinimalVersions", CheckMinimalVersionsTask.class, t -> {
+            t.propsFile.set(project.file("versions.props"));
         });
 
         project.allprojects(subproject -> {
