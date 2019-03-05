@@ -76,6 +76,14 @@ public class PublishBomPlugin implements Plugin<Project> {
             VersionsLockPlugin.applyLocksTo(project, JavaPlatformPlugin.API_CONFIGURATION_NAME);
         });
 
+        // Add constraints on all other local projects
+        project.getRootProject().allprojects(proj -> {
+            if (proj == project) {
+                return;
+            }
+            project.getDependencies().getConstraints().add(JavaPlatformPlugin.API_CONFIGURATION_NAME, proj);
+        });
+
         // If versions-props is applied, make it so that it doesn't apply its recommendations to any of the
         // javaPlatform's configurations.
         project.getRootProject().getPluginManager().withPlugin(VERSIONS_PROPS_PLUGIN, plugin -> {
