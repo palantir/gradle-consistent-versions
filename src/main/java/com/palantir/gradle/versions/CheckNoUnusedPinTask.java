@@ -19,7 +19,6 @@ package com.palantir.gradle.versions;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Iterables;
 import java.io.File;
-import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.gradle.api.DefaultTask;
@@ -44,7 +43,7 @@ public class CheckNoUnusedPinTask extends DefaultTask {
 
     public CheckNoUnusedPinTask() {
         shouldFix.set(false);
-        setDescription("Ensures all versions in your versions.props correspond to an actual gradle dependency");
+        setDescription("Ensures all lines in your versions.props correspond to an actual gradle dependency");
     }
 
     final void setPropsFile(File propsFile) {
@@ -74,47 +73,38 @@ public class CheckNoUnusedPinTask extends DefaultTask {
     public final void checkNoUnusedPin() {
         RawVersionsProps.ParsedVersionsProps parsedVersionsProps = RawVersionsProps.readVersionsProps(getPropsFile().get().getAsFile());
 
-        Set<RawVersionsProps.VersionForce> deleteMe = new HashSet<>();
-
-        // Remove the force that each artifact uses. This will be the most specific force.
-        getResolvedArtifacts().forEach(artifact -> {
-
-            // figure out which forces are valid for this
-            parsedVersionsProps.forces().stream()
+        Set<RawVersionsProps.VersionForce> downgrades = getResolvedArtifacts().stream().flatMap(artifact -> {
+            // for a single artifact, we want to find any matching lines in versions.props which
+            // are lower than the current version
+            return parsedVersionsProps.forces().stream()
                     .filter(force -> artifact.matches(force.name().replaceAll("\\*", ".*")))
                     .filter(force -> {
                         VersionNumber forceVersion = VersionNumber.parse(force.version());
-                        VersionNumber actualVersion =
-                                VersionNumber.parse(Iterables.getLast(Splitter.on(':').split(artifact)));
+                        VersionNumber actualVersion = VersionNumber.parse(
+                                Iterables.getLast(Splitter.on(':').split(artifact)));
                         boolean hasNoEffect = forceVersion.compareTo(actualVersion) < 0;
-
-                        if (hasNoEffect) {
-                            System.out.println("REDUNDANT" + artifact + " " + force);
-                        } else {
-                            System.out.println("VALID" + artifact + " " + force);
-                        }
                         return hasNoEffect;
-                    }).forEach(force -> {
-                        deleteMe.add(force);
                     });
-        });
+        }).collect(Collectors.toSet());
 
-        if (deleteMe.isEmpty()) {
+        if (downgrades.isEmpty()) {
             return;
         }
 
+        String linesToDelete = downgrades.stream()
+                .map(force -> String.format(" - '%s'", force.name()))
+                .collect(Collectors.joining("\n"));
+
         if (shouldFix.get()) {
             getProject().getLogger().lifecycle("Removing unused pins from versions.props:\n"
-                    + deleteMe.stream()
-                    .map(name -> String.format(" - '%s'", name))
-                    .collect(Collectors.joining("\n")));
+                    + linesToDelete);
             RawVersionsProps.writeVersionsProps(
-                    parsedVersionsProps, deleteMe.stream(), getPropsFile().get().getAsFile());
+                    parsedVersionsProps, downgrades.stream(), getPropsFile().get().getAsFile());
             return;
         }
 
         throw new RuntimeException(
-                "There are unused pins in your versions.props: \n" + deleteMe
+                "There are redundant lines in your versions.props: \n" + linesToDelete
                         + "\n\n"
                         + "Rerun with --fix to remove them.");
     }

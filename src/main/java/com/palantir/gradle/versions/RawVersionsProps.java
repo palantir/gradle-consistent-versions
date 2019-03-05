@@ -16,7 +16,6 @@
 
 package com.palantir.gradle.versions;
 
-import com.google.common.base.CharMatcher;
 import com.google.common.base.Preconditions;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -24,15 +23,12 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
-import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import netflix.nebula.dependency.recommender.provider.FuzzyVersionResolver;
 import org.immutables.value.Value;
 
 public final class RawVersionsProps {
@@ -40,39 +36,9 @@ public final class RawVersionsProps {
 
     private RawVersionsProps() {}
 
-    /**
-     * Compares {@code versions.props} matchers by weight. Higher weight means the matcher is more specific.
-     * For example,
-     * <pre>
-     *     com.google.guava:guava
-     * </pre>
-     * is more specific than
-     * <pre>
-     *     com.google.guava:*
-     * </pre>
-     */
-    static final Comparator<String> VERSIONS_PROPS_ENTRY_SPECIFIC_COMPARATOR =
-            Comparator.comparing(RawVersionsProps::versionsPropsMatcherWeight);
-
-    /**
-     * The weight of a matcher in {@code versions.props} according to the disambiguation logic defined in
-     * {@code nebula.dependency-recommender}.
-     *
-     * This matches the logic in {@link FuzzyVersionResolver}.
-     */
-    private static int versionsPropsMatcherWeight(String matcher) {
-        return CharMatcher.isNot('*').countIn(matcher);
-    }
-
-
     @Value.Immutable
     public interface ParsedVersionsProps {
         List<String> lines();
-
-        /**
-         * Map of {@link VersionForce#name} to index of line in {@link #lines} that defines the force.
-         */
-        Map<VersionForce, Integer> namesToLocationMap();
 
         List<VersionForce> forces();
     }
@@ -81,6 +47,7 @@ public final class RawVersionsProps {
     public interface VersionForce {
         String name();
         String version();
+        Integer lineNumber();
 
         static VersionForce of(String name, String version) {
             return ImmutableVersionForce.builder().name(name).version(version).build();
@@ -99,51 +66,50 @@ public final class RawVersionsProps {
     static ParsedVersionsProps readVersionsProps(Stream<String> linesStream) {
         List<String> lines = linesStream.map(String::trim).collect(Collectors.toList());
 
-        ImmutableParsedVersionsProps.Builder builder = ImmutableParsedVersionsProps.builder().addAllLines(lines);
+        ImmutableParsedVersionsProps.Builder builder = ImmutableParsedVersionsProps.builder()
+                .addAllLines(lines);
+
         boolean active = true;
         for (int index = 0; index < lines.size(); index++) {
-            String line0 = lines.get(index);
+            String line = lines.get(index);
 
             // skip lines while linter:OFF
-            if (line0.equals("# linter:ON")) {
+            if (line.equals("# linter:ON")) {
                 active = true;
-            } else if (line0.equals("# linter:OFF")) {
+            } else if (line.equals("# linter:OFF")) {
                 active = false;
             }
             if (!active) {
                 continue;
             }
 
-            // strip comment
-            int commentIndex = line0.indexOf("#");
-            // trim so VERSION_FORCE_REGEX doesn't have to match leading/trailing spaces
-            String line = (commentIndex >= 0 ? line0.substring(0, commentIndex) : line0).trim();
-            Matcher matcher = VERSION_FORCE_REGEX.matcher(line);
+            // strip possibly trailing comments so VERSION_FORCE_REGEX doesn't have to match leading/trailing spaces
+            int commentIndex = line.indexOf("#");
+            String trimmedLine = (commentIndex >= 0 ? line.substring(0, commentIndex) : line).trim();
+
+            Matcher matcher = VERSION_FORCE_REGEX.matcher(trimmedLine);
             if (matcher.matches()) {
-                String propName = matcher.group(1);
-                String propVersion = matcher.group(2);
-                VersionForce force = ImmutableVersionForce.builder().name(propName).version(propVersion).build();
-                builder.putNamesToLocationMap(force, index);
+                VersionForce force = ImmutableVersionForce.builder()
+                        .name(matcher.group(1))
+                        .version(matcher.group(2))
+                        .lineNumber(index)
+                        .build();
                 builder.addForces(force);
             }
         }
+
         return builder.build();
     }
 
     /**
      * Writes back a {@link ParsedVersionsProps} to the {@code propsFile}, removing the given {@code forcesToRemove}
      * from the file.
-     *
-     * @throws NullPointerException if any of the {@code forcesToRemove} weren't found in
-     * {@link ParsedVersionsProps#namesToLocationMap}.
      */
     public static void writeVersionsProps(
             ParsedVersionsProps parsedVersionsProps, Stream<VersionForce> forcesToRemove, File propsFile) {
         List<String> lines = parsedVersionsProps.lines();
-        Set<Integer> indicesToSkip = forcesToRemove
-                .map(parsedVersionsProps.namesToLocationMap()::get)
-                .map(Preconditions::checkNotNull)
-                .collect(Collectors.toSet());
+        Set<Integer> indicesToSkip = forcesToRemove.map(VersionForce::lineNumber).collect(Collectors.toSet());
+
         try (BufferedWriter writer0 = Files.newBufferedWriter(propsFile.toPath(), StandardOpenOption.TRUNCATE_EXISTING);
                 PrintWriter writer = new PrintWriter(writer0)) {
             for (int index = 0; index < lines.size(); index++) {
@@ -155,7 +121,5 @@ public final class RawVersionsProps {
             throw new RuntimeException(e);
         }
     }
-
-
 }
 
