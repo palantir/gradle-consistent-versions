@@ -41,24 +41,28 @@ public final class VersionsProps {
 
     public VersionsProps(Path path) {
         this.path = path;
-        Properties recommendations = new Properties();
-        try (BufferedReader reader = Files.newBufferedReader(path)) {
-            recommendations.load(new EolCommentFilteringReader(new ColonFilteringReader(reader)));
-        } catch (IOException e) {
-            throw new RuntimeException("Couldn't read properties file from: " + path, e);
-        }
+        Properties recommendations = parsePropertiesFile(path);
+
         FuzzyPatternResolver.Builder builder = FuzzyPatternResolver.builder();
-        recommendations
-                .stringPropertyNames()
-                .forEach(name -> builder.putVersions(
-                        name.replaceAll("/", ":"),
-                        recommendations.getProperty(name).trim()));
+        recommendations.stringPropertyNames().forEach(name -> builder.putVersions(
+                name.replaceAll("/", ":"),
+                recommendations.getProperty(name).trim()));
         fuzzyResolver = builder.build();
 
         patternToPlatform = Sets
                 .difference(fuzzyResolver.versions().keySet(), fuzzyResolver.exactMatches())
                 .stream()
                 .collect(Collectors.toMap(key -> key, this::constructPlatform));
+    }
+
+    private static Properties parsePropertiesFile(Path path) {
+        Properties recommendations = new Properties();
+        try (BufferedReader reader = Files.newBufferedReader(path)) {
+            recommendations.load(new EolCommentFilteringReader(new ColonFilteringReader(reader)));
+        } catch (IOException e) {
+            throw new RuntimeException("Couldn't read properties file from: " + path, e);
+        }
+        return recommendations;
     }
 
     public Path getPath() {

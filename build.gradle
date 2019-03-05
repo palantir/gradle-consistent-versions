@@ -30,7 +30,8 @@ apply plugin: 'com.palantir.git-version'
 apply plugin: 'com.palantir.consistent-versions'
 
 group 'com.palantir.gradle.consistentversions'
-version gitVersion()
+// version gitVersion()
+version 'dev'
 
 apply plugin: 'com.palantir.baseline'
 apply plugin: 'java-gradle-plugin'

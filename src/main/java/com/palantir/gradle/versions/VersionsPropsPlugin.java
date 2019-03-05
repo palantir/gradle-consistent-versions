@@ -59,6 +59,10 @@ public class VersionsPropsPlugin implements Plugin<Project> {
             return;
         }
 
+        project.getTasks().register("checkNoUnusedPin", CheckNoUnusedPinTask.class, t -> {
+            t.setPropsFile(project.file("versions.props"));
+        });
+
         project.allprojects(subproject -> {
             NamedDomainObjectProvider<Configuration> rootConfiguration =
                     subproject.getConfigurations().register(ROOT_CONFIGURATION_NAME, conf -> {
