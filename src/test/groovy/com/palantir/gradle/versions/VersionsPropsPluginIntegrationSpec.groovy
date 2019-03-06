@@ -18,19 +18,29 @@ package com.palantir.gradle.versions
 
 import groovy.util.slurpersupport.GPathResult
 import groovy.util.slurpersupport.NodeChildren
-import nebula.test.IntegrationTestKitSpec
 
-class VersionsPropsPluginIntegrationSpec extends IntegrationTestKitSpec {
+class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
 
     static def PLUGIN_NAME = "com.palantir.versions-props"
 
     void setup() {
-        settingsFile.createNewFile()
+        File mavenRepo = generateMavenRepo(
+                "ch.qos.logback:logback-classic:1.2.3 -> org.slf4j:slf4j-api:1.7.25",
+                "ch.qos.logback:logback-classic:1.1.11 -> org.slf4j:slf4j-api:1.7.22",
+                "org.slf4j:slf4j-api:1.7.21",
+                "org.slf4j:slf4j-api:1.7.22",
+                "org.slf4j:slf4j-api:1.7.24",
+                "org.slf4j:slf4j-api:1.7.25",
+                "com.fasterxml.jackson.core:jackson-databind:2.9.0 -> com.fasterxml.jackson.core:jackson-annotations:2.9.0",
+                "com.fasterxml.jackson.core:jackson-annotations:2.9.0",
+                "com.fasterxml.jackson.core:jackson-annotations:2.9.7",
+                "com.fasterxml.jackson.core:jackson-databind:2.9.7",
+        )
         buildFile << """
-            plugins { id '$PLUGIN_NAME' }
+            plugins { id '${PLUGIN_NAME}' }
             allprojects {
                 repositories {
-                    jcenter()
+                    maven { url "file:///${mavenRepo.getAbsolutePath()}" }
                 }
             }
 
@@ -42,7 +52,6 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationTestKitSpec {
                 }
             }
         """.stripIndent()
-
     }
 
     def 'star dependency constraint is injected for direct dependency'() {
