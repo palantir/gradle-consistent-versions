@@ -16,19 +16,15 @@
 
 package com.palantir.gradle.versions
 
-import groovy.transform.CompileStatic
-import nebula.test.IntegrationTestKitSpec
 import nebula.test.dependencies.DependencyGraph
 import nebula.test.dependencies.GradleDependencyGenerator
 import org.gradle.testkit.runner.BuildResult
 
-class VersionsLockPluginIntegrationSpec extends IntegrationTestKitSpec {
+class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
 
     static def PLUGIN_NAME = "com.palantir.versions-lock"
 
     void setup() {
-        keepFiles = true
-        settingsFile.createNewFile()
         File mavenRepo = generateMavenRepo(
                 "ch.qos.logback:logback-classic:1.2.3 -> org.slf4j:slf4j-api:1.7.25",
                 "org.slf4j:slf4j-api:1.7.11",
@@ -390,13 +386,4 @@ class VersionsLockPluginIntegrationSpec extends IntegrationTestKitSpec {
         expect:
         runTasks('--write-locks')
     }
-
-    @CompileStatic
-    File generateMavenRepo(String... graph) {
-        DependencyGraph dependencyGraph = new DependencyGraph(graph)
-        GradleDependencyGenerator generator = new GradleDependencyGenerator(
-                dependencyGraph, new File(projectDir, "build/testrepogen").toString())
-        return generator.generateTestMavenRepo()
-    }
-
 }
