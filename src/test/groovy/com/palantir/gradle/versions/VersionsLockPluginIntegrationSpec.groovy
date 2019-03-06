@@ -31,6 +31,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                 "org.slf4j:slf4j-api:1.7.20",
                 "org.slf4j:slf4j-api:1.7.24",
                 "org.slf4j:slf4j-api:1.7.25",
+                "org:platform:1.0",
         )
         buildFile << """
             plugins { id '${PLUGIN_NAME}' }
@@ -365,9 +366,6 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
     }
 
     def 'does not fail if subproject evaluated later applies base plugin in own build file'() {
-        buildFile << """
-        """.stripIndent()
-
         addSubproject('foo', """
             apply plugin: 'java-library'
             dependencies {
@@ -385,5 +383,23 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
 
         expect:
         runTasks('--write-locks')
+    }
+
+    def "locks platform"() {
+        buildFile << """
+            apply plugin: 'java'
+            dependencies {
+                compile platform('org:platform:1.0')
+            }
+        """.stripIndent()
+
+        when:
+        runTasks('--write-locks')
+
+        then:
+        file('versions.lock').readLines() == [
+                '# Run ./gradlew --write-locks to regenerate this file',
+                'org:platform:1.0 (1 constraints: a5041a2c)',
+        ]
     }
 }
