@@ -16,30 +16,34 @@
 
 package com.palantir.gradle.versions
 
-import nebula.test.IntegrationTestKitSpec
 import nebula.test.dependencies.DependencyGraph
 import nebula.test.dependencies.GradleDependencyGenerator
 import org.gradle.testkit.runner.BuildResult
 
-class VersionsLockPluginIntegrationSpec extends IntegrationTestKitSpec {
+class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
 
     static def PLUGIN_NAME = "com.palantir.versions-lock"
 
     void setup() {
-        keepFiles = true
-        settingsFile.createNewFile()
+        File mavenRepo = generateMavenRepo(
+                "ch.qos.logback:logback-classic:1.2.3 -> org.slf4j:slf4j-api:1.7.25",
+                "org.slf4j:slf4j-api:1.7.11",
+                "org.slf4j:slf4j-api:1.7.20",
+                "org.slf4j:slf4j-api:1.7.24",
+                "org.slf4j:slf4j-api:1.7.25",
+        )
         buildFile << """
             plugins { id '${PLUGIN_NAME}' }
+            allprojects {
+                repositories {
+                    maven { url "file:///${mavenRepo.getAbsolutePath()}" }
+                }
+            }
         """
     }
 
     def 'can write locks'() {
         expect:
-        buildFile << '''
-            repositories {
-                jcenter()
-            }
-        '''.stripIndent()
         runTasks('resolveConfigurations', '--write-locks')
         new File(projectDir, "versions.lock").exists()
     }
@@ -47,9 +51,6 @@ class VersionsLockPluginIntegrationSpec extends IntegrationTestKitSpec {
     private def standardSetup() {
         buildFile << """
             allprojects {
-                repositories {
-                    jcenter()
-                }
                 // using nebula in ':baz'
                 apply plugin: 'nebula.dependency-recommender'
             }
@@ -115,9 +116,6 @@ class VersionsLockPluginIntegrationSpec extends IntegrationTestKitSpec {
         setup:
         buildFile << """
             allprojects {
-                repositories {
-                    jcenter()
-                }
                 apply plugin: 'nebula.dependency-recommender'
                 
                 dependencyRecommendations {
@@ -218,9 +216,6 @@ class VersionsLockPluginIntegrationSpec extends IntegrationTestKitSpec {
     def 'works on just root project'() {
         buildFile << '''
             apply plugin: 'java'
-            repositories {
-                jcenter()
-            }
             dependencies {
                 compile 'ch.qos.logback:logback-classic:1.2.3' // brings in slf4j-api 1.7.25
             }
@@ -355,7 +350,6 @@ class VersionsLockPluginIntegrationSpec extends IntegrationTestKitSpec {
     def "why works"() {
         buildFile << '''
             apply plugin: 'java'
-            repositories { jcenter() } 
             dependencies {
                 compile 'ch.qos.logback:logback-classic:1.2.3' // brings in slf4j-api 1.7.25
             }
@@ -372,9 +366,6 @@ class VersionsLockPluginIntegrationSpec extends IntegrationTestKitSpec {
 
     def 'does not fail if subproject evaluated later applies base plugin in own build file'() {
         buildFile << """
-            allprojects {             
-                repositories { jcenter() } 
-            }
         """.stripIndent()
 
         addSubproject('foo', """
