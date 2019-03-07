@@ -37,10 +37,16 @@ import org.gradle.api.artifacts.dsl.DependencyConstraintHandler;
 public final class VersionsProps {
     private final FuzzyPatternResolver fuzzyResolver;
     private final Map<String, String> patternToPlatform;
-    private final Path path;
 
-    public VersionsProps(Path path) {
-        this.path = path;
+    private VersionsProps(FuzzyPatternResolver fuzzyResolver) {
+        this.fuzzyResolver = fuzzyResolver;
+        this.patternToPlatform = Sets
+                .difference(fuzzyResolver.versions().keySet(), fuzzyResolver.exactMatches())
+                .stream()
+                .collect(Collectors.toMap(key -> key, this::constructPlatform));
+    }
+
+    public static VersionsProps loadFromFile(Path path) {
         Properties recommendations = new Properties();
         try (BufferedReader reader = Files.newBufferedReader(path)) {
             recommendations.load(new EolCommentFilteringReader(new ColonFilteringReader(reader)));
@@ -53,16 +59,12 @@ public final class VersionsProps {
                 .forEach(name -> builder.putVersions(
                         name.replaceAll("/", ":"),
                         recommendations.getProperty(name).trim()));
-        fuzzyResolver = builder.build();
-
-        patternToPlatform = Sets
-                .difference(fuzzyResolver.versions().keySet(), fuzzyResolver.exactMatches())
-                .stream()
-                .collect(Collectors.toMap(key -> key, this::constructPlatform));
+        return new VersionsProps(builder.build());
     }
 
-    public Path getPath() {
-        return path;
+    /** Construct a trivial {@link VersionsProps} that has no version recommendations. */
+    static VersionsProps empty() {
+        return new VersionsProps(FuzzyPatternResolver.builder().build());
     }
 
     public Stream<DependencyConstraint> constructConstraints(DependencyConstraintHandler handler) {
