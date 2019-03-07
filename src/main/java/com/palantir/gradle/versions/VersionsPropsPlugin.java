@@ -21,7 +21,6 @@ import com.google.common.collect.ImmutableList;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Objects;
-import java.util.Optional;
 import org.gradle.api.GradleException;
 import org.gradle.api.NamedDomainObjectProvider;
 import org.gradle.api.Plugin;
@@ -57,11 +56,7 @@ public class VersionsPropsPlugin implements Plugin<Project> {
         VersionRecommendationsExtension extension =
                 project.getRootProject().getExtensions().getByType(VersionRecommendationsExtension.class);
 
-        Optional<VersionsProps> versionsProps =
-                computeVersionsProps(project.getRootProject().file("versions.props").toPath());
-        if (!versionsProps.isPresent()) {
-            return;
-        }
+        VersionsProps versionsProps = loadVersionsProps(project.getRootProject().file("versions.props").toPath());
 
         NamedDomainObjectProvider<Configuration> rootConfiguration =
                 project.getConfigurations().register(ROOT_CONFIGURATION_NAME, conf -> {
@@ -72,17 +67,17 @@ public class VersionsPropsPlugin implements Plugin<Project> {
 
         project.getConfigurations().configureEach(conf ->
                 project.afterEvaluate(p ->
-                        setupConfiguration(p, extension, rootConfiguration, versionsProps.get(), conf)));
+                        setupConfiguration(p, extension, rootConfiguration, versionsProps, conf)));
 
         // Note: don't add constraints to this, only call `create` / `platform` on it.
         DependencyConstraintHandler constraintHandler = project.getDependencies().getConstraints();
         rootConfiguration.configure(conf ->
-                addVersionsPropsConstraints(constraintHandler, conf, versionsProps.get()));
+                addVersionsPropsConstraints(constraintHandler, conf, versionsProps));
 
         log.info("Configuring rules to assign *-constraints to platforms in {}", project);
         project.getDependencies()
                 .getComponents()
-                .all(component -> tryAssignComponentToPlatform(versionsProps.get(), component));
+                .all(component -> tryAssignComponentToPlatform(versionsProps, component));
 
         // Gradle 5.1 has a bug whereby a platform dependency whose version comes from a separate constraint end
         // up as two separate entries in the resulting POM, making it invalid.
@@ -196,12 +191,12 @@ public class VersionsPropsPlugin implements Plugin<Project> {
         constraints.forEach(conf.getDependencyConstraints()::add);
     }
 
-    private static Optional<VersionsProps> computeVersionsProps(Path versionsPropsFile) {
+    private static VersionsProps loadVersionsProps(Path versionsPropsFile) {
         if (!Files.exists(versionsPropsFile)) {
-            return Optional.empty();
+            return VersionsProps.empty();
         }
         log.info("Configuring constraints from properties file {}", versionsPropsFile);
-        return Optional.of(new VersionsProps(versionsPropsFile));
+        return VersionsProps.loadFromFile(versionsPropsFile);
     }
 
     private static void checkPreconditions(Project project) {
