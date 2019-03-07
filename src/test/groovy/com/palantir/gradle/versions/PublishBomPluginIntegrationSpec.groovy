@@ -16,12 +16,11 @@
 
 package com.palantir.gradle.versions
 
-
 import groovy.util.slurpersupport.GPathResult
 import groovy.util.slurpersupport.NodeChildren
-import nebula.test.IntegrationTestKitSpec
+import spock.lang.Unroll
 
-class PublishBomPluginIntegrationSpec extends IntegrationTestKitSpec {
+class PublishBomPluginIntegrationSpec extends GradleVersionIntegrationTestKitSpec {
 
     static def PLUGIN_NAME = "com.palantir.publish-bom"
 
@@ -91,7 +90,9 @@ class PublishBomPluginIntegrationSpec extends IntegrationTestKitSpec {
         dependencies.collect { convertToMap(it) } as Set == expected
     }
 
-    def 'includes other published projects'() {
+    @Unroll
+    def 'includes other published projects for Gradle #gradleVersion'() {
+        this.gradleVersion = gradleVersion
         file('versions.lock') << """\
             org:a:1.0 (1 constraints: 0000000)
         """.stripIndent()
@@ -132,9 +133,14 @@ class PublishBomPluginIntegrationSpec extends IntegrationTestKitSpec {
                          version   : '0.0.1',
                          scope     : 'compile',]] as Set
         dependencies.collect { convertToMap(it) } as Set == expected
+
+        where:
+        gradleVersion << ['5.2', null]
     }
 
-    def "includes bom dependencies from rootConfiguration"() {
+    @Unroll
+    def "includes bom dependencies from rootConfiguration for Gradle #gradleVersion"() {
+        this.gradleVersion = gradleVersion
         file('versions.lock') << """\
             org:a:1.0 (1 constraints: 0000000)
             org:platform:2.0 (1 constraints: 0000000)
@@ -173,6 +179,9 @@ class PublishBomPluginIntegrationSpec extends IntegrationTestKitSpec {
                          type      : 'pom',
                          scope     : 'import',]] as Set
         dependencies.collect { convertToMap(it) } as Set == expected
+
+        where:
+        gradleVersion << ['5.2', null]
     }
 
     /**
