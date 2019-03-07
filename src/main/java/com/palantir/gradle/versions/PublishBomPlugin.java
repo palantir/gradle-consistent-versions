@@ -24,6 +24,7 @@ import org.gradle.api.GradleException;
 import org.gradle.api.Incubating;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
+import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.DependencyConstraint;
 import org.gradle.api.artifacts.DependencyConstraintSet;
 import org.gradle.api.artifacts.ExternalDependency;
@@ -94,7 +95,7 @@ public class PublishBomPlugin implements Plugin<Project> {
 
         // If versions-props is applied, make it so that it doesn't apply its recommendations to any of the
         // javaPlatform's configurations.
-        project.getRootProject().getPluginManager().withPlugin(VERSIONS_PROPS_PLUGIN, plugin -> {
+        project.getPluginManager().withPlugin(VERSIONS_PROPS_PLUGIN, plugin -> {
             JAVA_PLATFORM_CONFIGURATIONS.forEach(name -> project.getConfigurations().named(name).configure(conf -> {
                 // Mark it so it doesn't receive constraints from VersionsPropsPlugin
                 conf.getAttributes().attribute(VersionsPropsPlugin.CONFIGURATION_EXCLUDE_ATTRIBUTE, true);
@@ -110,35 +111,15 @@ public class PublishBomPlugin implements Plugin<Project> {
                         .stream()
                         .collect(Collectors.toMap(ModuleVersionSelector::getModule, cons -> cons));
 
-                project.getConfigurations()
-                        .getByName(VersionsPropsPlugin.ROOT_CONFIGURATION_NAME)
-                        .getAllDependencies()
-                        .matching(userDep -> userDep instanceof ExternalDependency
-                                && GradleUtils.isPlatform(((ExternalDependency) userDep).getAttributes()))
-                        .stream()
-                        .map(dep -> (ExternalDependency) dep)
-                        .forEach(platformDep -> {
-                            // Remove platformDep's module from the 'existingConstraints', and add an explicit
-                            // dependency instead. This is to work around a gradle bug where the BOM would contain two
-                            // entries instead of one, which is invalid:
-                            // https://github.com/gradle/gradle/issues/8238
-                            DependencyConstraint constraint = existingConstraints.remove(platformDep.getModule());
-                            ExternalDependency newDep = platformDep.copy();
-                            newDep.version(vc -> {
-                                if (constraint != null) {
-                                    Preconditions.checkNotNull(
-                                            constraint.getVersion(),
-                                            "Expected constraint for platform dependency to have a version: %s",
-                                            constraint);
-                                    vc.require(constraint.getVersion());
-                                }
-                            });
-                            api.getDependencies().add(newDep);
-                        });
+                Configuration rootConfiguration =
+                        project.getConfigurations().getByName(VersionsPropsPlugin.ROOT_CONFIGURATION_NAME);
+
+                mergePlatformDependenciesWithExistingConstraints(rootConfiguration, api, existingConstraints);
 
                 DependencyConstraintSet ownConstraints = api.getDependencyConstraints();
                 ownConstraints.clear();
-                // re-add the constraints that we didn't remove in our filtering - i.e. that don't apply to platforms
+                // re-add the constraints that we didn't remove in our filtering
+                // i.e. that don't apply to platforms
                 ownConstraints.addAll(existingConstraints.values());
 
                 // Need this to ensure that other constraints aren't being inherited anymore...
@@ -158,6 +139,36 @@ public class PublishBomPlugin implements Plugin<Project> {
         ourPublishingExtension.getPublications().register("bom", MavenPublication.class, publication -> {
             publication.from(project.getComponents().getByName(JAVA_PLATFORM_COMPONENT));
         });
+    }
+
+    private static void mergePlatformDependenciesWithExistingConstraints(
+            Configuration platformDependenciesConfiguration,
+            Configuration api,
+            Map<ModuleIdentifier, DependencyConstraint> existingConstraints) {
+        platformDependenciesConfiguration
+                .getAllDependencies()
+                .matching(userDep -> userDep instanceof ExternalDependency
+                        && GradleUtils.isPlatform(((ExternalDependency) userDep).getAttributes()))
+                .stream()
+                .map(dep -> (ExternalDependency) dep)
+                .forEach(platformDep -> {
+                    // Remove platformDep's module from the 'existingConstraints', and add an explicit
+                    // dependency instead. This is to work around a gradle bug where the BOM would contain two
+                    // entries instead of one, which is invalid:
+                    // https://github.com/gradle/gradle/issues/8238
+                    DependencyConstraint constraint = existingConstraints.remove(platformDep.getModule());
+                    ExternalDependency newDep = platformDep.copy();
+                    newDep.version(vc -> {
+                        if (constraint != null) {
+                            Preconditions.checkNotNull(
+                                    constraint.getVersion(),
+                                    "Expected constraint for platform dependency to have a version: %s",
+                                    constraint);
+                            vc.require(constraint.getVersion());
+                        }
+                    });
+                    api.getDependencies().add(newDep);
+                });
     }
 
     private static void checkPreconditions(Project project) {

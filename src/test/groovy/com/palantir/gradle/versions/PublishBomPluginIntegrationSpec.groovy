@@ -91,6 +91,49 @@ class PublishBomPluginIntegrationSpec extends IntegrationTestKitSpec {
         dependencies.collect { convertToMap(it) } as Set == expected
     }
 
+    def 'includes other published projects'() {
+        file('versions.lock') << """\
+            org:a:1.0 (1 constraints: 0000000)
+        """.stripIndent()
+
+        buildFile << """
+            plugins { id 'com.palantir.consistent-versions' }
+            allprojects {
+                group = 'project'
+                version = '0.0.1'
+            }
+        """.stripIndent()
+
+        addSubproject('published', """
+            apply plugin: 'maven-publish'
+            publishing.publications {
+                whatever(MavenPublication)
+            }
+        """.stripIndent())
+
+        addSubproject('unpublished', '')
+
+        when:
+        runTasks('bom:generatePomFileForBomPublication')
+
+        then:
+        def output = new File('bom/build/publications/bom/pom-default.xml', projectDir)
+        output.exists()
+
+        def slurper = new XmlSlurper()
+        def pom = slurper.parse(output)
+        NodeChildren dependencies = pom.dependencyManagement.dependencies.dependency
+        def expected = [[groupId   : 'org',
+                         artifactId: 'a',
+                         version   : '1.0',
+                         scope     : 'compile',],
+                        [groupId   : 'project',
+                         artifactId: 'published',
+                         version   : '0.0.1',
+                         scope     : 'compile',]] as Set
+        dependencies.collect { convertToMap(it) } as Set == expected
+    }
+
     def "includes bom dependencies from rootConfiguration"() {
         file('versions.lock') << """\
             org:a:1.0 (1 constraints: 0000000)
