@@ -202,7 +202,22 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
         def e = runTasksAndFail()
         e.output.contains("Not allowed to resolve")
     }
-/**
+
+    def "creates rootConfiguration even if versions props file missing"() {
+        buildFile << """
+            dependencies {
+                constraints {
+                    rootConfiguration 'org.slf4j:slf4j-api:1.7.25'
+                }
+            }
+        """.stripIndent()
+        file('versions.props').delete()
+
+        expect:
+        runTasks()
+    }
+
+    /**
      * Recursively converts a node's children to a map of <tt>(tag name): (value inside tag)</tt>.
      * <p>
      * See: https://stackoverflow.com/a/26889997/274699
