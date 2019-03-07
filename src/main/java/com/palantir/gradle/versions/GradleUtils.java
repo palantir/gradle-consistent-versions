@@ -20,15 +20,19 @@ import org.gradle.api.artifacts.dsl.DependencyConstraintHandler;
 import org.gradle.api.artifacts.dsl.DependencyHandler;
 import org.gradle.api.attributes.Attribute;
 import org.gradle.api.attributes.AttributeContainer;
+import org.gradle.api.attributes.Category;
+import org.gradle.util.GradleVersion;
 
 final class GradleUtils {
     private GradleUtils() {}
 
+    private static final GradleVersion GRADLE_VERSION_CATEGORY_AVAILABLE = GradleVersion.version("5.3-rc-1");
+
     /**
-     * Copied from {@link org.gradle.api.internal.artifacts.dsl.dependencies.PlatformSupport#COMPONENT_CATEGORY} since
-     * that's internal.
+     * Copied from {@code org.gradle.api.internal.artifacts.dsl.dependencies.PlatformSupport#COMPONENT_CATEGORY} since
+     * that's internal. This is only meant to be used with gradle < {@link #GRADLE_VERSION_CATEGORY_AVAILABLE}
      */
-    private static final Attribute<String> COMPONENT_CATEGORY =
+    private static final Attribute<String> OLD_COMPONENT_CATEGORY =
             Attribute.of("org.gradle.component.category", String.class);
 
     /**
@@ -36,7 +40,19 @@ final class GradleUtils {
      * {@link DependencyHandler#platform} or {@link DependencyConstraintHandler#platform}.
      */
     public static boolean isPlatform(AttributeContainer attributes) {
-        String category = attributes.getAttribute(COMPONENT_CATEGORY);
+        if (GradleVersion.current().compareTo(GRADLE_VERSION_CATEGORY_AVAILABLE) < 0) {
+            return isPlatformPre53(attributes);
+        }
+        return isPlatformPost53(attributes);
+    }
+
+    private static boolean isPlatformPost53(AttributeContainer attributes) {
+        Category category = attributes.getAttribute(Category.CATEGORY_ATTRIBUTE);
+        return category != null && Category.REGULAR_PLATFORM.equals(category.getName());
+    }
+
+    private static boolean isPlatformPre53(AttributeContainer attributes) {
+        String category = attributes.getAttribute(OLD_COMPONENT_CATEGORY);
         return category != null && category.equals("platform");
     }
 }
