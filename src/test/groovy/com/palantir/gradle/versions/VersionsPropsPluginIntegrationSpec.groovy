@@ -202,7 +202,8 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
         def e = runTasksAndFail()
         e.output.contains("Not allowed to resolve")
     }
-/**
+
+    /**
      * Recursively converts a node's children to a map of <tt>(tag name): (value inside tag)</tt>.
      * <p>
      * See: https://stackoverflow.com/a/26889997/274699
