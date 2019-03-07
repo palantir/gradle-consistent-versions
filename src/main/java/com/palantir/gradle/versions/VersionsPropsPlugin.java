@@ -48,7 +48,7 @@ public class VersionsPropsPlugin implements Plugin<Project> {
 
     @Override
     public final void apply(Project project) {
-        checkPreconditions(project);
+        checkPreconditions();
         if (project.getRootProject().equals(project)) {
             applyToRootProject(project);
         }
@@ -66,8 +66,7 @@ public class VersionsPropsPlugin implements Plugin<Project> {
                 });
 
         project.getConfigurations().configureEach(conf ->
-                project.afterEvaluate(p ->
-                        setupConfiguration(p, extension, rootConfiguration, versionsProps, conf)));
+                setupConfiguration(project, extension, rootConfiguration, versionsProps, conf));
 
         // Note: don't add constraints to this, only call `create` / `platform` on it.
         DependencyConstraintHandler constraintHandler = project.getDependencies().getConstraints();
@@ -199,7 +198,7 @@ public class VersionsPropsPlugin implements Plugin<Project> {
         return VersionsProps.loadFromFile(versionsPropsFile);
     }
 
-    private static void checkPreconditions(Project project) {
+    private static void checkPreconditions() {
         Preconditions.checkState(
                 GradleVersion.current().compareTo(MINIMUM_GRADLE_VERSION) >= 0,
                 "This plugin requires gradle >= %s",
