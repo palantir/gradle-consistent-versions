@@ -81,7 +81,15 @@ public class PublishBomPlugin implements Plugin<Project> {
             if (proj == project) {
                 return;
             }
-            project.getDependencies().getConstraints().add(JavaPlatformPlugin.API_CONFIGURATION_NAME, proj);
+            proj.getPluginManager().withPlugin("maven-publish", plugin -> {
+                // Only expose a project dependency in the BOM if it's being published to maven
+                proj.afterEvaluate(p -> {
+                    PublishingExtension publishing = p.getExtensions().getByType(PublishingExtension.class);
+                    if (!publishing.getPublications().isEmpty()) {
+                        project.getDependencies().getConstraints().add(JavaPlatformPlugin.API_CONFIGURATION_NAME, proj);
+                    }
+                });
+            });
         });
 
         // If versions-props is applied, make it so that it doesn't apply its recommendations to any of the
