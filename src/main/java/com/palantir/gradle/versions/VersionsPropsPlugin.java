@@ -50,48 +50,56 @@ public class VersionsPropsPlugin implements Plugin<Project> {
     @Override
     public final void apply(Project project) {
         checkPreconditions(project);
+        if (project.getRootProject().equals(project)) {
+            applyToRootProject(project);
+        }
 
-        VersionRecommendationsExtension extension = project.getExtensions()
-                .create(VersionRecommendationsExtension.EXTENSION, VersionRecommendationsExtension.class, project);
+        VersionRecommendationsExtension extension =
+                project.getRootProject().getExtensions().getByType(VersionRecommendationsExtension.class);
 
-        Optional<VersionsProps> versionsProps = computeVersionsProps(project.file("versions.props").toPath());
+        Optional<VersionsProps> versionsProps =
+                computeVersionsProps(project.getRootProject().file("versions.props").toPath());
         if (!versionsProps.isPresent()) {
             return;
         }
 
-        project.allprojects(subproject -> {
-            NamedDomainObjectProvider<Configuration> rootConfiguration =
-                    subproject.getConfigurations().register(ROOT_CONFIGURATION_NAME, conf -> {
-                        conf.setVisible(false);
-                    });
+        NamedDomainObjectProvider<Configuration> rootConfiguration =
+                project.getConfigurations().register(ROOT_CONFIGURATION_NAME, conf -> {
+                    conf.setVisible(false);
+                });
 
-            subproject.getConfigurations().configureEach(conf ->
-                    setupConfiguration(subproject, extension, rootConfiguration, versionsProps.get(), conf));
+        project.getConfigurations().configureEach(conf ->
+                setupConfiguration(project, extension, rootConfiguration, versionsProps.get(), conf));
 
-            // Note: don't add constraints to this, only call `create` / `platform` on it.
-            DependencyConstraintHandler constraintHandler = project.getDependencies().getConstraints();
-            rootConfiguration.configure(conf ->
-                    addVersionsPropsConstraints(constraintHandler, conf, versionsProps.get()));
+        // Note: don't add constraints to this, only call `create` / `platform` on it.
+        DependencyConstraintHandler constraintHandler = project.getDependencies().getConstraints();
+        rootConfiguration.configure(conf ->
+                addVersionsPropsConstraints(constraintHandler, conf, versionsProps.get()));
 
-            log.info("Configuring rules to assign *-constraints to platforms in {}", subproject);
-            subproject.getDependencies()
-                    .getComponents()
-                    .all(component -> tryAssignComponentToPlatform(versionsProps.get(), component));
+        log.info("Configuring rules to assign *-constraints to platforms in {}", project);
+        project.getDependencies()
+                .getComponents()
+                .all(component -> tryAssignComponentToPlatform(versionsProps.get(), component));
 
-            // Gradle 5.1 has a bug whereby a platform dependency whose version comes from a separate constraint end
-            // up as two separate entries in the resulting POM, making it invalid.
-            // https://github.com/gradle/gradle/issues/8238
-            subproject.getPluginManager().withPlugin("publishing", plugin -> {
-                PublishingExtension publishingExtension =
-                        subproject.getExtensions().getByType(PublishingExtension.class);
-                publishingExtension.getPublications().withType(MavenPublication.class, publication -> {
-                    log.info("Fixing pom publication for {}: {}", subproject, publication);
-                    publication.getPom().withXml(xmlProvider -> {
-                        GradleWorkarounds.mergeImportsWithVersions(xmlProvider.asElement());
-                    });
+        // Gradle 5.1 has a bug whereby a platform dependency whose version comes from a separate constraint end
+        // up as two separate entries in the resulting POM, making it invalid.
+        // https://github.com/gradle/gradle/issues/8238
+        project.getPluginManager().withPlugin("publishing", plugin -> {
+            PublishingExtension publishingExtension =
+                    project.getExtensions().getByType(PublishingExtension.class);
+            publishingExtension.getPublications().withType(MavenPublication.class, publication -> {
+                log.info("Fixing pom publication for {}: {}", project, publication);
+                publication.getPom().withXml(xmlProvider -> {
+                    GradleWorkarounds.mergeImportsWithVersions(xmlProvider.asElement());
                 });
             });
         });
+    }
+
+    private static void applyToRootProject(Project project) {
+        project.getExtensions()
+                    .create(VersionRecommendationsExtension.EXTENSION, VersionRecommendationsExtension.class, project);
+        project.subprojects(subproject -> subproject.getPluginManager().apply(VersionsPropsPlugin.class));
     }
 
     private static void setupConfiguration(
@@ -194,10 +202,6 @@ public class VersionsPropsPlugin implements Plugin<Project> {
     }
 
     private static void checkPreconditions(Project project) {
-        if (!project.getRootProject().equals(project)) {
-            throw new GradleException("Must be applied only to root project");
-        }
-
         Preconditions.checkState(
                 GradleVersion.current().compareTo(MINIMUM_GRADLE_VERSION) >= 0,
                 "This plugin requires gradle >= %s",
