@@ -40,11 +40,12 @@ import org.gradle.util.GradleVersion;
 public class VersionsPropsPlugin implements Plugin<Project> {
     private static final Logger log = Logging.getLogger(VersionsPropsPlugin.class);
     private static final GradleVersion MINIMUM_GRADLE_VERSION = GradleVersion.version("5.1");
-    static final String ROOT_CONFIGURATION_NAME = "rootConfiguration";
 
     /** Marks configurations for which we shouldn't inject constraints from {@code versions.props}. */
-    static final Attribute<Boolean> CONFIGURATION_EXCLUDE_ATTRIBUTE =
+    private static final Attribute<Boolean> CONFIGURATION_EXCLUDE_ATTRIBUTE =
             Attribute.of("consistent-versions-exclude", Boolean.class);
+
+    public static final String ROOT_CONFIGURATION_NAME = "rootConfiguration";
 
     @Override
     public final void apply(Project project) {
@@ -91,6 +92,10 @@ public class VersionsPropsPlugin implements Plugin<Project> {
                 });
             });
         });
+    }
+
+    static void disableRecommendations(Configuration conf) {
+        conf.getAttributes().attribute(VersionsPropsPlugin.CONFIGURATION_EXCLUDE_ATTRIBUTE, true);
     }
 
     private static void applyToRootProject(Project project) {

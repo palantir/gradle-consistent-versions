@@ -92,8 +92,7 @@ public class ConsistentPlatformPlugin implements Plugin<Project> {
         // javaPlatform's configurations.
         project.getPlugins().withType(VersionsPropsPlugin.class, plugin -> {
             JAVA_PLATFORM_CONFIGURATIONS.forEach(name -> project.getConfigurations().named(name).configure(conf -> {
-                // Mark it so it doesn't receive constraints from VersionsPropsPlugin
-                conf.getAttributes().attribute(VersionsPropsPlugin.CONFIGURATION_EXCLUDE_ATTRIBUTE, true);
+                VersionsPropsPlugin.disableRecommendations(conf);
             }));
 
             // But, explicitly pick up constraints from 'rootConfiguration' that didn't come from the lock file

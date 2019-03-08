@@ -250,8 +250,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
         NamedDomainObjectProvider<Configuration> subprojectUnifiedClasspath =
                 project.getConfigurations().register(SUBPROJECT_UNIFIED_CONFIGURATION_NAME, conf -> {
                     conf.setVisible(false).setCanBeResolved(false);
-                    // Mark it so it doesn't receive constraints from VersionsPropsPlugin
-                    conf.getAttributes().attribute(VersionsPropsPlugin.CONFIGURATION_EXCLUDE_ATTRIBUTE, true);
+                    VersionsPropsPlugin.disableRecommendations(conf);
                 });
         // Depend on this "sink" configuration from our global aggregating configuration `unifiedClasspath`.
         Dependency projectDep = rootProject.getDependencies().project(ImmutableMap.of(
@@ -491,8 +490,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
                     conf.setVisible(false);
                     conf.setCanBeConsumed(false);
                     conf.setCanBeResolved(false);
-                    // Mark it so it doesn't receive constraints from VersionsPropsPlugin
-                    conf.getAttributes().attribute(VersionsPropsPlugin.CONFIGURATION_EXCLUDE_ATTRIBUTE, true);
+                    VersionsPropsPlugin.disableRecommendations(conf);
                 });
 
         ImmutableSet<String> configurationNames = ImmutableSet.of(
