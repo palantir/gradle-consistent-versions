@@ -289,3 +289,23 @@ Alternatives:
 +    from { "$buildDir/foo/bar-${getVersion('group:bar')}" }
      ...
 ```
+
+## com.palantir.publish-bom
+
+Sets up a BOM publication that includes recommendations for:
+* all the versions in the lock file
+* any platforms depended on from `rootConfiguration`
+* all local projects that publish to maven
+
+#### Usage
+
+_my-project-bom/build.gradle_:
+
+
+```gradle
+apply plugin: 'com.palantir.publish-bom'
+```
+
+This plugin needs to be applied onto _its own project_, and expects that `com.palantir.consistent-versions` has been
+applied onto the root project.
+
