@@ -20,9 +20,9 @@ import groovy.util.slurpersupport.GPathResult
 import groovy.util.slurpersupport.NodeChildren
 import spock.lang.Unroll
 
-class PublishBomPluginIntegrationSpec extends GradleVersionIntegrationTestKitSpec {
+class ConsistentPlatformPluginIntegrationSpec extends GradleVersionIntegrationTestKitSpec {
 
-    static def PLUGIN_NAME = "com.palantir.publish-bom"
+    static def PLUGIN_NAME = "com.palantir.consistent-platform"
 
     void setup() {
         keepFiles = true

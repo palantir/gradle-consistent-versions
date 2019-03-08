@@ -43,11 +43,11 @@ import org.gradle.util.GradleVersion;
  * managed by {@link VersionsLockPlugin}.
  */
 @Incubating
-public class PublishBomPlugin implements Plugin<Project> {
+public class ConsistentPlatformPlugin implements Plugin<Project> {
     private static final GradleVersion MINIMUM_GRADLE_VERSION = GradleVersion.version("5.2");
     private static final String JAVA_PLATFORM_COMPONENT = "javaPlatform";
     private static final String VERSIONS_LOCK_PLUGIN = "com.palantir.versions-lock";
-    private static final String PUBLISH_BOM_PLUGIN = "com.palantir.publish-bom";
+    private static final String PUBLISH_BOM_PLUGIN = "com.palantir.consistent-platform";
     private static final String VERSIONS_PROPS_PLUGIN = "com.palantir.versions-props";
 
     private static final ImmutableList<String> JAVA_PLATFORM_CONFIGURATIONS = ImmutableList.of(
@@ -170,7 +170,7 @@ public class PublishBomPlugin implements Plugin<Project> {
 
     private static void checkPreconditions(Project project) {
         if (GradleVersion.current().compareTo(MINIMUM_GRADLE_VERSION) < 0) {
-            throw new GradleException("The publish-bom plugin requires at least gradle " + MINIMUM_GRADLE_VERSION);
+            throw new GradleException("The consistent-platform plugin requires at least gradle " + MINIMUM_GRADLE_VERSION);
         }
 
         // JavaPlatformPlugin is incompatible with JavaBasePlugin
@@ -185,7 +185,7 @@ public class PublishBomPlugin implements Plugin<Project> {
     }
 
     private static void failBecauseJavaPluginApplied(Project project) {
-        throw new GradleException("Cannot apply " + PublishBomPlugin.class + " to project that has the java "
+        throw new GradleException("Cannot apply " + ConsistentPlatformPlugin.class + " to project that has the java "
                 + "plugin applied: " + project);
     }
 }

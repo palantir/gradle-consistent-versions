@@ -290,9 +290,9 @@ Alternatives:
      ...
 ```
 
-## com.palantir.publish-bom
+## com.palantir.consistent-platform
 
-Sets up a BOM publication that includes recommendations for:
+Sets up a platform publication that includes recommendations for:
 * all the versions in the lock file
 * any platforms depended on from `rootConfiguration`
 * all local projects that publish to maven
@@ -303,7 +303,7 @@ _my-project-bom/build.gradle_:
 
 
 ```gradle
-apply plugin: 'com.palantir.publish-bom'
+apply plugin: 'com.palantir.consistent-platform'
 ```
 
 This plugin needs to be applied onto _its own project_, and expects that `com.palantir.consistent-versions` has been
