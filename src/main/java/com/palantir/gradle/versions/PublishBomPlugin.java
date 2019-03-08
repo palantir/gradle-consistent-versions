@@ -30,8 +30,6 @@ import org.gradle.api.artifacts.DependencyConstraintSet;
 import org.gradle.api.artifacts.ExternalDependency;
 import org.gradle.api.artifacts.ModuleIdentifier;
 import org.gradle.api.artifacts.ModuleVersionSelector;
-import org.gradle.api.logging.Logger;
-import org.gradle.api.logging.Logging;
 import org.gradle.api.plugins.JavaBasePlugin;
 import org.gradle.api.plugins.JavaPlatformExtension;
 import org.gradle.api.plugins.JavaPlatformPlugin;
@@ -46,7 +44,6 @@ import org.gradle.util.GradleVersion;
  */
 @Incubating
 public class PublishBomPlugin implements Plugin<Project> {
-    private static final Logger log = Logging.getLogger(PublishBomPlugin.class);
     private static final GradleVersion MINIMUM_GRADLE_VERSION = GradleVersion.version("5.2");
     private static final String JAVA_PLATFORM_COMPONENT = "javaPlatform";
     private static final String VERSIONS_LOCK_PLUGIN = "com.palantir.versions-lock";
