@@ -297,6 +297,8 @@ Sets up a platform publication that includes recommendations for:
 * any platforms depended on from `rootConfiguration`
 * all local projects that publish to maven
 
+This can be published as a BOM or additionally as a [Gradle Module Metadata](https://blog.gradle.org/gradle-metadata-1.0) file, if running on gradle 5.3 or later.
+
 #### Usage
 
 _my-project-bom/build.gradle_:
