@@ -30,6 +30,7 @@ import org.gradle.api.artifacts.DependencyConstraintSet;
 import org.gradle.api.artifacts.ExternalDependency;
 import org.gradle.api.artifacts.ModuleIdentifier;
 import org.gradle.api.artifacts.ModuleVersionSelector;
+import org.gradle.api.artifacts.dsl.DependencyConstraintHandler;
 import org.gradle.api.plugins.JavaBasePlugin;
 import org.gradle.api.plugins.JavaPlatformExtension;
 import org.gradle.api.plugins.JavaPlatformPlugin;
@@ -71,17 +72,17 @@ public class ConsistentPlatformPlugin implements Plugin<Project> {
             VersionsLockPlugin.applyLocksTo(project, JavaPlatformPlugin.API_CONFIGURATION_NAME);
         });
 
-        // Add constraints on all other local projects
-        project.getRootProject().allprojects(proj -> {
-            if (proj == project) {
+        // Add constraints on all other published local projects
+        DependencyConstraintHandler myConstraints = project.getDependencies().getConstraints();
+        project.getRootProject().allprojects(otherProject -> {
+            if (otherProject == project) {
                 return;
             }
-            proj.getPluginManager().withPlugin("maven-publish", plugin -> {
-                // Only expose a project dependency in the BOM if it's being published to maven
-                proj.afterEvaluate(p -> {
-                    PublishingExtension publishing = p.getExtensions().getByType(PublishingExtension.class);
+            otherProject.getPluginManager().withPlugin("maven-publish", plugin -> {
+                otherProject.afterEvaluate(p -> {
+                    PublishingExtension publishing = otherProject.getExtensions().getByType(PublishingExtension.class);
                     if (!publishing.getPublications().isEmpty()) {
-                        project.getDependencies().getConstraints().add(JavaPlatformPlugin.API_CONFIGURATION_NAME, proj);
+                        myConstraints.add(JavaPlatformPlugin.API_CONFIGURATION_NAME, otherProject);
                     }
                 });
             });
