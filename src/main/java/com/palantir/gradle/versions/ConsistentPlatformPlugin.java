@@ -46,9 +46,6 @@ import org.gradle.util.GradleVersion;
 public class ConsistentPlatformPlugin implements Plugin<Project> {
     private static final GradleVersion MINIMUM_GRADLE_VERSION = GradleVersion.version("5.2");
     private static final String JAVA_PLATFORM_COMPONENT = "javaPlatform";
-    private static final String VERSIONS_LOCK_PLUGIN = "com.palantir.versions-lock";
-    private static final String PUBLISH_BOM_PLUGIN = "com.palantir.consistent-platform";
-    private static final String VERSIONS_PROPS_PLUGIN = "com.palantir.versions-props";
 
     private static final ImmutableList<String> JAVA_PLATFORM_CONFIGURATIONS = ImmutableList.of(
             JavaPlatformPlugin.API_CONFIGURATION_NAME,
@@ -70,7 +67,7 @@ public class ConsistentPlatformPlugin implements Plugin<Project> {
         project.getExtensions().getByType(JavaPlatformExtension.class).allowDependencies();
 
         // Configure root project versions-lock
-        project.getRootProject().getPluginManager().withPlugin(VERSIONS_LOCK_PLUGIN, plugin -> {
+        project.getRootProject().getPlugins().withType(VersionsLockPlugin.class, plugin -> {
             VersionsLockPlugin.applyLocksTo(project, JavaPlatformPlugin.API_CONFIGURATION_NAME);
         });
 
@@ -92,7 +89,7 @@ public class ConsistentPlatformPlugin implements Plugin<Project> {
 
         // If versions-props is applied, make it so that it doesn't apply its recommendations to any of the
         // javaPlatform's configurations.
-        project.getPluginManager().withPlugin(VERSIONS_PROPS_PLUGIN, plugin -> {
+        project.getPlugins().withType(VersionsPropsPlugin.class, plugin -> {
             JAVA_PLATFORM_CONFIGURATIONS.forEach(name -> project.getConfigurations().named(name).configure(conf -> {
                 // Mark it so it doesn't receive constraints from VersionsPropsPlugin
                 conf.getAttributes().attribute(VersionsPropsPlugin.CONFIGURATION_EXCLUDE_ATTRIBUTE, true);
@@ -126,9 +123,9 @@ public class ConsistentPlatformPlugin implements Plugin<Project> {
         });
 
         project.getGradle().projectsEvaluated(gradle -> {
-            if (!gradle.getRootProject().getPluginManager().hasPlugin(VERSIONS_LOCK_PLUGIN)) {
-                throw new GradleException("Need to apply " + VERSIONS_LOCK_PLUGIN + " on the root project when using "
-                        + PUBLISH_BOM_PLUGIN);
+            if (!gradle.getRootProject().getPlugins().hasPlugin(VersionsLockPlugin.class)) {
+                throw new GradleException("Need to apply 'com.palantir.versions-lock' on the root project when using "
+                                + "'com.palantir.consistent-platform'");
             }
         });
 
