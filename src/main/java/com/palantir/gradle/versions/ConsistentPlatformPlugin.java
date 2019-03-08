@@ -19,6 +19,7 @@ package com.palantir.gradle.versions;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.gradle.api.GradleException;
 import org.gradle.api.Incubating;
@@ -47,6 +48,7 @@ import org.gradle.util.GradleVersion;
 public class ConsistentPlatformPlugin implements Plugin<Project> {
     private static final GradleVersion MINIMUM_GRADLE_VERSION = GradleVersion.version("5.2");
     private static final String JAVA_PLATFORM_COMPONENT = "javaPlatform";
+    private static final String PLUGIN_NAME = "com.palantir.consistent-platform";
 
     private static final ImmutableList<String> JAVA_PLATFORM_CONFIGURATIONS = ImmutableList.of(
             JavaPlatformPlugin.API_CONFIGURATION_NAME,
@@ -91,19 +93,22 @@ public class ConsistentPlatformPlugin implements Plugin<Project> {
         // If versions-props is applied, make it so that it doesn't apply its recommendations to any of the
         // javaPlatform's configurations.
         project.getPlugins().withType(VersionsPropsPlugin.class, plugin -> {
-            JAVA_PLATFORM_CONFIGURATIONS.forEach(name -> project.getConfigurations().named(name).configure(conf -> {
-                VersionsPropsPlugin.disableRecommendations(conf);
-            }));
+            JAVA_PLATFORM_CONFIGURATIONS.forEach(name ->
+                    project.getConfigurations().named(name).configure(VersionsPropsPlugin::disableRecommendations));
 
             // But, explicitly pick up constraints from 'rootConfiguration' that didn't come from the lock file
             // This is so that BOM imports are picked up, for instance
             project.getConfigurations().named(JavaPlatformPlugin.API_CONFIGURATION_NAME).configure(api -> {
                 DependencyConstraintSet existingConstraintSet = api.getAllDependencyConstraints();
-                // We explicitly won't allow multiple constraints on the same ModuleIdentifier, because it's not
-                // trivial to merge them, and you should only get constraints from the lock file anyway.
                 Map<ModuleIdentifier, DependencyConstraint> existingConstraints = existingConstraintSet
                         .stream()
-                        .collect(Collectors.toMap(ModuleVersionSelector::getModule, cons -> cons));
+                        .collect(Collectors.toMap(ModuleVersionSelector::getModule, Function.identity(), (a, b) -> {
+                            ModuleIdentifier key = a.getModule();
+                            throw new GradleException(String.format(
+                                    "Not allowed to have multiple constraints on %s:%n as auto-merging is impossible:%n"
+                                            + "\t1) %s%n"
+                                            + "\t2) %s", key, a, b));
+                        }));
 
                 Configuration rootConfiguration =
                         project.getConfigurations().getByName(VersionsPropsPlugin.ROOT_CONFIGURATION_NAME);
@@ -125,7 +130,7 @@ public class ConsistentPlatformPlugin implements Plugin<Project> {
         project.getGradle().projectsEvaluated(gradle -> {
             if (!gradle.getRootProject().getPlugins().hasPlugin(VersionsLockPlugin.class)) {
                 throw new GradleException("Need to apply 'com.palantir.versions-lock' on the root project when using "
-                                + "'com.palantir.consistent-platform'");
+                                + "'" + PLUGIN_NAME + "'");
             }
         });
 
@@ -167,22 +172,21 @@ public class ConsistentPlatformPlugin implements Plugin<Project> {
 
     private static void checkPreconditions(Project project) {
         if (GradleVersion.current().compareTo(MINIMUM_GRADLE_VERSION) < 0) {
-            throw new GradleException("The consistent-platform plugin requires at least gradle " + MINIMUM_GRADLE_VERSION);
+            throw new GradleException("The consistent-platform plugin requires at least " + MINIMUM_GRADLE_VERSION);
         }
 
-        // JavaPlatformPlugin is incompatible with JavaBasePlugin
+        // JavaPlatformPlugin is incompatible with JavaBasePlugin (they both define a configuration called 'api', etc)
         if (project.getPlugins().hasPlugin(JavaBasePlugin.class)) {
             failBecauseJavaPluginApplied(project);
         }
 
-        project
-                .getPlugins()
+        project.getPlugins()
                 .withType(JavaBasePlugin.class)
-                .configureEach(plugin -> failBecauseJavaPluginApplied(project));
+                .configureEach(p -> failBecauseJavaPluginApplied(project));
     }
 
     private static void failBecauseJavaPluginApplied(Project project) {
-        throw new GradleException("Cannot apply " + ConsistentPlatformPlugin.class + " to project that has the java "
-                + "plugin applied: " + project);
+        throw new GradleException("Cannot apply '" + PLUGIN_NAME + "' to project that already has the 'java' "
+                + "plugin applied: " + project + ", consider making a new project solely for platform publishing.");
     }
 }
