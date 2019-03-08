@@ -66,8 +66,11 @@ public class VersionsPropsPlugin implements Plugin<Project> {
                     conf.setCanBeResolved(false);
                 });
 
-        project.getConfigurations().configureEach(conf ->
-                setupConfiguration(project, extension, rootConfiguration, versionsProps, conf));
+        // TODO(dfox): explain why
+        project.afterEvaluate(p -> {
+            project.getConfigurations().configureEach(conf ->
+                    setupConfiguration(project, extension, rootConfiguration, versionsProps, conf));
+        });
 
         // Note: don't add constraints to this, only call `create` / `platform` on it.
         DependencyConstraintHandler constraintHandler = project.getDependencies().getConstraints();

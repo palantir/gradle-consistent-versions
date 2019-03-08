@@ -16,11 +16,13 @@
 
 package com.palantir.gradle.versions;
 
+import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 import org.gradle.api.GradleException;
 import org.gradle.api.Incubating;
 import org.gradle.api.Plugin;
@@ -30,7 +32,6 @@ import org.gradle.api.artifacts.DependencyConstraint;
 import org.gradle.api.artifacts.DependencyConstraintSet;
 import org.gradle.api.artifacts.ExternalDependency;
 import org.gradle.api.artifacts.ModuleIdentifier;
-import org.gradle.api.artifacts.ModuleVersionSelector;
 import org.gradle.api.artifacts.dsl.DependencyConstraintHandler;
 import org.gradle.api.plugins.JavaBasePlugin;
 import org.gradle.api.plugins.JavaPlatformExtension;
@@ -99,16 +100,9 @@ public class ConsistentPlatformPlugin implements Plugin<Project> {
             // But, explicitly pick up constraints from 'rootConfiguration' that didn't come from the lock file
             // This is so that BOM imports are picked up, for instance
             project.getConfigurations().named(JavaPlatformPlugin.API_CONFIGURATION_NAME).configure(api -> {
-                DependencyConstraintSet existingConstraintSet = api.getAllDependencyConstraints();
-                Map<ModuleIdentifier, DependencyConstraint> existingConstraints = existingConstraintSet
-                        .stream()
-                        .collect(Collectors.toMap(ModuleVersionSelector::getModule, Function.identity(), (a, b) -> {
-                            ModuleIdentifier key = a.getModule();
-                            throw new GradleException(String.format(
-                                    "Not allowed to have multiple constraints on %s:%n as auto-merging is impossible:%n"
-                                            + "\t1) %s%n"
-                                            + "\t2) %s", key, a, b));
-                        }));
+
+                Map<ModuleIdentifier, DependencyConstraint> existingConstraints =
+                        ensureConstraintsAreUnique(api.getAllDependencyConstraints());
 
                 Configuration rootConfiguration =
                         project.getConfigurations().getByName(VersionsPropsPlugin.ROOT_CONFIGURATION_NAME);
@@ -138,6 +132,28 @@ public class ConsistentPlatformPlugin implements Plugin<Project> {
         ourPublishingExtension.getPublications().register("bom", MavenPublication.class, publication -> {
             publication.from(project.getComponents().getByName(JAVA_PLATFORM_COMPONENT));
         });
+    }
+
+    private static Map<ModuleIdentifier, DependencyConstraint> ensureConstraintsAreUnique(
+            DependencyConstraintSet existingConstraintSet) {
+
+        Map<ModuleIdentifier, DependencyConstraint> existingConstraints = new HashMap<>();
+        List<String> failures = new ArrayList<>();
+        for (DependencyConstraint constraint : existingConstraintSet) {
+            ModuleIdentifier key = constraint.getModule();
+            if (!existingConstraints.containsKey(key)) {
+                existingConstraints.put(key, constraint);
+            } else {
+                failures.add(String.format("%s:%n"
+                                + "\t1) %s%n"
+                                + "\t2) %s", key, existingConstraints.get(key), constraint));
+            }
+        }
+        if (!failures.isEmpty()) {
+            throw new GradleException("Not allowed to have multiple constraints on the same module as "
+                    + "auto-merging is impossible:\n" + Joiner.on('\n').join(failures));
+        }
+        return existingConstraints;
     }
 
     private static void mergePlatformDependenciesWithExistingConstraints(
@@ -186,7 +202,10 @@ public class ConsistentPlatformPlugin implements Plugin<Project> {
     }
 
     private static void failBecauseJavaPluginApplied(Project project) {
-        throw new GradleException("Cannot apply '" + PLUGIN_NAME + "' to project that already has the 'java' "
-                + "plugin applied: " + project + ", consider making a new project solely for platform publishing.");
+        throw new GradleException(String.format(
+                "Cannot apply '%s' to %s as it already has the 'java' plugin applied. Either stop applying the "
+                        + "'java' plugin or consider making a new project solely for platform publishing.",
+                PLUGIN_NAME,
+                project));
     }
 }
