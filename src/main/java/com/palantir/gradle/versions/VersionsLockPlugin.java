@@ -186,7 +186,14 @@ public class VersionsLockPlugin implements Plugin<Project> {
             }
 
             // Ensure that we throw if there are dependencies that are not present in the lock state.
+            // Unless... dependencies / dependencyInsight was run on the root project
+            ImmutableList<String> tasks = ImmutableList.of(":dependencyInsight", ":dependencies");
             unifiedClasspath.getIncoming().afterResolve(r -> {
+                if (tasks.stream().anyMatch(project.getGradle().getTaskGraph()::hasTask)) {
+                    log.lifecycle("Not checking validity of locks since we are running tasks that inspect "
+                            + "dependencies");
+                    return;
+                }
                 failIfAnyDependenciesUnresolved(r);
 
                 LockState currentLockState = LockStates.toLockState(fullLockStateSupplier.get());
