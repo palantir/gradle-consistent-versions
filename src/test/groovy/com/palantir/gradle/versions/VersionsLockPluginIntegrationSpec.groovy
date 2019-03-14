@@ -310,6 +310,29 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         runTasks(':resolveConfigurations', '--write-locks')
     }
 
+    def 'does not fail if unifiedClasspath is unresolvable but we are running dependencies'() {
+        def notCheckingLocksMessage = "Not checking validity of locks"
+
+        file('versions.lock') << """\
+            org.slf4j:slf4j-api:1.7.11 (0 constraints: 0000000)
+        """.stripIndent()
+
+        addSubproject('foo', '''
+            apply plugin: 'java'
+            dependencies {
+                compile 'org.slf4j:slf4j-api:1.7.20'
+            }
+        '''.stripIndent())
+
+        expect:
+        def result = runTasks('dependencies', '--configuration', 'unifiedClasspath')
+        result.output.contains(notCheckingLocksMessage)
+
+        // Fails if we don't run dependencies
+        def failure = runTasksAndFail(':resolveConfigurations')
+        !failure.output.contains(notCheckingLocksMessage)
+    }
+
     def 'fails if dependency was removed but still in the lock file'() {
         def expectedError = "Locked dependencies missing from the resolution result"
         DependencyGraph dependencyGraph = new DependencyGraph("org:a:1.0", "org:b:1.0")
