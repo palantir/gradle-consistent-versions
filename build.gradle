@@ -11,6 +11,7 @@ buildscript {
 
     dependencies {
         classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:1.8.4'
+        classpath 'com.gradle.publish:plugin-publish-plugin:0.10.1'
         classpath 'com.netflix.nebula:nebula-publishing-plugin:9.5.0'
         classpath 'com.palantir.baseline:gradle-baseline-java:0.53.0'
         classpath 'com.palantir.gradle.consistentversions:gradle-consistent-versions:1.1.2'
@@ -26,6 +27,7 @@ repositories {
     }
 }
 
+apply plugin: 'com.gradle.plugin-publish'
 apply plugin: 'com.palantir.git-version'
 apply plugin: 'com.palantir.consistent-versions'
 
@@ -57,10 +59,11 @@ tasks.withType(JavaCompile) {
     options.compilerArgs += ['-Werror']
 }
 
-gradlePlugin {
-    // do not add new task to publish to plugins.gradle.org
-    automatedPublishing = false
-
+pluginBundle {
+    website = 'https://github.com/palantir/gradle-consistent-versions'
+    vcsUrl = 'https://github.com/palantir/gradle-consistent-versions'
+    description = 'Compact, constraint-friendly lockfiles for your dependencies'
+    tags = ['versions']
     plugins {
         consistentVersions {
             id = 'com.palantir.consistent-versions'
@@ -75,4 +78,8 @@ gradlePlugin {
             implementationClass = 'com.palantir.gradle.versions.VersionsPropsPlugin'
         }
     }
+}
+
+publishPlugins.onlyIf {
+    project.version ==~ /\d+\.\d+\.\d+/
 }
