@@ -25,6 +25,9 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
                 "ch.qos.logback:logback-classic:1.1.11 -> org.slf4j:slf4j-api:1.7.22",
                 "org.slf4j:slf4j-api:1.7.22",
                 "org.slf4j:slf4j-api:1.7.25",
+                "test-alignment:module-that-should-be-aligned-up:1.0",
+                "test-alignment:module-that-should-be-aligned-up:1.1",
+                "test-alignment:module-with-higher-version:1.1",
         )
         buildFile << """
             buildscript {
@@ -108,5 +111,37 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
 
         expect:
         runTasks('demo', '--write-locks').output.contains("demo=1.7.25")
+    }
+
+    def "virtual platform is respected across projects"() {
+        addSubproject('foo', """
+            apply plugin: 'java'
+            dependencies {
+                compile 'test-alignment:module-that-should-be-aligned-up:1.0'
+            }
+        """.stripIndent())
+
+        addSubproject('bar', """
+            apply plugin: 'java'
+            dependencies {
+                compile 'test-alignment:module-with-higher-version:1.1'
+            }
+        """.stripIndent())
+
+        file('versions.props') << """
+            # Just to create a platform around test-alignment:*
+            test-alignment:* = 1.0
+        """.stripIndent()
+
+        when:
+        runTasks('--write-locks')
+
+        then:
+        def expectedLock = """\
+            # Run ./gradlew --write-locks to regenerate this file
+            test-alignment:module-that-should-be-aligned-up:1.1 (1 constraints: a5041a2c)
+            test-alignment:module-with-higher-version:1.1 (1 constraints: a6041b2c)
+        """.stripIndent()
+        file('versions.lock').text == expectedLock
     }
 }
