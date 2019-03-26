@@ -21,6 +21,7 @@ import com.google.common.collect.ImmutableList;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Objects;
+import java.util.Optional;
 import org.gradle.api.GradleException;
 import org.gradle.api.NamedDomainObjectProvider;
 import org.gradle.api.Plugin;
@@ -30,6 +31,7 @@ import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.DependencyConstraint;
 import org.gradle.api.artifacts.ExternalDependency;
 import org.gradle.api.artifacts.dsl.DependencyConstraintHandler;
+import org.gradle.api.artifacts.result.ResolvedDependencyResult;
 import org.gradle.api.attributes.Attribute;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
@@ -93,7 +95,7 @@ public class VersionsPropsPlugin implements Plugin<Project> {
 
     private static void applyToRootProject(Project project) {
         project.getExtensions()
-                    .create(VersionRecommendationsExtension.EXTENSION, VersionRecommendationsExtension.class, project);
+                .create(VersionRecommendationsExtension.EXTENSION, VersionRecommendationsExtension.class, project);
         project.subprojects(subproject -> subproject.getPluginManager().apply(VersionsPropsPlugin.class));
     }
 
@@ -127,6 +129,23 @@ public class VersionsPropsPlugin implements Plugin<Project> {
             return;
         }
 
+        conf.getIncoming().afterResolve(resolvableDependencies ->
+                resolvableDependencies.getResolutionResult().getAllComponents().forEach(comp -> {
+                    Optional<? extends ResolvedDependencyResult> platformDependent = comp.getDependents().stream()
+                            .filter(dependent -> GradleUtils.isPlatform(dependent.getRequested().getAttributes()))
+                            .findFirst();
+                    if (!platformDependent.isPresent()) {
+                        return;
+                    }
+
+                    Preconditions.checkState(
+                            comp.getVariants().stream().anyMatch(var -> GradleUtils.isPlatform(var.getAttributes())),
+                            "Encountered platform dependency '%s' in %s that ended up being a library rather than a "
+                                    + "BOM. Typically, this occurs if your platform dependency module name is missing "
+                                    + "a '-bom' at the end.",
+                            platformDependent.get(),
+                            conf);
+                }));
         conf.extendsFrom(rootConfiguration.get());
 
         // We must allow unifiedClasspath to be resolved at configuration-time.
