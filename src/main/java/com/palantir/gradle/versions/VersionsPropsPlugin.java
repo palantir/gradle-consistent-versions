@@ -131,10 +131,10 @@ public class VersionsPropsPlugin implements Plugin<Project> {
 
         conf.getIncoming().afterResolve(resolvableDependencies ->
                 resolvableDependencies.getResolutionResult().getAllComponents().forEach(comp -> {
-                    Optional<? extends ResolvedDependencyResult> platformDependant = comp.getDependents().stream()
-                            .filter(dependant -> GradleUtils.isPlatform(dependant.getRequested().getAttributes()))
+                    Optional<? extends ResolvedDependencyResult> platformDependent = comp.getDependents().stream()
+                            .filter(dependent -> GradleUtils.isPlatform(dependent.getRequested().getAttributes()))
                             .findFirst();
-                    if (!platformDependant.isPresent()) {
+                    if (!platformDependent.isPresent()) {
                         return;
                     }
 
@@ -143,7 +143,7 @@ public class VersionsPropsPlugin implements Plugin<Project> {
                             "Encountered platform dependency '%s' that ended up being a library rather than a BOM."
                                     + " Typically, this occurs if you platform dependency module name is missing a "
                                     + "'-bom' at the end.",
-                            platformDependant.get());
+                            platformDependent.get());
                 }));
         conf.extendsFrom(rootConfiguration.get());
 
