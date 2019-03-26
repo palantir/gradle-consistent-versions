@@ -80,6 +80,4 @@ pluginBundle {
     }
 }
 
-publishPlugins.onlyIf {
-    project.version ==~ /\d+\.\d+\.\d+/
-}
+publishPlugins.onlyIf { versionDetails().isCleanTag }
