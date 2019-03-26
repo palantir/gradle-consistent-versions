@@ -16,10 +16,8 @@
 
 package com.palantir.gradle.versions
 
-
 import nebula.test.ProjectSpec
 import org.gradle.api.artifacts.ModuleDependency
-import org.gradle.api.artifacts.result.ResolvedComponentResult
 import spock.util.environment.RestoreSystemProperties
 
 @RestoreSystemProperties
@@ -73,11 +71,10 @@ class GradleUtilsTest extends ProjectSpec {
         }
 
         expect:
-        project.configurations.foo.incoming.resolutionResult.allComponents { ResolvedComponentResult componentResult ->
-            if (componentResult.moduleVersion.group == 'org' && componentResult.moduleVersion.name == 'platform') {
-                assert GradleUtils.isPlatform(componentResult.variant.attributes)
-            }
+        def rcr = project.configurations.foo.incoming.resolutionResult.allComponents.find {
+            it.moduleVersion.group == 'org' && it.moduleVersion.name == 'platform'
         }
+        GradleUtils.isPlatform(rcr.variant.attributes)
     }
 
     def "correctly identifies platform in unresolved dependencies"() {
