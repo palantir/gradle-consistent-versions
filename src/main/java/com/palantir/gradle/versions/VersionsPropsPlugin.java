@@ -141,8 +141,8 @@ public class VersionsPropsPlugin implements Plugin<Project> {
                     Preconditions.checkState(
                             comp.getVariants().stream().anyMatch(var -> GradleUtils.isPlatform(var.getAttributes())),
                             "Encountered platform dependency '%s' in %s that ended up being a library rather than a "
-                                    + "BOM. Typically, this occurs if you platform dependency module name is missing a "
-                                    + "'-bom' at the end.",
+                                    + "BOM. Typically, this occurs if your platform dependency module name is missing "
+                                    + "a '-bom' at the end.",
                             platformDependent.get(),
                             conf);
                 }));
