@@ -27,6 +27,13 @@ final class GradleUtils {
     private GradleUtils() {}
 
     private static final GradleVersion GRADLE_VERSION_CATEGORY_AVAILABLE = GradleVersion.version("5.3-rc-1");
+
+    /**
+     * Equivalent of {@link Category#CATEGORY_ATTRIBUTE} but with type {@link String}. This is because attributes of
+     * components in a {@link org.gradle.api.artifacts.result.ResolutionResult} are desugared, usually into strings.
+     * <p>
+     * See issue: https://github.com/gradle/gradle/issues/8854
+     */
     private static final Attribute<String> CATEGORY_STRING_ATTRIBUTE =
             Attribute.of("org.gradle.category", String.class);
 
