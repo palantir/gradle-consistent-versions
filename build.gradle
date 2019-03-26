@@ -64,6 +64,9 @@ pluginBundle {
     vcsUrl = 'https://github.com/palantir/gradle-consistent-versions'
     description = 'Compact, constraint-friendly lockfiles for your dependencies'
     tags = ['versions']
+}
+
+gradlePlugin {
     plugins {
         consistentVersions {
             id = 'com.palantir.consistent-versions'
