@@ -16,9 +16,7 @@
 
 package com.palantir.gradle.versions
 
-import com.palantir.gradle.versions.repogen.DependencyGraph
-import com.palantir.gradle.versions.repogen.GradleDependencyGenerator
-import groovy.transform.CompileStatic
+
 import nebula.test.ProjectSpec
 import org.gradle.api.artifacts.ModuleDependency
 import org.gradle.api.artifacts.result.ResolvedComponentResult
@@ -29,9 +27,30 @@ class GradleUtilsTest extends ProjectSpec {
 
     void setup() {
         System.setProperty('cleanProjectDir', 'false')
-        def mavenRepo = generateMavenRepo(
-                '(platform) org:platform:1.0 -> org:a:1.0',
-                'org:a:1.0')
+        def mavenRepo = new File(project.buildDir, 'mavenrepo')
+        def pomFile = new File(mavenRepo, 'org/platform/1.0/platform-1.0.pom')
+        pomFile.parentFile.mkdirs()
+        pomFile << '''\
+            <?xml version="1.0" encoding="UTF-8"?>
+            <project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+              <modelVersion>4.0.0</modelVersion>
+              <groupId>org</groupId>
+              <artifactId>platform</artifactId>
+              <version>1.0</version>
+              <packaging>pom</packaging>
+              <dependencyManagement>
+                <dependencies>
+                  <dependency>
+                    <groupId>org</groupId>
+                    <artifactId>a</artifactId>
+                    <version>1.0</version>
+                    <scope>compile</scope>
+                  </dependency>
+                </dependencies>
+              </dependencyManagement>
+            </project>
+        '''.stripIndent()
 
         project.with {
             // Necessary to bring in platform derivation rules (JavaEcosystemVariantDerivationStrategy)
@@ -74,13 +93,5 @@ class GradleUtilsTest extends ProjectSpec {
         expect:
         ModuleDependency dep = project.configurations.foo.dependencies[0] as ModuleDependency
         GradleUtils.isPlatform(dep.attributes)
-    }
-
-    @CompileStatic
-    protected File generateMavenRepo(String... graph) {
-        DependencyGraph dependencyGraph = new DependencyGraph(graph)
-        GradleDependencyGenerator generator = new GradleDependencyGenerator(
-                dependencyGraph, new File(projectDir, "build/testrepogen").toString())
-        return generator.generateTestMavenRepo()
     }
 }
