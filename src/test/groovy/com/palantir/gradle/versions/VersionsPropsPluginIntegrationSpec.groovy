@@ -18,8 +18,6 @@ package com.palantir.gradle.versions
 
 import groovy.util.slurpersupport.GPathResult
 import groovy.util.slurpersupport.NodeChildren
-import org.gradle.testkit.runner.BuildResult
-import org.gradle.testkit.runner.TaskOutcome
 
 class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
 
@@ -217,23 +215,6 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
 
         expect:
         runTasks()
-    }
-
-    def "throws when using platform with non-bom"() {
-        buildFile << """
-        configurations {
-            foo
-        }
-        dependencies {
-            rootConfiguration platform('org.slf4j:slf4j-api:1.7.25')
-        }
-        """.stripIndent()
-
-        expect:
-        def result = runTasksAndFail(':dependencyInsight', '--configuration', 'foo', '--dependency', 'slf4j-api')
-
-        result.task(':dependencyInsight').outcome == TaskOutcome.FAILED
-        result.output.contains("Encountered platform dependency 'org.slf4j:slf4j-api:1.7.25'")
     }
 
     /**
