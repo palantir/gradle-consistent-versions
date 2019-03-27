@@ -59,13 +59,6 @@ tasks.withType(JavaCompile) {
     options.compilerArgs += ['-Werror']
 }
 
-pluginBundle {
-    website = 'https://github.com/palantir/gradle-consistent-versions'
-    vcsUrl = 'https://github.com/palantir/gradle-consistent-versions'
-    description = 'Compact, constraint-friendly lockfiles for your dependencies'
-    tags = ['versions']
-}
-
 gradlePlugin {
     // These marker publications are corrupted when nebula.maven-compile-only is also applied, which is brought in by
     // nebula.maven-publish
@@ -87,5 +80,21 @@ gradlePlugin {
     }
 }
 
+pluginBundle {
+    website = 'https://github.com/palantir/gradle-consistent-versions'
+    vcsUrl = 'https://github.com/palantir/gradle-consistent-versions'
+    description = 'Compact, constraint-friendly lockfiles for your dependencies'
+    tags = ['versions']
+
+    // Don't publish the other plugins to the plugin portal
+    plugins.removeIf { it.name != 'consistentVersions' }
+
+    plugins {
+        consistentVersions {
+            displayName = 'Compact, constraint-friendly lockfiles for your dependencies'
+        }
+    }
+}
+
 tasks.publish.dependsOn tasks.publishPlugins
-publishPlugins.onlyIf { versionDetails().isCleanTag }
+//publishPlugins.onlyIf { versionDetails().isCleanTag }
