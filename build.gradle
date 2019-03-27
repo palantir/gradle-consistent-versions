@@ -67,7 +67,7 @@ pluginBundle {
 }
 
 gradlePlugin {
-    // These marker publications are correpted when nebula.maven-compile-only is also applied, which is brought in by
+    // These marker publications are corrupted when nebula.maven-compile-only is also applied, which is brought in by
     // nebula.maven-publish
     automatedPublishing = false
 
