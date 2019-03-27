@@ -89,6 +89,9 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
             }
         '''.stripIndent()
 
+        // Pretend we have a lock file
+        file('versions.lock') << ''
+
         file('versions.props') << 'org.slf4j:* = 1.7.25'
 
         expect:

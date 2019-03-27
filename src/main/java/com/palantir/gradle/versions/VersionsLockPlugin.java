@@ -179,10 +179,14 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 unifiedClasspath.getIncoming().getResolutionResult().getRoot();
             });
         } else {
-            if (Files.notExists(rootLockfile)) {
-                log.warn("Root lock file '{}' doesn't exist, please run "
-                        + "`./gradlew --write-locks` to initialise locks", rootLockfile);
+            if (project.hasProperty("ignoreLockFile")) {
+                log.lifecycle("Ignoring lock file for debugging, because the 'ignoreLockFile' property was set");
                 return;
+            }
+
+            if (Files.notExists(rootLockfile)) {
+                throw new GradleException(String.format("Root lock file '%s' doesn't exist, please run "
+                        + "`./gradlew --write-locks` to initialise locks", rootLockfile));
             }
 
             // Ensure that we throw if there are dependencies that are not present in the lock state.

@@ -95,22 +95,23 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         '''.stripIndent())
     }
 
-    def 'can resolve without a root lock file'() {
+    def 'cannot resolve without a root lock file'() {
         setup:
         standardSetup()
-        buildFile << '''
-            subprojects {
-                configurations.matching { it.name == 'runtimeClasspath' }.all {
-                    resolutionStrategy.activateDependencyLocking()
-                }
-            }
-        '''.stripIndent()
 
         expect:
-        def result = runTasks('resolveConfigurations')
+        def result = runTasksAndFail('resolveConfigurations')
         result.output.readLines().any {
             it.matches ".*Root lock file '([^']+)' doesn't exist, please run.*"
         }
+    }
+
+    def 'can resolve without a root lock file if lock file is ignored'() {
+        setup:
+        standardSetup()
+
+        expect:
+        runTasks('resolveConfigurations', '-PignoreLockFile')
     }
 
     def 'global nebula recommendations are superseded by transitive'() {
@@ -267,6 +268,8 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                 implementation project(':foobar')
             }
         '''.stripIndent())
+        // Otherwise the lack of a lock file will throw first
+        file('versions.lock') << ""
 
         expect:
         def error = runTasksAndFail()
