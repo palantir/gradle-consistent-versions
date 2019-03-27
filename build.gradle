@@ -97,4 +97,4 @@ pluginBundle {
 }
 
 tasks.publish.dependsOn tasks.publishPlugins
-//publishPlugins.onlyIf { versionDetails().isCleanTag }
+publishPlugins.onlyIf { versionDetails().isCleanTag }
