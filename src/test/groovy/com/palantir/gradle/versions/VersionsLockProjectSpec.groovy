@@ -24,17 +24,10 @@ class VersionsLockProjectSpec extends ProjectSpec {
         return "com.palantir.consistent-versions"
     }
 
-    def 'apply does not throw exceptions'() {
-        when:
-        project.apply plugin: pluginName
+    def 'apply does not throw exceptions if versions.lock exists'() {
+        new File(projectDir, 'versions.lock') << ''
 
-        then:
-        noExceptionThrown()
-    }
-
-    def 'apply is idempotent'() {
         when:
-        project.apply plugin: pluginName
         project.apply plugin: pluginName
 
         then:
