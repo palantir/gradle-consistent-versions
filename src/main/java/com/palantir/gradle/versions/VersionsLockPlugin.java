@@ -21,6 +21,7 @@ import com.google.common.base.Splitter;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.MapDifference;
@@ -462,7 +463,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
                     }
 
                     log.lifecycle(
-                            "Found project dependency: {} -> {}",
+                            "Found legacy project dependency (with target configuration): {} -> {}",
                             currentProject,
                             formatProjectDependency(projectDependency));
 
