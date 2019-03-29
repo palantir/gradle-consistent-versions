@@ -103,12 +103,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
     private static final String LOCK_CONSTRAINTS_CONFIGURATION_NAME = "lockConstraints";
     private static final Attribute<Boolean> CONSISTENT_VERSIONS_CONSTRAINT_ATTRIBUTE =
             Attribute.of("consistent-versions", Boolean.class);
-    /**
-     * Copied from {@link org.gradle.api.internal.artifacts.dsl.dependencies.PlatformSupport#COMPONENT_CATEGORY} since
-     * that's internal.
-     */
-    private static final Attribute<String> COMPONENT_CATEGORY =
-            Attribute.of("org.gradle.component.category", String.class);
+
     private static final String COMPILE_CLASSPATH_USAGE = "compile-classpath-for-consistent-versions";
     private final Usage compileClasspathUsage;
     /**
@@ -231,14 +226,25 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 unifiedClasspath.getIncoming().getResolutionResult().getRoot();
             });
         } else {
-            if (Files.notExists(rootLockfile)) {
-                log.warn("Root lock file '{}' doesn't exist, please run "
-                        + "`./gradlew --write-locks` to initialise locks", rootLockfile);
+            if (project.hasProperty("ignoreLockFile")) {
+                log.lifecycle("Ignoring lock file for debugging, because the 'ignoreLockFile' property was set");
                 return;
             }
 
+            if (Files.notExists(rootLockfile)) {
+                throw new GradleException(String.format("Root lock file '%s' doesn't exist, please run "
+                        + "`./gradlew --write-locks` to initialise locks", rootLockfile));
+            }
+
             // Ensure that we throw if there are dependencies that are not present in the lock state.
+            // Unless... dependencies / dependencyInsight was run on the root project
+            ImmutableList<String> tasks = ImmutableList.of(":dependencyInsight", ":dependencies");
             unifiedClasspath.getIncoming().afterResolve(r -> {
+                if (tasks.stream().anyMatch(project.getGradle().getTaskGraph()::hasTask)) {
+                    log.lifecycle("Not checking validity of locks since we are running tasks that inspect "
+                            + "dependencies");
+                    return;
+                }
                 failIfAnyDependenciesUnresolved(r);
 
                 LockState currentLockState = LockStates.toLockState(fullLockStateSupplier.get());
@@ -534,14 +540,6 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
     private static Optional<Dependents> extractDependents(ResolvedComponentResult component) {
         if (!(component.getId() instanceof ModuleComponentIdentifier)) {
-            return Optional.empty();
-        }
-        // Don't lock any platforms, since these are not actual dependencies.
-        if (component.getDependents().stream().anyMatch(rdr -> {
-            String category = rdr.getRequested().getAttributes().getAttribute(COMPONENT_CATEGORY);
-            return category != null && category.contains("platform");
-        })) {
-            log.debug("Not locking component because it's a platform: {}", component.getId());
             return Optional.empty();
         }
         return Optional.of(Dependents.of(component

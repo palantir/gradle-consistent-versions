@@ -16,21 +16,22 @@
 
 package com.palantir.gradle.versions
 
-import nebula.test.ProjectSpec
+import groovy.transform.CompileStatic
+import nebula.test.IntegrationTestKitSpec
+import nebula.test.dependencies.DependencyGraph
+import nebula.test.dependencies.GradleDependencyGenerator
 
-class VersionsLockProjectSpec extends ProjectSpec {
-
-    String getPluginName() {
-        return "com.palantir.consistent-versions"
+class IntegrationSpec extends IntegrationTestKitSpec {
+    void setup() {
+        keepFiles = true
+        settingsFile.createNewFile()
     }
 
-    def 'apply does not throw exceptions if versions.lock exists'() {
-        new File(projectDir, 'versions.lock') << ''
-
-        when:
-        project.apply plugin: pluginName
-
-        then:
-        noExceptionThrown()
+    @CompileStatic
+    protected File generateMavenRepo(String... graph) {
+        DependencyGraph dependencyGraph = new DependencyGraph(graph)
+        GradleDependencyGenerator generator = new GradleDependencyGenerator(
+                dependencyGraph, new File(projectDir, "build/testrepogen").toString())
+        return generator.generateTestMavenRepo()
     }
 }

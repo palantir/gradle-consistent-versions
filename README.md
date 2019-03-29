@@ -12,7 +12,7 @@ Direct dependencies are specified in a top level `versions.props` file and then 
 +        classpath 'com.palantir.gradle.consistentversions:gradle-consistent-versions:<latest>'
      }
 +    repositories {
-+        maven { url "http://palantir.bintray.com/releases" }
++        maven { url "https://dl.bintray.com/palantir/releases" }
 +    }
  }
 
@@ -35,7 +35,7 @@ Direct dependencies are specified in a top level `versions.props` file and then 
  }
 ```
 
-Add the following to your settings.gradle to fully disable nebula.
+Add the following to your `gradle.properties` to fully disable nebula.
 
 ```diff
  org.gradle.parallel=true
@@ -285,7 +285,7 @@ Alternatives:
 
 ```diff
  task copySomething(type: Copy) {
--    from "$buildDir/foo/bar-${dependencyRecommendations.getRecommendedVersion('group:bar')}"
+-    from "$buildDir/foo/bar-${dependencyRecommendations.getRecommendedVersion('group', 'bar')}"
 +    from { "$buildDir/foo/bar-${getVersion('group:bar')}" }
      ...
 ```

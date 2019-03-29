@@ -16,30 +16,35 @@
 
 package com.palantir.gradle.versions
 
-import nebula.test.IntegrationTestKitSpec
 import nebula.test.dependencies.DependencyGraph
 import nebula.test.dependencies.GradleDependencyGenerator
 import org.gradle.testkit.runner.BuildResult
 
-class VersionsLockPluginIntegrationSpec extends IntegrationTestKitSpec {
+class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
 
     static def PLUGIN_NAME = "com.palantir.versions-lock"
 
     void setup() {
-        keepFiles = true
-        settingsFile.createNewFile()
+        File mavenRepo = generateMavenRepo(
+                "ch.qos.logback:logback-classic:1.2.3 -> org.slf4j:slf4j-api:1.7.25",
+                "org.slf4j:slf4j-api:1.7.11",
+                "org.slf4j:slf4j-api:1.7.20",
+                "org.slf4j:slf4j-api:1.7.24",
+                "org.slf4j:slf4j-api:1.7.25",
+                "org:platform:1.0",
+        )
         buildFile << """
             plugins { id '${PLUGIN_NAME}' }
+            allprojects {
+                repositories {
+                    maven { url "file:///${mavenRepo.getAbsolutePath()}" }
+                }
+            }
         """
     }
 
     def 'can write locks'() {
         expect:
-        buildFile << '''
-            repositories {
-                jcenter()
-            }
-        '''.stripIndent()
         runTasks('resolveConfigurations', '--write-locks')
         new File(projectDir, "versions.lock").exists()
     }
@@ -47,9 +52,6 @@ class VersionsLockPluginIntegrationSpec extends IntegrationTestKitSpec {
     private def standardSetup() {
         buildFile << """
             allprojects {
-                repositories {
-                    jcenter()
-                }
                 // using nebula in ':baz'
                 apply plugin: 'nebula.dependency-recommender'
             }
@@ -93,31 +95,29 @@ class VersionsLockPluginIntegrationSpec extends IntegrationTestKitSpec {
         '''.stripIndent())
     }
 
-    def 'can resolve without a root lock file'() {
+    def 'cannot resolve without a root lock file'() {
         setup:
         standardSetup()
-        buildFile << '''
-            subprojects {
-                configurations.matching { it.name == 'runtimeClasspath' }.all {
-                    resolutionStrategy.activateDependencyLocking()
-                }
-            }
-        '''.stripIndent()
 
         expect:
-        def result = runTasks('resolveConfigurations')
+        def result = runTasksAndFail('resolveConfigurations')
         result.output.readLines().any {
             it.matches ".*Root lock file '([^']+)' doesn't exist, please run.*"
         }
+    }
+
+    def 'can resolve without a root lock file if lock file is ignored'() {
+        setup:
+        standardSetup()
+
+        expect:
+        runTasks('resolveConfigurations', '-PignoreLockFile')
     }
 
     def 'global nebula recommendations are superseded by transitive'() {
         setup:
         buildFile << """
             allprojects {
-                repositories {
-                    jcenter()
-                }
                 apply plugin: 'nebula.dependency-recommender'
                 
                 dependencyRecommendations {
@@ -218,9 +218,6 @@ class VersionsLockPluginIntegrationSpec extends IntegrationTestKitSpec {
     def 'works on just root project'() {
         buildFile << '''
             apply plugin: 'java'
-            repositories {
-                jcenter()
-            }
             dependencies {
                 compile 'ch.qos.logback:logback-classic:1.2.3' // brings in slf4j-api 1.7.25
             }
@@ -271,6 +268,8 @@ class VersionsLockPluginIntegrationSpec extends IntegrationTestKitSpec {
                 implementation project(':foobar')
             }
         '''.stripIndent())
+        // Otherwise the lack of a lock file will throw first
+        file('versions.lock') << ""
 
         expect:
         def error = runTasksAndFail()
@@ -314,6 +313,29 @@ class VersionsLockPluginIntegrationSpec extends IntegrationTestKitSpec {
         runTasks(':resolveConfigurations', '--write-locks')
     }
 
+    def 'does not fail if unifiedClasspath is unresolvable but we are running dependencies'() {
+        def notCheckingLocksMessage = "Not checking validity of locks"
+
+        file('versions.lock') << """\
+            org.slf4j:slf4j-api:1.7.11 (0 constraints: 0000000)
+        """.stripIndent()
+
+        addSubproject('foo', '''
+            apply plugin: 'java'
+            dependencies {
+                compile 'org.slf4j:slf4j-api:1.7.20'
+            }
+        '''.stripIndent())
+
+        expect:
+        def result = runTasks('dependencies', '--configuration', 'unifiedClasspath')
+        result.output.contains(notCheckingLocksMessage)
+
+        // Fails if we don't run dependencies
+        def failure = runTasksAndFail(':resolveConfigurations')
+        !failure.output.contains(notCheckingLocksMessage)
+    }
+
     def 'fails if dependency was removed but still in the lock file'() {
         def expectedError = "Locked dependencies missing from the resolution result"
         DependencyGraph dependencyGraph = new DependencyGraph("org:a:1.0", "org:b:1.0")
@@ -355,7 +377,6 @@ class VersionsLockPluginIntegrationSpec extends IntegrationTestKitSpec {
     def "why works"() {
         buildFile << '''
             apply plugin: 'java'
-            repositories { jcenter() } 
             dependencies {
                 compile 'ch.qos.logback:logback-classic:1.2.3' // brings in slf4j-api 1.7.25
             }
@@ -368,5 +389,43 @@ class VersionsLockPluginIntegrationSpec extends IntegrationTestKitSpec {
         def result = runTasks('why', '--hash', '400d4d2a') // slf4j-api
         result.output.contains('org.slf4j:slf4j-api:1.7.25')
         result.output.contains('ch.qos.logback:logback-classic -> 1.7.25')
+    }
+
+    def 'does not fail if subproject evaluated later applies base plugin in own build file'() {
+        addSubproject('foo', """
+            apply plugin: 'java-library'
+            dependencies {
+                implementation project(':foo:bar')
+            }
+        """.stripIndent())
+
+        // Need to make sure bar is evaluated after foo, so we're nesting it!
+        def subdir = new File(projectDir, 'foo/bar')
+        subdir.mkdirs()
+        settingsFile << "include ':foo:bar'"
+        new File(subdir, 'build.gradle') << """
+            apply plugin: 'java-library'
+        """.stripIndent()
+
+        expect:
+        runTasks('--write-locks')
+    }
+
+    def "locks platform"() {
+        buildFile << """
+            apply plugin: 'java'
+            dependencies {
+                compile platform('org:platform:1.0')
+            }
+        """.stripIndent()
+
+        when:
+        runTasks('--write-locks')
+
+        then:
+        file('versions.lock').readLines() == [
+                '# Run ./gradlew --write-locks to regenerate this file',
+                'org:platform:1.0 (1 constraints: a5041a2c)',
+        ]
     }
 }

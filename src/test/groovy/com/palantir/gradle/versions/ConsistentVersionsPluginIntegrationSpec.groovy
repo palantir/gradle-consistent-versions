@@ -16,15 +16,19 @@
 
 package com.palantir.gradle.versions
 
-import nebula.test.IntegrationTestKitSpec
-
-class ConsistentVersionsPluginIntegrationSpec extends IntegrationTestKitSpec {
+class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
 
     static def PLUGIN_NAME = "com.palantir.consistent-versions"
 
     void setup() {
-        keepFiles = true
-        settingsFile.createNewFile()
+        File mavenRepo = generateMavenRepo(
+                "ch.qos.logback:logback-classic:1.1.11 -> org.slf4j:slf4j-api:1.7.22",
+                "org.slf4j:slf4j-api:1.7.22",
+                "org.slf4j:slf4j-api:1.7.25",
+                "test-alignment:module-that-should-be-aligned-up:1.0",
+                "test-alignment:module-that-should-be-aligned-up:1.1",
+                "test-alignment:module-with-higher-version:1.1",
+        )
         buildFile << """
             buildscript {
                 dependencies {
@@ -40,27 +44,25 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationTestKitSpec {
             plugins { id '${PLUGIN_NAME}' }
             allprojects {
                 apply plugin: 'com.palantir.configuration-resolver'
+                
+                repositories {
+                    maven { url "file:///${mavenRepo.getAbsolutePath()}" }
+                }
             }
         """.stripIndent()
     }
 
     def 'can write locks'() {
-        buildFile << '''
-            repositories {
-                jcenter()
-            }
-        '''.stripIndent()
-
-        expect:
+        when:
         runTasks('--write-locks')
-        new File(projectDir, "versions.lock").exists()
 
+        then:
+        new File(projectDir, "versions.lock").exists()
         runTasks('resolveConfigurations')
     }
 
     def "locks are consistent whether or not we do --write-locks for glob-forced direct dependency"() {
         buildFile << '''
-            repositories { jcenter() }
             apply plugin: 'java'
             dependencies {
                 compile 'org.slf4j:slf4j-api'
@@ -77,7 +79,6 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationTestKitSpec {
 
     def "getVersion function works"() {
         buildFile << '''
-            repositories { jcenter() }
             apply plugin: 'java'
             dependencies {
                 compile 'org.slf4j:slf4j-api'
@@ -88,6 +89,9 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationTestKitSpec {
             }
         '''.stripIndent()
 
+        // Pretend we have a lock file
+        file('versions.lock') << ''
+
         file('versions.props') << 'org.slf4j:* = 1.7.25'
 
         expect:
@@ -96,7 +100,6 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationTestKitSpec {
 
     def "getVersion function works even when writing locks"() {
         buildFile << '''
-            repositories { jcenter() }
             apply plugin: 'java'
             dependencies {
                 compile 'org.slf4j:slf4j-api'
@@ -111,5 +114,37 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationTestKitSpec {
 
         expect:
         runTasks('demo', '--write-locks').output.contains("demo=1.7.25")
+    }
+
+    def "virtual platform is respected across projects"() {
+        addSubproject('foo', """
+            apply plugin: 'java'
+            dependencies {
+                compile 'test-alignment:module-that-should-be-aligned-up:1.0'
+            }
+        """.stripIndent())
+
+        addSubproject('bar', """
+            apply plugin: 'java'
+            dependencies {
+                compile 'test-alignment:module-with-higher-version:1.1'
+            }
+        """.stripIndent())
+
+        file('versions.props') << """
+            # Just to create a platform around test-alignment:*
+            test-alignment:* = 1.0
+        """.stripIndent()
+
+        when:
+        runTasks('--write-locks')
+
+        then:
+        def expectedLock = """\
+            # Run ./gradlew --write-locks to regenerate this file
+            test-alignment:module-that-should-be-aligned-up:1.1 (1 constraints: a5041a2c)
+            test-alignment:module-with-higher-version:1.1 (1 constraints: a6041b2c)
+        """.stripIndent()
+        file('versions.lock').text == expectedLock
     }
 }

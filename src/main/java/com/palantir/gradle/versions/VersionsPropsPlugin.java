@@ -21,7 +21,6 @@ import com.google.common.collect.ImmutableList;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Objects;
-import java.util.Optional;
 import org.gradle.api.GradleException;
 import org.gradle.api.NamedDomainObjectProvider;
 import org.gradle.api.Plugin;
@@ -49,49 +48,53 @@ public class VersionsPropsPlugin implements Plugin<Project> {
 
     @Override
     public final void apply(Project project) {
-        checkPreconditions(project);
-
-        VersionRecommendationsExtension extension = project.getExtensions()
-                .create(VersionRecommendationsExtension.EXTENSION, VersionRecommendationsExtension.class, project);
-
-        Optional<VersionsProps> versionsProps = computeVersionsProps(project.file("versions.props").toPath());
-        if (!versionsProps.isPresent()) {
-            return;
+        checkPreconditions();
+        if (project.getRootProject().equals(project)) {
+            applyToRootProject(project);
         }
 
-        project.allprojects(subproject -> {
-            NamedDomainObjectProvider<Configuration> rootConfiguration =
-                    subproject.getConfigurations().register(ROOT_CONFIGURATION_NAME, conf -> {
-                        conf.setVisible(false);
-                    });
+        VersionRecommendationsExtension extension =
+                project.getRootProject().getExtensions().getByType(VersionRecommendationsExtension.class);
 
-            subproject.getConfigurations().configureEach(conf ->
-                    setupConfiguration(subproject, extension, rootConfiguration, versionsProps.get(), conf));
+        VersionsProps versionsProps = loadVersionsProps(project.getRootProject().file("versions.props").toPath());
 
-            // Note: don't add constraints to this, only call `create` / `platform` on it.
-            DependencyConstraintHandler constraintHandler = project.getDependencies().getConstraints();
-            rootConfiguration.configure(conf ->
-                    addVersionsPropsConstraints(constraintHandler, conf, versionsProps.get()));
+        NamedDomainObjectProvider<Configuration> rootConfiguration =
+                project.getConfigurations().register(ROOT_CONFIGURATION_NAME, conf -> {
+                    conf.setVisible(false);
+                });
 
-            log.info("Configuring rules to assign *-constraints to platforms in {}", subproject);
-            subproject.getDependencies()
-                    .getComponents()
-                    .all(component -> tryAssignComponentToPlatform(versionsProps.get(), component));
+        project.getConfigurations().configureEach(conf ->
+                setupConfiguration(project, extension, rootConfiguration, versionsProps, conf));
 
-            // Gradle 5.1 has a bug whereby a platform dependency whose version comes from a separate constraint end
-            // up as two separate entries in the resulting POM, making it invalid.
-            // https://github.com/gradle/gradle/issues/8238
-            subproject.getPluginManager().withPlugin("publishing", plugin -> {
-                PublishingExtension publishingExtension =
-                        subproject.getExtensions().getByType(PublishingExtension.class);
-                publishingExtension.getPublications().withType(MavenPublication.class, publication -> {
-                    log.info("Fixing pom publication for {}: {}", subproject, publication);
-                    publication.getPom().withXml(xmlProvider -> {
-                        GradleWorkarounds.mergeImportsWithVersions(xmlProvider.asElement());
-                    });
+        // Note: don't add constraints to this, only call `create` / `platform` on it.
+        DependencyConstraintHandler constraintHandler = project.getDependencies().getConstraints();
+        rootConfiguration.configure(conf ->
+                addVersionsPropsConstraints(constraintHandler, conf, versionsProps));
+
+        log.info("Configuring rules to assign *-constraints to platforms in {}", project);
+        project.getDependencies()
+                .getComponents()
+                .all(component -> tryAssignComponentToPlatform(versionsProps, component));
+
+        // Gradle 5.1 has a bug whereby a platform dependency whose version comes from a separate constraint end
+        // up as two separate entries in the resulting POM, making it invalid.
+        // https://github.com/gradle/gradle/issues/8238
+        project.getPluginManager().withPlugin("publishing", plugin -> {
+            PublishingExtension publishingExtension =
+                    project.getExtensions().getByType(PublishingExtension.class);
+            publishingExtension.getPublications().withType(MavenPublication.class, publication -> {
+                log.info("Fixing pom publication for {}: {}", project, publication);
+                publication.getPom().withXml(xmlProvider -> {
+                    GradleWorkarounds.mergeImportsWithVersions(xmlProvider.asElement());
                 });
             });
         });
+    }
+
+    private static void applyToRootProject(Project project) {
+        project.getExtensions()
+                    .create(VersionRecommendationsExtension.EXTENSION, VersionRecommendationsExtension.class, project);
+        project.subprojects(subproject -> subproject.getPluginManager().apply(VersionsPropsPlugin.class));
     }
 
     private static void setupConfiguration(
@@ -185,19 +188,15 @@ public class VersionsPropsPlugin implements Plugin<Project> {
         constraints.forEach(conf.getDependencyConstraints()::add);
     }
 
-    private static Optional<VersionsProps> computeVersionsProps(Path versionsPropsFile) {
+    private static VersionsProps loadVersionsProps(Path versionsPropsFile) {
         if (!Files.exists(versionsPropsFile)) {
-            return Optional.empty();
+            return VersionsProps.empty();
         }
         log.info("Configuring constraints from properties file {}", versionsPropsFile);
-        return Optional.of(new VersionsProps(versionsPropsFile));
+        return VersionsProps.loadFromFile(versionsPropsFile);
     }
 
-    private static void checkPreconditions(Project project) {
-        if (!project.getRootProject().equals(project)) {
-            throw new GradleException("Must be applied only to root project");
-        }
-
+    private static void checkPreconditions() {
         Preconditions.checkState(
                 GradleVersion.current().compareTo(MINIMUM_GRADLE_VERSION) >= 0,
                 "This plugin requires gradle >= %s",
