@@ -199,8 +199,10 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
             // from old -> new
             BiMap<Configuration, Configuration> copiedConfigurationsCache = HashBiMap.create();
-            project.allprojects(subproject -> copyConfigurations(subproject, copiedConfigurationsCache));
+            project.allprojects(subproject -> subproject.afterEvaluate(s ->
+                    copyConfigurations(subproject, copiedConfigurationsCache)));
 
+            // TODO it's because of this, causing evaluations to occur...
             // Recursively change all project dependencies to depend on the copied configuration.
             unifiedClasspath.withDependencies(depSet -> {
                 resolveDependentPublications(
@@ -268,13 +270,18 @@ public class VersionsLockPlugin implements Plugin<Project> {
             if (UNIFIED_CLASSPATH_CONFIGURATION_NAME.equals(conf.getName())) {
                 return;
             }
+            // Only care about consumable configurations, since others you can't depend on
+            if (!conf.isCanBeConsumed()) {
+                return;
+            }
+
             // this is an already copied configuration, don't do anything
             if (copiedConfigurationsCache.inverse().containsKey(conf)) {
                 return;
             }
             conf.getAttributes().attribute(MY_USAGE_ATTRIBUTE, MyUsage.ORIGINAL);
 
-            Configuration copiedConf = conf.copy();
+            Configuration copiedConf = conf.copyRecursive();
             copiedConf.setDescription(String.format("Copy of the '%s' configuration that can be resolved by "
                             + "com.palantir.consistent-versions without resolving the '%s' configuration "
                             + "itself.",
@@ -283,23 +290,24 @@ public class VersionsLockPlugin implements Plugin<Project> {
             copiedConf.getAttributes().attribute(MY_USAGE_ATTRIBUTE, MyUsage.COPIED);
 
             project.afterEvaluate(p -> {
-                copiedConf.setExtendsFrom(conf
-                        .getExtendsFrom()
-                        .stream()
-                        .map(extended -> extended.getName() + "Copy")
-                        .map(project.getConfigurations()::getByName)
-                        .collect(Collectors.toList()));
-
-                copiedConf.getOutgoing().capability(String.format(
-                        "%s:%s-consistent-versions-%s:%s",
-                        project.getGroup(),
-                        project.getName(),
-                        conf.getName(),
-                        project.getVersion()));
+//                copiedConf.setExtendsFrom(conf
+//                        .getExtendsFrom()
+//                        .stream()
+//                        .map(extended -> extended.getName() + "Copy")
+//                        .map(project.getConfigurations()::getByName)
+//                        .collect(Collectors.toList()));
             });
+
+            // Just need this to be unique across projects and configurations
+            copiedConf.getOutgoing().capability(String.format(
+                    "gradle-consistent-versions-group:%s--%s:0.0.0",
+                    project.getName(),
+                    conf.getName()));
 
             copiedConfigurationsCache.put(conf, copiedConf);
 
+            log.lifecycle("Attempting to add {} to {}: already executed -> {}", copiedConf, project,
+                    project.getState().getExecuted());
             try {
                 project.getConfigurations().add(copiedConf);
             } catch (Exception e) {
@@ -456,6 +464,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
                     ProjectDependency projectDependency = (ProjectDependency) dependency;
                     Project projectDep = projectDependency.getDependencyProject();
 
+// TODO this causes a copy to be created, failing
                     String targetConfiguration = projectDependency.getTargetConfiguration();
                     if (targetConfiguration == null) {
                         // Not handling variant-based selection in this code path
