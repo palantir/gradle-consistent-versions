@@ -289,15 +289,6 @@ public class VersionsLockPlugin implements Plugin<Project> {
             // Mark it so that it tells consumers it exports our own usage
             copiedConf.getAttributes().attribute(MY_USAGE_ATTRIBUTE, MyUsage.COPIED);
 
-            project.afterEvaluate(p -> {
-//                copiedConf.setExtendsFrom(conf
-//                        .getExtendsFrom()
-//                        .stream()
-//                        .map(extended -> extended.getName() + "Copy")
-//                        .map(project.getConfigurations()::getByName)
-//                        .collect(Collectors.toList()));
-            });
-
             // Just need this to be unique across projects and configurations
             copiedConf.getOutgoing().capability(String.format(
                     "gradle-consistent-versions-group:%s--%s:0.0.0",
