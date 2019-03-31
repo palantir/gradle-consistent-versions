@@ -493,8 +493,10 @@ public class VersionsLockPlugin implements Plugin<Project> {
                             currentProject,
                             projectDep);
 
-                    Configuration copiedConf = Preconditions.checkNotNull(configurationMap.get(targetConf),
-                            "TODO");
+                    Configuration copiedConf = Preconditions.checkNotNull(
+                            configurationMap.get(targetConf),
+                            "Failed to find copied configuration for: %s",
+                            targetConf);
 
                     projectDependency.setTargetConfiguration(copiedConf.getName());
 
