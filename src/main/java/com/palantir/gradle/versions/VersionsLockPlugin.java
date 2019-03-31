@@ -182,33 +182,31 @@ public class VersionsLockPlugin implements Plugin<Project> {
         // See: https://github.com/gradle/gradle/pull/7967
         project.getPluginManager().apply("java-base");
 
+        // Gradle will break if you try to add constraints to any configurations that have been resolved.
+        // Since unifiedClasspath depends on the SUBPROJECT_UNIFIED_CONFIGURATION_NAME configuration of all
+        // subprojects (above), that would resolve them when we resolve unifiedClasspath. We need this workaround
+        // to enable the workflow:
+        //
+        //  1. when 'unifiedClasspath' is resolved with --write-locks, it writes the lock file and resolves its
+        //     dependencies
+        //  2. read the lock file
+        //  3. enforce these versions on all subprojects, using constraints
+        //
+        // Since we can't apply these constraints to the already resolved configurations, we need a workaround to
+        // ensure that unifiedClasspath does not directly depend on subproject configurations that we intend to
+        // enforce constraints on.
+
+        // from old -> new
+        BiMap<Configuration, Configuration> copiedConfigurationsCache = HashBiMap.create();
+        project.allprojects(subproject ->
+                copyConfigurations(subproject, copiedConfigurationsCache));
+
+        // Recursively change all project dependencies to depend on the copied configuration.
+        unifiedClasspath.withDependencies(depSet -> {
+            resolveDependentPublications(project, depSet, copiedConfigurationsCache);
+        });
+
         if (project.getGradle().getStartParameter().isWriteDependencyLocks()) {
-            // Gradle will break if you try to add constraints to any configurations that have been resolved.
-            // Since unifiedClasspath depends on the SUBPROJECT_UNIFIED_CONFIGURATION_NAME configuration of all
-            // subprojects (above), that would resolve them when we resolve unifiedClasspath. We need this workaround
-            // to enable the workflow:
-            //
-            //  1. when 'unifiedClasspath' is resolved with --write-locks, it writes the lock file and resolves its
-            //     dependencies
-            //  2. read the lock file
-            //  3. enforce these versions on all subprojects, using constraints
-            //
-            // Since we can't apply these constraints to the already resolved configurations, we need a workaround to
-            // ensure that unifiedClasspath does not directly depend on subproject configurations that we intend to
-            // enforce constraints on.
-
-            // from old -> new
-            BiMap<Configuration, Configuration> copiedConfigurationsCache = HashBiMap.create();
-            project.allprojects(subproject ->
-                    copyConfigurations(subproject, copiedConfigurationsCache));
-
-            // TODO it's because of this, causing evaluations to occur...
-            // Recursively change all project dependencies to depend on the copied configuration.
-            unifiedClasspath.withDependencies(depSet -> {
-                resolveDependentPublications(
-                        project, depSet, copiedConfigurationsCache);
-            });
-
             // Must wire up the constraint configuration to right AFTER rootProject has written theirs
             unifiedClasspath.getIncoming().afterResolve(r -> {
                 failIfAnyDependenciesUnresolved(r);
