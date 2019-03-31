@@ -201,8 +201,9 @@ public class VersionsLockPlugin implements Plugin<Project> {
         project.allprojects(subproject -> copyConfigurations(subproject, copiedConfigurationsCache));
 
         // Recursively change all project dependencies to depend on the copied configuration.
-        unifiedClasspath.withDependencies(depSet -> {
-            project.afterEvaluate(p -> {
+        // NOTE: this is the only way it actually runs...
+        project.afterEvaluate(p -> {
+            unifiedClasspath.withDependencies(depSet -> {
                 resolveDependentPublications(project, depSet, copiedConfigurationsCache);
             });
         });
@@ -270,7 +271,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
         // is registered, we have to delay this action by using whenObjectAdded (which makes everything eager).
         // Otherwise, a check like conf.isCanBeConsumed() will always return the default - true.
         project.afterEvaluate(p -> {
-            project.getConfigurations().configureEach(conf -> {
+            project.getConfigurations().all(conf -> {
                 maybeCopyConfiguration(project, copiedConfigurationsCache, conf);
             });
         });
