@@ -310,16 +310,13 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
         copiedConfigurationsCache.put(conf, copiedConf);
 
-        // Since we can't do this inside a configureEach, we delay this addition for later.
-        project.afterEvaluate(p -> {
-            log.lifecycle("Attempting to add {} to {}: already executed -> {}", copiedConf, project,
-                    project.getState().getExecuted());
-            try {
-                project.getConfigurations().add(copiedConf);
-            } catch (Exception e) {
-                throw new RuntimeException("Caught exception trying to add " + copiedConf + " to " + project, e);
-            }
-        });
+        log.lifecycle("Attempting to add {} to {}: already executed -> {}", copiedConf, project,
+                project.getState().getExecuted());
+        try {
+            project.getConfigurations().add(copiedConf);
+        } catch (Exception e) {
+            throw new RuntimeException("Caught exception trying to add " + copiedConf + " to " + project, e);
+        }
     }
 
     private static void ensureLockStateIsUpToDate(LockState currentLockState, LockState persistedLockState) {
