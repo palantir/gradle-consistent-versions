@@ -292,7 +292,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
             // Just need this to be unique across projects and configurations
             copiedConf.getOutgoing().capability(String.format(
                     "gradle-consistent-versions-group:%s--%s:0.0.0",
-                    project.getName(),
+                    project.getPath().replace(':', '~'),
                     conf.getName()));
 
             copiedConfigurationsCache.put(conf, copiedConf);
@@ -367,6 +367,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
             // Create a configuration that will collect the java-api and compile only dependencies (as java-api)
             project.getConfigurations().register("compileClasspathForLock", conf -> {
                 conf.setDescription("Outgoing configuration for the API component of compile time dependencies");
+                conf.setVisible(false); // needn't be visible from other projects
                 conf.setCanBeConsumed(true);
                 conf.setCanBeResolved(false);
                 conf.extendsFrom(project
