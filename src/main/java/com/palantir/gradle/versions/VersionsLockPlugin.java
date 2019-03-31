@@ -199,8 +199,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
             // from old -> new
             BiMap<Configuration, Configuration> copiedConfigurationsCache = HashBiMap.create();
-            project.allprojects(subproject -> subproject.afterEvaluate(s ->
-                    copyConfigurations(subproject, copiedConfigurationsCache)));
+            project.allprojects(subproject ->
+                    copyConfigurations(subproject, copiedConfigurationsCache));
 
             // TODO it's because of this, causing evaluations to occur...
             // Recursively change all project dependencies to depend on the copied configuration.
@@ -299,11 +299,15 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
             log.lifecycle("Attempting to add {} to {}: already executed -> {}", copiedConf, project,
                     project.getState().getExecuted());
-            try {
-                project.getConfigurations().add(copiedConf);
-            } catch (Exception e) {
-                throw new RuntimeException("Caught exception trying to add " + copiedConf + " to " + project, e);
-            }
+
+            // Since we can't do this inside a configureEach, we delay this addition for later.
+            project.afterEvaluate(p -> {
+                try {
+                    project.getConfigurations().add(copiedConf);
+                } catch (Exception e) {
+                    throw new RuntimeException("Caught exception trying to add " + copiedConf + " to " + project, e);
+                }
+            });
         });
     }
 
