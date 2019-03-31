@@ -198,12 +198,13 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
         // from old -> new
         BiMap<Configuration, Configuration> copiedConfigurationsCache = HashBiMap.create();
-        project.allprojects(subproject ->
-                copyConfigurations(subproject, copiedConfigurationsCache));
+        project.allprojects(subproject -> copyConfigurations(subproject, copiedConfigurationsCache));
 
         // Recursively change all project dependencies to depend on the copied configuration.
         unifiedClasspath.withDependencies(depSet -> {
-            resolveDependentPublications(project, depSet, copiedConfigurationsCache);
+            project.afterEvaluate(p -> {
+                resolveDependentPublications(project, depSet, copiedConfigurationsCache);
+            });
         });
 
         if (project.getGradle().getStartParameter().isWriteDependencyLocks()) {
@@ -264,48 +265,59 @@ public class VersionsLockPlugin implements Plugin<Project> {
     }
 
     private void copyConfigurations(Project project, BiMap<Configuration, Configuration> copiedConfigurationsCache) {
-        project.getConfigurations().configureEach(conf -> {
-            if (UNIFIED_CLASSPATH_CONFIGURATION_NAME.equals(conf.getName())) {
-                return;
-            }
-            // Only care about consumable configurations, since others you can't depend on
-            if (!conf.isCanBeConsumed()) {
-                return;
-            }
+        // Because of a fun gradle issue where the ConfigurationContainer.register action is evaluated _after_
+        // whatever ConfigurationContainer.configureEach actions were added up to the point where the configuration
+        // is registered, we have to delay this action by using whenObjectAdded (which makes everything eager).
+        // Otherwise, a check like conf.isCanBeConsumed() will always return the default - true.
+        project.afterEvaluate(p -> {
+            project.getConfigurations().configureEach(conf -> {
+                maybeCopyConfiguration(project, copiedConfigurationsCache, conf);
+            });
+        });
+    }
 
-            // this is an already copied configuration, don't do anything
-            if (copiedConfigurationsCache.inverse().containsKey(conf)) {
-                return;
-            }
-            conf.getAttributes().attribute(MY_USAGE_ATTRIBUTE, MyUsage.ORIGINAL);
+    private static void maybeCopyConfiguration(
+            Project project, BiMap<Configuration, Configuration> copiedConfigurationsCache, Configuration conf) {
+        if (UNIFIED_CLASSPATH_CONFIGURATION_NAME.equals(conf.getName())) {
+            return;
+        }
 
-            Configuration copiedConf = conf.copyRecursive();
-            copiedConf.setDescription(String.format("Copy of the '%s' configuration that can be resolved by "
-                            + "com.palantir.consistent-versions without resolving the '%s' configuration "
-                            + "itself.",
-                    conf.getName(), conf.getName()));
-            // Mark it so that it tells consumers it exports our own usage
-            copiedConf.getAttributes().attribute(MY_USAGE_ATTRIBUTE, MyUsage.COPIED);
+        // Only care about consumable configurations, since others you can't depend on
+        if (!conf.isCanBeConsumed()) {
+            return;
+        }
 
-            // Just need this to be unique across projects and configurations
-            copiedConf.getOutgoing().capability(String.format(
-                    "gradle-consistent-versions-group:%s--%s:0.0.0",
-                    project.getPath().replace(':', '~'),
-                    conf.getName()));
+        // this is an already copied configuration, don't do anything
+        if (copiedConfigurationsCache.inverse().containsKey(conf)) {
+            return;
+        }
+        conf.getAttributes().attribute(MY_USAGE_ATTRIBUTE, MyUsage.ORIGINAL);
 
-            copiedConfigurationsCache.put(conf, copiedConf);
+        Configuration copiedConf = conf.copyRecursive();
+        copiedConf.setDescription(String.format("Copy of the '%s' configuration that can be resolved by "
+                        + "com.palantir.consistent-versions without resolving the '%s' configuration "
+                        + "itself.",
+                conf.getName(), conf.getName()));
+        // Mark it so that it tells consumers it exports our own usage
+        copiedConf.getAttributes().attribute(MY_USAGE_ATTRIBUTE, MyUsage.COPIED);
 
+        // Just need this to be unique across projects and configurations
+        copiedConf.getOutgoing().capability(String.format(
+                "gradle-consistent-versions-group:%s--%s:0.0.0",
+                project.getPath().replace(':', '~'),
+                conf.getName()));
+
+        copiedConfigurationsCache.put(conf, copiedConf);
+
+        // Since we can't do this inside a configureEach, we delay this addition for later.
+        project.afterEvaluate(p -> {
             log.lifecycle("Attempting to add {} to {}: already executed -> {}", copiedConf, project,
                     project.getState().getExecuted());
-
-            // Since we can't do this inside a configureEach, we delay this addition for later.
-            project.afterEvaluate(p -> {
-                try {
-                    project.getConfigurations().add(copiedConf);
-                } catch (Exception e) {
-                    throw new RuntimeException("Caught exception trying to add " + copiedConf + " to " + project, e);
-                }
-            });
+            try {
+                project.getConfigurations().add(copiedConf);
+            } catch (Exception e) {
+                throw new RuntimeException("Caught exception trying to add " + copiedConf + " to " + project, e);
+            }
         });
     }
 
@@ -458,7 +470,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
                     ProjectDependency projectDependency = (ProjectDependency) dependency;
                     Project projectDep = projectDependency.getDependencyProject();
 
-// TODO this causes a copy to be created, failing
+                    // TODO this causes a copy to be created, failing
                     String targetConfiguration = projectDependency.getTargetConfiguration();
                     if (targetConfiguration == null) {
                         // Not handling variant-based selection in this code path
@@ -612,7 +624,6 @@ public class VersionsLockPlugin implements Plugin<Project> {
     }
 
     private static NamedDomainObjectProvider<Configuration> createTopConfiguration(Project project) {
-
         NamedDomainObjectProvider<Configuration> locksConfiguration =
                 project.getConfigurations().register(LOCK_CONSTRAINTS_CONFIGURATION_NAME, conf -> {
                     conf.setVisible(false);
