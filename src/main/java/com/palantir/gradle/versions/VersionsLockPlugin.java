@@ -312,7 +312,10 @@ public class VersionsLockPlugin implements Plugin<Project> {
         copiedConf.getAttributes().attribute(MY_USAGE_ATTRIBUTE, MyUsage.COPIED);
 
         // Just need this to be unique across projects and configurations
-        copiedConf.getOutgoing().capability(generateInternalCapabilityFor(project, conf.getName()) + ":0.0.0");
+        Usage maybeUsage = copiedConf.getAttributes().getAttribute(Usage.USAGE_ATTRIBUTE);
+        if (maybeUsage != null && INTERNAL_USAGE_NAMES.contains(maybeUsage.getName())) {
+            copiedConf.getOutgoing().capability(generateInternalCapabilityFor(project, conf.getName()) + ":0.0.0");
+        }
 
         copiedConfigurationsCache.put(conf, copiedConf);
 
@@ -509,13 +512,13 @@ public class VersionsLockPlugin implements Plugin<Project> {
                     ProjectDependency projectDependency = (ProjectDependency) dependency;
                     Project projectDep = projectDependency.getDependencyProject();
 
-                    // TODO this causes a copy to be created, failing
                     String targetConfiguration = projectDependency.getTargetConfiguration();
                     if (targetConfiguration == null) {
                         // Not handling variant-based selection in this code path
                         return;
                     }
 
+                    // TODO info
                     log.lifecycle(
                             "Found legacy project dependency (with target configuration): {} -> {}",
                             currentProject,
