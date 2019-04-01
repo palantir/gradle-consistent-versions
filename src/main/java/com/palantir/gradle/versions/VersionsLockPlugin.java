@@ -105,13 +105,19 @@ public class VersionsLockPlugin implements Plugin<Project> {
     private static final Attribute<Boolean> CONSISTENT_VERSIONS_CONSTRAINT_ATTRIBUTE =
             Attribute.of("consistent-versions", Boolean.class);
 
-    private static final String COMPILE_CLASSPATH_USAGE = "compile-classpath-for-consistent-versions";
+    private static final String COMPILE_CLASSPATH_USAGE = "consistent-versions-compile";
+    private static final String RUNTIME_CLASSPATH_USAGE = "consistent-versions-runtime";
+    private static final String INTERNAL_INTER_PROJECT_USAGE = "consistent-versions-inter-project";
     private final Usage compileClasspathUsage;
+    private final Usage runtimeClasspathUsage;
     /**
      * Usage to ensure {@link #SUBPROJECT_UNIFIED_CONFIGURATION_NAME} doesn't show up as a candidate when trying to
      * resolve {@link Usage#JAVA_RUNTIME} usage.
      */
     private final Usage consistentVersionsInternalUsage;
+
+    private static final ImmutableSet<String> INTERNAL_USAGE_NAMES = ImmutableSet.of(
+            COMPILE_CLASSPATH_USAGE, RUNTIME_CLASSPATH_USAGE, INTERNAL_INTER_PROJECT_USAGE);
 
     public enum MyUsage implements Named {
         COPIED,
@@ -131,7 +137,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
     @Inject
     public VersionsLockPlugin(ObjectFactory objectFactory, Gradle gradle) {
         compileClasspathUsage = objectFactory.named(Usage.class, COMPILE_CLASSPATH_USAGE);
-        consistentVersionsInternalUsage = objectFactory.named(Usage.class, "consistent-versions-internal");
+        runtimeClasspathUsage = objectFactory.named(Usage.class, RUNTIME_CLASSPATH_USAGE);
+        consistentVersionsInternalUsage = objectFactory.named(Usage.class, INTERNAL_INTER_PROJECT_USAGE);
         showStacktrace = gradle.getStartParameter().getShowStacktrace();
     }
 
@@ -284,7 +291,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
         }
 
         // Only care about consumable configurations, since others you can't depend on
-        if (!conf.isCanBeConsumed()) {
+        if (!conf.isCanBeConsumed() || conf.isCanBeResolved()) {
+            log.info("Not copying unconsumable / legacy configuration: {}", conf);
             return;
         }
 
@@ -294,6 +302,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
         }
         conf.getAttributes().attribute(MY_USAGE_ATTRIBUTE, MyUsage.ORIGINAL);
 
+        // TODO copy capabilities too if any, and modify the capability (probably need to save into a cache too)
         Configuration copiedConf = conf.copyRecursive();
         copiedConf.setDescription(String.format("Copy of the '%s' configuration that can be resolved by "
                         + "com.palantir.consistent-versions without resolving the '%s' configuration "
@@ -303,10 +312,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
         copiedConf.getAttributes().attribute(MY_USAGE_ATTRIBUTE, MyUsage.COPIED);
 
         // Just need this to be unique across projects and configurations
-        copiedConf.getOutgoing().capability(String.format(
-                "gradle-consistent-versions-group:%s--%s:0.0.0",
-                project.getPath().replace(':', '~'),
-                conf.getName()));
+        copiedConf.getOutgoing().capability(generateInternalCapabilityFor(project, conf.getName()) + ":0.0.0");
 
         copiedConfigurationsCache.put(conf, copiedConf);
 
@@ -317,6 +323,13 @@ public class VersionsLockPlugin implements Plugin<Project> {
         } catch (Exception e) {
             throw new RuntimeException("Caught exception trying to add " + copiedConf + " to " + project, e);
         }
+    }
+
+    private static String generateInternalCapabilityFor(Project project, String conf) {
+        return String.format(
+                "gradle-consistent-versions-group:%s--%s",
+                project.getPath().replace(':', '~'),
+                conf);
     }
 
     private static void ensureLockStateIsUpToDate(LockState currentLockState, LockState persistedLockState) {
@@ -373,7 +386,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
         project.getPluginManager().withPlugin("java", plugin -> {
             // Create a configuration that will collect the java-api and compile only dependencies (as java-api)
-            project.getConfigurations().register("compileClasspathForLock", conf -> {
+            String compileClasspathForLock = "consistentVersionsCompile";
+            project.getConfigurations().register(compileClasspathForLock, conf -> {
                 conf.setDescription("Outgoing configuration for the API component of compile time dependencies");
                 conf.setVisible(false); // needn't be visible from other projects
                 conf.setCanBeConsumed(true);
@@ -384,19 +398,46 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 conf.attributes(attr -> attr.attribute(Usage.USAGE_ATTRIBUTE, compileClasspathUsage));
             });
 
+            String runtimeClasspathForLock = "consistentVersionsRuntime";
+            project.getConfigurations().register(runtimeClasspathForLock, conf -> {
+                conf.setDescription("Outgoing configuration runtime dependencies meant to be used by "
+                        + "consistent-versions");
+                conf.setVisible(false); // needn't be visible from other projects
+                conf.setCanBeConsumed(true);
+                conf.setCanBeResolved(false);
+                conf.extendsFrom(project
+                        .getConfigurations()
+                        .getByName(JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME));
+                conf.attributes(attr -> attr.attribute(Usage.USAGE_ATTRIBUTE, runtimeClasspathUsage));
+            });
+
             project.getConfigurations().named(SUBPROJECT_UNIFIED_CONFIGURATION_NAME).configure(conf -> {
                 Stream.of(
-                        createProjectDependencyWithUsage(project, COMPILE_CLASSPATH_USAGE),
-                        createProjectDependencyWithUsage(project, Usage.JAVA_RUNTIME))
+                        createProjectDependencyWithUsage(
+                                project,
+                                COMPILE_CLASSPATH_USAGE,
+                                Optional.of(generateInternalCapabilityFor(project, compileClasspathForLock))),
+                        createProjectDependencyWithUsage(
+                                project,
+                                RUNTIME_CLASSPATH_USAGE,
+                                Optional.of(generateInternalCapabilityFor(project, runtimeClasspathForLock))))
+//                        createProjectDependencyWithUsage(
+//                                project,
+//                                Usage.JAVA_RUNTIME,
+//                                Optional.of(generateInternalCapabilityFor(
+//                                        project, JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME))))
                         .forEach(conf.getDependencies()::add);
             });
         });
     }
 
-    private static ProjectDependency createProjectDependencyWithUsage(Project project, String usage) {
+    private static ProjectDependency createProjectDependencyWithUsage(
+            Project project, String usage, Optional<String> capabilityOpt) {
         ProjectDependency dep = (ProjectDependency) project.getDependencies().create(project);
+        capabilityOpt.map(capability -> dep.capabilities(handler -> handler.requireCapability(capability)));
         dep.attributes(attributes -> attributes.attribute(
-                Usage.USAGE_ATTRIBUTE, project.getObjects().named(Usage.class, usage)));
+                Usage.USAGE_ATTRIBUTE,
+                project.getObjects().named(Usage.class, usage)));
         return dep;
     }
 
@@ -671,11 +712,24 @@ public class VersionsLockPlugin implements Plugin<Project> {
             String consumer = details.getConsumerValue().getName();
             String producer = details.getProducerValue().getName();
             if (consumer.equals(COMPILE_CLASSPATH_USAGE)) {
+                // TODO all compile/api variants?
                 if (producer.equals(Usage.JAVA_API)) {
                     details.compatible();
                 } else {
                     details.incompatible();
                 }
+            }
+            if (consumer.equals(RUNTIME_CLASSPATH_USAGE)) {
+                // TODO all runtime variants?
+                if (producer.equals(Usage.JAVA_RUNTIME)) {
+                    details.compatible();
+                } else {
+                    details.incompatible();
+                }
+            }
+            // Need to make the variants compatible with each other
+            if (INTERNAL_USAGE_NAMES.contains(consumer) && INTERNAL_USAGE_NAMES.contains(producer)) {
+                details.compatible();
             }
         }
     }
