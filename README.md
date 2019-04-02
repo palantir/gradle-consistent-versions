@@ -136,12 +136,16 @@ task verifyDependencyLocksAreCurrent {
 
 ## More usage
 
+#### Excluding configurations
+
 By default, this plugin will apply the constraints from `versions.props` to _all_ configurations.
 To exclude a configuration from receiving the constraints, you can add it to `excludeConfigurations`, configurable through the `versionRecommendations` extension (in the root project):
 
     versionRecommendations {
         excludeConfigurations 'zinc'
     }
+    
+#### Why did I get this version?
 
 To understand why a particular version in your lockfile has been chosen, run `./gradlew why --hash a60c3ce8` to expand the constraints:
 ```
@@ -152,6 +156,8 @@ com.fasterxml.jackson.core:jackson-databind:2.9.8
         com.palantir.config.crypto:encrypted-config-value -> 2.6.1
         com.palantir.config.crypto:encrypted-config-value-module -> 2.6.1
 ```
+
+#### Forcing down a version
 
 If you need to a lower version of a dependency, use a forced version constraint e.g.:
 
