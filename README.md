@@ -169,6 +169,30 @@ dependencies {
 }
 ```
 
+## Debugging issues
+
+#### Failing to write locks
+
+If you get this kind of error:
+
+```
+   * project :project-2 (requested: 'project :project-2' because: selected by rule)
+        Failures:
+           - Could not resolve project :project-2.
+           - Project :project-1 declares a dependency from configuration 'defaultCopy' to configuration 'defaultCopy' which is not declared in the descriptor for org:project-2:1.0.0.
+```
+
+Then it's likely you have a project dependency on a project that doesn't actually apply the java plugin.
+This can happen for example if you depend on a conjure API project where only the subprojects do `apply plugin: java`.
+In this case, it's safe to remove the dependency:
+
+```diff
+ dependencies {
+     implementation project(":my-api:my-api-objects")
+-    implementation project(":my-api")
+ }
+```
+
 ## Technical explanation
 
 #### Are these vanilla Gradle lockfiles?
