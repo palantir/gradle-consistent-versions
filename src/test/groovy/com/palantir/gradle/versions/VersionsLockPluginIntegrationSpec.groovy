@@ -39,6 +39,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                 repositories {
                     maven { url "file:///${mavenRepo.getAbsolutePath()}" }
                 }
+                group = "test"
             }
         """
     }
