@@ -60,10 +60,6 @@ tasks.withType(JavaCompile) {
 }
 
 gradlePlugin {
-    // These marker publications are corrupted when nebula.maven-compile-only is also applied, which is brought in by
-    // nebula.maven-publish
-    automatedPublishing = false
-
     plugins {
         consistentVersions {
             id = 'com.palantir.consistent-versions'
