@@ -78,10 +78,12 @@ import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 import org.gradle.api.logging.configuration.ShowStacktrace;
 import org.gradle.api.plugins.JavaPlugin;
+import org.gradle.util.GradleVersion;
 import org.jetbrains.annotations.NotNull;
 
 public class VersionsLockPlugin implements Plugin<Project> {
     private static final Logger log = Logging.getLogger(VersionsLockPlugin.class);
+    private static final GradleVersion MINIMUM_GRADLE_VERSION = GradleVersion.version("5.1");
 
     /**
      * Root project configuration that collects all the dependencies from the
@@ -280,6 +282,11 @@ public class VersionsLockPlugin implements Plugin<Project> {
     }
 
     private static void checkPreconditions(Project project) {
+        Preconditions.checkState(
+                GradleVersion.current().compareTo(MINIMUM_GRADLE_VERSION) >= 0,
+                "This plugin requires gradle >= %s",
+                MINIMUM_GRADLE_VERSION);
+
         if (!project.getRootProject().equals(project)) {
             throw new GradleException("Must be applied only to root project");
         }
