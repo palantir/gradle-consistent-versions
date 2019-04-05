@@ -45,9 +45,9 @@ Direct dependencies are specified in a top level `versions.props` file and then 
     1. versions.lock: compact representation of your prod classpath
     1. ./gradlew why
     1. getVersion
-    1. constraints
     1. Forcing things down is dangerous, but sometimes necessary
     1. scala
+    1. Resolving dependencies at configuration time is banned
     1. Known limitation: root project must have a unique name
 1. [Migration](#migration)
     1. How to make this work with Baseline
@@ -68,14 +68,14 @@ Many languages have arrived at a similar workflow for dependency management: dir
 
 Specifically this plugin delivers:
 
-1. **one version per library** - When you have many Gradle subprojects, it can be frustrating to have lots of different versions of the same library floating around on your classpath. You usually just want one version of Jackson, one version of Guava etc. (`failOnVersionConflict()` does the job, but it comes with some significant downsides - see below). With gradle-consistent-versions, versionless dependencies across all your projects have a sensible version provided from the central _unifiedClasspath_ configuration.
+1. **one version per library** - When you have many Gradle subprojects, it can be frustrating to have lots of different versions of the same library floating around on your classpath. You usually just want one version of Jackson, one version of Guava etc. (`failOnVersionConflict()` does the job, but it comes with some significant downsides - see below). With gradle-consistent-versions, dependencies across all your subprojects have a sensible version provided.
 1. **better visibility into dependency changes** - Small changes to your requested dependencies can have cascading effects on your transitive graph.  For example, you might find that a minor bump of some library brings in 30 new jars, or affects the versions of your other dependencies. With gradle-consistent-versions, it's easy to spot these changes in your `versions.lock`.
 
 
 ### An evolution of `nebula.dependency-recommender`
-[nebula.dependency-recommender][] pioneered the idea of 'versionless dependencies', where gradle files just declare a dependencies using `compile "group:name"` and then versions are declared separately (e.g. in a `versions.props` file). Using `failOnVersionConflict()` and nebula.dependency-recommender's `OverrideTransitives` ensures there's only one version of each jar on the classpath.
+[nebula.dependency-recommender][] pioneered the idea of 'versionless dependencies', where gradle files just declare dependencies using `compile "group:name"` and then versions are declared separately (e.g. in a `versions.props` file). Using `failOnVersionConflict()` and nebula.dependency-recommender's `OverrideTransitives` ensures there's only one version of each jar on the classpath.
 
-This results in *forcing* all your dependencies, which ignores any information that dependencies themselves provide.
+nebula.dependency-recommender *forces* all your dependencies, which overrides all version information that libraries themselves provide.
 
 Unfortunately, failOnVersionConflict means developers often pick conflict resolution versions out of thin air, without knowledge of the actual requested ranges. This is dangerous because users may unwittingly pick versions that actually violate dependency constraints and may break at runtime, resulting in runtime errors suchs as `ClassNotFoundException`, `NoSuchMethodException` etc
 
@@ -97,15 +97,15 @@ junit:junit = 4.12
 org.assertj:* = 3.10.0
 ```
 
-Note that this does not force okhttp to exactly 3.12.0, it just declares that we require at least 3.12.0.  If something else in your transitive graph needs a newer version, Gradle will happily select this.  (See below for how to downgrade something if you really know what you're doing).
-
 The * notation ensures that every matching jar will have the same version - they will be aligned using a [virtual platform][].
 
-[virtual platform]: https://docs.gradle.org/current/userguide/managing_transitive_dependencies.html#sec:virtual_platform
+Note that this does not force okhttp to exactly 3.12.0, it just declares that your project requires at least 3.12.0.  If something else in your transitive graph needs a newer version, Gradle will happily select this.  See below for how to downgrade something if you really know what you're doing.
+
+[virtual platform]: https://docs.gradle.org/current/userguide/managing_transitive_dependencies.html#sec:version_alignment
 
 
 ### versions.lock: compact representation of your prod classpath
-When you run `./gradlew --write-locks`, the plugin will automatically write a new file: `versions.lock` which contains a version for every single one of your transitive dependencies.  This is then used as the source of truth for all versions in all your projects.
+When you run `./gradlew --write-locks`, the plugin will automatically write a new file: `versions.lock` which contains a version for every single one of your transitive dependencies.
 
 Notably, this lockfile is a _compact_ representation of your dependency graph as it just has one line per dependency (unlike nebula lock files which spanned thousands of lines).
 
@@ -120,6 +120,7 @@ javax.ws.rs:javax.ws.rs-api:2.0.1 (8 constraints: 7e9ce067)
 The lockfile is sourced from the _compileClasspath_ and _runtimeClasspath_ configurations.
 (Test-only dependencies will not appear in `versions.lock`)
 
+<!-- TODO(dfox): build some ./gradlew checkVersionsLock task and recommend running it on CI -->
 
 ### ./gradlew why
 To understand why a particular version in your lockfile has been chosen, run `./gradlew why --hash a60c3ce8` to expand the constraints:
@@ -132,38 +133,44 @@ com.fasterxml.jackson.core:jackson-databind:2.9.8
         com.palantir.config.crypto:encrypted-config-value-module -> 2.6.1
 ```
 
-This is effectively just a more concise representation for `dependencyInsight`:
+This is effectively just a more concise version of `dependencyInsight`:
 
 ```
 ./gradlew  dependencyInsight --configuration unifiedClasspath --dependency jackson-databind
 ```
 
 ### getVersion
+If you want to use the resolved version of some dependency elsewhere in your Gradle files, gradle-consistent-versions offers the `getVersion(group, name, [configuration])` convenience function. For example:
 
-### constraints
+```gradle
+task demo {
+    doLast {
+        println "We chose guava " + getVersion('com.google.guava', 'guava')
+    }
+}
+```
+
+This function may not be invoked at [Gradle Configuration time](https://docs.gradle.org/current/userguide/build_lifecycle.html) as it involves resolving dependencies.  Put it inside a closure or provider to ensure it is only invoked at Execution time.
+
+By default, this function resolve the `unifiedClasspath` configuration to supply a version, but you can always supply a different configuration if you want to:
+
+```gradle
+task printSparkVersion {
+    doLast {
+        println "Using spark version: " + getVersion('org.apache.spark', 'spark-sql_2.11', configurations.spark)
+    }
+}
+```
 
 ### Forcing things down is dangerous, but sometimes necessary
 
-If one of your transitives is pulling in a version that you specifically want to avoid for some reason (e.g. retrofgit 2.5.0), the recommended approach is to just use `dependencyInsight` to find what dependency pulled it in and downgrade that dependency:
+If one of your transitives is pulling in a version that you specifically want to avoid for some reason (e.g. retrofit 2.5.0), the recommended approach is to just use `dependencyInsight` to find what dependency pulled it in and downgrade that dependency:
 
 ```
 ./gradlew dependencyInsight --configuration unifiedClasspath --dependency retrofit
 ```
 
 However, if you can't downgrade the relevant dependency for some reason, you can still force it down.  This is dangerous because if something in your transitive graph compiles against methods only present in 2.5.0, then forcing down to 2.4.0 will result in NoSuchMethodErrors at runtime on certain codepaths.
-
-```gradle
-dependencies {
-    constraints {
-        rootConfiguration('com.squareup.retrofit2:retrofit:2.4.0') {
-            force = true
-            because "<Explain why you're downgrading and the criteria for when it's safe to remove this>"
-        }
-    }
-}
-```
-
-Alternatively:
 
 ```gradle
 allprojects {
@@ -184,6 +191,19 @@ To exclude a configuration from receiving the constraints, you can add it to `ex
         excludeConfigurations 'zinc'
     }
 
+
+### Resolving dependencies at configuration time is banned
+In order for this plugin to function, we must be able to guarantee that no dependencies are resolved at configuration time.  Gradle already [recommends this](https://guides.gradle.org/performance/#don_t_resolve_dependencies_at_configuration_time) but gradle-consistent-versions enforces it.
+
+In many cases, it's just a matter of using a closure or a provider, for example:
+
+```diff
+ task copySomething(type: Copy) {
+-    from configurations.spark.singleFile // 🌶🌶🌶 this downloads spark at configuration time, slowing down every `./gradlew` invocation!
++    from { configurations.spark.singleFile }
+     into "$buildDir/foo/bar"
+ }
+```
 
 ### Known limitation: root project must have a unique name
 Due to an implementation detail of this plugin, we require settings.gradle to declare a `rootProject.name` which is unique.
