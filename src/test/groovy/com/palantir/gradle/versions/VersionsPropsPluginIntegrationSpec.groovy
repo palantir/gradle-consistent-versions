@@ -37,7 +37,10 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
                 "com.fasterxml.jackson.core:jackson-databind:2.9.7",
         )
         buildFile << """
-            plugins { id '${PLUGIN_NAME}' }
+            plugins {
+                id '${PLUGIN_NAME}'
+                id 'com.palantir.configuration-resolver' version '0.3.0' 
+            }
             allprojects {
                 repositories {
                     maven { url "file:///${mavenRepo.getAbsolutePath()}" }
