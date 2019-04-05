@@ -39,6 +39,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                 id 'com.palantir.configuration-resolver' version '0.3.0' 
             }
             allprojects {
+                apply plugin: 'com.palantir.configuration-resolver'
                 repositories {
                     maven { url "file:///${mavenRepo.getAbsolutePath()}" }
                 }
