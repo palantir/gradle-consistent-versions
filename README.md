@@ -16,6 +16,8 @@ Direct dependencies are specified in a top level `versions.props` file and then 
         1. ./gradlew why
     1. getVersion
     1. constraints
+    1. forcing things down is uncommon, but sometimes necessary
+    1. scala
 1. An evolution of `nebula.dependency-recommender`
     1. Migration
 1. Comparison to other languages
@@ -74,8 +76,38 @@ javax.ws.rs:javax.ws.rs-api:2.0.1 (8 constraints: 7e9ce067)
 ```
 #### ./gradlew why
 
+To understand why a particular version in your lockfile has been chosen, run `./gradlew why --hash a60c3ce8` to expand the constraints:
+```
+> Task :why
+com.fasterxml.jackson.core:jackson-databind:2.9.8
+        com.fasterxml.jackson.module:jackson-module-jaxb-annotations -> 2.9.8
+        com.netflix.feign:feign-jackson -> 2.6.4
+        com.palantir.config.crypto:encrypted-config-value -> 2.6.1
+        com.palantir.config.crypto:encrypted-config-value-module -> 2.6.1
+```
+
 ### getVersion
 ### constraints
+### forcing things down is uncommon, but sometimes necessary
+
+If you need to a lower version of a dependency, use a forced version constraint e.g.:
+
+```
+dependencies {
+    constraints {
+        rootConfiguration('com.squareup.retrofit2:retrofit:2.4.0') { force = true }
+    }
+}
+```
+
+### scala
+
+By default, this plugin will apply the constraints from `versions.props` to _all_ configurations.
+To exclude a configuration from receiving the constraints, you can add it to `excludeConfigurations`, configurable through the `versionRecommendations` extension (in the root project):
+
+    versionRecommendations {
+        excludeConfigurations 'zinc'
+    }
 
 
 ## An evolution of `nebula.dependency-recommender`
@@ -133,34 +165,7 @@ You can also likely delete the 'conflict resolution' section of your versions.pr
 
 
 
-## More usage
 
-By default, this plugin will apply the constraints from `versions.props` to _all_ configurations.
-To exclude a configuration from receiving the constraints, you can add it to `excludeConfigurations`, configurable through the `versionRecommendations` extension (in the root project):
-
-    versionRecommendations {
-        excludeConfigurations 'zinc'
-    }
-
-To understand why a particular version in your lockfile has been chosen, run `./gradlew why --hash a60c3ce8` to expand the constraints:
-```
-> Task :why
-com.fasterxml.jackson.core:jackson-databind:2.9.8
-        com.fasterxml.jackson.module:jackson-module-jaxb-annotations -> 2.9.8
-        com.netflix.feign:feign-jackson -> 2.6.4
-        com.palantir.config.crypto:encrypted-config-value -> 2.6.1
-        com.palantir.config.crypto:encrypted-config-value-module -> 2.6.1
-```
-
-If you need to a lower version of a dependency, use a forced version constraint e.g.:
-
-```
-dependencies {
-    constraints {
-        rootConfiguration('com.squareup.retrofit2:retrofit:2.4.0') { force = true }
-    }
-}
-```
 
 
 #### Which configurations are affected?
