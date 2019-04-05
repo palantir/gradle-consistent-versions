@@ -48,9 +48,10 @@ Direct dependencies are specified in a top level `versions.props` file and then 
     1. BOMs
     1. Specifying exact versions
     1. Downgrading things
-    1. Scala
+    1. Common workflow: SLF4J
     1. Resolving dependencies at configuration time is banned
     1. Known limitation: root project must have a unique name
+    1. Scala
 1. [Migration](#migration)
     1. How to make this work with Baseline
     1. `dependencyRecommendations.getRecommendedVersion` -> `getVersion`
@@ -221,14 +222,23 @@ allprojects {
 }
 ```
 
-### Scala
-By default, this plugin will apply the constraints from `versions.props` to _all_ configurations.
-To exclude a configuration from receiving the constraints, you can add it to `excludeConfigurations`, configurable through the `versionRecommendations` extension (in the root project):
+## Common workflow: SLF4J
+Developers usually want just one SLF4J implementation on the classpath. If some of your dependencies rely on their own logging implementations (e.g. commons-logging or log4j), you can use the following snippet to ensure that all logging will go through SLF4J.
 
-    versionRecommendations {
-        excludeConfigurations 'zinc'
+```gradle
+allprojects {
+    dependencies {
+        modules {
+            module('commons-logging:commons-logging') {
+                replacedBy('org.slf4j:jcl-over-slf4j', 'slf4j allows us supply our own implementation')
+            }
+            module('log4j:log4j') {
+                replacedBy('org.slf4j:log4j-over-slf4j', 'slf4j allows us supply our own implementation')
+            }
+        }
     }
-
+}
+```
 
 ### Resolving dependencies at configuration time is banned
 In order for this plugin to function, we must be able to guarantee that no dependencies are resolved at configuration time.  Gradle already [recommends this](https://guides.gradle.org/performance/#don_t_resolve_dependencies_at_configuration_time) but gradle-consistent-versions enforces it.
@@ -258,6 +268,14 @@ Due to an implementation detail of this plugin, we require settings.gradle to de
  include 'tracing-servlet'
  include 'tracing-undertow'
 ```
+
+### Scala
+By default, this plugin will apply the constraints from `versions.props` to _all_ configurations.
+To exclude a configuration from receiving the constraints, you can add it to `excludeConfigurations`, configurable through the `versionRecommendations` extension (in the root project):
+
+    versionRecommendations {
+        excludeConfigurations 'zinc'
+    }
 
 ## Migration
 Using a combination of automation and some elbow grease, we've migrated ~150 projects from `nebula.dependency-recommender` to `com.palantir.consistent-version`:
