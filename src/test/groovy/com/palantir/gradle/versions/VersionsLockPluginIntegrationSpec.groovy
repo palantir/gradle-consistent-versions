@@ -34,8 +34,19 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                 "org:platform:1.0",
         )
         buildFile << """
-            plugins { id '${PLUGIN_NAME}' }
+            buildscript {
+                repositories {
+                    maven { url 'https://dl.bintray.com/palantir/releases' }
+                }
+                dependencies {
+                    classpath 'com.palantir.configurationresolver:gradle-configuration-resolver-plugin:0.3.0'
+                }
+            }
+            plugins {
+                id '${PLUGIN_NAME}'
+            }
             allprojects {
+                apply plugin: 'com.palantir.configuration-resolver'
                 repositories {
                     maven { url "file:///${mavenRepo.getAbsolutePath()}" }
                 }
