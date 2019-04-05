@@ -9,6 +9,7 @@ Direct dependencies are specified in a top level `versions.props` file and then 
 ## Table of contents
 
 1. Motivation
+    1. An evolution of `nebula.dependency-recommender`
     1. failOnVersionConflict() considered harmful
 1. Concepts
     1. Concise versions.props contains lower bounds
@@ -18,8 +19,8 @@ Direct dependencies are specified in a top level `versions.props` file and then 
     1. constraints
     1. forcing things down is uncommon, but sometimes necessary
     1. scala
-1. An evolution of `nebula.dependency-recommender`
-    1. Migration
+1. Migration
+    1. How to make it work with Baseline
 1. Comparison to other languages
     1. Comparison to nebula dependency lock plugin
     1. Comparison to manual verifyDependencyLocksAreCurrent task
@@ -30,6 +31,20 @@ Direct dependencies are specified in a top level `versions.props` file and then 
 
 ## Motivation
 
+### An evolution of `nebula.dependency-recommender`
+
+[nebula.dependency-recommender]: https://github.com/nebula-plugins/nebula-dependency-recommender-plugin
+[dependency constraints]: https://docs.gradle.org/current/userguide/managing_transitive_dependencies.html#sec:dependency_constraints
+[gradle BOM import]: https://docs.gradle.org/5.1/userguide/managing_transitive_dependencies.html#sec:bom_import
+
+Unlike [nebula.dependency-recommender][], where versions declared in `versions.props` are *forced*, ignoring constraints
+from transitives that might want a higher version, this plugin injects versions as gradle [dependency constraints][],
+which play nicely with version constraints that come from the POM files of transitives.
+
+This fixes the issue with `nebula.dependency-recommender` where a currently forced version later ends up silently
+downgrading a transitive, eliminating runtime errors such as `ClassNotFoundException`, `NoSuchMethodException` etc.
+
+TODO
 - source of truth for ambiguous dependencies
 - makes it easy to inspect dependencies of larger projects
 
@@ -74,6 +89,10 @@ javax.servlet:javax.servlet-api:3.1.0 (1 constraints: 830dcc28)
 javax.validation:validation-api:1.1.0.Final (3 constraints: dc393f20)
 javax.ws.rs:javax.ws.rs-api:2.0.1 (8 constraints: 7e9ce067)
 ```
+
+The lockfile is sourced from the _compileClasspath_ and _runtimeClasspath_ configurations.
+(Test-only dependencies will not appear in `versions.lock`.)
+
 #### ./gradlew why
 
 To understand why a particular version in your lockfile has been chosen, run `./gradlew why --hash a60c3ce8` to expand the constraints:
@@ -110,20 +129,8 @@ To exclude a configuration from receiving the constraints, you can add it to `ex
     }
 
 
-## An evolution of `nebula.dependency-recommender`
 
-[nebula.dependency-recommender]: https://github.com/nebula-plugins/nebula-dependency-recommender-plugin
-[dependency constraints]: https://docs.gradle.org/current/userguide/managing_transitive_dependencies.html#sec:dependency_constraints
-[gradle BOM import]: https://docs.gradle.org/5.1/userguide/managing_transitive_dependencies.html#sec:bom_import
-
-Unlike [nebula.dependency-recommender][], where versions declared in `versions.props` are *forced*, ignoring constraints
-from transitives that might want a higher version, this plugin injects versions as gradle [dependency constraints][],
-which play nicely with version constraints that come from the POM files of transitives.
-
-This fixes the issue with `nebula.dependency-recommender` where a currently forced version later ends up silently
-downgrading a transitive, eliminating runtime errors such as `ClassNotFoundException`, `NoSuchMethodException` etc.
-
-### Migration
+## Migration
 
 ```diff
  buildscript {
@@ -163,15 +170,6 @@ Add the following to your `gradle.properties` to fully disable nebula.
 
 You can also likely delete the 'conflict resolution' section of your versions.props. To understand why a particular version appears in your lockfile, use  **`./gradlew why --hash a60c3ce8`**.
 
-
-
-
-
-
-#### Which configurations are affected?
-
-The lockfile is sourced from the _compileClasspath_ and _runtimeClasspath_ configurations.
-(Test-only dependencies will not appear in `versions.lock`.)
 
 #### How to make this work with Baseline
 
