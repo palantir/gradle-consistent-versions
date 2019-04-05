@@ -46,7 +46,9 @@ Direct dependencies are specified in a top level `versions.props` file and then 
     1. ./gradlew why
     1. getVersion
     1. Specifying exact versions
-    1. Forcing things down is dangerous, but sometimes necessary
+    1. Downgrading things
+If you know you can't use a specific version of a library for some reason (e.g. conscrypt 1.4.2 above), the recommended approach is to use dependencyInsight to figure out why that version is on your classpath
+
     1. scala
     1. Resolving dependencies at configuration time is banned
     1. Known limitation: root project must have a unique name
@@ -182,16 +184,18 @@ dependencies {
 }
 ```
 
-Gradle will fail if something in your dependency graph is unable to satisfy these _strictly_ constraints. 
+Gradle will fail if something in your dependency graph is unable to satisfy these [strictly][] constraints. This is desirable because nothing is _forced_ in your transitive graph.
 
-### Forcing things down is dangerous, but sometimes necessary
-If one of your transitives is pulling in a version that you specifically want to avoid for some reason (e.g. retrofit 2.5.0), the recommended approach is to just use `dependencyInsight` to find what dependency pulled it in and downgrade that dependency:
+[strictly]: https://docs.gradle.org/current/userguide/declaring_dependencies.html#sub:declaring_dependency_rich_version
+
+### Downgrading things
+If you discover a bug in some library on your classpath, the recommended approach is to use dependencyInsight to figure out why that version is on your classpath in the first place and then downgrade things until that library is no longer brought in.  Once the dependency is gone, you can specify a rootConfiguration constraint to make sure it doesn't come back (see above).
 
 ```
 ./gradlew dependencyInsight --configuration unifiedClasspath --dependency retrofit
 ```
 
-However, if you can't downgrade the relevant dependency for some reason, you can still force it down.  This is dangerous because if something in your transitive graph compiles against methods only present in 2.5.0, then forcing down to 2.4.0 will result in NoSuchMethodErrors at runtime on certain codepaths.
+Occasionally however, downgrading things like this is not feasible and you just want to force a particular transitive dependency.  This is dangerous because something in your transitive graph clearly compiled against this library and might be relying on methods only present in the newer version, so forcing down may result in NoSuchMethodErrors at runtime on certain codepaths.
 
 ```gradle
 allprojects {
