@@ -26,8 +26,6 @@ import com.google.common.collect.MapDifference;
 import com.google.common.collect.MapDifference.ValueDifference;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Streams;
-import com.palantir.configurationresolver.ConfigurationResolverPlugin;
-import com.palantir.configurationresolver.ResolveConfigurationsTask;
 import com.palantir.gradle.versions.internal.MyModuleIdentifier;
 import com.palantir.gradle.versions.internal.MyModuleVersionIdentifier;
 import com.palantir.gradle.versions.lockstate.Dependents;
@@ -114,8 +112,6 @@ public class VersionsLockPlugin implements Plugin<Project> {
     @Override
     public final void apply(Project project) {
         checkPreconditions(project);
-
-        project.getPluginManager().apply(ConfigurationResolverPlugin.class);
 
         Configuration unifiedClasspath = project
                 .getConfigurations()
@@ -247,8 +243,9 @@ public class VersionsLockPlugin implements Plugin<Project> {
             Project rootProject, Configuration unifiedClasspath, Project project) {
         // Parallel 'resolveConfigurations' sometimes breaks unless we force the root one to run first.
         if (rootProject != project) {
-            project.getTasks().withType(
-                    ResolveConfigurationsTask.class, task -> task.mustRunAfter(":resolveConfigurations"));
+            project.getPluginManager().withPlugin("com.palantir.configuration-resolver", plugin -> {
+                project.getTasks().named("resolveConfigurations", task -> task.mustRunAfter(":resolveConfigurations"));
+            });
         }
 
         NamedDomainObjectProvider<Configuration> subprojectUnifiedClasspath =
