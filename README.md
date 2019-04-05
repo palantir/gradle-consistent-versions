@@ -49,6 +49,7 @@ Direct dependencies are specified in a top level `versions.props` file and then 
     1. Specifying exact versions
     1. Downgrading things
     1. Common workflow: SLF4J
+    1. Common workflow: dependencySubstitution
     1. Resolving dependencies at configuration time is banned
     1. Known limitation: root project must have a unique name
     1. Scala
@@ -238,6 +239,21 @@ allprojects {
         }
     }
 }
+```
+
+### Common workflow: dependencySubstitution
+We've seen the following error when using dependencySubstitution:
+```
+> Could not find method module() for arguments [org.glassfish.hk2.external:javax.inject] on configuration ':my-project:subprojectUnifiedClasspathCopy' of type org.gradle.api.internal.artifacts.configurations.DefaultConfiguration.
+```
+Adding explicit `it` calls works around this error:
+```diff
+ configurations.configureEach {
+     resolutionStrategy.dependencySubstitution {
+-        substitute module('org.glassfish.hk2.external:javax.inject') with module('javax.inject:javax.inject:1')
++        it.substitute it.module('org.glassfish.hk2.external:javax.inject') with it.module('javax.inject:javax.inject:1')
+     }
+ }
 ```
 
 ### Resolving dependencies at configuration time is banned
