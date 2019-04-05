@@ -43,10 +43,10 @@ Direct dependencies are specified in a top level `versions.props` file and then 
 1. [Concepts](#concepts)
     1. versions.props: lower bounds for dependencies
     1. versions.lock: compact representation of your prod classpath
-        1. ./gradlew why
+    1. ./gradlew why
     1. getVersion
     1. constraints
-    1. forcing things down is uncommon, but sometimes necessary
+    1. Forcing things down is dangerous, but sometimes necessary
     1. scala
     1. Known limitation: root project must have a unique name
 1. [Migration](#migration)
@@ -121,7 +121,7 @@ The lockfile is sourced from the _compileClasspath_ and _runtimeClasspath_ confi
 (Test-only dependencies will not appear in `versions.lock`)
 
 
-#### ./gradlew why
+### ./gradlew why
 To understand why a particular version in your lockfile has been chosen, run `./gradlew why --hash a60c3ce8` to expand the constraints:
 ```
 > Task :why
@@ -132,25 +132,49 @@ com.fasterxml.jackson.core:jackson-databind:2.9.8
         com.palantir.config.crypto:encrypted-config-value-module -> 2.6.1
 ```
 
-This is effectively just a shorthand for `dependencyInsight`:
+This is effectively just a more concise representation for `dependencyInsight`:
 
 ```
 ./gradlew  dependencyInsight --configuration unifiedClasspath --dependency jackson-databind
 ```
 
 ### getVersion
-### constraints
-### forcing things down is uncommon, but sometimes necessary
 
-If you need to a lower version of a dependency, use a forced version constraint e.g.:
+### constraints
+
+### Forcing things down is dangerous, but sometimes necessary
+
+If one of your transitives is pulling in a version that you specifically want to avoid for some reason (e.g. retrofgit 2.5.0), the recommended approach is to just use `dependencyInsight` to find what dependency pulled it in and downgrade that dependency:
 
 ```
+./gradlew dependencyInsight --configuration unifiedClasspath --dependency retrofit
+```
+
+However, if you can't downgrade the relevant dependency for some reason, you can still force it down.  This is dangerous because if something in your transitive graph compiles against methods only present in 2.5.0, then forcing down to 2.4.0 will result in NoSuchMethodErrors at runtime on certain codepaths.
+
+```gradle
 dependencies {
     constraints {
-        rootConfiguration('com.squareup.retrofit2:retrofit:2.4.0') { force = true }
+        rootConfiguration('com.squareup.retrofit2:retrofit:2.4.0') {
+            force = true
+            because "<Explain why you're downgrading and the criteria for when it's safe to remove this>"
+        }
     }
 }
 ```
+
+Alternatively:
+
+```gradle
+allprojects {
+    configurations.all {
+        resolutionStrategy {
+            force 'com.squareup.retrofit2:retrofit:2.4.0'
+        }
+    }
+}
+```
+
 
 ### scala
 By default, this plugin will apply the constraints from `versions.props` to _all_ configurations.
