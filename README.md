@@ -19,9 +19,11 @@ Direct dependencies are specified in a top level `versions.props` file and then 
     1. constraints
     1. forcing things down is uncommon, but sometimes necessary
     1. scala
+    1. Known limitation: root project must have a unique name
 1. Migration
-    1. How to make it work with Baseline
-1. Comparison to other languages
+    1. How to make this work with Baseline
+    1. `dependencyRecommendations.getRecommendedVersion` -> `getVersion`
+1. Alternatives
     1. Comparison to nebula dependency lock plugin
     1. Comparison to manual verifyDependencyLocksAreCurrent task
 1. Technical explanation
@@ -129,6 +131,21 @@ To exclude a configuration from receiving the constraints, you can add it to `ex
     }
 
 
+### Known limitation: root project must have a unique name
+
+This plugin requires the settings.gradle to declare a `rootProject.name` which is unique, due to a Gradle internal implementation detail.
+
+```diff
++rootProject.name = 'foundry-sls-status'
+-rootProject.name = 'sls-status'
+
+ include 'sls-status'
+ include 'sls-status-api'
+ include 'sls-status-api:sls-status-api-objects'
+ include 'sls-status-dropwizard'
+```
+
+
 
 ## Migration
 
@@ -183,21 +200,7 @@ In order to use this plugin, we need nebula to not be configured, which we can a
 
 This should become unnecessary in a future version of Baseline.
 
-#### Known limitation: root project must have a unique name
-
-This plugin requires the settings.gradle to declare a `rootProject.name` which is unique, due to a Gradle internal implementation detail.
-
-```diff
-+rootProject.name = 'foundry-sls-status'
--rootProject.name = 'sls-status'
-
- include 'sls-status'
- include 'sls-status-api'
- include 'sls-status-api:sls-status-api-objects'
- include 'sls-status-dropwizard'
-```
-
-#### What about `dependencyRecommendations.getRecommendedVersion`?
+#### `dependencyRecommendations.getRecommendedVersion` -> `getVersion`
 
 If you rely on this Nebula function, then gradle-consistent-versions has a similar alternative:
 
@@ -220,7 +223,7 @@ Alternatives:
      ...
 ```
 
-### Comparison to other languages
+## Alternatives
 
 Many other languages have implemented this exact workflow.  Direct dependencies are specified in some top level file and then the build tool just figures out a sensible version for all the transitive dependencies and writes out the whole thing to a some lock file:
 
@@ -258,10 +261,9 @@ task verifyDependencyLocksAreCurrent {
 }
 ```
 
-
 ## Technical explanation
 
-#### Are these vanilla Gradle lockfiles?
+### Are these vanilla Gradle lockfiles?
 
 No.  We tried Gradle 4.8's [first-class lockfiles](https://docs.gradle.org/current/userguide/dependency_locking.html), but found a critical usability problem: it allowed semantic merge conflicts.  For example:
 
@@ -291,7 +293,7 @@ The badness arises when:
 
 Our format avoids these semantic merge conflicts by adding some redundant information about the dependency graph so that changes like these will result in _git conflicts_ (which prevent merging).
 
-#### Conflict-safe lock files
+### Conflict-safe lock files
 
 Our format extends gradle's lockfiles format by writing down who wanted each component (`com.google.guava:guava`) and which version they requested:
 
@@ -310,11 +312,7 @@ com.github.rholder:guava-retrying -> [10.+,)
 This ensures that if two PRs affect the set of constraints on guava they will result in a _git conflict_, which prevents the semantic merge conflicts described above and ensures develop won't break:
 
 ```
-<<<<<<< HEAD:versions.lock
-com.google.guava:guava:18.0 (3 constraints: f59715c4)
-=======
 com.google.guava:guava:10.0 (1 constraints: 50295fc1)
->>>>>>> 77976da35a11db4580b80ae27e8d65caf5208086:versions.lock
 ```
 
 The hash from one side of the merge confict (`f59715c4`) came from adding a tracing dependent:
