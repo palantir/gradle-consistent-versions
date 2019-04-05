@@ -1,4 +1,4 @@
-# com.palantir.consistent-versions [ ![Download](https://api.bintray.com/packages/palantir/releases/gradle-consistent-versions/images/download.svg) ](https://bintray.com/palantir/releases/gradle-consistent-versions/_latestVersion)
+# com.palantir.consistent-versions [ ![Download](https://api.bintray.com/packages/palantir/releases/gradle-consistent-versions/images/download.svg) ](https://plugins.gradle.org/plugin/com.palantir.consistent-versions)
 
 _A gradle plugin to ensure your dependency versions are *consistent* across all subprojects, without requiring you to hunt down and force every single conflicting transitive dependency._
 
@@ -6,7 +6,13 @@ Direct dependencies are specified in a top level `versions.props` file and then 
 
 **Run `./gradlew --write-locks` to update dependencies.**
 
-## Table of contents
+```gradle
+plugins {
+  id "com.palantir.consistent-versions" version "1.3.2"
+}
+```
+
+## Contents
 
 1. Motivation
     1. An evolution of `nebula.dependency-recommender`
