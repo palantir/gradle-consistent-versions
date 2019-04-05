@@ -45,11 +45,10 @@ Direct dependencies are specified in a top level `versions.props` file and then 
     1. versions.lock: compact representation of your prod classpath
     1. ./gradlew why
     1. getVersion
+    1. BOMs
     1. Specifying exact versions
     1. Downgrading things
-If you know you can't use a specific version of a library for some reason (e.g. conscrypt 1.4.2 above), the recommended approach is to use dependencyInsight to figure out why that version is on your classpath
-
-    1. scala
+    1. Scala
     1. Resolving dependencies at configuration time is banned
     1. Known limitation: root project must have a unique name
 1. [Migration](#migration)
@@ -165,6 +164,20 @@ task printSparkVersion {
 }
 ```
 
+### BOMs
+Gradle has [first-class support][bom] for sourcing version constraints from published BOMs so they work fine with gradle-consistent-versions:
+
+```gradle
+allprojects {
+    dependencies {
+        rootConfiguration platform('com.foo.bar:your-bom')
+    }
+}
+```
+[bom]: https://docs.gradle.org/4.6/release-notes.html#bom-import
+
+Make sure you apply BOMs within an `allprojects` closure, as gradle-consistent-versions must be able to unify constraints from all subprojects.
+
 ### Specifying exact versions
 The preferred way to control your dependency graph is using [dependency constraints][] on gradle-consistent-versions' `rootConfiguration`. For example:
 
@@ -188,6 +201,7 @@ Gradle will fail if something in your dependency graph is unable to satisfy thes
 
 [strictly]: https://docs.gradle.org/current/userguide/declaring_dependencies.html#sub:declaring_dependency_rich_version
 
+
 ### Downgrading things
 If you discover a bug in some library on your classpath, the recommended approach is to use dependencyInsight to figure out why that version is on your classpath in the first place and then downgrade things until that library is no longer brought in.  Once the dependency is gone, you can specify a rootConfiguration constraint to make sure it doesn't come back (see above).
 
@@ -207,11 +221,7 @@ allprojects {
 }
 ```
 
-### Constraints
-
-
-
-### scala
+### Scala
 By default, this plugin will apply the constraints from `versions.props` to _all_ configurations.
 To exclude a configuration from receiving the constraints, you can add it to `excludeConfigurations`, configurable through the `versionRecommendations` extension (in the root project):
 
