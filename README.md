@@ -12,8 +12,10 @@ plugins {
 }
 ```
 
+
 ## Contents
 
+1. Example
 1. Motivation
     1. An evolution of `nebula.dependency-recommender`
     1. failOnVersionConflict() considered harmful
@@ -37,20 +39,57 @@ plugins {
     1. Conflict-safe lock files
 
 
+## Example
+
+1. Apply the plugin (root project only):
+    ```gradle
+    plugins {
+        id "com.palantir.consistent-versions" version "1.3.2"
+    }
+    ```
+
+2. In one of your build.gradle files, define a _versionless_ dependency on some jar:
+
+    ```gradle
+    apply plugin: 'java'
+
+    dependencies {
+        implementation 'com.squareup.okhttp3:okhttp'
+    }
+    ```
+
+3. Create a `versions.props` file and provide a version number for the jar you just added:
+
+    ```
+    com.squareup.okhttp3:okhttp = 3.12.0
+    ```
+
+4. Run `./gradlew --write-locks` and see your versions.lock file be automatically created:
+
+    ```
+    # Run ./gradlew --write-locks to regenerate this file
+    com.squareup.okhttp3:okhttp:3.12.0 (1 constraints: 38053b3b)
+    com.squareup.okio:okio:1.15.0 (1 constraints: 810cbb09)
+    ```
+
 ## Motivation
+
+In a large Gradle project with many subprojects, developers often want to deal with just _one_ version of each external library. When you're browsing through code in your IDE, you probably just want one version of Jackson, one version of Guava etc.
 
 ### An evolution of `nebula.dependency-recommender`
 
-[nebula.dependency-recommender]: https://github.com/nebula-plugins/nebula-dependency-recommender-plugin
-[dependency constraints]: https://docs.gradle.org/current/userguide/managing_transitive_dependencies.html#sec:dependency_constraints
-[gradle BOM import]: https://docs.gradle.org/5.1/userguide/managing_transitive_dependencies.html#sec:bom_import
+[nebula.dependency-recommender][] pioneered the idea of 'versionless dependencies', where gradle files just declare a dependencies using `group:name` and then versions declared in some file are *forced*.
 
-Unlike [nebula.dependency-recommender][], where versions declared in `versions.props` are *forced*, ignoring constraints
+ignoring constraints
 from transitives that might want a higher version, this plugin injects versions as gradle [dependency constraints][],
 which play nicely with version constraints that come from the POM files of transitives.
 
 This fixes the issue with `nebula.dependency-recommender` where a currently forced version later ends up silently
 downgrading a transitive, eliminating runtime errors such as `ClassNotFoundException`, `NoSuchMethodException` etc.
+
+[nebula.dependency-recommender]: https://github.com/nebula-plugins/nebula-dependency-recommender-plugin
+[dependency constraints]: https://docs.gradle.org/current/userguide/managing_transitive_dependencies.html#sec:dependency_constraints
+[gradle BOM import]: https://docs.gradle.org/5.1/userguide/managing_transitive_dependencies.html#sec:bom_import
 
 TODO
 - source of truth for ambiguous dependencies
