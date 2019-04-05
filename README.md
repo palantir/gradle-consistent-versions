@@ -45,6 +45,7 @@ Direct dependencies are specified in a top level `versions.props` file and then 
     1. versions.lock: compact representation of your prod classpath
     1. ./gradlew why
     1. getVersion
+    1. Specifying exact versions
     1. Forcing things down is dangerous, but sometimes necessary
     1. scala
     1. Resolving dependencies at configuration time is banned
@@ -162,8 +163,28 @@ task printSparkVersion {
 }
 ```
 
-### Forcing things down is dangerous, but sometimes necessary
+### Specifying exact versions
+The preferred way to control your dependency graph is using [dependency constraints][] on gradle-consistent-versions' `rootConfiguration`. For example:
 
+```gradle
+dependencies {
+    constraints {
+        rootConfiguration 'org.conscrypt:conscrypt-openjdk-uber', {
+            version { strictly '1.4.1' }
+            because '1.4.2 requires newer glibc than available on Centos6'
+        }
+
+        rootConfiguration 'io.dropwizard.metrics:metrics-core', {
+            version { strictly '[3, 4[' }
+            because "Spark still uses 3.X, which can't co-exist with 4.X"
+        }
+    }
+}
+```
+
+Gradle will fail if something in your dependency graph is unable to satisfy these _strictly_ constraints. 
+
+### Forcing things down is dangerous, but sometimes necessary
 If one of your transitives is pulling in a version that you specifically want to avoid for some reason (e.g. retrofit 2.5.0), the recommended approach is to just use `dependencyInsight` to find what dependency pulled it in and downgrade that dependency:
 
 ```
@@ -181,6 +202,9 @@ allprojects {
     }
 }
 ```
+
+### Constraints
+
 
 
 ### scala
