@@ -2,44 +2,8 @@
 
 _A gradle plugin to ensure your dependency versions are *consistent* across all subprojects, without requiring you to hunt down and force every single conflicting transitive dependency._
 
-Direct dependencies are specified in a top level `versions.props` file and then the plugin uses [constraints][dependency constraints] to figure out a sensible version for all transitive dependencies and writes out the whole thing to `versions.lock`.
+Direct dependencies are specified in a top level `versions.props` file and then the plugin relies on [Gradle constraints][dependency constraints] to figure out sensible versions for all transitive dependencies - finally the whole transitive graph is captured in a compact `versions.lock` file.
 
-**Run `./gradlew --write-locks` to update dependencies.**
-
-```gradle
-plugins {
-  id "com.palantir.consistent-versions" version "1.3.2"
-}
-```
-
-
-## Contents
-
-1. Example
-1. Motivation
-    1. An evolution of `nebula.dependency-recommender`
-    1. failOnVersionConflict() considered harmful
-1. Concepts
-    1. Concise versions.props contains lower bounds
-    1. Compact versions.lock captures complete production classpath
-        1. ./gradlew why
-    1. getVersion
-    1. constraints
-    1. forcing things down is uncommon, but sometimes necessary
-    1. scala
-    1. Known limitation: root project must have a unique name
-1. Migration
-    1. How to make this work with Baseline
-    1. `dependencyRecommendations.getRecommendedVersion` -> `getVersion`
-1. Alternatives
-    1. Comparison to nebula dependency lock plugin
-    1. Comparison to manual verifyDependencyLocksAreCurrent task
-1. Technical explanation
-    1. Are these vanilla Gradle lockfiles?
-    1. Conflict-safe lock files
-
-
-## Example
 
 1. Apply the plugin (root project only):
     ```gradle
@@ -64,7 +28,7 @@ plugins {
     com.squareup.okhttp3:okhttp = 3.12.0
     ```
 
-4. Run `./gradlew --write-locks` and see your versions.lock file be automatically created. This file should be checked into your repo:
+4. Run **`./gradlew --write-locks`** and see your versions.lock file be automatically created. This file should be checked into your repo:
 
     ```bash
     # Run ./gradlew --write-locks to regenerate this file
@@ -72,14 +36,40 @@ plugins {
     com.squareup.okio:okio:1.15.0 (1 constraints: 810cbb09)
     ```
 
+
+## Contents
+
+1. Motivation
+    1. An evolution of `nebula.dependency-recommender`
+1. Concepts
+    1. versions.props: lower bounds for dependencies
+    1. Compact versions.lock captures complete production classpath
+        1. ./gradlew why
+    1. getVersion
+    1. constraints
+    1. forcing things down is uncommon, but sometimes necessary
+    1. scala
+    1. Known limitation: root project must have a unique name
+1. Migration
+    1. How to make this work with Baseline
+    1. `dependencyRecommendations.getRecommendedVersion` -> `getVersion`
+1. Alternatives
+    1. Comparison to nebula dependency lock plugin
+    1. Comparison to manual verifyDependencyLocksAreCurrent task
+1. Technical explanation
+    1. Are these vanilla Gradle lockfiles?
+    1. Conflict-safe lock files
+
+
 ## Motivation
 
 1. **one version per library** - When you have many Gradle subprojects, it can be frustrating to have lots of different versions of the same library floating around on your classpath. You usually just want one version of Jackson, one version of Guava etc. (`failOnVersionConflict()` does the job, but it comes with some significant downsides - see below).
 1. **better visibility into dependency changes** - Small changes to your requested dependencies can have cascading effects on your transitive graph.  For example, you might find that a minor bump of some library brings in 30 new jars, or affects the versions of your other dependencies.
+1. **full reproducible builds** -
 
 ### An evolution of `nebula.dependency-recommender`
 
-[nebula.dependency-recommender][] pioneered the idea of 'versionless dependencies', where gradle files just declare a dependencies using `compile "group:name"` and then versions are declared separately (e.g. in a `versions.props` file). To ensure there's only one version of each jar on the classpath, you can use `failOnVersionConflict()` and nebula.dependency-recommender's `OverrideTransitives`.
+[nebula.dependency-recommender][] pioneered the idea of 'versionless dependencies', where gradle files just declare a dependencies using `compile "group:name"` and then versions are declared separately (e.g. in a `versions.props` file). Using `failOnVersionConflict()` and nebula.dependency-recommender's `OverrideTransitives` ensures there's only one version of each jar on the classpath.
 
 This results in *forcing* all your dependencies, which ignores any information that dependencies themselves provide.
 
@@ -91,24 +81,23 @@ Unfortunately, failOnVersionConflict means developers often pick conflict resolu
 
 ## Concepts
 
-### Concise versions.props contains lower bounds
+### versions.props: lower bounds for dependencies
 
-With this plugin, your `versions.props` can contain only versions for things you directly depend on, you don't have to specify anything else:
+Specify versions for your direct dependencies in a single root-level `versions.props` file. Think of these versions as the _minimum_ versions your project requires.
 
-```diff
- com.fasterxml.jackson.*:jackson-* = 2.9.6
- com.google.guava:guava = 21.0
- com.palantir.conjure:* = 4.0.0
- com.palantir.conjure.java:* = 1.1.0
- com.palantir.remoting3:* = 3.37.0
- junit:junit = 4.12
- org.assertj:* = 3.10.0
-
--# CONFLICT RESOLUTION
--org.slf4j:slf4j-api = 1.7.25
--com.palantir.ri:resource-identifier = 1.0.1
--com.palantir.remoting-api:errors = 1.8.0
 ```
+com.fasterxml.jackson.*:jackson-* = 2.9.6
+com.google.guava:guava = 21.0
+com.squareup.okhttp3:okhttp = 3.12.0
+junit:junit = 4.12
+org.assertj:* = 3.10.0
+```
+
+Note that this does not force okhttp to exactly 3.12.0, it just declares that we require at least 3.12.0.  If something else in your transitive graph needs a newer version, Gradle will happily select this.  (See below for how to downgrade something if you really know what you're doing).
+
+The * notation ensures that every matching jar will have the same version - they will be aligned using a [virtual platform][].
+
+[virtual platform]: https://docs.gradle.org/current/userguide/managing_transitive_dependencies.html#sec:virtual_platform
 
 ### Compact versions.lock captures complete production classpath
 
