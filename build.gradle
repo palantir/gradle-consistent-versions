@@ -43,7 +43,6 @@ apply from: "$rootDir/gradle/publish-jar.gradle"
 sourceCompatibility = 1.8
 
 dependencies {
-    compileOnly 'com.palantir.configurationresolver:gradle-configuration-resolver-plugin'
     implementation 'com.google.guava:guava'
     implementation 'com.netflix.nebula:nebula-dependency-recommender'
 
