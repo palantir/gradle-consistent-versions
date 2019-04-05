@@ -64,9 +64,9 @@ plugins {
     com.squareup.okhttp3:okhttp = 3.12.0
     ```
 
-4. Run `./gradlew --write-locks` and see your versions.lock file be automatically created:
+4. Run `./gradlew --write-locks` and see your versions.lock file be automatically created. This file should be checked into your repo:
 
-    ```
+    ```bash
     # Run ./gradlew --write-locks to regenerate this file
     com.squareup.okhttp3:okhttp:3.12.0 (1 constraints: 38053b3b)
     com.squareup.okio:okio:1.15.0 (1 constraints: 810cbb09)
@@ -74,33 +74,20 @@ plugins {
 
 ## Motivation
 
-In a large Gradle project with many subprojects, developers often want to deal with just _one_ version of each external library. When you're browsing through code in your IDE, you probably just want one version of Jackson, one version of Guava etc.
+1. **one version per library** - When you have many Gradle subprojects, it can be frustrating to have lots of different versions of the same library floating around on your classpath. You usually just want one version of Jackson, one version of Guava etc. (`failOnVersionConflict()` does the job, but it comes with some significant downsides - see below).
+1. **better visibility into dependency changes** - Small changes to your requested dependencies can have cascading effects on your transitive graph.  For example, you might find that a minor bump of some library brings in 30 new jars, or affects the versions of your other dependencies.
 
 ### An evolution of `nebula.dependency-recommender`
 
-[nebula.dependency-recommender][] pioneered the idea of 'versionless dependencies', where gradle files just declare a dependencies using `group:name` and then versions declared in some file are *forced*.
+[nebula.dependency-recommender][] pioneered the idea of 'versionless dependencies', where gradle files just declare a dependencies using `compile "group:name"` and then versions are declared separately (e.g. in a `versions.props` file). To ensure there's only one version of each jar on the classpath, you can use `failOnVersionConflict()` and nebula.dependency-recommender's `OverrideTransitives`.
 
-ignoring constraints
-from transitives that might want a higher version, this plugin injects versions as gradle [dependency constraints][],
-which play nicely with version constraints that come from the POM files of transitives.
+This results in *forcing* all your dependencies, which ignores any information that dependencies themselves provide.
 
-This fixes the issue with `nebula.dependency-recommender` where a currently forced version later ends up silently
-downgrading a transitive, eliminating runtime errors such as `ClassNotFoundException`, `NoSuchMethodException` etc.
+Unfortunately, failOnVersionConflict means developers often pick conflict resolution versions out of thin air, without knowledge of the actual requested ranges. This is dangerous because users may unwittingly pick versions that actually violate dependency constraints and may break at runtime, resulting in runtime errors suchs as `ClassNotFoundException`, `NoSuchMethodException` etc
 
 [nebula.dependency-recommender]: https://github.com/nebula-plugins/nebula-dependency-recommender-plugin
 [dependency constraints]: https://docs.gradle.org/current/userguide/managing_transitive_dependencies.html#sec:dependency_constraints
 [gradle BOM import]: https://docs.gradle.org/5.1/userguide/managing_transitive_dependencies.html#sec:bom_import
-
-TODO
-- source of truth for ambiguous dependencies
-- makes it easy to inspect dependencies of larger projects
-
-### failOnVersionConflict() considered harmful
-
-Many projects use `failOnVersionConflict()` and nebula dependency recommender's `OverrideTransitives` to ensure they have exactly one version of each jar across all the subprojects in one repo.
-
-- **Problem:** devs pick 'conflict resolution' versions out of thin air, without knowledge of the actual requested ranges. This can be dangerous because users may unwittingly pick versions that actually violate dependency constraints and may break at runtime.
-
 
 ## Concepts
 
