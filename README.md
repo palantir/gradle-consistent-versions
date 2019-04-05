@@ -8,7 +8,7 @@ Direct dependencies are specified in a top level `versions.props` file and then 
 1. Apply the plugin (root project only):
     ```gradle
     plugins {
-        id "com.palantir.consistent-versions" version "1.3.2"
+        id "com.palantir.consistent-versions" version "1.4.0"
     }
     ```
 
@@ -38,7 +38,6 @@ Direct dependencies are specified in a top level `versions.props` file and then 
 
 
 ## Contents
-
 1. [Motivation](#motivation)
     1. An evolution of `nebula.dependency-recommender`
 1. [Concepts](#concepts)
@@ -53,22 +52,27 @@ Direct dependencies are specified in a top level `versions.props` file and then 
 1. [Migration](#migration)
     1. How to make this work with Baseline
     1. `dependencyRecommendations.getRecommendedVersion` -> `getVersion`
-1. Alternatives
-    1. Comparison to nebula dependency lock plugin
-    1. Comparison to manual verifyDependencyLocksAreCurrent task
-1. Technical explanation
+1. [Technical explanation](#technical-explanation)
     1. Are these vanilla Gradle lockfiles?
     1. Conflict-safe lock files
 
 
-## Motivation
 
-1. **one version per library** - When you have many Gradle subprojects, it can be frustrating to have lots of different versions of the same library floating around on your classpath. You usually just want one version of Jackson, one version of Guava etc. (`failOnVersionConflict()` does the job, but it comes with some significant downsides - see below).
-1. **better visibility into dependency changes** - Small changes to your requested dependencies can have cascading effects on your transitive graph.  For example, you might find that a minor bump of some library brings in 30 new jars, or affects the versions of your other dependencies.
-1. **full reproducible builds** -
+## Motivation
+Many languages have arrived at a similar workflow for dependency management: direct dependencies are specified in some top level file and then the build tool figures out a sensible version for all the transitive dependencies.  The whole dependency graph is then written out to some lock file. We asked ourselves, why doesn't this exist for Java?
+
+- JavaScript repos using [yarn](https://yarnpkg.com/) define dependencies in a `package.json` and then yarn auto-generates a `yarn.lock` file.
+- Rust repos using [cargo](https://doc.rust-lang.org/stable/cargo/) define direct dependencies in a `cargo.toml` file and have `cargo.lock` auto-generated.
+- Go repos using [dep](https://golang.github.io/dep/) define dependencies in a `Gopkg.toml` file and have `Gopkg.lock` auto-generated.
+- Ruby repos using [bundler](https://bundler.io/) define dependencies in a `Gemfile` file and have `Gemfile.lock` auto-generated.
+
+Specifically this plugin delivers:
+
+1. **one version per library** - When you have many Gradle subprojects, it can be frustrating to have lots of different versions of the same library floating around on your classpath. You usually just want one version of Jackson, one version of Guava etc. (`failOnVersionConflict()` does the job, but it comes with some significant downsides - see below). With gradle-consistent-versions, versionless dependencies across all your projects have a sensible version provided from the central _unifiedClasspath_ configuration.
+1. **better visibility into dependency changes** - Small changes to your requested dependencies can have cascading effects on your transitive graph.  For example, you might find that a minor bump of some library brings in 30 new jars, or affects the versions of your other dependencies. With gradle-consistent-versions, it's easy to spot these changes in your `versions.lock`.
+
 
 ### An evolution of `nebula.dependency-recommender`
-
 [nebula.dependency-recommender][] pioneered the idea of 'versionless dependencies', where gradle files just declare a dependencies using `compile "group:name"` and then versions are declared separately (e.g. in a `versions.props` file). Using `failOnVersionConflict()` and nebula.dependency-recommender's `OverrideTransitives` ensures there's only one version of each jar on the classpath.
 
 This results in *forcing* all your dependencies, which ignores any information that dependencies themselves provide.
@@ -79,10 +83,10 @@ Unfortunately, failOnVersionConflict means developers often pick conflict resolu
 [dependency constraints]: https://docs.gradle.org/current/userguide/managing_transitive_dependencies.html#sec:dependency_constraints
 [gradle BOM import]: https://docs.gradle.org/5.1/userguide/managing_transitive_dependencies.html#sec:bom_import
 
+
 ## Concepts
 
 ### versions.props: lower bounds for dependencies
-
 Specify versions for your direct dependencies in a single root-level `versions.props` file. Think of these versions as the _minimum_ versions your project requires.
 
 ```
@@ -99,14 +103,14 @@ The * notation ensures that every matching jar will have the same version - they
 
 [virtual platform]: https://docs.gradle.org/current/userguide/managing_transitive_dependencies.html#sec:virtual_platform
 
-### versions.lock: compact representation of your prod classpath
 
+### versions.lock: compact representation of your prod classpath
 When you run `./gradlew --write-locks`, the plugin will automatically write a new file: `versions.lock` which contains a version for every single one of your transitive dependencies.  This is then used as the source of truth for all versions in all your projects.
 
 Notably, this lockfile is a _compact_ representation of your dependency graph as it just has one line per dependency (unlike nebula lock files which spanned thousands of lines).
 
 ```
-javax.annotation:javax.annotation-api:1.3.2 (3 constraints: 1a310f90)
+javax.annotation:javax.annotation-api:1.4.0 (3 constraints: 1a310f90)
 javax.inject:javax.inject:1 (2 constraints: d614a0ab)
 javax.servlet:javax.servlet-api:3.1.0 (1 constraints: 830dcc28)
 javax.validation:validation-api:1.1.0.Final (3 constraints: dc393f20)
@@ -116,8 +120,8 @@ javax.ws.rs:javax.ws.rs-api:2.0.1 (8 constraints: 7e9ce067)
 The lockfile is sourced from the _compileClasspath_ and _runtimeClasspath_ configurations.
 (Test-only dependencies will not appear in `versions.lock`)
 
-#### ./gradlew why
 
+#### ./gradlew why
 To understand why a particular version in your lockfile has been chosen, run `./gradlew why --hash a60c3ce8` to expand the constraints:
 ```
 > Task :why
@@ -149,7 +153,6 @@ dependencies {
 ```
 
 ### scala
-
 By default, this plugin will apply the constraints from `versions.props` to _all_ configurations.
 To exclude a configuration from receiving the constraints, you can add it to `excludeConfigurations`, configurable through the `versionRecommendations` extension (in the root project):
 
@@ -159,7 +162,6 @@ To exclude a configuration from receiving the constraints, you can add it to `ex
 
 
 ### Known limitation: root project must have a unique name
-
 Due to an implementation detail of this plugin, we require settings.gradle to declare a `rootProject.name` which is unique.
 
 ```diff
@@ -176,12 +178,11 @@ Due to an implementation detail of this plugin, we require settings.gradle to de
 ```
 
 ## Migration
-
 Using a combination of automation and some elbow grease, we've migrated ~150 projects from `nebula.dependency-recommender` to `com.palantir.consistent-version`:
 
 ```diff
  plugins {
-+    id 'com.palantir.consistent-versions' version '1.3.2'
++    id 'com.palantir.consistent-versions' version '1.4.0'
  }
 
  allprojects {
@@ -203,8 +204,8 @@ Using a combination of automation and some elbow grease, we've migrated ~150 pro
 
 _You can also likely delete the 'conflict resolution' section of your versions.props._
 
-### How to make this work with Baseline
 
+### How to make this work with Baseline
 Add the following to your `gradle.properties` fully turn off nebula.dependency-recommender (only necessary if you use [`com.palantir.baseline`](https://github.com/palantir/gradle-baseline/#usage)):
 
 ```diff
@@ -214,8 +215,8 @@ Add the following to your `gradle.properties` fully turn off nebula.dependency-r
 
 _This should become unnecessary in a future version of Baseline._
 
-### `dependencyRecommendations.getRecommendedVersion` -> `getVersion`
 
+### `dependencyRecommendations.getRecommendedVersion` -> `getVersion`
 If you rely on this Nebula function, then gradle-consistent-versions has a similar alternative:
 
 ```diff
@@ -237,28 +238,9 @@ Alternatives:
      ...
 ```
 
-## Alternatives
-
-Many languages have arrived at a similar workflow for dependency management: direct dependencies are specified in some top level file and then the build tool figures out a sensible version for all the transitive dependencies.  The whole dependency graph is then written out to some lock file. For example,
-
-- JavaScript repos using [yarn](https://yarnpkg.com/) define dependencies in a `package.json` and then yarn auto-generates a `yarn.lock` file.
-- Rust repos using [cargo](https://doc.rust-lang.org/stable/cargo/) define direct dependencies in a `cargo.toml` file and have `cargo.lock` auto-generated.
-- Go repos using [dep](https://golang.github.io/dep/) define dependencies in a `Gopkg.toml` file and have `Gopkg.lock` auto-generated.
-- Ruby repos using [bundler](https://bundler.io/) define dependencies in a `Gemfile` file and have `Gemfile.lock` auto-generated.
-
-### Comparison to nebula dependency lock plugin
-
-Internally, a few projects started using Nebula's [Gradle Dependency Lock Plugin](https://github.com/nebula-plugins/gradle-dependency-lock-plugin) but eventually abandoned it because it introduced too much dev friction.  Key problems:
-
-- PR diffs could be thousands and thousands of lines for small changes
-- Contributors often updated versions.props but forgot to update the lockfiles, leading them to think they'd picked up a new version when they actually hadn't!
-
-Both of these problems are solved by this plugin because the new gradle lock files are extremely compact (one line per dependency) and they can never get out of date because gradle validates their correctness every time you resolve the unifiedClasspath configuration.
-
 ## Technical explanation
 
 ### Are these vanilla Gradle lockfiles?
-
 No.  We tried Gradle 4.8's [first-class lockfiles](https://docs.gradle.org/current/userguide/dependency_locking.html), but found a critical usability problem: it allowed semantic merge conflicts.  For example:
 
 - Two PRs might change apparently unrelated dependencies - both changing different lines of gradle's `gradle/dependency-locks/x.lockfile`
@@ -285,15 +267,14 @@ The badness arises when:
 1. user merges PR2 onto develop
 1. develop is now broken, because PR2 required jaxrs-clients 3.45.0 but PR1 had downgraded it on develop to 3.43.0 and git didn't detect this conflict! (This is a semantic merge conflict)
 
-Our format avoids these semantic merge conflicts by adding some redundant information about the dependency graph so that changes like these will result in _git conflicts_ (which prevent merging).
+Our format avoids this problem by adding some redundant information about the dependency graph so that changes like these will result in pre-merge _git conflicts_ instead of post-merge _semantic conflicts_.
+
 
 ### Conflict-safe lock files
+Our format extends gradle's lockfiles format by writing down who wanted each component (`com.google.guava:guava`) and which version they requestedm, e.g.
 
-Our format extends gradle's lockfiles format by writing down who wanted each component (`com.google.guava:guava`) and which version they requested:
-
-```diff
--com.google.guava:guava:18.0
-+com.google.guava:guava:18.0 (2 constraints 4a440103)
+```
+com.google.guava:guava:18.0 (2 constraints 4a440103)
 ```
 
 The hash, `4a440103`, is derived from Guava's dependents:
@@ -323,3 +304,12 @@ While the other hash `50295fc1`, is derived by deleting jackson, leaving just a 
 ```
 
 With vanilla Gradle 4.8 lockfiles, this scenario would have merged but then failed on develop due to an inconsistent lockfile.
+
+
+### Comparison to nebula dependency lock plugin
+Internally, a few projects started using Nebula's [Gradle Dependency Lock Plugin](https://github.com/nebula-plugins/gradle-dependency-lock-plugin) but eventually abandoned it because it introduced too much dev friction.  Key problems:
+
+- PR diffs could be thousands and thousands of lines for small changes
+- Contributors often updated versions.props but forgot to update the lockfiles, leading them to think they'd picked up a new version when they actually hadn't!
+
+Both of these problems are solved by this plugin because the new gradle lock files are extremely compact (one line per dependency) and they can never get out of date because gradle validates their correctness every time you resolve the unifiedClasspath configuration.
