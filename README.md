@@ -6,6 +6,93 @@ Direct dependencies are specified in a top level `versions.props` file and then 
 
 **Run `./gradlew --write-locks` to update dependencies.**
 
+## Table of contents
+
+1. Motivation
+    1. failOnVersionConflict() considered harmful
+1. Concepts
+    1. Concise versions.props contains lower bounds
+    1. Compact versions.lock captures complete production classpath
+        1. ./gradlew why
+    1. getVersion
+    1. constraints
+1. An evolution of `nebula.dependency-recommender`
+    1. Migration
+1. Comparison to other languages
+    1. Comparison to nebula dependency lock plugin
+    1. Comparison to manual verifyDependencyLocksAreCurrent task
+1. Technical explanation
+    1. Are these vanilla Gradle lockfiles?
+    1. Conflict-safe lock files
+
+
+## Motivation
+
+- source of truth for ambiguous dependencies
+- makes it easy to inspect dependencies of larger projects
+
+### failOnVersionConflict() considered harmful
+
+Many projects use `failOnVersionConflict()` and nebula dependency recommender's `OverrideTransitives` to ensure they have exactly one version of each jar across all the subprojects in one repo.
+
+- **Problem:** devs pick 'conflict resolution' versions out of thin air, without knowledge of the actual requested ranges. This can be dangerous because users may unwittingly pick versions that actually violate dependency constraints and may break at runtime.
+
+
+## Concepts
+
+### Concise versions.props contains lower bounds
+
+With this plugin, your `versions.props` can contain only versions for things you directly depend on, you don't have to specify anything else:
+
+```diff
+ com.fasterxml.jackson.*:jackson-* = 2.9.6
+ com.google.guava:guava = 21.0
+ com.palantir.conjure:* = 4.0.0
+ com.palantir.conjure.java:* = 1.1.0
+ com.palantir.remoting3:* = 3.37.0
+ junit:junit = 4.12
+ org.assertj:* = 3.10.0
+
+-# CONFLICT RESOLUTION
+-org.slf4j:slf4j-api = 1.7.25
+-com.palantir.ri:resource-identifier = 1.0.1
+-com.palantir.remoting-api:errors = 1.8.0
+```
+
+### Compact versions.lock captures complete production classpath
+
+When you run `./gradlew --write-locks`, the plugin will automatically write a new file: `versions.lock` which contains a version for every single one of your transitive dependencies.  This is then used as the source of truth for all versions in all your projects.
+
+Notably, this lockfile is a _compact_ representation of your dependency graph as it just has one line per dependency (unlike previous nebula lock files which spanned thousands of lines).
+
+```
+javax.annotation:javax.annotation-api:1.3.2 (3 constraints: 1a310f90)
+javax.inject:javax.inject:1 (2 constraints: d614a0ab)
+javax.servlet:javax.servlet-api:3.1.0 (1 constraints: 830dcc28)
+javax.validation:validation-api:1.1.0.Final (3 constraints: dc393f20)
+javax.ws.rs:javax.ws.rs-api:2.0.1 (8 constraints: 7e9ce067)
+```
+#### ./gradlew why
+
+### getVersion
+### constraints
+
+
+## An evolution of `nebula.dependency-recommender`
+
+[nebula.dependency-recommender]: https://github.com/nebula-plugins/nebula-dependency-recommender-plugin
+[dependency constraints]: https://docs.gradle.org/current/userguide/managing_transitive_dependencies.html#sec:dependency_constraints
+[gradle BOM import]: https://docs.gradle.org/5.1/userguide/managing_transitive_dependencies.html#sec:bom_import
+
+Unlike [nebula.dependency-recommender][], where versions declared in `versions.props` are *forced*, ignoring constraints
+from transitives that might want a higher version, this plugin injects versions as gradle [dependency constraints][],
+which play nicely with version constraints that come from the POM files of transitives.
+
+This fixes the issue with `nebula.dependency-recommender` where a currently forced version later ends up silently
+downgrading a transitive, eliminating runtime errors such as `ClassNotFoundException`, `NoSuchMethodException` etc.
+
+### Migration
+
 ```diff
  buildscript {
      dependencies {
@@ -44,56 +131,90 @@ Add the following to your `gradle.properties` to fully disable nebula.
 
 You can also likely delete the 'conflict resolution' section of your versions.props. To understand why a particular version appears in your lockfile, use  **`./gradlew why --hash a60c3ce8`**.
 
-### An evolution of `nebula.dependency-recommender`
 
-[nebula.dependency-recommender]: https://github.com/nebula-plugins/nebula-dependency-recommender-plugin
-[dependency constraints]: https://docs.gradle.org/current/userguide/managing_transitive_dependencies.html#sec:dependency_constraints
-[gradle BOM import]: https://docs.gradle.org/5.1/userguide/managing_transitive_dependencies.html#sec:bom_import
 
-Unlike [nebula.dependency-recommender][], where versions declared in `versions.props` are *forced*, ignoring constraints
-from transitives that might want a higher version, this plugin injects versions as gradle [dependency constraints][],
-which play nicely with version constraints that come from the POM files of transitives.
+## More usage
 
-This fixes the issue with `nebula.dependency-recommender` where a currently forced version later ends up silently
-downgrading a transitive, eliminating runtime errors such as `ClassNotFoundException`, `NoSuchMethodException` etc.
+By default, this plugin will apply the constraints from `versions.props` to _all_ configurations.
+To exclude a configuration from receiving the constraints, you can add it to `excludeConfigurations`, configurable through the `versionRecommendations` extension (in the root project):
 
-### failOnVersionConflict() considered harmful
+    versionRecommendations {
+        excludeConfigurations 'zinc'
+    }
 
-Many projects use `failOnVersionConflict()` and nebula dependency recommender's `OverrideTransitives` to ensure they have exactly one version of each jar across all the subprojects in one repo.
+To understand why a particular version in your lockfile has been chosen, run `./gradlew why --hash a60c3ce8` to expand the constraints:
+```
+> Task :why
+com.fasterxml.jackson.core:jackson-databind:2.9.8
+        com.fasterxml.jackson.module:jackson-module-jaxb-annotations -> 2.9.8
+        com.netflix.feign:feign-jackson -> 2.6.4
+        com.palantir.config.crypto:encrypted-config-value -> 2.6.1
+        com.palantir.config.crypto:encrypted-config-value-module -> 2.6.1
+```
 
-- **Problem:** devs pick 'conflict resolution' versions out of thin air, without knowledge of the actual requested ranges. This can be dangerous because users may unwittingly pick versions that actually violate dependency constraints and may break at runtime.
+If you need to a lower version of a dependency, use a forced version constraint e.g.:
 
-### 1) Concise versions.props
+```
+dependencies {
+    constraints {
+        rootConfiguration('com.squareup.retrofit2:retrofit:2.4.0') { force = true }
+    }
+}
+```
 
-With this plugin, your `versions.props` can contain only versions for things you directly depend on, you don't have to specify anything else:
+
+#### Which configurations are affected?
+
+The lockfile is sourced from the _compileClasspath_ and _runtimeClasspath_ configurations.
+(Test-only dependencies will not appear in `versions.lock`.)
+
+#### How to make this work with Baseline
+
+[`com.palantir.baseline`](https://github.com/palantir/gradle-baseline/#usage) applies `nebula.dependency-recommender`,
+and attempts to configure it against the root `versions.props`.
+In order to use this plugin, we need nebula to not be configured, which we can achieve by adding this to `gradle.properties`:
+```diff
+ org.gradle.parallel=true
++com.palantir.baseline-versions.disable=true
+```
+
+This should become unnecessary in a future version of Baseline.
+
+#### Known limitation: root project must have a unique name
+
+This plugin requires the settings.gradle to declare a `rootProject.name` which is unique, due to a Gradle internal implementation detail.
 
 ```diff
- com.fasterxml.jackson.*:jackson-* = 2.9.6
- com.google.guava:guava = 21.0
- com.palantir.conjure:* = 4.0.0
- com.palantir.conjure.java:* = 1.1.0
- com.palantir.remoting3:* = 3.37.0
- junit:junit = 4.12
- org.assertj:* = 3.10.0
++rootProject.name = 'foundry-sls-status'
+-rootProject.name = 'sls-status'
 
--# CONFLICT RESOLUTION
--org.slf4j:slf4j-api = 1.7.25
--com.palantir.ri:resource-identifier = 1.0.1
--com.palantir.remoting-api:errors = 1.8.0
+ include 'sls-status'
+ include 'sls-status-api'
+ include 'sls-status-api:sls-status-api-objects'
+ include 'sls-status-dropwizard'
 ```
 
-### 2) Compact versions.lock
+#### What about `dependencyRecommendations.getRecommendedVersion`?
 
-When you run `./gradlew --write-locks`, the plugin will automatically write a new file: `versions.lock` which contains a version for every single one of your transitive dependencies.  This is then used as the source of truth for all versions in all your projects.
+If you rely on this Nebula function, then gradle-consistent-versions has a similar alternative:
 
-Notably, this lockfile is a _compact_ representation of your dependency graph as it just has one line per dependency (unlike previous nebula lock files which spanned thousands of lines).
-
+```diff
+-println dependencyRecommendations.getRecommendedVersion('com.google.guava:guava')
++println getVersion('com.google.guava:guava')
 ```
-javax.annotation:javax.annotation-api:1.3.2 (3 constraints: 1a310f90)
-javax.inject:javax.inject:1 (2 constraints: d614a0ab)
-javax.servlet:javax.servlet-api:3.1.0 (1 constraints: 830dcc28)
-javax.validation:validation-api:1.1.0.Final (3 constraints: dc393f20)
-javax.ws.rs:javax.ws.rs-api:2.0.1 (8 constraints: 7e9ce067)
+
+Note that you can't invoke this function at configuration time (e.g. in the body of a task declaration), because the plugin needs to resolve dependencies to return the answer and Gradle [strongly discourages](https://guides.gradle.org/performance/#don_t_resolve_dependencies_at_configuration_time) resolving dependencies at configuration time.
+
+Alternatives:
+
+- if you rely on this function for sls-packaging `productDependencies`, use `detectConstraints = true` or upgrade to 3.X
+- if you rely on this function to configure the `from` or `to` parameters of a `Copy` task, use a closure or move the whole thing into a doLast block.
+
+```diff
+ task copySomething(type: Copy) {
+-    from "$buildDir/foo/bar-${dependencyRecommendations.getRecommendedVersion('group', 'bar')}"
++    from { "$buildDir/foo/bar-${getVersion('group:bar')}" }
+     ...
 ```
 
 ### Comparison to other languages
@@ -134,34 +255,6 @@ task verifyDependencyLocksAreCurrent {
 }
 ```
 
-## More usage
-
-By default, this plugin will apply the constraints from `versions.props` to _all_ configurations.
-To exclude a configuration from receiving the constraints, you can add it to `excludeConfigurations`, configurable through the `versionRecommendations` extension (in the root project):
-
-    versionRecommendations {
-        excludeConfigurations 'zinc'
-    }
-
-To understand why a particular version in your lockfile has been chosen, run `./gradlew why --hash a60c3ce8` to expand the constraints:
-```
-> Task :why
-com.fasterxml.jackson.core:jackson-databind:2.9.8
-        com.fasterxml.jackson.module:jackson-module-jaxb-annotations -> 2.9.8
-        com.netflix.feign:feign-jackson -> 2.6.4
-        com.palantir.config.crypto:encrypted-config-value -> 2.6.1
-        com.palantir.config.crypto:encrypted-config-value-module -> 2.6.1
-```
-
-If you need to a lower version of a dependency, use a forced version constraint e.g.:
-
-```
-dependencies {
-    constraints {
-        rootConfiguration('com.squareup.retrofit2:retrofit:2.4.0') { force = true }
-    }
-}
-```
 
 ## Technical explanation
 
@@ -235,57 +328,3 @@ While the other hash `50295fc1`, is derived by deleting jackson, leaving just a 
 ```
 
 With vanilla Gradle 4.8 lockfiles, this scenario would have merged but then failed on develop due to an inconsistent lockfile.
-
-#### Which configurations are affected?
-
-The lockfile is sourced from the _compileClasspath_ and _runtimeClasspath_ configurations.
-(Test-only dependencies will not appear in `versions.lock`.)
-
-#### How to make this work with Baseline
-
-[`com.palantir.baseline`](https://github.com/palantir/gradle-baseline/#usage) applies `nebula.dependency-recommender`,
-and attempts to configure it against the root `versions.props`.
-In order to use this plugin, we need nebula to not be configured, which we can achieve by adding this to `gradle.properties`:
-```diff
- org.gradle.parallel=true
-+com.palantir.baseline-versions.disable=true
-```
-
-This should become unnecessary in a future version of Baseline.
-
-#### Known limitation: root project must have a unique name
-
-This plugin requires the settings.gradle to declare a `rootProject.name` which is unique, due to a Gradle internal implementation detail.
-
-```diff
-+rootProject.name = 'foundry-sls-status'
--rootProject.name = 'sls-status'
-
- include 'sls-status'
- include 'sls-status-api'
- include 'sls-status-api:sls-status-api-objects'
- include 'sls-status-dropwizard'
-```
-
-#### What about `dependencyRecommendations.getRecommendedVersion`?
-
-If you rely on this Nebula function, then gradle-consistent-versions has a similar alternative:
-
-```diff
--println dependencyRecommendations.getRecommendedVersion('com.google.guava:guava')
-+println getVersion('com.google.guava:guava')
-```
-
-Note that you can't invoke this function at configuration time (e.g. in the body of a task declaration), because the plugin needs to resolve dependencies to return the answer and Gradle [strongly discourages](https://guides.gradle.org/performance/#don_t_resolve_dependencies_at_configuration_time) resolving dependencies at configuration time.
-
-Alternatives:
-
-- if you rely on this function for sls-packaging `productDependencies`, use `detectConstraints = true` or upgrade to 3.X
-- if you rely on this function to configure the `from` or `to` parameters of a `Copy` task, use a closure or move the whole thing into a doLast block.
-
-```diff
- task copySomething(type: Copy) {
--    from "$buildDir/foo/bar-${dependencyRecommendations.getRecommendedVersion('group', 'bar')}"
-+    from { "$buildDir/foo/bar-${getVersion('group:bar')}" }
-     ...
-```
