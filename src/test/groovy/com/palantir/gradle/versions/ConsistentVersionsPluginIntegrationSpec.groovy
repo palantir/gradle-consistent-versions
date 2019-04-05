@@ -41,7 +41,10 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
                     }
                 }
             }
-            plugins { id '${PLUGIN_NAME}' }
+            plugins {
+                id '${PLUGIN_NAME}'
+                id 'com.palantir.configuration-resolver' version '0.3.0' 
+            }
             allprojects {
                 apply plugin: 'com.palantir.configuration-resolver'
                 
