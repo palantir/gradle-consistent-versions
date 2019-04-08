@@ -1,12 +1,14 @@
 // This file is managed by the excavator 'consistent-publish-scripts' check, changes will be overwritten.
 apply plugin: 'com.jfrog.bintray'
-
+// Intentionally not applying nebula.maven-publish, but most of its constituent plugins,
+// because we do _not_ want nebula.maven-compile-only
 apply plugin: 'maven-publish'
 apply plugin: 'nebula.maven-nebula-publish'
 apply plugin: 'nebula.maven-base-publish'
 apply plugin: 'nebula.maven-developer'
 apply plugin: 'nebula.maven-manifest'
 apply plugin: 'nebula.maven-scm'
+
 apply plugin: 'nebula.javadoc-jar'
 apply plugin: 'nebula.source-jar'
 
