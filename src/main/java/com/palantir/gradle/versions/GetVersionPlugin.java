@@ -64,6 +64,10 @@ public final class GetVersionPlugin implements Plugin<Project> {
                         .getConfigurations()
                         .getByName(VersionsLockPlugin.UNIFIED_CLASSPATH_CONFIGURATION_NAME));
             }
+
+            public String doCall(String group, String name, Configuration configuration) {
+                return getVersion(project, group, name, configuration);
+            }
         });
     }
 
