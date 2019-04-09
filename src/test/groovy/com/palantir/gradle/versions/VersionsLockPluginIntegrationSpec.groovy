@@ -407,9 +407,10 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         new File(subdir, 'build.gradle') << """
             apply plugin: 'java-library'
         """.stripIndent()
+        debug = true
 
         expect:
-        runTasks('--write-locks')
+        runTasks('--write-locks', '-S')
     }
 
     def "locks platform"() {
