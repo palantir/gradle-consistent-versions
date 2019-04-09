@@ -51,6 +51,18 @@ class GetVersionPluginSpec extends ProjectSpec {
         ex.message.contains "Unable to find 'com.google.guava:guava' in configuration ':compile'"
     }
 
+    def 'function is callable from groovy with two string args & configuration arg'() {
+        when:
+        project.apply plugin: GetVersionPlugin
+        project.apply plugin: JavaPlugin
+        project.ext.getVersion('com.google.guava', 'guava', project.configurations.compile)
+
+        then:
+        def ex = thrown(GradleException)
+        ex.message.contains "Unable to find 'com.google.guava:guava' in configuration ':compile'"
+    }
+
+
     def 'function is callable from groovy with two string args'() {
         when:
         project.apply plugin: GetVersionPlugin
