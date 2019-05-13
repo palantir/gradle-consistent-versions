@@ -233,10 +233,19 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
         Map<MyModuleIdentifier, ValueDifference<Line>> differing = difference.entriesDiffering();
         if (!differing.isEmpty()) {
-            throw new RuntimeException(
-                    "Found dependencies whose dependents changed: " + differing + ". "
-                            + "Please run './gradlew --write-locks'.");
+            throw new RuntimeException("Found dependencies whose dependents changed:\n"
+                    + formatDependencyDifferences(differing) + "\n\n"
+                    + "Please run './gradlew --write-locks'.");
         }
+    }
+
+    private static String formatDependencyDifferences(
+            Map<MyModuleIdentifier, ValueDifference<Line>> differing) {
+        return differing.entrySet().stream().map(diff -> String.format("" // to align strings
+                        + "-%s\n"
+                        + "+%s",
+                diff.getValue().leftValue().stringRepresentation(),
+                diff.getValue().rightValue().stringRepresentation())).collect(Collectors.joining("\n"));
     }
 
     private static void sourceDependenciesFromProject(
