@@ -29,6 +29,7 @@ import org.gradle.api.DefaultTask;
 import org.gradle.api.provider.Property;
 import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.TaskAction;
+import org.gradle.language.base.plugins.LifecycleBasePlugin;
 
 public class VerifyLocksTask extends DefaultTask {
 
@@ -39,7 +40,7 @@ public class VerifyLocksTask extends DefaultTask {
         this.persistedLockState = getProject().getObjects().property(LockState.class);
         this.currentLockState = getProject().getObjects().property(LockState.class);
 
-        setGroup("verification");
+        setGroup(LifecycleBasePlugin.VERIFICATION_GROUP);
         setDescription("Verifies that your versions.lock is consistent with current dependencies");
     }
 
