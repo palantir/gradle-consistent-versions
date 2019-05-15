@@ -19,6 +19,7 @@ package com.palantir.gradle.versions
 import nebula.test.dependencies.DependencyGraph
 import nebula.test.dependencies.GradleDependencyGenerator
 import org.gradle.testkit.runner.BuildResult
+import org.gradle.testkit.runner.TaskOutcome
 
 class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
 
@@ -309,7 +310,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
             }
         '''.stripIndent())
 
-        runTasks(':resolveConfigurations', '--write-locks')
+        runTasks('--write-locks')
 
         when:
         file('foo/build.gradle') << """
@@ -318,10 +319,13 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
             }
         """.stripIndent()
 
-        then:
-        def failure = runTasksAndFail(':resolveConfigurations')
+        then: 'Check should depend on verifyLocks'
+        def failure = runTasksAndFail(':check')
+        failure.task(':verifyLocks').outcome == TaskOutcome.FAILED
         failure.output.contains(expectedError)
-        runTasks(':resolveConfigurations', '--write-locks')
+
+        and: 'Can finally write locks once again'
+        runTasks('--write-locks')
     }
 
     def 'does not fail if unifiedClasspath is unresolvable but we are running dependencies'() {
@@ -370,7 +374,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
             }
         '''.stripIndent())
 
-        runTasks(':resolveConfigurations', '--write-locks')
+        runTasks('--write-locks')
 
         when:
         file('foo/build.gradle').text = """
@@ -379,10 +383,13 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
             }
         """.stripIndent()
 
-        then:
-        def failure = runTasksAndFail(':resolveConfigurations')
+        then: 'Check should depend on verifyLocks'
+        def failure = runTasksAndFail(':check')
+        failure.task(':verifyLocks').outcome == TaskOutcome.FAILED
         failure.output.contains(expectedError)
-        runTasks(':resolveConfigurations', '--write-locks')
+
+        and: 'Can finally write locks once again'
+        runTasks('--write-locks')
     }
 
     def "why works"() {
