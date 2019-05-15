@@ -22,16 +22,10 @@ import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.MapDifference;
-import com.google.common.collect.MapDifference.ValueDifference;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Streams;
-import com.palantir.gradle.versions.internal.MyModuleIdentifier;
 import com.palantir.gradle.versions.internal.MyModuleVersionIdentifier;
 import com.palantir.gradle.versions.lockstate.Dependents;
 import com.palantir.gradle.versions.lockstate.FullLockState;
-import com.palantir.gradle.versions.lockstate.Line;
-import com.palantir.gradle.versions.lockstate.LockState;
 import com.palantir.gradle.versions.lockstate.LockStates;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -43,7 +37,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.function.Supplier;
@@ -192,15 +185,16 @@ public class VersionsLockPlugin implements Plugin<Project> {
             ImmutableList<String> tasks = ImmutableList.of(":dependencyInsight", ":dependencies");
             unifiedClasspath.getIncoming().afterResolve(r -> {
                 if (tasks.stream().anyMatch(project.getGradle().getTaskGraph()::hasTask)) {
-                    log.lifecycle("Not checking validity of locks since we are running tasks that inspect "
+                    log.warn("Not checking validity of locks since we are running tasks that inspect "
                             + "dependencies");
                     return;
                 }
                 failIfAnyDependenciesUnresolved(r);
+            });
 
-                LockState currentLockState = LockStates.toLockState(fullLockStateSupplier.get());
-                LockState persistedLockState = new ConflictSafeLockFile(rootLockfile).readLocks();
-                ensureLockStateIsUpToDate(currentLockState, persistedLockState);
+            project.getTasks().register("verifyLocks", VerifyLocksTask.class, task -> {
+                task.currentLockState(project.provider(() -> LockStates.toLockState(fullLockStateSupplier.get())));
+                task.persistedLockState(project.provider(() -> new ConflictSafeLockFile(rootLockfile).readLocks()));
             });
 
             // Can configure using constraints immediately, because rootLockfile exists.
@@ -211,41 +205,6 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 t.fullLockState(project.provider(fullLockStateSupplier::get));
             });
         }
-    }
-
-    private static void ensureLockStateIsUpToDate(LockState currentLockState, LockState persistedLockState) {
-        MapDifference<MyModuleIdentifier, Line> difference = Maps.difference(
-                persistedLockState.linesByModuleIdentifier(), currentLockState.linesByModuleIdentifier());
-
-        Set<MyModuleIdentifier> missing = difference.entriesOnlyOnLeft().keySet();
-        if (!missing.isEmpty()) {
-            throw new RuntimeException(
-                    "Locked dependencies missing from the resolution result: " + missing + ". "
-                            + ". Please run './gradlew --write-locks'.");
-        }
-
-        Set<MyModuleIdentifier> unknown = difference.entriesOnlyOnRight().keySet();
-        if (!unknown.isEmpty()) {
-            throw new RuntimeException(
-                    "Found dependencies that were not in the lock state: " + unknown + ". "
-                            + "Please run './gradlew --write-locks'.");
-        }
-
-        Map<MyModuleIdentifier, ValueDifference<Line>> differing = difference.entriesDiffering();
-        if (!differing.isEmpty()) {
-            throw new RuntimeException("Found dependencies whose dependents changed:\n"
-                    + formatDependencyDifferences(differing) + "\n\n"
-                    + "Please run './gradlew --write-locks'.");
-        }
-    }
-
-    private static String formatDependencyDifferences(
-            Map<MyModuleIdentifier, ValueDifference<Line>> differing) {
-        return differing.entrySet().stream().map(diff -> String.format("" // to align strings
-                        + "-%s\n"
-                        + "+%s",
-                diff.getValue().leftValue().stringRepresentation(),
-                diff.getValue().rightValue().stringRepresentation())).collect(Collectors.joining("\n"));
     }
 
     private static void sourceDependenciesFromProject(
@@ -398,7 +357,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 && project.getGroup().equals(subproject.getGroup());
     }
 
-    private void failIfAnyDependenciesUnresolved(ResolvableDependencies resolvableDependencies) {
+    final void failIfAnyDependenciesUnresolved(ResolvableDependencies resolvableDependencies) {
         List<UnresolvedDependencyResult> unresolved = resolvableDependencies
                 .getResolutionResult()
                 .getAllDependencies()
