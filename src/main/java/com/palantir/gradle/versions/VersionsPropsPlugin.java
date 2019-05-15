@@ -158,7 +158,7 @@ public class VersionsPropsPlugin implements Plugin<Project> {
                 versionsProps
                         .getRecommendedVersion(moduleDependency.getModule())
                         .ifPresent(version -> moduleDependency.version(constraint -> {
-                            log.debug("Found direct dependency without version: {} -> {}, requiring: {}",
+                            log.info("Found direct dependency without version: {} -> {}, requiring: {}",
                                     conf, moduleDependency, version);
                             constraint.require(version);
                         }));
