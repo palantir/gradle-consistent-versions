@@ -146,4 +146,30 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         """.stripIndent()
         file('versions.lock').text == expectedLock
     }
+
+    def "star dependencies in the absence of dependency versions"() {
+        addSubproject('foo', """
+            apply plugin: 'java'
+            dependencies {
+                compile 'org.slf4j:slf4j-api'
+            }
+        """.stripIndent())
+
+        file('versions.props') << """
+            org.slf4j:* = 1.7.25
+        """.stripIndent()
+
+        when:
+        runTasks('--write-locks')
+
+        then:
+        def expectedLock = """\
+            # Run ./gradlew --write-locks to regenerate this file
+            org.slf4j:slf4j-api:1.7.25 (1 constraints: 4105483b)
+        """.stripIndent()
+        file('versions.lock').text == expectedLock
+
+        // Ensure that this is a required constraint
+        runTasks('why', '--hash', '4105483b').output.contains "projects -> 1.7.25"
+    }
 }
