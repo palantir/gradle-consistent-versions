@@ -69,6 +69,8 @@ import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 import org.gradle.api.logging.configuration.ShowStacktrace;
 import org.gradle.api.plugins.JavaPlugin;
+import org.gradle.api.tasks.TaskProvider;
+import org.gradle.language.base.plugins.LifecycleBasePlugin;
 import org.gradle.util.GradleVersion;
 import org.jetbrains.annotations.NotNull;
 
@@ -105,6 +107,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
     @Override
     public final void apply(Project project) {
         checkPreconditions(project);
+        project.getPluginManager().apply(LifecycleBasePlugin.class);
 
         Configuration unifiedClasspath = project
                 .getConfigurations()
@@ -192,9 +195,16 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 failIfAnyDependenciesUnresolved(r);
             });
 
-            project.getTasks().register("verifyLocks", VerifyLocksTask.class, task -> {
-                task.currentLockState(project.provider(() -> LockStates.toLockState(fullLockStateSupplier.get())));
-                task.persistedLockState(project.provider(() -> new ConflictSafeLockFile(rootLockfile).readLocks()));
+            TaskProvider<VerifyLocksTask> verifyLocks =
+                    project.getTasks().register("verifyLocks", VerifyLocksTask.class, task -> {
+                        task.currentLockState(
+                                project.provider(() -> LockStates.toLockState(fullLockStateSupplier.get())));
+                        task.persistedLockState(
+                                project.provider(() -> new ConflictSafeLockFile(rootLockfile).readLocks()));
+                    });
+
+            project.getTasks().named(LifecycleBasePlugin.CHECK_TASK_NAME).configure(check -> {
+                check.dependsOn(verifyLocks);
             });
 
             // Can configure using constraints immediately, because rootLockfile exists.
