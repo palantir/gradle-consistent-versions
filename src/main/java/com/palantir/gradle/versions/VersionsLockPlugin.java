@@ -195,13 +195,12 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 failIfAnyDependenciesUnresolved(r);
             });
 
-            TaskProvider<VerifyLocksTask> verifyLocks =
-                    project.getTasks().register("verifyLocks", VerifyLocksTask.class, task -> {
-                        task.currentLockState(
-                                project.provider(() -> LockStates.toLockState(fullLockStateSupplier.get())));
-                        task.persistedLockState(
-                                project.provider(() -> new ConflictSafeLockFile(rootLockfile).readLocks()));
-                    });
+            TaskProvider verifyLocks = project.getTasks().register("verifyLocks", VerifyLocksTask.class, task -> {
+                task.currentLockState(
+                        project.provider(() -> LockStates.toLockState(fullLockStateSupplier.get())));
+                task.persistedLockState(
+                        project.provider(() -> new ConflictSafeLockFile(rootLockfile).readLocks()));
+            });
 
             project.getTasks().named(LifecycleBasePlugin.CHECK_TASK_NAME).configure(check -> {
                 check.dependsOn(verifyLocks);
