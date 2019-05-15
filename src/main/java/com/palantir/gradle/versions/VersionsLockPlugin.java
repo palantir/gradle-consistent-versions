@@ -389,7 +389,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
                     projectDep.getConfigurations().add(copiedConf);
 
                     projectDependency.setTargetConfiguration(copiedConf.getName());
-                    recursivelyCopyProjectDependencies(projectDep, copiedConf.getDependencies(), copiedConfigurationsCache);
+                    recursivelyCopyProjectDependencies(
+                            projectDep, copiedConf.getDependencies(), copiedConfigurationsCache);
                 });
     }
 
