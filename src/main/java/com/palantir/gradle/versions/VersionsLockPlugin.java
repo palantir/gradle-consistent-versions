@@ -153,7 +153,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
         // Recursively copy all project configurations that are depended on.
         unifiedClasspath.withDependencies(depSet -> {
             Map<Configuration, String> copiedConfigurationsCache = new HashMap<>();
-            resolveDependentPublications(project, depSet, copiedConfigurationsCache);
+            recursivelyCopyProjectDependencies(project, depSet, copiedConfigurationsCache);
         });
 
         if (project.getGradle().getStartParameter().isWriteDependencyLocks()) {
@@ -333,11 +333,11 @@ public class VersionsLockPlugin implements Plugin<Project> {
     /**
      * Recursive method that copies unseen {@link ProjectDependency project dependencies} found in the given {@link
      * DependencySet}, and then amends their {@link ProjectDependency#getTargetConfiguration()} to point to the copied
-     * configuration. It then configures any copied  recursively through {@link Configuration#withDependencies} which is
-     * lazy, so recursive calls don't actually execute right away, but are executed when those configurations are
-     * evaluated.
+     * configuration. It then configures any copied Configurations recursively through
+     * {@link Configuration#withDependencies} which is lazy, so recursive calls don't actually execute right away,
+     * but are executed when those configurations are evaluated.
      */
-    private void resolveDependentPublications(
+    private void recursivelyCopyProjectDependencies(
             Project currentProject, DependencySet dependencySet, Map<Configuration, String> copiedConfigurationsCache) {
         dependencySet
                 .matching(dependency -> ProjectDependency.class.isAssignableFrom(dependency.getClass()))
@@ -389,7 +389,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
                     projectDep.getConfigurations().add(copiedConf);
 
                     projectDependency.setTargetConfiguration(copiedConf.getName());
-                    resolveDependentPublications(projectDep, copiedConf.getDependencies(), copiedConfigurationsCache);
+                    recursivelyCopyProjectDependencies(projectDep, copiedConf.getDependencies(), copiedConfigurationsCache);
                 });
     }
 
