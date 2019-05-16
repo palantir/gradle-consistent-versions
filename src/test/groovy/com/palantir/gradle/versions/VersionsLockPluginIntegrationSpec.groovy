@@ -319,13 +319,14 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
             }
         """.stripIndent()
 
-        then: 'Check should depend on verifyLocks'
+        then: 'Check fails because locks are not up to date'
         def failure = runTasksAndFail(':check')
         failure.task(':verifyLocks').outcome == TaskOutcome.FAILED
         failure.output.contains(expectedError)
 
         and: 'Can finally write locks once again'
         runTasks('--write-locks')
+        runTasks('verifyLocks')
     }
 
     def 'does not fail if unifiedClasspath is unresolvable but we are running dependencies'() {
@@ -383,13 +384,14 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
             }
         """.stripIndent()
 
-        then: 'Check should depend on verifyLocks'
+        then: 'Check fails because locks are not up to date'
         def failure = runTasksAndFail(':check')
         failure.task(':verifyLocks').outcome == TaskOutcome.FAILED
         failure.output.contains(expectedError)
 
         and: 'Can finally write locks once again'
         runTasks('--write-locks')
+        runTasks('verifyLocks')
     }
 
     def "why works"() {
