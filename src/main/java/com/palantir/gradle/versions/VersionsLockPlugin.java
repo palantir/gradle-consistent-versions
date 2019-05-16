@@ -166,7 +166,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
             }
 
             // projectsEvaluated is necessary to ensure all projects' dependencies have been configured, because we
-            // need to copy them eagerly before we configure constraints.
+            // need to copy them eagerly before we add the constraints from the lock file.
             project.getGradle().projectsEvaluated(g -> {
                 // Recursively copy all project dependencies, so that the constraints we add below won't affect the
                 // resolution of unifiedClasspath.
@@ -446,10 +446,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
     }
 
     private static void configureAllProjectsUsingConstraints(Project rootProject, Path gradleLockfile) {
-        // Construct constraints for all versions locked by root project.
         List<DependencyConstraint> constraints =
-                constructConstraints(gradleLockfile, rootProject.getDependencies().getConstraints());
-
+                constructConstraintsFromLockFile(gradleLockfile, rootProject.getDependencies().getConstraints());
         rootProject.allprojects(subproject -> configureUsingConstraints(subproject, constraints));
     }
 
@@ -483,7 +481,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
     }
 
     @NotNull
-    private static List<DependencyConstraint> constructConstraints(
+    private static List<DependencyConstraint> constructConstraintsFromLockFile(
             Path gradleLockfile, DependencyConstraintHandler constraintHandler) {
         return new ConflictSafeLockFile(gradleLockfile)
                 .readLocks()
