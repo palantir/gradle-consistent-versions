@@ -54,7 +54,6 @@ import org.gradle.api.artifacts.Dependency;
 import org.gradle.api.artifacts.DependencyConstraint;
 import org.gradle.api.artifacts.DependencySet;
 import org.gradle.api.artifacts.ProjectDependency;
-import org.gradle.api.artifacts.ResolvableDependencies;
 import org.gradle.api.artifacts.VersionConstraint;
 import org.gradle.api.artifacts.component.ComponentSelector;
 import org.gradle.api.artifacts.component.ModuleComponentIdentifier;
@@ -123,6 +122,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
         Supplier<FullLockState> fullLockStateSupplier = Suppliers.memoize(() -> {
             ResolutionResult resolutionResult = unifiedClasspath.getIncoming().getResolutionResult();
+            // Throw if there are dependencies that are not present in the lock state.
+            failIfAnyDependenciesUnresolved(resolutionResult);
             return computeLockState(resolutionResult);
         });
 
@@ -155,8 +156,6 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
             // Must wire up the constraint configuration to right AFTER rootProject has written theirs
             unifiedClasspath.getIncoming().afterResolve(r -> {
-                failIfAnyDependenciesUnresolved(r);
-
                 new ConflictSafeLockFile(rootLockfile).writeLocks(fullLockStateSupplier.get());
                 log.lifecycle("Finished writing lock state to {}", rootLockfile);
                 configureAllProjectsUsingConstraints(project, rootLockfile);
@@ -182,18 +181,6 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 throw new GradleException(String.format("Root lock file '%s' doesn't exist, please run "
                         + "`./gradlew --write-locks` to initialise locks", rootLockfile));
             }
-
-            // Ensure that we throw if there are dependencies that are not present in the lock state.
-            // Unless... dependencies / dependencyInsight was run on the root project
-            ImmutableList<String> tasks = ImmutableList.of(":dependencyInsight", ":dependencies");
-            unifiedClasspath.getIncoming().afterResolve(r -> {
-                if (tasks.stream().anyMatch(project.getGradle().getTaskGraph()::hasTask)) {
-                    log.warn("Not checking validity of locks since we are running tasks that inspect "
-                            + "dependencies");
-                    return;
-                }
-                failIfAnyDependenciesUnresolved(r);
-            });
 
             TaskProvider verifyLocks = project.getTasks().register("verifyLocks", VerifyLocksTask.class, task -> {
                 task
@@ -368,9 +355,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 && project.getGroup().equals(subproject.getGroup());
     }
 
-    final void failIfAnyDependenciesUnresolved(ResolvableDependencies resolvableDependencies) {
-        List<UnresolvedDependencyResult> unresolved = resolvableDependencies
-                .getResolutionResult()
+    private void failIfAnyDependenciesUnresolved(ResolutionResult resolutionResult) {
+        List<UnresolvedDependencyResult> unresolved = resolutionResult
                 .getAllDependencies()
                 .stream()
                 .filter(a -> a instanceof UnresolvedDependencyResult)
@@ -378,7 +364,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 .collect(Collectors.toList());
         if (!unresolved.isEmpty()) {
             throw new GradleException(String.format(
-                    "Could not write lock for %s due to unresolved dependencies:\n%s",
+                    "Could not compute lock state from configuration '%s' due to unresolved dependencies:\n%s",
                     UNIFIED_CLASSPATH_CONFIGURATION_NAME,
                     unresolved
                             .stream()
