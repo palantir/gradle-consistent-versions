@@ -42,12 +42,12 @@ public class VerifyLocksTask extends DefaultTask {
     private final Property<LockState> currentLockState;
 
     public VerifyLocksTask() {
+        setGroup(LifecycleBasePlugin.VERIFICATION_GROUP);
+        setDescription("Verifies that your versions.lock is up to date");
+
         this.outputFile = new File(getTemporaryDir(), "verified");
         this.persistedLockState = getProject().getObjects().property(LockState.class);
         this.currentLockState = getProject().getObjects().property(LockState.class);
-
-        setGroup(LifecycleBasePlugin.VERIFICATION_GROUP);
-        setDescription("Verifies that your versions.lock is up to date");
     }
 
     @Input
