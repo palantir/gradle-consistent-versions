@@ -57,7 +57,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
 
     def 'can write locks'() {
         expect:
-        runTasks('resolveConfigurations', '--write-locks')
+        runTasks('--write-locks')
         new File(projectDir, "versions.lock").exists()
     }
 
@@ -248,7 +248,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         standardSetup()
 
         when: "I write locks"
-        runTasks('resolveConfigurations', '--write-locks')
+        runTasks('--write-locks')
 
         then: "Root lock file has expected resolution result"
         file("versions.lock").text.readLines().any { it.contains('org.slf4j:slf4j-api:1.7.24') }
