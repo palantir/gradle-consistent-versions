@@ -19,6 +19,7 @@ package com.palantir.gradle.versions
 import nebula.test.dependencies.DependencyGraph
 import nebula.test.dependencies.GradleDependencyGenerator
 import org.gradle.testkit.runner.BuildResult
+import org.gradle.testkit.runner.TaskOutcome
 
 class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
 
@@ -56,7 +57,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
 
     def 'can write locks'() {
         expect:
-        runTasks('resolveConfigurations', '--write-locks')
+        runTasks('--write-locks')
         new File(projectDir, "versions.lock").exists()
     }
 
@@ -247,7 +248,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         standardSetup()
 
         when: "I write locks"
-        runTasks('resolveConfigurations', '--write-locks')
+        runTasks('--write-locks')
 
         then: "Root lock file has expected resolution result"
         file("versions.lock").text.readLines().any { it.contains('org.slf4j:slf4j-api:1.7.24') }
@@ -309,7 +310,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
             }
         '''.stripIndent())
 
-        runTasks(':resolveConfigurations', '--write-locks')
+        runTasks('--write-locks')
 
         when:
         file('foo/build.gradle') << """
@@ -318,15 +319,17 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
             }
         """.stripIndent()
 
-        then:
-        def failure = runTasksAndFail(':resolveConfigurations')
+        then: 'Check fails because locks are not up to date'
+        def failure = runTasksAndFail(':check')
+        failure.task(':verifyLocks').outcome == TaskOutcome.FAILED
         failure.output.contains(expectedError)
-        runTasks(':resolveConfigurations', '--write-locks')
+
+        and: 'Can finally write locks once again'
+        runTasks('--write-locks')
+        runTasks('verifyLocks')
     }
 
-    def 'does not fail if unifiedClasspath is unresolvable but we are running dependencies'() {
-        def notCheckingLocksMessage = "Not checking validity of locks"
-
+    def 'does not fail if unifiedClasspath is unresolvable'() {
         file('versions.lock') << """\
             org.slf4j:slf4j-api:1.7.11 (0 constraints: 0000000)
         """.stripIndent()
@@ -339,12 +342,8 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         '''.stripIndent())
 
         expect:
-        def result = runTasks('dependencies', '--configuration', 'unifiedClasspath')
-        result.output.contains(notCheckingLocksMessage)
-
-        // Fails if we don't run dependencies
-        def failure = runTasksAndFail(':resolveConfigurations')
-        !failure.output.contains(notCheckingLocksMessage)
+        runTasks('dependencies', '--configuration', 'unifiedClasspath')
+        runTasks()
     }
 
     def 'fails if dependency was removed but still in the lock file'() {
@@ -370,7 +369,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
             }
         '''.stripIndent())
 
-        runTasks(':resolveConfigurations', '--write-locks')
+        runTasks('--write-locks')
 
         when:
         file('foo/build.gradle').text = """
@@ -379,10 +378,14 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
             }
         """.stripIndent()
 
-        then:
-        def failure = runTasksAndFail(':resolveConfigurations')
+        then: 'Check fails because locks are not up to date'
+        def failure = runTasksAndFail(':check')
+        failure.task(':verifyLocks').outcome == TaskOutcome.FAILED
         failure.output.contains(expectedError)
-        runTasks(':resolveConfigurations', '--write-locks')
+
+        and: 'Can finally write locks once again'
+        runTasks('--write-locks')
+        runTasks('verifyLocks')
     }
 
     def "why works"() {
@@ -438,5 +441,26 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                 '# Run ./gradlew --write-locks to regenerate this file',
                 'org:platform:1.0 (1 constraints: a5041a2c)',
         ]
+    }
+
+    def "verifyLocks is cacheable"() {
+        buildFile << """
+            apply plugin: 'java'
+            dependencies {
+                compile "org.slf4j:slf4j-api:\$depVersion"
+            }
+        """
+
+        file('gradle.properties') << 'depVersion = 1.7.20'
+
+        when:
+        runTasks('--write-locks')
+
+        then: 'verifyLocks is up to date the second time'
+        runTasks('verifyLocks').task(':verifyLocks').outcome == TaskOutcome.SUCCESS
+        runTasks('verifyLocks').task(':verifyLocks').outcome == TaskOutcome.UP_TO_DATE
+
+        and: 'verifyLocks fails if we lower the dep version'
+        runTasksAndFail('verifyLocks', '-PdepVersion=1.7.11')
     }
 }

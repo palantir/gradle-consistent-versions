@@ -22,16 +22,10 @@ import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.MapDifference;
-import com.google.common.collect.MapDifference.ValueDifference;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Streams;
-import com.palantir.gradle.versions.internal.MyModuleIdentifier;
 import com.palantir.gradle.versions.internal.MyModuleVersionIdentifier;
 import com.palantir.gradle.versions.lockstate.Dependents;
 import com.palantir.gradle.versions.lockstate.FullLockState;
-import com.palantir.gradle.versions.lockstate.Line;
-import com.palantir.gradle.versions.lockstate.LockState;
 import com.palantir.gradle.versions.lockstate.LockStates;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -43,7 +37,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.function.Supplier;
@@ -61,7 +54,6 @@ import org.gradle.api.artifacts.Dependency;
 import org.gradle.api.artifacts.DependencyConstraint;
 import org.gradle.api.artifacts.DependencySet;
 import org.gradle.api.artifacts.ProjectDependency;
-import org.gradle.api.artifacts.ResolvableDependencies;
 import org.gradle.api.artifacts.VersionConstraint;
 import org.gradle.api.artifacts.component.ComponentSelector;
 import org.gradle.api.artifacts.component.ModuleComponentIdentifier;
@@ -76,6 +68,8 @@ import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 import org.gradle.api.logging.configuration.ShowStacktrace;
 import org.gradle.api.plugins.JavaPlugin;
+import org.gradle.api.tasks.TaskProvider;
+import org.gradle.language.base.plugins.LifecycleBasePlugin;
 import org.gradle.util.GradleVersion;
 import org.jetbrains.annotations.NotNull;
 
@@ -112,6 +106,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
     @Override
     public final void apply(Project project) {
         checkPreconditions(project);
+        project.getPluginManager().apply(LifecycleBasePlugin.class);
 
         Configuration unifiedClasspath = project
                 .getConfigurations()
@@ -127,6 +122,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
         Supplier<FullLockState> fullLockStateSupplier = Suppliers.memoize(() -> {
             ResolutionResult resolutionResult = unifiedClasspath.getIncoming().getResolutionResult();
+            // Throw if there are dependencies that are not present in the lock state.
+            failIfAnyDependenciesUnresolved(resolutionResult);
             return computeLockState(resolutionResult);
         });
 
@@ -159,8 +156,6 @@ public class VersionsLockPlugin implements Plugin<Project> {
         if (project.getGradle().getStartParameter().isWriteDependencyLocks()) {
             // Must wire up the constraint configuration to right AFTER rootProject has written theirs
             unifiedClasspath.getIncoming().afterResolve(r -> {
-                failIfAnyDependenciesUnresolved(r);
-
                 new ConflictSafeLockFile(rootLockfile).writeLocks(fullLockStateSupplier.get());
                 log.lifecycle("Finished writing lock state to {}", rootLockfile);
                 configureAllProjectsUsingConstraints(project, rootLockfile);
@@ -187,20 +182,17 @@ public class VersionsLockPlugin implements Plugin<Project> {
                         + "`./gradlew --write-locks` to initialise locks", rootLockfile));
             }
 
-            // Ensure that we throw if there are dependencies that are not present in the lock state.
-            // Unless... dependencies / dependencyInsight was run on the root project
-            ImmutableList<String> tasks = ImmutableList.of(":dependencyInsight", ":dependencies");
-            unifiedClasspath.getIncoming().afterResolve(r -> {
-                if (tasks.stream().anyMatch(project.getGradle().getTaskGraph()::hasTask)) {
-                    log.lifecycle("Not checking validity of locks since we are running tasks that inspect "
-                            + "dependencies");
-                    return;
-                }
-                failIfAnyDependenciesUnresolved(r);
+            TaskProvider verifyLocks = project.getTasks().register("verifyLocks", VerifyLocksTask.class, task -> {
+                task
+                        .getCurrentLockState()
+                        .set(project.provider(() -> LockStates.toLockState(fullLockStateSupplier.get())));
+                task
+                        .getPersistedLockState()
+                        .set(project.provider(() -> new ConflictSafeLockFile(rootLockfile).readLocks()));
+            });
 
-                LockState currentLockState = LockStates.toLockState(fullLockStateSupplier.get());
-                LockState persistedLockState = new ConflictSafeLockFile(rootLockfile).readLocks();
-                ensureLockStateIsUpToDate(currentLockState, persistedLockState);
+            project.getTasks().named(LifecycleBasePlugin.CHECK_TASK_NAME).configure(check -> {
+                check.dependsOn(verifyLocks);
             });
 
             // Can configure using constraints immediately, because rootLockfile exists.
@@ -211,41 +203,6 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 t.fullLockState(project.provider(fullLockStateSupplier::get));
             });
         }
-    }
-
-    private static void ensureLockStateIsUpToDate(LockState currentLockState, LockState persistedLockState) {
-        MapDifference<MyModuleIdentifier, Line> difference = Maps.difference(
-                persistedLockState.linesByModuleIdentifier(), currentLockState.linesByModuleIdentifier());
-
-        Set<MyModuleIdentifier> missing = difference.entriesOnlyOnLeft().keySet();
-        if (!missing.isEmpty()) {
-            throw new RuntimeException(
-                    "Locked dependencies missing from the resolution result: " + missing + ". "
-                            + ". Please run './gradlew --write-locks'.");
-        }
-
-        Set<MyModuleIdentifier> unknown = difference.entriesOnlyOnRight().keySet();
-        if (!unknown.isEmpty()) {
-            throw new RuntimeException(
-                    "Found dependencies that were not in the lock state: " + unknown + ". "
-                            + "Please run './gradlew --write-locks'.");
-        }
-
-        Map<MyModuleIdentifier, ValueDifference<Line>> differing = difference.entriesDiffering();
-        if (!differing.isEmpty()) {
-            throw new RuntimeException("Found dependencies whose dependents changed:\n"
-                    + formatDependencyDifferences(differing) + "\n\n"
-                    + "Please run './gradlew --write-locks'.");
-        }
-    }
-
-    private static String formatDependencyDifferences(
-            Map<MyModuleIdentifier, ValueDifference<Line>> differing) {
-        return differing.entrySet().stream().map(diff -> String.format("" // to align strings
-                        + "-%s\n"
-                        + "+%s",
-                diff.getValue().leftValue().stringRepresentation(),
-                diff.getValue().rightValue().stringRepresentation())).collect(Collectors.joining("\n"));
     }
 
     private static void sourceDependenciesFromProject(
@@ -399,9 +356,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 && project.getGroup().equals(subproject.getGroup());
     }
 
-    private void failIfAnyDependenciesUnresolved(ResolvableDependencies resolvableDependencies) {
-        List<UnresolvedDependencyResult> unresolved = resolvableDependencies
-                .getResolutionResult()
+    private void failIfAnyDependenciesUnresolved(ResolutionResult resolutionResult) {
+        List<UnresolvedDependencyResult> unresolved = resolutionResult
                 .getAllDependencies()
                 .stream()
                 .filter(a -> a instanceof UnresolvedDependencyResult)
@@ -409,7 +365,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 .collect(Collectors.toList());
         if (!unresolved.isEmpty()) {
             throw new GradleException(String.format(
-                    "Could not write lock for %s due to unresolved dependencies:\n%s",
+                    "Could not compute lock state from configuration '%s' due to unresolved dependencies:\n%s",
                     UNIFIED_CLASSPATH_CONFIGURATION_NAME,
                     unresolved
                             .stream()
