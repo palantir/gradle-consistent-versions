@@ -19,24 +19,30 @@ package com.palantir.gradle.versions;
 import com.google.common.collect.MapDifference;
 import com.google.common.collect.MapDifference.ValueDifference;
 import com.google.common.collect.Maps;
+import com.google.common.io.Files;
 import com.palantir.gradle.versions.internal.MyModuleIdentifier;
 import com.palantir.gradle.versions.lockstate.Line;
 import com.palantir.gradle.versions.lockstate.LockState;
+import java.io.File;
+import java.io.IOException;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.Input;
+import org.gradle.api.tasks.OutputFile;
 import org.gradle.api.tasks.TaskAction;
 import org.gradle.language.base.plugins.LifecycleBasePlugin;
 
 public class VerifyLocksTask extends DefaultTask {
 
+    private final File outputFile;
     private final Property<LockState> persistedLockState;
     private final Property<LockState> currentLockState;
 
     public VerifyLocksTask() {
+        this.outputFile = new File(getTemporaryDir(), "verified");
         this.persistedLockState = getProject().getObjects().property(LockState.class);
         this.currentLockState = getProject().getObjects().property(LockState.class);
 
@@ -54,8 +60,13 @@ public class VerifyLocksTask extends DefaultTask {
         return currentLockState;
     }
 
+    @OutputFile
+    final File getOutputFile() {
+        return outputFile;
+    }
+
     @TaskAction
-    public final void taskAction() {
+    public final void taskAction() throws IOException {
         MapDifference<MyModuleIdentifier, Line> difference = Maps.difference(
                 persistedLockState.get().linesByModuleIdentifier(), currentLockState.get().linesByModuleIdentifier());
 
@@ -79,6 +90,7 @@ public class VerifyLocksTask extends DefaultTask {
                     + formatDependencyDifferences(differing) + "\n\n"
                     + "Please run './gradlew --write-locks'.");
         }
+        Files.touch(outputFile);
     }
 
     private static String formatDependencyDifferences(
