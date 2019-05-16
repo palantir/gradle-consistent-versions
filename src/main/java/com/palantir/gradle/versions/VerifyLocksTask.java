@@ -27,7 +27,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.provider.Property;
-import org.gradle.api.provider.Provider;
+import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.TaskAction;
 import org.gradle.language.base.plugins.LifecycleBasePlugin;
 
@@ -44,22 +44,20 @@ public class VerifyLocksTask extends DefaultTask {
         setDescription("Verifies that your versions.lock is up to date");
     }
 
-    public final void persistedLockState(Provider<LockState> provider) {
-        this.persistedLockState.set(provider);
+    @Input
+    final Property<LockState> getPersistedLockState() {
+        return persistedLockState;
     }
 
-    public final void currentLockState(Provider<LockState> provider) {
-        this.currentLockState.set(provider);
+    @Input
+    final Property<LockState> getCurrentLockState() {
+        return currentLockState;
     }
 
     @TaskAction
     public final void taskAction() {
-        ensureLockStateIsUpToDate(currentLockState.get(), persistedLockState.get());
-    }
-
-    private static void ensureLockStateIsUpToDate(LockState currentLockState, LockState persistedLockState) {
         MapDifference<MyModuleIdentifier, Line> difference = Maps.difference(
-                persistedLockState.linesByModuleIdentifier(), currentLockState.linesByModuleIdentifier());
+                persistedLockState.get().linesByModuleIdentifier(), currentLockState.get().linesByModuleIdentifier());
 
         Set<MyModuleIdentifier> missing = difference.entriesOnlyOnLeft().keySet();
         if (!missing.isEmpty()) {

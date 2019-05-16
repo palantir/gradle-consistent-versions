@@ -196,10 +196,12 @@ public class VersionsLockPlugin implements Plugin<Project> {
             });
 
             TaskProvider verifyLocks = project.getTasks().register("verifyLocks", VerifyLocksTask.class, task -> {
-                task.currentLockState(
-                        project.provider(() -> LockStates.toLockState(fullLockStateSupplier.get())));
-                task.persistedLockState(
-                        project.provider(() -> new ConflictSafeLockFile(rootLockfile).readLocks()));
+                task
+                        .getCurrentLockState()
+                        .set(project.provider(() -> LockStates.toLockState(fullLockStateSupplier.get())));
+                task
+                        .getPersistedLockState()
+                        .set(project.provider(() -> new ConflictSafeLockFile(rootLockfile).readLocks()));
             });
 
             project.getTasks().named(LifecycleBasePlugin.CHECK_TASK_NAME).configure(check -> {
