@@ -41,7 +41,7 @@ public class VerifyLocksTask extends DefaultTask {
         this.currentLockState = getProject().getObjects().property(LockState.class);
 
         setGroup(LifecycleBasePlugin.VERIFICATION_GROUP);
-        setDescription("Verifies that your versions.lock is consistent with current dependencies");
+        setDescription("Verifies that your versions.lock is up to date");
     }
 
     public final void persistedLockState(Provider<LockState> provider) {
