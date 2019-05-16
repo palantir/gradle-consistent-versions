@@ -448,4 +448,25 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                 'org:platform:1.0 (1 constraints: a5041a2c)',
         ]
     }
+
+    def "verifyLocks is cacheable"() {
+        buildFile << """
+            apply plugin: 'java'
+            dependencies {
+                compile "org.slf4j:slf4j-api:\$depVersion"
+            }
+        """
+
+        file('gradle.properties') << 'depVersion = 1.7.20'
+
+        when:
+        runTasks('--write-locks')
+
+        then: 'verifyLocks is up to date the second time'
+        runTasks('verifyLocks').task(':verifyLocks').outcome == TaskOutcome.SUCCESS
+        runTasks('verifyLocks').task(':verifyLocks').outcome == TaskOutcome.UP_TO_DATE
+
+        and: 'verifyLocks fails if we lower the dep version'
+        runTasksAndFail('verifyLocks', '-PdepVersion=1.7.11')
+    }
 }
