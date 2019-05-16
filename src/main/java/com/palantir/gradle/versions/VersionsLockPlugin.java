@@ -54,6 +54,7 @@ import org.gradle.api.artifacts.Dependency;
 import org.gradle.api.artifacts.DependencyConstraint;
 import org.gradle.api.artifacts.DependencySet;
 import org.gradle.api.artifacts.ProjectDependency;
+import org.gradle.api.artifacts.ResolvableDependencies;
 import org.gradle.api.artifacts.VersionConstraint;
 import org.gradle.api.artifacts.component.ComponentSelector;
 import org.gradle.api.artifacts.component.ModuleComponentIdentifier;
@@ -148,10 +149,9 @@ public class VersionsLockPlugin implements Plugin<Project> {
         // enforce constraints on.
 
         // Recursively copy all project configurations that are depended on.
-        unifiedClasspath.withDependencies(depSet -> {
-            Map<Configuration, String> copiedConfigurationsCache = new HashMap<>();
-            recursivelyCopyProjectDependencies(project, depSet, copiedConfigurationsCache);
-        });
+        // unifiedClasspath.withDependencies(depSet -> {
+        //     foo(project, depSet);
+        // });
 
         if (project.getGradle().getStartParameter().isWriteDependencyLocks()) {
             // Must wire up the constraint configuration to right AFTER rootProject has written theirs
@@ -169,7 +169,9 @@ public class VersionsLockPlugin implements Plugin<Project> {
             // configuration at that point. See https://docs.gradle.org/5.1/userguide/troubleshooting_dependency_resolution.html#sub:configuration_resolution_constraints
             project.afterEvaluate(p -> {
                 p.evaluationDependsOnChildren();
-                unifiedClasspath.getIncoming().getResolutionResult().getRoot();
+                ResolvableDependencies incoming = unifiedClasspath.getIncoming();
+                foo(project, incoming.getDependencies());
+                incoming.getResolutionResult().getRoot();
             });
         } else {
             if (project.hasProperty("ignoreLockFile")) {
@@ -182,24 +184,23 @@ public class VersionsLockPlugin implements Plugin<Project> {
                         + "`./gradlew --write-locks` to initialise locks", rootLockfile));
             }
 
-            TaskProvider verifyLocks = project.getTasks().register("verifyLocks", VerifyLocksTask.class, task -> {
-                task
-                        .getCurrentLockState()
-                        .set(project.provider(() -> LockStates.toLockState(fullLockStateSupplier.get())));
-                task
-                        .getPersistedLockState()
-                        .set(project.provider(() -> new ConflictSafeLockFile(rootLockfile).readLocks()));
-            });
-
-            project.getTasks().named(LifecycleBasePlugin.CHECK_TASK_NAME).configure(check -> {
-                check.dependsOn(verifyLocks);
-            });
-
+            // projectsEvaluated is necessary to
             project.getGradle().projectsEvaluated(g -> {
-                // Before we configure constraints, we must ensure that unifiedClasspath has scoured all projects.
-                unifiedClasspath.getIncoming().getDependencies();
+                // trigger some stuff
+                foo(project, unifiedClasspath.getIncoming().getDependencies());
+
                 // Can configure using constraints immediately, because rootLockfile exists.
                 configureAllProjectsUsingConstraints(project, rootLockfile);
+            });
+
+            TaskProvider verifyLocks = project.getTasks().register("verifyLocks", VerifyLocksTask.class, task -> {
+                task.getCurrentLockState()
+                        .set(project.provider(() -> LockStates.toLockState(fullLockStateSupplier.get())));
+                task.getPersistedLockState()
+                        .set(project.provider(() -> new ConflictSafeLockFile(rootLockfile).readLocks()));
+            });
+            project.getTasks().named(LifecycleBasePlugin.CHECK_TASK_NAME).configure(check -> {
+                check.dependsOn(verifyLocks);
             });
 
             project.getTasks().register("why", WhyDependencyTask.class, t -> {
@@ -207,6 +208,11 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 t.fullLockState(project.provider(fullLockStateSupplier::get));
             });
         }
+    }
+
+    private void foo(Project project, DependencySet depSet) {
+        Map<Configuration, String> copiedConfigurationsCache = new HashMap<>();
+        recursivelyCopyProjectDependencies(project, depSet, copiedConfigurationsCache);
     }
 
     private static void sourceDependenciesFromProject(
