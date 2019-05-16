@@ -343,6 +343,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
 
         expect:
         runTasks('dependencies', '--configuration', 'unifiedClasspath')
+        runTasks()
     }
 
     def 'fails if dependency was removed but still in the lock file'() {
