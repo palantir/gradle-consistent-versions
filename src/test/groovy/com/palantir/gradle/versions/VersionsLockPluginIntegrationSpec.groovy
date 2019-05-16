@@ -459,8 +459,30 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         then: 'verifyLocks is up to date the second time'
         runTasks('verifyLocks').task(':verifyLocks').outcome == TaskOutcome.SUCCESS
         runTasks('verifyLocks').task(':verifyLocks').outcome == TaskOutcome.UP_TO_DATE
+    }
 
-        and: 'verifyLocks fails if we lower the dep version'
-        runTasksAndFail('verifyLocks', '-PdepVersion=1.7.11')
+
+    def "verifyLocks current lock state does not get poisoned by existing lock file"() {
+        buildFile << """
+            apply plugin: 'java'
+            dependencies {
+                compile "org.slf4j:slf4j-api:\$depVersion"
+            }
+        """
+
+        file('gradle.properties') << 'depVersion = 1.7.20'
+
+        when:
+        runTasks('--write-locks')
+
+        then: 'verifyLocks fails if we lower the dep version'
+        def fail = runTasksAndFail('verifyLocks', '-PdepVersion=1.7.11')
+
+        and: 'it expects the correct version to be 1.7.11'
+        fail.output.contains """\
+               > Found dependencies whose dependents changed:
+                 -org.slf4j:slf4j-api:1.7.20 (1 constraints: 3c05433b)
+                 +org.slf4j:slf4j-api:1.7.11 (1 constraints: 3c05423b)
+            """.stripIndent()
     }
 }

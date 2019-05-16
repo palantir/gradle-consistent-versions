@@ -54,6 +54,7 @@ import org.gradle.api.artifacts.Dependency;
 import org.gradle.api.artifacts.DependencyConstraint;
 import org.gradle.api.artifacts.DependencySet;
 import org.gradle.api.artifacts.ProjectDependency;
+import org.gradle.api.artifacts.ResolvableDependencies;
 import org.gradle.api.artifacts.VersionConstraint;
 import org.gradle.api.artifacts.component.ComponentSelector;
 import org.gradle.api.artifacts.component.ModuleComponentIdentifier;
@@ -133,26 +134,6 @@ public class VersionsLockPlugin implements Plugin<Project> {
         // See: https://github.com/gradle/gradle/pull/7967
         project.getPluginManager().apply("java-base");
 
-        // Gradle will break if you try to add constraints to any configurations that have been resolved.
-        // Since unifiedClasspath depends on the SUBPROJECT_UNIFIED_CONFIGURATION_NAME configuration of all
-        // subprojects (above), that would resolve them when we resolve unifiedClasspath. We need this workaround
-        // to enable the workflow:
-        //
-        //  1. when 'unifiedClasspath' is resolved with --write-locks, it writes the lock file and resolves its
-        //     dependencies
-        //  2. read the lock file
-        //  3. enforce these versions on all subprojects, using constraints
-        //
-        // Since we can't apply these constraints to the already resolved configurations, we need a workaround to
-        // ensure that unifiedClasspath does not directly depend on subproject configurations that we intend to
-        // enforce constraints on.
-
-        // Recursively copy all project configurations that are depended on.
-        unifiedClasspath.withDependencies(depSet -> {
-            Map<Configuration, String> copiedConfigurationsCache = new HashMap<>();
-            recursivelyCopyProjectDependencies(project, depSet, copiedConfigurationsCache);
-        });
-
         if (project.getGradle().getStartParameter().isWriteDependencyLocks()) {
             // Must wire up the constraint configuration to right AFTER rootProject has written theirs
             unifiedClasspath.getIncoming().afterResolve(r -> {
@@ -169,7 +150,9 @@ public class VersionsLockPlugin implements Plugin<Project> {
             // configuration at that point. See https://docs.gradle.org/5.1/userguide/troubleshooting_dependency_resolution.html#sub:configuration_resolution_constraints
             project.afterEvaluate(p -> {
                 p.evaluationDependsOnChildren();
-                unifiedClasspath.getIncoming().getResolutionResult().getRoot();
+                ResolvableDependencies incoming = unifiedClasspath.getIncoming();
+                recursivelyCopyProjectDependencies(project, incoming.getDependencies());
+                incoming.getResolutionResult().getRoot();
             });
         } else {
             if (project.hasProperty("ignoreLockFile")) {
@@ -182,21 +165,25 @@ public class VersionsLockPlugin implements Plugin<Project> {
                         + "`./gradlew --write-locks` to initialise locks", rootLockfile));
             }
 
-            TaskProvider verifyLocks = project.getTasks().register("verifyLocks", VerifyLocksTask.class, task -> {
-                task
-                        .getCurrentLockState()
-                        .set(project.provider(() -> LockStates.toLockState(fullLockStateSupplier.get())));
-                task
-                        .getPersistedLockState()
-                        .set(project.provider(() -> new ConflictSafeLockFile(rootLockfile).readLocks()));
+            // projectsEvaluated is necessary to ensure all projects' dependencies have been configured, because we
+            // need to copy them eagerly before we add the constraints from the lock file.
+            project.getGradle().projectsEvaluated(g -> {
+                // Recursively copy all project dependencies, so that the constraints we add below won't affect the
+                // resolution of unifiedClasspath.
+                recursivelyCopyProjectDependencies(project, unifiedClasspath.getIncoming().getDependencies());
+
+                configureAllProjectsUsingConstraints(project, rootLockfile);
             });
 
+            TaskProvider verifyLocks = project.getTasks().register("verifyLocks", VerifyLocksTask.class, task -> {
+                task.getCurrentLockState()
+                        .set(project.provider(() -> LockStates.toLockState(fullLockStateSupplier.get())));
+                task.getPersistedLockState()
+                        .set(project.provider(() -> new ConflictSafeLockFile(rootLockfile).readLocks()));
+            });
             project.getTasks().named(LifecycleBasePlugin.CHECK_TASK_NAME).configure(check -> {
                 check.dependsOn(verifyLocks);
             });
-
-            // Can configure using constraints immediately, because rootLockfile exists.
-            configureAllProjectsUsingConstraints(project, rootLockfile);
 
             project.getTasks().register("why", WhyDependencyTask.class, t -> {
                 t.lockfile(rootLockfile);
@@ -288,17 +275,35 @@ public class VersionsLockPlugin implements Plugin<Project> {
     }
 
     /**
+     Gradle will break if you try to add constraints to any configurations that have been resolved.
+     Since unifiedClasspath depends on the SUBPROJECT_UNIFIED_CONFIGURATION_NAME configuration of all
+     subprojects (above), that would resolve them when we resolve unifiedClasspath. We need this workaround
+     to enable the workflow:
+
+     1. when 'unifiedClasspath' is resolved with --write-locks, it writes the lock file and resolves its
+     dependencies
+     2. read the lock file
+     3. enforce these versions on all subprojects, using constraints
+
+     Since we can't apply these constraints to the already resolved configurations, we need a workaround to
+     ensure that unifiedClasspath does not directly depend on subproject configurations that we intend to
+     enforce constraints on.
+     */
+    private void recursivelyCopyProjectDependencies(Project project, DependencySet depSet) {
+        Map<Configuration, String> copiedConfigurationsCache = new HashMap<>();
+        recursivelyCopyProjectDependencies(project, depSet, copiedConfigurationsCache);
+    }
+
+    /**
      * Recursive method that copies unseen {@link ProjectDependency project dependencies} found in the given {@link
      * DependencySet}, and then amends their {@link ProjectDependency#getTargetConfiguration()} to point to the copied
-     * configuration. It then configures any copied Configurations recursively through
-     * {@link Configuration#withDependencies} which is lazy, so recursive calls don't actually execute right away,
-     * but are executed when those configurations are evaluated.
+     * configuration. It then eagerly configures any copied Configurations recursively.
      */
     private void recursivelyCopyProjectDependencies(
             Project currentProject, DependencySet dependencySet, Map<Configuration, String> copiedConfigurationsCache) {
         dependencySet
                 .matching(dependency -> ProjectDependency.class.isAssignableFrom(dependency.getClass()))
-                .configureEach(dependency -> {
+                .all(dependency -> {
                     ProjectDependency projectDependency = (ProjectDependency) dependency;
                     Project projectDep = projectDependency.getDependencyProject();
                     String targetConfiguration = Optional
@@ -441,10 +446,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
     }
 
     private static void configureAllProjectsUsingConstraints(Project rootProject, Path gradleLockfile) {
-        // Construct constraints for all versions locked by root project.
         List<DependencyConstraint> constraints =
-                constructConstraints(gradleLockfile, rootProject.getDependencies().getConstraints());
-
+                constructConstraintsFromLockFile(gradleLockfile, rootProject.getDependencies().getConstraints());
         rootProject.allprojects(subproject -> configureUsingConstraints(subproject, constraints));
     }
 
@@ -478,7 +481,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
     }
 
     @NotNull
-    private static List<DependencyConstraint> constructConstraints(
+    private static List<DependencyConstraint> constructConstraintsFromLockFile(
             Path gradleLockfile, DependencyConstraintHandler constraintHandler) {
         return new ConflictSafeLockFile(gradleLockfile)
                 .readLocks()
