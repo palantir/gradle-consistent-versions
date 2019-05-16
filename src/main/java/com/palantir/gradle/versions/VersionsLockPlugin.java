@@ -195,8 +195,12 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 check.dependsOn(verifyLocks);
             });
 
-            // Can configure using constraints immediately, because rootLockfile exists.
-            configureAllProjectsUsingConstraints(project, rootLockfile);
+            project.getGradle().projectsEvaluated(g -> {
+                // Before we configure constraints, we must ensure that unifiedClasspath has scoured all projects.
+                unifiedClasspath.getIncoming().getDependencies();
+                // Can configure using constraints immediately, because rootLockfile exists.
+                configureAllProjectsUsingConstraints(project, rootLockfile);
+            });
 
             project.getTasks().register("why", WhyDependencyTask.class, t -> {
                 t.lockfile(rootLockfile);
@@ -298,7 +302,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
             Project currentProject, DependencySet dependencySet, Map<Configuration, String> copiedConfigurationsCache) {
         dependencySet
                 .matching(dependency -> ProjectDependency.class.isAssignableFrom(dependency.getClass()))
-                .configureEach(dependency -> {
+                .all(dependency -> {
                     ProjectDependency projectDependency = (ProjectDependency) dependency;
                     Project projectDep = projectDependency.getDependencyProject();
                     String targetConfiguration = Optional
