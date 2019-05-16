@@ -329,9 +329,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         runTasks('verifyLocks')
     }
 
-    def 'does not fail if unifiedClasspath is unresolvable but we are running dependencies'() {
-        def notCheckingLocksMessage = "Not checking validity of locks"
-
+    def 'does not fail if unifiedClasspath is unresolvable'() {
         file('versions.lock') << """\
             org.slf4j:slf4j-api:1.7.11 (0 constraints: 0000000)
         """.stripIndent()
@@ -344,12 +342,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         '''.stripIndent())
 
         expect:
-        def result = runTasks('dependencies', '--configuration', 'unifiedClasspath')
-        result.output.contains(notCheckingLocksMessage)
-
-        // Fails if we don't run dependencies
-        def failure = runTasksAndFail(':resolveConfigurations')
-        !failure.output.contains(notCheckingLocksMessage)
+        runTasks('dependencies', '--configuration', 'unifiedClasspath')
     }
 
     def 'fails if dependency was removed but still in the lock file'() {
