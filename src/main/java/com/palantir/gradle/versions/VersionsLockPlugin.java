@@ -297,9 +297,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
     /**
      * Recursive method that copies unseen {@link ProjectDependency project dependencies} found in the given {@link
      * DependencySet}, and then amends their {@link ProjectDependency#getTargetConfiguration()} to point to the copied
-     * configuration. It then configures any copied Configurations recursively through
-     * {@link Configuration#withDependencies} which is lazy, so recursive calls don't actually execute right away,
-     * but are executed when those configurations are evaluated.
+     * configuration. It then eagerly configures any copied Configurations recursively.
      */
     private void recursivelyCopyProjectDependencies(
             Project currentProject, DependencySet dependencySet, Map<Configuration, String> copiedConfigurationsCache) {
