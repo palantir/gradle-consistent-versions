@@ -460,7 +460,6 @@ public class VersionsLockPlugin implements Plugin<Project> {
     }
 
     private static NamedDomainObjectProvider<Configuration> createTopConfiguration(Project project) {
-
         NamedDomainObjectProvider<Configuration> locksConfiguration =
                 project.getConfigurations().register(LOCK_CONSTRAINTS_CONFIGURATION_NAME, conf -> {
                     conf.setVisible(false);
