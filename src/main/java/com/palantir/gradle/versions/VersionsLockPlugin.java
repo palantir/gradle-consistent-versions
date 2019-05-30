@@ -19,6 +19,7 @@ package com.palantir.gradle.versions;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.Suppliers;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Streams;
@@ -374,7 +375,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
             });
         });
         // from old -> new
-        Map<Configuration, Configuration> copiedConfigurationsCache = new HashMap<>();
+        Map<Configuration, String> copiedConfigurationsCache = new HashMap<>();
         recursivelyCopyProjectDependencies(project, depSet, copiedConfigurationsCache);
     }
 
@@ -386,7 +387,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
     private void recursivelyCopyProjectDependencies(
             Project currentProject,
             DependencySet dependencySet,
-            Map<Configuration, Configuration> configurationMap) {
+            Map<Configuration, String> copiedConfigurationsCache) {
         dependencySet
                 .matching(dependency -> ProjectDependency.class.isAssignableFrom(dependency.getClass()))
                 .all(dependency -> {
@@ -399,12 +400,6 @@ public class VersionsLockPlugin implements Plugin<Project> {
                         return;
                     }
 
-                    // TODO info
-                    log.lifecycle(
-                            "Found legacy project dependency (with target configuration): {} -> {}",
-                            dependencySet,
-                            formatProjectDependency(projectDependency));
-
                     // We can depend on other configurations from the same project, so don't introduce a cycle.
                     if (projectDep != currentProject) {
                         currentProject.evaluationDependsOn(projectDep.getPath());
@@ -413,28 +408,30 @@ public class VersionsLockPlugin implements Plugin<Project> {
                     Configuration targetConf = projectDep.getConfigurations().getByName(targetConfiguration);
                     Preconditions.checkNotNull(targetConf,
                             "Target configuration of project dependency was null: %s -> %s",
-                            currentProject,
+                            dependencySet,
                             projectDep);
 
-                    // First, check if it's already used by GCV, and if so, avoid copying it.
-                    // This is because we set our own project dependencies in this way, and don't want to copy them
-                    // yet again.
-                    if (targetConf.getAttributes().getAttribute(MY_USAGE_ATTRIBUTE) != MyUsage.ORIGINAL) {
-                        // TODO info
-                        log.lifecycle("Leaving legacy project dependency alone: {} -> {}",
+                    // First, check if it's an intermediate source, and if so, avoid copying it.
+                    if (targetConf.getAttributes().getAttribute(MY_USAGE_ATTRIBUTE) == MyUsage.GCV_SOURCE) {
+                        log.debug("Not copying configuration with GCV_SOURCE usage: {} -> {}",
                                 dependencySet,
                                 formatProjectDependency(projectDependency));
 
                         recursivelyCopyProjectDependencies(
-                                projectDep, targetConf.getDependencies(), configurationMap);
+                                projectDep, targetConf.getDependencies(), copiedConfigurationsCache);
                         return;
                     }
 
-                    if (configurationMap.containsKey(targetConf)) {
-                        Configuration copiedConf = configurationMap.get(targetConf);
+                    log.info(
+                            "Found legacy project dependency (with target configuration): {} -> {}",
+                            dependencySet,
+                            formatProjectDependency(projectDependency));
+
+                    if (copiedConfigurationsCache.containsKey(targetConf)) {
+                        String copiedConf = copiedConfigurationsCache.get(targetConf);
                         log.debug("Re-using already copied target configuration for dep {} -> {}: {}",
                                 currentProject, targetConf, copiedConf);
-                        projectDependency.setTargetConfiguration(copiedConf.getName());
+                        projectDependency.setTargetConfiguration(copiedConf);
                         return;
                     }
 
@@ -444,10 +441,25 @@ public class VersionsLockPlugin implements Plugin<Project> {
                                     + "itself.",
                             targetConf.getName(), targetConf.getName()));
 
+                    // Update state about what we've seen
+                    copiedConfigurationsCache.put(targetConf, copiedConf.getName());
+
+                    if (log.isInfoEnabled()) {
+                        log.info(
+                                "Recursively copied {}'s '{}' configuration, which has\n"
+                                        + " - dependencies: {}\n"
+                                        + " - constraints: {}",
+                                projectDep, targetConfiguration,
+                                ImmutableList.copyOf(copiedConf.getAllDependencies()),
+                                ImmutableList.copyOf(copiedConf.getAllDependencyConstraints()));
+                    }
+
+                    projectDep.getConfigurations().add(copiedConf);
+
                     projectDependency.setTargetConfiguration(copiedConf.getName());
 
                     recursivelyCopyProjectDependencies(
-                            projectDep, copiedConf.getDependencies(), configurationMap);
+                            projectDep, copiedConf.getDependencies(), copiedConfigurationsCache);
                 });
     }
 
