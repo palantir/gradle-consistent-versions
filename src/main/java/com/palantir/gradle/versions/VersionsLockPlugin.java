@@ -105,7 +105,6 @@ public class VersionsLockPlugin implements Plugin<Project> {
          * Meant for aggregated configurations / copies of user-defined configurations, that GCV has made resolvable
          * for internal usage, but they are not meant to be discovered by user dependencies.
          */
-        // TODO add special capability to internal configurations? so it doesn't get picked up?
         GCV_INTERNAL,
         /**
          * Any other configuration that the user may resolve / depend on.
