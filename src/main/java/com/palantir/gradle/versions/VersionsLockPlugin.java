@@ -19,8 +19,6 @@ package com.palantir.gradle.versions;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.Suppliers;
-import com.google.common.collect.BiMap;
-import com.google.common.collect.HashBiMap;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Streams;
@@ -33,6 +31,7 @@ import java.io.StringWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -95,8 +94,19 @@ public class VersionsLockPlugin implements Plugin<Project> {
             Attribute.of("consistent-versions", Boolean.class);
 
     public enum MyUsage implements Named {
-        COPIED,
-        ORIGINAL;
+        /** GCV is using the configuration with this usage to source all dependencies from a given project. */
+        GCV_SOURCE,
+        /**
+         * Meant for aggregated configurations / copies of user-defined configurations, that GCV has made resolvable
+         * for internal usage, but they are not meant to be discovered by user dependencies.
+         */
+        // TODO add special capability to internal configurations? so it doesn't get picked up?
+        GCV_INTERNAL,
+        /**
+         * Any other configuration that the user may resolve / depend on.
+         */
+        ORIGINAL,
+        ;
 
         @Override
         public String getName() {
@@ -134,7 +144,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 .create(UNIFIED_CLASSPATH_CONFIGURATION_NAME, conf -> {
                     conf.setVisible(false).setCanBeConsumed(false);
                     // Mark it as accepting dependencies with our own usage
-                    conf.getAttributes().attribute(MY_USAGE_ATTRIBUTE, MyUsage.COPIED);
+                    conf.getAttributes().attribute(MY_USAGE_ATTRIBUTE, MyUsage.GCV_SOURCE);
                 });
 
         project.allprojects(subproject -> {
@@ -214,56 +224,6 @@ public class VersionsLockPlugin implements Plugin<Project> {
         }
     }
 
-    private void copyConfigurations(Project project, BiMap<Configuration, Configuration> copiedConfigurationsCache) {
-        // Because of a fun gradle issue where the ConfigurationContainer.register action is evaluated _after_
-        // whatever ConfigurationContainer.configureEach actions were added up to the point where the configuration
-        // is registered, we have to delay this action by using whenObjectAdded (which makes everything eager).
-        // Otherwise, a check like conf.isCanBeConsumed() will always return the default - true.
-        project.afterEvaluate(p -> {
-            project.getConfigurations().all(conf -> {
-                maybeCopyConfiguration(project, copiedConfigurationsCache, conf);
-            });
-        });
-    }
-
-    private static void maybeCopyConfiguration(
-            Project project, BiMap<Configuration, Configuration> copiedConfigurationsCache, Configuration conf) {
-        if (UNIFIED_CLASSPATH_CONFIGURATION_NAME.equals(conf.getName())) {
-            return;
-        }
-
-        // Only care about consumable configurations, since others you can't depend on
-        if (!conf.isCanBeConsumed() || conf.isCanBeResolved()) {
-            log.info("Not copying unconsumable / legacy configuration: {}", conf);
-            return;
-        }
-
-        // this is an already copied configuration, don't do anything
-        if (copiedConfigurationsCache.inverse().containsKey(conf)) {
-            return;
-        }
-        conf.getAttributes().attribute(MY_USAGE_ATTRIBUTE, MyUsage.ORIGINAL);
-
-        // TODO copy capabilities too if any, and modify the capability (probably need to save into a cache too)
-        Configuration copiedConf = conf.copyRecursive();
-        copiedConf.setDescription(String.format("Copy of the '%s' configuration that can be resolved by "
-                        + "com.palantir.consistent-versions without resolving the '%s' configuration "
-                        + "itself.",
-                conf.getName(), conf.getName()));
-        // Mark it so that it tells consumers it exports our own usage
-        copiedConf.getAttributes().attribute(MY_USAGE_ATTRIBUTE, MyUsage.COPIED);
-
-        copiedConfigurationsCache.put(conf, copiedConf);
-
-        log.lifecycle("Attempting to add {} to {}: already executed -> {}", copiedConf, project,
-                project.getState().getExecuted());
-        try {
-            project.getConfigurations().add(copiedConf);
-        } catch (Exception e) {
-            throw new RuntimeException("Caught exception trying to add " + copiedConf + " to " + project, e);
-        }
-    }
-
     private void sourceDependenciesFromProject(
             Project rootProject, Configuration unifiedClasspath, Project project) {
         // Parallel 'resolveConfigurations' sometimes breaks unless we force the root one to run first.
@@ -280,9 +240,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
             conf.getAttributes().attribute(VersionsPropsPlugin.CONFIGURATION_EXCLUDE_ATTRIBUTE, true);
 
             // Mark it so that unifiedClasspath picks it up
-//            conf.getAttributes().attribute(MY_USAGE_ATTRIBUTE, MyUsage.COPIED);
+            conf.getAttributes().attribute(MY_USAGE_ATTRIBUTE, MyUsage.GCV_SOURCE);
             // TODO: in this route, we should give it a common Usage too
-
 //            conf.getAttributes().attribute(Usage.USAGE_ATTRIBUTE, consistentVersionsInternalUsage);
         });
         // Depend on this "sink" configuration from our global aggregating configuration `unifiedClasspath`.
@@ -304,6 +263,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 conf.extendsFrom(project
                         .getConfigurations()
                         .getByName(JavaPlugin.COMPILE_CLASSPATH_CONFIGURATION_NAME));
+                conf.getAttributes().attribute(MY_USAGE_ATTRIBUTE, MyUsage.GCV_INTERNAL);
             });
 
             String runtimeClasspathForLock = "consistentVersionsRuntime";
@@ -316,6 +276,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 conf.extendsFrom(project
                         .getConfigurations()
                         .getByName(JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME));
+                conf.getAttributes().attribute(MY_USAGE_ATTRIBUTE, MyUsage.GCV_INTERNAL);
             });
 
             project.getConfigurations().named(SUBPROJECT_UNIFIED_CONFIGURATION_NAME).configure(conf -> Stream.of(
@@ -394,10 +355,16 @@ public class VersionsLockPlugin implements Plugin<Project> {
      enforce constraints on.
      */
     private void recursivelyCopyProjectDependencies(Project project, DependencySet depSet) {
+        // First, set a usage on any "normal" user configurations to disambiguate them
+        project.allprojects(subproject -> {
+            subproject.getConfigurations().all(conf -> {
+                if (!conf.getAttributes().contains(MY_USAGE_ATTRIBUTE)) {
+                    conf.getAttributes().attribute(MY_USAGE_ATTRIBUTE, MyUsage.ORIGINAL);
+                }
+            });
+        });
         // from old -> new
-        BiMap<Configuration, Configuration> copiedConfigurationsCache = HashBiMap.create();
-        project.allprojects(subproject -> copyConfigurations(subproject, copiedConfigurationsCache));
-
+        Map<Configuration, Configuration> copiedConfigurationsCache = new HashMap<>();
         recursivelyCopyProjectDependencies(project, depSet, copiedConfigurationsCache);
     }
 
@@ -425,7 +392,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
                     // TODO info
                     log.lifecycle(
                             "Found legacy project dependency (with target configuration): {} -> {}",
-                            currentProject,
+                            dependencySet,
                             formatProjectDependency(projectDependency));
 
                     // We can depend on other configurations from the same project, so don't introduce a cycle.
@@ -439,10 +406,33 @@ public class VersionsLockPlugin implements Plugin<Project> {
                             currentProject,
                             projectDep);
 
-                    Configuration copiedConf = Preconditions.checkNotNull(
-                            configurationMap.get(targetConf),
-                            "Failed to find copied configuration for: %s",
-                            targetConf);
+                    // First, check if it's already used by GCV, and if so, avoid copying it.
+                    // This is because we set our own project dependencies in this way, and don't want to copy them
+                    // yet again.
+                    if (targetConf.getAttributes().getAttribute(MY_USAGE_ATTRIBUTE) != MyUsage.ORIGINAL) {
+                        // TODO info
+                        log.lifecycle("Leaving legacy project dependency alone: {} -> {}",
+                                dependencySet,
+                                formatProjectDependency(projectDependency));
+
+                        recursivelyCopyProjectDependencies(
+                                projectDep, targetConf.getDependencies(), configurationMap);
+                        return;
+                    }
+
+                    if (configurationMap.containsKey(targetConf)) {
+                        Configuration copiedConf = configurationMap.get(targetConf);
+                        log.debug("Re-using already copied target configuration for dep {} -> {}: {}",
+                                currentProject, targetConf, copiedConf);
+                        projectDependency.setTargetConfiguration(copiedConf.getName());
+                        return;
+                    }
+
+                    Configuration copiedConf = targetConf.copyRecursive();
+                    copiedConf.setDescription(String.format("Copy of the '%s' configuration that can be resolved by "
+                                    + "com.palantir.consistent-versions without resolving the '%s' configuration "
+                                    + "itself.",
+                            targetConf.getName(), targetConf.getName()));
 
                     projectDependency.setTargetConfiguration(copiedConf.getName());
 
