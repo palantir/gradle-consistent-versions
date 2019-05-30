@@ -73,7 +73,6 @@ import org.gradle.api.invocation.Gradle;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 import org.gradle.api.logging.configuration.ShowStacktrace;
-import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.tasks.TaskProvider;
 import org.gradle.language.base.plugins.LifecycleBasePlugin;
@@ -98,8 +97,14 @@ public class VersionsLockPlugin implements Plugin<Project> {
     private static final Attribute<Boolean> CONSISTENT_VERSIONS_CONSTRAINT_ATTRIBUTE =
             Attribute.of("consistent-versions", Boolean.class);
 
-    public enum MyUsage implements Named {
-        /** GCV is using the configuration with this usage to source all dependencies from a given project. */
+    public enum GcvUsage implements Named {
+        /**
+         * GCV is using configurations with this usage to source all dependencies from a given project.
+         * Only {@link #SUBPROJECT_UNIFIED_CONFIGURATION_NAME} should have this usage.
+         * <p>
+         * This exists so that the build's normal inter-project dependencies will naturally resolve to that
+         * configuration, without having to re-write
+         */
         GCV_SOURCE,
         /**
          * Meant for aggregated configurations / copies of user-defined configurations, that GCV has made resolvable
@@ -118,13 +123,13 @@ public class VersionsLockPlugin implements Plugin<Project> {
         }
     }
 
-    private static final Attribute<MyUsage> MY_USAGE_ATTRIBUTE =
-            Attribute.of("com.palantir.consistent-versions.usage", MyUsage.class);
+    private static final Attribute<GcvUsage> GCV_USAGE_ATTRIBUTE =
+            Attribute.of("com.palantir.consistent-versions.usage", GcvUsage.class);
 
     private final ShowStacktrace showStacktrace;
 
     @Inject
-    public VersionsLockPlugin(ObjectFactory objectFactory, Gradle gradle) {
+    public VersionsLockPlugin(Gradle gradle) {
         showStacktrace = gradle.getStartParameter().getShowStacktrace();
     }
 
@@ -140,7 +145,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
         project.allprojects(p -> {
             // Create the attribute
-            p.getDependencies().getAttributesSchema().attribute(MY_USAGE_ATTRIBUTE);
+            p.getDependencies().getAttributesSchema().attribute(GCV_USAGE_ATTRIBUTE);
         });
 
         Configuration unifiedClasspath = project
@@ -148,12 +153,12 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 .create(UNIFIED_CLASSPATH_CONFIGURATION_NAME, conf -> {
                     conf.setVisible(false).setCanBeConsumed(false);
                     // Mark it as accepting dependencies with our own usage
-                    conf.getAttributes().attribute(MY_USAGE_ATTRIBUTE, MyUsage.GCV_SOURCE);
+                    conf.getAttributes().attribute(GCV_USAGE_ATTRIBUTE, GcvUsage.GCV_SOURCE);
                 });
 
         project.allprojects(p -> {
             AttributesSchema attributesSchema = p.getDependencies().getAttributesSchema();
-            AttributeMatchingStrategy<MyUsage> matchingStrategy = attributesSchema.attribute(MY_USAGE_ATTRIBUTE);
+            AttributeMatchingStrategy<GcvUsage> matchingStrategy = attributesSchema.attribute(GCV_USAGE_ATTRIBUTE);
             matchingStrategy.getCompatibilityRules().add(ConsistentVersionsCompatibilityRules.class);
         });
 
@@ -234,7 +239,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
         }
     }
 
-    private void sourceDependenciesFromProject(
+    private static void sourceDependenciesFromProject(
             Project rootProject, Configuration unifiedClasspath, Project project) {
         // Parallel 'resolveConfigurations' sometimes breaks unless we force the root one to run first.
         if (rootProject != project) {
@@ -249,36 +254,34 @@ public class VersionsLockPlugin implements Plugin<Project> {
             // Mark it so it doesn't receive constraints from VersionsPropsPlugin
             conf.getAttributes().attribute(VersionsPropsPlugin.CONFIGURATION_EXCLUDE_ATTRIBUTE, true);
 
-            // Mark it so that unifiedClasspath picks it up
-            conf.getAttributes().attribute(MY_USAGE_ATTRIBUTE, MyUsage.GCV_SOURCE);
-            // TODO: in this route, we should give it a common Usage too
-//            conf.getAttributes().attribute(Usage.USAGE_ATTRIBUTE, consistentVersionsInternalUsage);
+            // Mark it as a GCV_SOURCE, so that
+            // 1. it can be depended on when resolving `unifiedClasspath`, which requests that the usage is GCV_SOURCE
+            // 2. it becomes selected (as the best matching configuration) for the user's normal inter-project
+            //    dependencies
+            conf.getAttributes().attribute(GCV_USAGE_ATTRIBUTE, GcvUsage.GCV_SOURCE);
         });
         // Depend on this "sink" configuration from our global aggregating configuration `unifiedClasspath`.
         unifiedClasspath
                 .getDependencies()
                 .add(createConfigurationDependency(project, SUBPROJECT_UNIFIED_CONFIGURATION_NAME));
 
-        // This must NOT have a configuration, since the right one will be selected via the attributes
-//        unifiedClasspath.getDependencies().add(project.getDependencies().create(project));
-
         project.getPluginManager().withPlugin("java", plugin -> {
-            // Create a configuration that will collect the java-api and compile only dependencies (as java-api)
             String compileClasspathForLock = "consistentVersionsCompile";
             project.getConfigurations().register(compileClasspathForLock, conf -> {
-                conf.setDescription("Outgoing configuration for the API component of compile time dependencies");
+                conf.setDescription("Outgoing configuration for compile-time dependencies meant to be used by "
+                        + "consistent-versions");
                 conf.setVisible(false); // needn't be visible from other projects
                 conf.setCanBeConsumed(true);
                 conf.setCanBeResolved(false);
                 conf.extendsFrom(project
                         .getConfigurations()
                         .getByName(JavaPlugin.COMPILE_CLASSPATH_CONFIGURATION_NAME));
-                conf.getAttributes().attribute(MY_USAGE_ATTRIBUTE, MyUsage.GCV_INTERNAL);
+                conf.getAttributes().attribute(GCV_USAGE_ATTRIBUTE, GcvUsage.GCV_INTERNAL);
             });
 
             String runtimeClasspathForLock = "consistentVersionsRuntime";
             project.getConfigurations().register(runtimeClasspathForLock, conf -> {
-                conf.setDescription("Outgoing configuration runtime dependencies meant to be used by "
+                conf.setDescription("Outgoing configuration for runtime dependencies meant to be used by "
                         + "consistent-versions");
                 conf.setVisible(false); // needn't be visible from other projects
                 conf.setCanBeConsumed(true);
@@ -286,7 +289,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 conf.extendsFrom(project
                         .getConfigurations()
                         .getByName(JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME));
-                conf.getAttributes().attribute(MY_USAGE_ATTRIBUTE, MyUsage.GCV_INTERNAL);
+                conf.getAttributes().attribute(GCV_USAGE_ATTRIBUTE, GcvUsage.GCV_INTERNAL);
             });
 
             project.getConfigurations().named(SUBPROJECT_UNIFIED_CONFIGURATION_NAME).configure(conf -> Stream.of(
@@ -368,8 +371,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
         // First, set a usage on any "normal" user configurations to disambiguate them
         project.allprojects(subproject -> {
             subproject.getConfigurations().all(conf -> {
-                if (!conf.getAttributes().contains(MY_USAGE_ATTRIBUTE)) {
-                    conf.getAttributes().attribute(MY_USAGE_ATTRIBUTE, MyUsage.ORIGINAL);
+                if (!conf.getAttributes().contains(GCV_USAGE_ATTRIBUTE)) {
+                    conf.getAttributes().attribute(GCV_USAGE_ATTRIBUTE, GcvUsage.ORIGINAL);
                 }
             });
         });
@@ -411,7 +414,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
                             projectDep);
 
                     // First, check if it's an intermediate source, and if so, avoid copying it.
-                    if (targetConf.getAttributes().getAttribute(MY_USAGE_ATTRIBUTE) == MyUsage.GCV_SOURCE) {
+                    if (targetConf.getAttributes().getAttribute(GCV_USAGE_ATTRIBUTE) == GcvUsage.GCV_SOURCE) {
                         log.debug("Not copying configuration with GCV_SOURCE usage: {} -> {}",
                                 dependencySet,
                                 formatProjectDependency(projectDependency));
@@ -622,12 +625,20 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 .collect(Collectors.toList());
     }
 
-    static class ConsistentVersionsCompatibilityRules implements AttributeCompatibilityRule<MyUsage> {
+    /**
+     * Allows a resolution with a {@link GcvUsage#GCV_SOURCE} attribute (i.e. the resolution of
+     * {@link #UNIFIED_CLASSPATH_CONFIGURATION_NAME}) to depend on configurations with the {@link GcvUsage#GCV_INTERNAL}
+     * attribute.
+     * <p>
+     * This is required for {@link #SUBPROJECT_UNIFIED_CONFIGURATION_NAME} to be able to depend on the other
+     * configurations that we actually aggregate (consistentVersionsCompile, consistentVersionsRuntime etc).
+     */
+    static class ConsistentVersionsCompatibilityRules implements AttributeCompatibilityRule<GcvUsage> {
         @Override
-        public void execute(CompatibilityCheckDetails<MyUsage> details) {
-            MyUsage consumer = details.getConsumerValue();
-            MyUsage producer = details.getProducerValue();
-            if (MyUsage.GCV_SOURCE.equals(consumer) && MyUsage.GCV_INTERNAL.equals(producer)) {
+        public void execute(CompatibilityCheckDetails<GcvUsage> details) {
+            GcvUsage consumer = details.getConsumerValue();
+            GcvUsage producer = details.getProducerValue();
+            if (GcvUsage.GCV_SOURCE.equals(consumer) && GcvUsage.GCV_INTERNAL.equals(producer)) {
                 details.compatible();
             }
         }
