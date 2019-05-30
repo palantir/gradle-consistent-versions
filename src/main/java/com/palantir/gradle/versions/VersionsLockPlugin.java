@@ -371,7 +371,13 @@ public class VersionsLockPlugin implements Plugin<Project> {
         Preconditions.checkState(
                 project.getState().getExecuted(),
                 "recursivelyCopyProjectDependencies should be called in afterEvaluate");
-        // First, set a usage on any "normal" user configurations to disambiguate them
+
+        // First, set a default GcvUsage of ORIGINAL on any remaining configurations to disambiguate them.
+        //
+        // This is not strictly necessary - we could just not set this attribute on them. However, because of how
+        // attribute matching works, gradle would accept unifiedClasspath transitively depending on such a
+        // configuration if its GcvUsage is unset, and while 'recursivelyCopyProjectDependencies' below tries to ensure
+        // that doesn't happen, we'd like to have another line of defense.
         project.allprojects(subproject -> {
             subproject.getConfigurations().all(conf -> {
                 if (!conf.getAttributes().contains(GCV_USAGE_ATTRIBUTE)) {
@@ -379,7 +385,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 }
             });
         });
-        // from old -> new
+
         Map<Configuration, String> copiedConfigurationsCache = new HashMap<>();
         recursivelyCopyProjectDependencies(project, depSet, copiedConfigurationsCache);
     }
