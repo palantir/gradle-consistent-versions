@@ -487,4 +487,27 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                  +org.slf4j:slf4j-api:1.7.11 (1 constraints: 3c05423b)
             """.stripIndent()
     }
+
+    def "excludes from compileOnly do not obscure real dependency"() {
+        buildFile << """
+            apply plugin: 'java'
+            dependencies {
+                compile 'ch.qos.logback:logback-classic:1.2.3'
+            }
+            configurations.compileOnly {
+                // convoluted, but the idea is to exclude a transitive
+                exclude group: 'org.slf4j', module: 'slf4j-api'
+            }
+        """.stripIndent()
+
+        when:
+        runTasks('--write-locks')
+
+        then: 'slf4j-api still appears in the lock file'
+        file('versions.lock').readLines() == [
+                '# Run ./gradlew --write-locks to regenerate this file',
+                'ch.qos.logback:logback-classic:1.2.3 (1 constraints: 0805f935)',
+                'org.slf4j:slf4j-api:1.7.25 (1 constraints: 400d4d2a)',
+        ]
+    }
 }
