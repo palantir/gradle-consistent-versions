@@ -64,6 +64,10 @@ import org.gradle.api.artifacts.result.ResolutionResult;
 import org.gradle.api.artifacts.result.ResolvedComponentResult;
 import org.gradle.api.artifacts.result.UnresolvedDependencyResult;
 import org.gradle.api.attributes.Attribute;
+import org.gradle.api.attributes.AttributeCompatibilityRule;
+import org.gradle.api.attributes.AttributeMatchingStrategy;
+import org.gradle.api.attributes.AttributesSchema;
+import org.gradle.api.attributes.CompatibilityCheckDetails;
 import org.gradle.api.invocation.Gradle;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
@@ -146,6 +150,12 @@ public class VersionsLockPlugin implements Plugin<Project> {
                     // Mark it as accepting dependencies with our own usage
                     conf.getAttributes().attribute(MY_USAGE_ATTRIBUTE, MyUsage.GCV_SOURCE);
                 });
+
+        project.allprojects(p -> {
+            AttributesSchema attributesSchema = p.getDependencies().getAttributesSchema();
+            AttributeMatchingStrategy<MyUsage> matchingStrategy = attributesSchema.attribute(MY_USAGE_ATTRIBUTE);
+            matchingStrategy.getCompatibilityRules().add(ConsistentVersionsCompatibilityRules.class);
+        });
 
         project.allprojects(subproject -> {
             sourceDependenciesFromProject(project, unifiedClasspath, subproject);
@@ -599,5 +609,16 @@ public class VersionsLockPlugin implements Plugin<Project> {
                     });
                 }))
                 .collect(Collectors.toList());
+    }
+
+    static class ConsistentVersionsCompatibilityRules implements AttributeCompatibilityRule<MyUsage> {
+        @Override
+        public void execute(CompatibilityCheckDetails<MyUsage> details) {
+            MyUsage consumer = details.getConsumerValue();
+            MyUsage producer = details.getProducerValue();
+            if (MyUsage.GCV_SOURCE.equals(consumer) && MyUsage.GCV_INTERNAL.equals(producer)) {
+                details.compatible();
+            }
+        }
     }
 }
