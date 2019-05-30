@@ -78,7 +78,6 @@ final class ConflictSafeLockFile {
                 lockfile,
                 StandardOpenOption.CREATE,
                 StandardOpenOption.TRUNCATE_EXISTING)) {
-
             writer.append(HEADER_COMMENT);
             writer.newLine();
 

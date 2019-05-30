@@ -103,7 +103,6 @@ public class VersionsPropsPlugin implements Plugin<Project> {
             NamedDomainObjectProvider<Configuration> rootConfiguration,
             VersionsProps versionsProps,
             Configuration conf) {
-
         if (extension.shouldExcludeConfiguration(conf.getName())) {
             log.debug("Not configuring {} because it's excluded", conf);
             return;
@@ -181,7 +180,6 @@ public class VersionsPropsPlugin implements Plugin<Project> {
 
     private static void addVersionsPropsConstraints(
             DependencyConstraintHandler constraintHandler, Configuration conf, VersionsProps versionsProps) {
-
         ImmutableList<DependencyConstraint> constraints =
                 versionsProps.constructConstraints(constraintHandler).collect(ImmutableList.toImmutableList());
         log.info("Adding constraints to {}: {}", conf, constraints);

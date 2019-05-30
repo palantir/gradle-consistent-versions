@@ -36,7 +36,6 @@ public final class GetVersionPlugin implements Plugin<Project> {
     @Override
     public void apply(Project project) {
         project.getExtensions().getExtraProperties().set("getVersion", new Closure<String>(project, project) {
-
             /**
              * Groovy will invoke this method if they just supply one arg, e.g. 'com.google.guava:guava'.
              * This is the preferred signature because it's shortest.
