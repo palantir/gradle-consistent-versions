@@ -31,17 +31,16 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         )
         buildFile << """
             buildscript {
+                repositories {
+                    maven { url 'https://dl.bintray.com/palantir/releases' }
+                }
                 dependencies {
                     classpath 'com.palantir.configurationresolver:gradle-configuration-resolver-plugin:0.3.0'
                 }
-                repositories {
-                    jcenter()
-                    maven {
-                        url 'https://dl.bintray.com/palantir/releases/'
-                    }
-                }
             }
-            plugins { id '${PLUGIN_NAME}' }
+            plugins {
+                id '${PLUGIN_NAME}'
+            }
             allprojects {
                 apply plugin: 'com.palantir.configuration-resolver'
                 
@@ -146,5 +145,31 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
             test-alignment:module-with-higher-version:1.1 (1 constraints: a6041b2c)
         """.stripIndent()
         file('versions.lock').text == expectedLock
+    }
+
+    def "star dependencies in the absence of dependency versions"() {
+        addSubproject('foo', """
+            apply plugin: 'java'
+            dependencies {
+                compile 'org.slf4j:slf4j-api'
+            }
+        """.stripIndent())
+
+        file('versions.props') << """
+            org.slf4j:* = 1.7.25
+        """.stripIndent()
+
+        when:
+        runTasks('--write-locks')
+
+        then:
+        def expectedLock = """\
+            # Run ./gradlew --write-locks to regenerate this file
+            org.slf4j:slf4j-api:1.7.25 (1 constraints: 4105483b)
+        """.stripIndent()
+        file('versions.lock').text == expectedLock
+
+        // Ensure that this is a required constraint
+        runTasks('why', '--hash', '4105483b').output.contains "projects -> 1.7.25"
     }
 }

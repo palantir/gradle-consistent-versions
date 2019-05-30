@@ -1,6 +1,14 @@
 // This file is managed by the excavator 'consistent-publish-scripts' check, changes will be overwritten.
 apply plugin: 'com.jfrog.bintray'
-apply plugin: 'nebula.maven-publish'
+// Intentionally not applying nebula.maven-publish, but most of its constituent plugins,
+// because we do _not_ want nebula.maven-compile-only
+apply plugin: 'maven-publish'
+apply plugin: 'nebula.maven-nebula-publish'
+apply plugin: 'nebula.maven-base-publish'
+apply plugin: 'nebula.maven-developer'
+apply plugin: 'nebula.maven-manifest'
+apply plugin: 'nebula.maven-scm'
+
 apply plugin: 'nebula.javadoc-jar'
 apply plugin: 'nebula.source-jar'
 
@@ -31,15 +39,10 @@ bintrayUpload.onlyIf {
 // See: https://docs.gradle.org/5.2/userguide/publishing_maven.html#publishing_maven:resolved_dependencies
 // This replaces nebula.maven-resolved-dependencies, which doesn't work with the 'com.gradle.plugin-publish' plugin
 publishing {
-    publications {
-        nebula {
-            versionMapping {
-                usage('java-api') {
-                    fromResolutionOf('runtimeClasspath')
-                }
-                usage('java-runtime') {
-                    fromResolutionResult()
-                }
+    publications.withType(MavenPublication).configureEach {
+        versionMapping {
+            allVariants {
+                fromResolutionResult()
             }
         }
     }

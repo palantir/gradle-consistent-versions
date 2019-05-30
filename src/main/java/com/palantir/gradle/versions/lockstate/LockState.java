@@ -19,6 +19,7 @@ package com.palantir.gradle.versions.lockstate;
 import com.google.common.collect.ImmutableSortedMap;
 import com.palantir.gradle.versions.GradleComparators;
 import com.palantir.gradle.versions.internal.MyModuleIdentifier;
+import java.io.Serializable;
 import java.util.List;
 import java.util.SortedMap;
 import java.util.function.Function;
@@ -31,7 +32,7 @@ import org.immutables.value.Value.Parameter;
  * Holds the state of dependencies that should be written to disk when gradle is invoked with {@code --write-locks}.
  */
 @Value.Immutable
-public interface LockState {
+public interface LockState extends Serializable {
 
     @Parameter
     List<Line> lines();

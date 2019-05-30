@@ -17,12 +17,13 @@
 package com.palantir.gradle.versions.lockstate;
 
 import com.palantir.gradle.versions.internal.MyModuleIdentifier;
+import java.io.Serializable;
 import org.immutables.value.Value;
 import org.immutables.value.Value.Lazy;
 import org.immutables.value.Value.Parameter;
 
 @Value.Immutable
-public interface Line {
+public interface Line extends Serializable {
     @Parameter
     String group();
 
