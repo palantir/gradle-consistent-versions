@@ -63,8 +63,8 @@ public class VersionsPropsPlugin implements Plugin<Project> {
                     conf.setVisible(false);
                 });
 
-        project.afterEvaluate(p -> p.getConfigurations().configureEach(conf ->
-                setupConfiguration(p, extension, rootConfiguration, versionsProps, conf)));
+        project.getConfigurations().configureEach(conf ->
+                setupConfiguration(project, extension, rootConfiguration, versionsProps, conf));
 
         // Note: don't add constraints to this, only call `create` / `platform` on it.
         DependencyConstraintHandler constraintHandler = project.getDependencies().getConstraints();
