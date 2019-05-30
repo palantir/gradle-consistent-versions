@@ -368,6 +368,9 @@ public class VersionsLockPlugin implements Plugin<Project> {
      enforce constraints on.
      */
     private void recursivelyCopyProjectDependencies(Project project, DependencySet depSet) {
+        Preconditions.checkState(
+                project.getState().getExecuted(),
+                "recursivelyCopyProjectDependencies should be called in afterEvaluate");
         // First, set a usage on any "normal" user configurations to disambiguate them
         project.allprojects(subproject -> {
             subproject.getConfigurations().all(conf -> {
