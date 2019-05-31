@@ -44,7 +44,7 @@ public class VersionsPropsPlugin implements Plugin<Project> {
 
     /** Marks configurations for which we shouldn't inject constraints from {@code versions.props}. */
     static final Attribute<Boolean> CONFIGURATION_EXCLUDE_ATTRIBUTE =
-            Attribute.of("consistent-versions-exclude", Boolean.class);
+            Attribute.of("com.palantir.consistent-versions.exclude-from-versions-props", Boolean.class);
 
     @Override
     public final void apply(Project project) {

@@ -46,6 +46,7 @@ import javax.inject.Inject;
 import netflix.nebula.dependency.recommender.RecommendationStrategies;
 import netflix.nebula.dependency.recommender.provider.RecommendationProviderContainer;
 import org.gradle.api.GradleException;
+import org.gradle.api.Named;
 import org.gradle.api.NamedDomainObjectProvider;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
@@ -64,6 +65,10 @@ import org.gradle.api.artifacts.result.ResolutionResult;
 import org.gradle.api.artifacts.result.ResolvedComponentResult;
 import org.gradle.api.artifacts.result.UnresolvedDependencyResult;
 import org.gradle.api.attributes.Attribute;
+import org.gradle.api.attributes.AttributeCompatibilityRule;
+import org.gradle.api.attributes.AttributeMatchingStrategy;
+import org.gradle.api.attributes.AttributesSchema;
+import org.gradle.api.attributes.CompatibilityCheckDetails;
 import org.gradle.api.invocation.Gradle;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
@@ -92,6 +97,34 @@ public class VersionsLockPlugin implements Plugin<Project> {
     private static final Attribute<Boolean> CONSISTENT_VERSIONS_CONSTRAINT_ATTRIBUTE =
             Attribute.of("consistent-versions", Boolean.class);
 
+    public enum GcvUsage implements Named {
+        /**
+         * GCV is using configurations with this usage to source all dependencies from a given project.
+         * Only {@link #SUBPROJECT_UNIFIED_CONFIGURATION_NAME} should have this usage.
+         * <p>
+         * This exists so that the build's normal inter-project dependencies will naturally resolve to that
+         * configuration, without having to re-write
+         */
+        GCV_SOURCE,
+        /**
+         * Meant for aggregated configurations / copies of user-defined configurations, that GCV has made resolvable
+         * for internal usage, but they are not meant to be discovered by user dependencies.
+         */
+        GCV_INTERNAL
+        ;
+
+        /**
+         * Must match the enum name exactly, so you can pass this into {@link GcvUsage#valueOf(String)}.
+         */
+        @Override
+        public String getName() {
+            return this.name();
+        }
+    }
+
+    private static final Attribute<GcvUsage> GCV_USAGE_ATTRIBUTE =
+            Attribute.of("com.palantir.consistent-versions.usage", GcvUsage.class);
+
     private final ShowStacktrace showStacktrace;
 
     @Inject
@@ -109,11 +142,24 @@ public class VersionsLockPlugin implements Plugin<Project> {
         checkPreconditions(project);
         project.getPluginManager().apply(LifecycleBasePlugin.class);
 
+        project.allprojects(p -> {
+            // Create the attribute
+            p.getDependencies().getAttributesSchema().attribute(GCV_USAGE_ATTRIBUTE);
+        });
+
         Configuration unifiedClasspath = project
                 .getConfigurations()
-                .create(UNIFIED_CLASSPATH_CONFIGURATION_NAME, c -> {
-                    c.setVisible(false).setCanBeConsumed(false);
+                .create(UNIFIED_CLASSPATH_CONFIGURATION_NAME, conf -> {
+                    conf.setVisible(false).setCanBeConsumed(false);
+                    // Mark it as accepting dependencies with our own usage
+                    conf.getAttributes().attribute(GCV_USAGE_ATTRIBUTE, GcvUsage.GCV_SOURCE);
                 });
+
+        project.allprojects(p -> {
+            AttributesSchema attributesSchema = p.getDependencies().getAttributesSchema();
+            AttributeMatchingStrategy<GcvUsage> matchingStrategy = attributesSchema.attribute(GCV_USAGE_ATTRIBUTE);
+            matchingStrategy.getCompatibilityRules().add(ConsistentVersionsCompatibilityRules.class);
+        });
 
         project.allprojects(subproject -> {
             sourceDependenciesFromProject(project, unifiedClasspath, subproject);
@@ -201,34 +247,63 @@ public class VersionsLockPlugin implements Plugin<Project> {
             });
         }
 
-        NamedDomainObjectProvider<Configuration> subprojectUnifiedClasspath =
-                project.getConfigurations().register(SUBPROJECT_UNIFIED_CONFIGURATION_NAME, conf -> {
-                    conf.setVisible(false).setCanBeResolved(false);
-                    // Mark it so it doesn't receive constraints from VersionsPropsPlugin
-                    conf.getAttributes().attribute(VersionsPropsPlugin.CONFIGURATION_EXCLUDE_ATTRIBUTE, true);
-                });
-        // Depend on this "sink" configuration from our global aggregating configuration `unifiedClasspath`.
-        Dependency projectDep = rootProject.getDependencies().project(ImmutableMap.of(
-                "path", project.getPath(),
-                "configuration", SUBPROJECT_UNIFIED_CONFIGURATION_NAME));
-        unifiedClasspath.getDependencies().add(projectDep);
+        project.getConfigurations().register(SUBPROJECT_UNIFIED_CONFIGURATION_NAME, conf -> {
+            conf.setVisible(false).setCanBeResolved(false);
 
-        // Since we apply the forces to compileClasspath, runtimeClasspath, we should at least check what
-        // dependencies they have.
-        project.getPluginManager().withPlugin("base", plugin -> {
-            subprojectUnifiedClasspath.configure(conf -> {
-                conf.extendsFrom(project.getConfigurations().getByName(Dependency.DEFAULT_CONFIGURATION));
-            });
+            // Mark it so it doesn't receive constraints from VersionsPropsPlugin
+            conf.getAttributes().attribute(VersionsPropsPlugin.CONFIGURATION_EXCLUDE_ATTRIBUTE, true);
+
+            // Mark it as a GCV_SOURCE, so that it becomes selected (as the best matching configuration) for the
+            // user's normal inter-project dependencies
+            conf.getAttributes().attribute(GCV_USAGE_ATTRIBUTE, GcvUsage.GCV_SOURCE);
         });
+        // Depend on this "sink" configuration from our global aggregating configuration `unifiedClasspath`.
+        unifiedClasspath
+                .getDependencies()
+                .add(createConfigurationDependency(project, SUBPROJECT_UNIFIED_CONFIGURATION_NAME));
+
         project.getPluginManager().withPlugin("java", plugin -> {
-            project.getConfigurations().named(SUBPROJECT_UNIFIED_CONFIGURATION_NAME).configure(conf -> {
-                Stream.of(
-                        JavaPlugin.COMPILE_CLASSPATH_CONFIGURATION_NAME,
-                        JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME)
-                        .map(project.getConfigurations()::getByName)
-                        .forEach(conf::extendsFrom);
+            String consistentVersionsCompile = "consistentVersionsCompile";
+            project.getConfigurations().register(consistentVersionsCompile, conf -> {
+                conf.setDescription("Outgoing configuration for compile-time dependencies meant to be used by "
+                        + "consistent-versions");
+                conf.setVisible(false); // needn't be visible from other projects
+                conf.setCanBeConsumed(true);
+                conf.setCanBeResolved(false);
+                conf.extendsFrom(project
+                        .getConfigurations()
+                        .getByName(JavaPlugin.COMPILE_CLASSPATH_CONFIGURATION_NAME));
+                conf.getAttributes().attribute(GCV_USAGE_ATTRIBUTE, GcvUsage.GCV_INTERNAL);
             });
+
+            String consistentVersionsRuntime = "consistentVersionsRuntime";
+            project.getConfigurations().register(consistentVersionsRuntime, conf -> {
+                conf.setDescription("Outgoing configuration for runtime dependencies meant to be used by "
+                        + "consistent-versions");
+                conf.setVisible(false); // needn't be visible from other projects
+                conf.setCanBeConsumed(true);
+                conf.setCanBeResolved(false);
+                conf.extendsFrom(project
+                        .getConfigurations()
+                        .getByName(JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME));
+                conf.getAttributes().attribute(GCV_USAGE_ATTRIBUTE, GcvUsage.GCV_INTERNAL);
+            });
+
+            project.getConfigurations().named(SUBPROJECT_UNIFIED_CONFIGURATION_NAME).configure(conf -> Stream.of(
+                    createConfigurationDependency(project, consistentVersionsCompile),
+                    createConfigurationDependency(project, consistentVersionsRuntime))
+                    .forEach(conf.getDependencies()::add));
         });
+    }
+
+    /**
+     * Create a dependency to {@code toConfiguration}, where the latter should exist in the given {@code project}.
+     */
+    private static Dependency createConfigurationDependency(
+            Project project, String toConfiguration) {
+        return project
+                .getDependencies()
+                .project(ImmutableMap.of("path", project.getPath(), "configuration", toConfiguration));
     }
 
     private static void checkPreconditions(Project project) {
@@ -290,6 +365,10 @@ public class VersionsLockPlugin implements Plugin<Project> {
      enforce constraints on.
      */
     private void recursivelyCopyProjectDependencies(Project project, DependencySet depSet) {
+        Preconditions.checkState(
+                project.getState().getExecuted(),
+                "recursivelyCopyProjectDependencies should be called in afterEvaluate");
+
         Map<Configuration, String> copiedConfigurationsCache = new HashMap<>();
         recursivelyCopyProjectDependencies(project, depSet, copiedConfigurationsCache);
     }
@@ -300,15 +379,20 @@ public class VersionsLockPlugin implements Plugin<Project> {
      * configuration. It then eagerly configures any copied Configurations recursively.
      */
     private void recursivelyCopyProjectDependencies(
-            Project currentProject, DependencySet dependencySet, Map<Configuration, String> copiedConfigurationsCache) {
+            Project currentProject,
+            DependencySet dependencySet,
+            Map<Configuration, String> copiedConfigurationsCache) {
         dependencySet
                 .matching(dependency -> ProjectDependency.class.isAssignableFrom(dependency.getClass()))
                 .all(dependency -> {
                     ProjectDependency projectDependency = (ProjectDependency) dependency;
                     Project projectDep = projectDependency.getDependencyProject();
-                    String targetConfiguration = Optional
-                            .ofNullable(projectDependency.getTargetConfiguration())
-                            .orElse(Dependency.DEFAULT_CONFIGURATION);
+
+                    String targetConfiguration = projectDependency.getTargetConfiguration();
+                    if (targetConfiguration == null) {
+                        // Not handling variant-based selection in this code path
+                        return;
+                    }
 
                     // We can depend on other configurations from the same project, so don't introduce a cycle.
                     if (projectDep != currentProject) {
@@ -318,8 +402,24 @@ public class VersionsLockPlugin implements Plugin<Project> {
                     Configuration targetConf = projectDep.getConfigurations().getByName(targetConfiguration);
                     Preconditions.checkNotNull(targetConf,
                             "Target configuration of project dependency was null: %s -> %s",
-                            currentProject,
+                            dependencySet,
                             projectDep);
+
+                    // First, check if it's an intermediate source, and if so, avoid copying it.
+                    if (targetConf.getAttributes().getAttribute(GCV_USAGE_ATTRIBUTE) == GcvUsage.GCV_SOURCE) {
+                        log.debug("Not copying configuration with GCV_SOURCE usage: {} -> {}",
+                                dependencySet,
+                                formatProjectDependency(projectDependency));
+
+                        recursivelyCopyProjectDependencies(
+                                projectDep, targetConf.getDependencies(), copiedConfigurationsCache);
+                        return;
+                    }
+
+                    log.info(
+                            "Found legacy project dependency (with target configuration): {} -> {}",
+                            dependencySet,
+                            formatProjectDependency(projectDependency));
 
                     if (copiedConfigurationsCache.containsKey(targetConf)) {
                         String copiedConf = copiedConfigurationsCache.get(targetConf);
@@ -351,9 +451,25 @@ public class VersionsLockPlugin implements Plugin<Project> {
                     projectDep.getConfigurations().add(copiedConf);
 
                     projectDependency.setTargetConfiguration(copiedConf.getName());
+
                     recursivelyCopyProjectDependencies(
                             projectDep, copiedConf.getDependencies(), copiedConfigurationsCache);
                 });
+    }
+
+    private static String formatProjectDependency(ProjectDependency dep) {
+        StringBuilder builder = new StringBuilder();
+        builder.append(dep.getDependencyProject());
+        if (dep.getTargetConfiguration() != null) {
+            builder.append(" (configuration: ");
+            builder.append(dep.getTargetConfiguration());
+            builder.append(")");
+        }
+        if (!dep.getAttributes().isEmpty()) {
+            builder.append(", attributes: ");
+            builder.append(dep.getAttributes().toString());
+        }
+        return builder.toString();
     }
 
     private static boolean haveSameGroupAndName(Project project, Project subproject) {
@@ -499,5 +615,24 @@ public class VersionsLockPlugin implements Plugin<Project> {
                     });
                 }))
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Allows a resolution with a {@link GcvUsage#GCV_SOURCE} attribute (i.e. the resolution of
+     * {@link #UNIFIED_CLASSPATH_CONFIGURATION_NAME}) to depend on configurations with the {@link GcvUsage#GCV_INTERNAL}
+     * attribute.
+     * <p>
+     * This is required for {@link #SUBPROJECT_UNIFIED_CONFIGURATION_NAME} to be able to depend on the other
+     * configurations that we actually aggregate (consistentVersionsCompile, consistentVersionsRuntime etc).
+     */
+    static class ConsistentVersionsCompatibilityRules implements AttributeCompatibilityRule<GcvUsage> {
+        @Override
+        public void execute(CompatibilityCheckDetails<GcvUsage> details) {
+            GcvUsage consumer = details.getConsumerValue();
+            GcvUsage producer = details.getProducerValue();
+            if (GcvUsage.GCV_SOURCE.equals(consumer) && GcvUsage.GCV_INTERNAL.equals(producer)) {
+                details.compatible();
+            }
+        }
     }
 }
