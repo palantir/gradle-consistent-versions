@@ -110,16 +110,15 @@ public class VersionsLockPlugin implements Plugin<Project> {
          * Meant for aggregated configurations / copies of user-defined configurations, that GCV has made resolvable
          * for internal usage, but they are not meant to be discovered by user dependencies.
          */
-        GCV_INTERNAL,
-        /**
-         * Any other configuration that the user may resolve / depend on.
-         */
-        ORIGINAL,
+        GCV_INTERNAL
         ;
 
+        /**
+         * Must match the enum name exactly, so you can pass this into {@link GcvUsage#valueOf(String)}.
+         */
         @Override
         public String getName() {
-            return this.name().toLowerCase();
+            return this.name();
         }
     }
 
@@ -372,20 +371,6 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 project.getState().getExecuted(),
                 "recursivelyCopyProjectDependencies should be called in afterEvaluate");
 
-        // First, set a default GcvUsage of ORIGINAL on any remaining configurations to disambiguate them.
-        //
-        // This is not strictly necessary - we could just not set this attribute on them. However, because of how
-        // attribute matching works, gradle would accept unifiedClasspath transitively depending on such a
-        // configuration if its GcvUsage is unset, and while 'recursivelyCopyProjectDependencies' below tries to ensure
-        // that doesn't happen, we'd like to have another line of defense.
-        project.allprojects(subproject -> {
-            subproject.getConfigurations().all(conf -> {
-                if (!conf.getAttributes().contains(GCV_USAGE_ATTRIBUTE)) {
-                    conf.getAttributes().attribute(GCV_USAGE_ATTRIBUTE, GcvUsage.ORIGINAL);
-                }
-            });
-        });
-
         Map<Configuration, String> copiedConfigurationsCache = new HashMap<>();
         recursivelyCopyProjectDependencies(project, depSet, copiedConfigurationsCache);
     }
@@ -451,7 +436,6 @@ public class VersionsLockPlugin implements Plugin<Project> {
                                     + "com.palantir.consistent-versions without resolving the '%s' configuration "
                                     + "itself.",
                             targetConf.getName(), targetConf.getName()));
-                    copiedConf.getAttributes().attribute(GCV_USAGE_ATTRIBUTE, GcvUsage.GCV_INTERNAL);
 
                     // Update state about what we've seen
                     copiedConfigurationsCache.put(targetConf, copiedConf.getName());
