@@ -253,10 +253,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
             // Mark it so it doesn't receive constraints from VersionsPropsPlugin
             conf.getAttributes().attribute(VersionsPropsPlugin.CONFIGURATION_EXCLUDE_ATTRIBUTE, true);
 
-            // Mark it as a GCV_SOURCE, so that
-            // 1. it can be depended on when resolving `unifiedClasspath`, which requests that the usage is GCV_SOURCE
-            // 2. it becomes selected (as the best matching configuration) for the user's normal inter-project
-            //    dependencies
+            // Mark it as a GCV_SOURCE, so that it becomes selected (as the best matching configuration) for the
+            // user's normal inter-project dependencies
             conf.getAttributes().attribute(GCV_USAGE_ATTRIBUTE, GcvUsage.GCV_SOURCE);
         });
         // Depend on this "sink" configuration from our global aggregating configuration `unifiedClasspath`.
