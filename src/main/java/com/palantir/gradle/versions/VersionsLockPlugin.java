@@ -265,8 +265,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 .add(createConfigurationDependency(project, SUBPROJECT_UNIFIED_CONFIGURATION_NAME));
 
         project.getPluginManager().withPlugin("java", plugin -> {
-            String compileClasspathForLock = "consistentVersionsCompile";
-            project.getConfigurations().register(compileClasspathForLock, conf -> {
+            String consistentVersionsCompile = "consistentVersionsCompile";
+            project.getConfigurations().register(consistentVersionsCompile, conf -> {
                 conf.setDescription("Outgoing configuration for compile-time dependencies meant to be used by "
                         + "consistent-versions");
                 conf.setVisible(false); // needn't be visible from other projects
@@ -278,8 +278,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 conf.getAttributes().attribute(GCV_USAGE_ATTRIBUTE, GcvUsage.GCV_INTERNAL);
             });
 
-            String runtimeClasspathForLock = "consistentVersionsRuntime";
-            project.getConfigurations().register(runtimeClasspathForLock, conf -> {
+            String consistentVersionsRuntime = "consistentVersionsRuntime";
+            project.getConfigurations().register(consistentVersionsRuntime, conf -> {
                 conf.setDescription("Outgoing configuration for runtime dependencies meant to be used by "
                         + "consistent-versions");
                 conf.setVisible(false); // needn't be visible from other projects
@@ -292,8 +292,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
             });
 
             project.getConfigurations().named(SUBPROJECT_UNIFIED_CONFIGURATION_NAME).configure(conf -> Stream.of(
-                    createConfigurationDependency(project, compileClasspathForLock),
-                    createConfigurationDependency(project, runtimeClasspathForLock))
+                    createConfigurationDependency(project, consistentVersionsCompile),
+                    createConfigurationDependency(project, consistentVersionsRuntime))
                     .forEach(conf.getDependencies()::add));
         });
     }
