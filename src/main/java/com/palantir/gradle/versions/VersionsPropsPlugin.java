@@ -20,7 +20,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Objects;
 import org.gradle.api.GradleException;
 import org.gradle.api.NamedDomainObjectProvider;
 import org.gradle.api.Plugin;
@@ -30,7 +29,6 @@ import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.DependencyConstraint;
 import org.gradle.api.artifacts.ExternalDependency;
 import org.gradle.api.artifacts.dsl.DependencyConstraintHandler;
-import org.gradle.api.attributes.Attribute;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 import org.gradle.api.publish.PublishingExtension;
@@ -41,10 +39,6 @@ public class VersionsPropsPlugin implements Plugin<Project> {
     private static final Logger log = Logging.getLogger(VersionsPropsPlugin.class);
     private static final String ROOT_CONFIGURATION_NAME = "rootConfiguration";
     private static final GradleVersion MINIMUM_GRADLE_VERSION = GradleVersion.version("5.1");
-
-    /** Marks configurations for which we shouldn't inject constraints from {@code versions.props}. */
-    static final Attribute<Boolean> CONFIGURATION_EXCLUDE_ATTRIBUTE =
-            Attribute.of("com.palantir.consistent-versions.exclude-from-versions-props", Boolean.class);
 
     @Override
     public final void apply(Project project) {
@@ -122,7 +116,7 @@ public class VersionsPropsPlugin implements Plugin<Project> {
         // As an optimization, don't extend some configurations created by VersionsLockPlugin, because
         // it's unnecessary. Note that we still need to apply direct dependency injection on them though,
         // that is intentional.
-        if (Objects.equals(true, conf.getAttributes().getAttribute(CONFIGURATION_EXCLUDE_ATTRIBUTE))) {
+        if (VersionsLockPlugin.SUBPROJECT_UNIFIED_CONFIGURATION_NAME.equals(conf.getName())) {
             return;
         }
 

@@ -91,7 +91,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
     /**
      * Per-project configuration that extends the configurations whose dependencies we are interested in.
      */
-    private static final String SUBPROJECT_UNIFIED_CONFIGURATION_NAME = "subprojectUnifiedClasspath";
+    static final String SUBPROJECT_UNIFIED_CONFIGURATION_NAME = "subprojectUnifiedClasspath";
     /** Configuration to which we apply the constraints from the lock file. */
     private static final String LOCK_CONSTRAINTS_CONFIGURATION_NAME = "lockConstraints";
     private static final Attribute<Boolean> CONSISTENT_VERSIONS_CONSTRAINT_ATTRIBUTE =
@@ -249,9 +249,6 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
         project.getConfigurations().register(SUBPROJECT_UNIFIED_CONFIGURATION_NAME, conf -> {
             conf.setVisible(false).setCanBeResolved(false);
-
-            // Mark it so it doesn't receive constraints from VersionsPropsPlugin
-            conf.getAttributes().attribute(VersionsPropsPlugin.CONFIGURATION_EXCLUDE_ATTRIBUTE, true);
 
             // Mark it as a GCV_SOURCE, so that it becomes selected (as the best matching configuration) for the
             // user's normal inter-project dependencies
