@@ -451,6 +451,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
                                     + "com.palantir.consistent-versions without resolving the '%s' configuration "
                                     + "itself.",
                             targetConf.getName(), targetConf.getName()));
+                    copiedConf.getAttributes().attribute(GCV_USAGE_ATTRIBUTE, GcvUsage.GCV_INTERNAL);
 
                     // Update state about what we've seen
                     copiedConfigurationsCache.put(targetConf, copiedConf.getName());
