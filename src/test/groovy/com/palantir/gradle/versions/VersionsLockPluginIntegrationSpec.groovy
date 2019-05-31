@@ -527,10 +527,14 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
             }
         """.stripIndent())
 
-        // Make sure that we can still add dependencies to the original 'fun' configuration after resolving lock state
+        // Make sure that we can still add dependencies to the original 'fun' configuration after resolving lock state.
+        //
+        // Adding a constraint to 'fun' calls Configuration.preventIllegalMutation() which fails if observedState is
+        // GRAPH_RESOLVED or ARTIFACTS_RESOLVED. That would happen if a configuration that extends from it has been
+        // resolved.
         buildFile << """
             configurations.unifiedClasspath.incoming.afterResolve {
-                project(':bar').dependencies {
+                project(':bar').dependencies.constraints {
                     fun 'some:other-dep'
                 }
             }
