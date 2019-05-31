@@ -51,7 +51,6 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                 repositories {
                     maven { url "file:///${mavenRepo.getAbsolutePath()}" }
                 }
-                group = "test"
             }
         """
     }
@@ -421,10 +420,9 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         new File(subdir, 'build.gradle') << """
             apply plugin: 'java-library'
         """.stripIndent()
-        debug = true
 
         expect:
-        runTasks('--write-locks', '-S')
+        runTasks('--write-locks')
     }
 
     def "locks platform"() {
