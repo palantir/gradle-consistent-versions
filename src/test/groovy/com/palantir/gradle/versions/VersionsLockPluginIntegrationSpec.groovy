@@ -508,4 +508,35 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                 'org.slf4j:slf4j-api:1.7.25 (1 constraints: 400d4d2a)',
         ]
     }
+
+    def "can resolve configuration dependency"() {
+        addSubproject("foo", """
+            apply plugin: 'java'
+            dependencies {
+                compile project(path: ":bar", configuration: "fun") 
+            }
+        """.stripIndent())
+
+        addSubproject("bar", """
+            configurations {
+                fun
+            }
+            
+            dependencies {
+                fun 'ch.qos.logback:logback-classic:1.2.3'
+            }
+        """.stripIndent())
+
+        // Make sure that we can still add dependencies to the original 'fun' configuration after resolving lock state
+        buildFile << """
+            configurations.unifiedClasspath.incoming.afterResolve {
+                project(':bar').dependencies {
+                    fun 'some:other-dep'
+                }
+            }
+        """.stripIndent()
+
+        expect:
+        runTasks('--write-locks')
+    }
 }
