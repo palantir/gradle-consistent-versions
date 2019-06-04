@@ -148,6 +148,16 @@ public class VersionsLockPlugin implements Plugin<Project> {
         }
     }
 
+    private static final Comparator<GcvScope> GCV_SCOPE_COMPARATOR = Comparator.comparing(scope -> {
+        // Production takes priority over test when it comes to provenance.
+        if (scope == GcvScope.PRODUCTION) {
+            return 0;
+        } else if (scope == GcvScope.TEST) {
+            return 1;
+        }
+        throw new RuntimeException("Unexpected GcvScope: " + scope);
+    });
+
     private static final Attribute<GcvUsage> GCV_USAGE_ATTRIBUTE =
             Attribute.of("com.palantir.consistent-versions.usage", GcvUsage.class);
     private static final Attribute<GcvScope> GCV_SCOPE_ATTRIBUTE =
@@ -426,15 +436,17 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
         // First, find dependencies by target configuration scope.
         // The target configurations of all dependencies of unifiedClasspath are expected to have a GcvScope.
-        Map<GcvScope, List<Configuration>> configurationsByScope = depSet.stream().map(dependency -> {
-            ProjectDependency projectDependency = (ProjectDependency) dependency;
-            Configuration targetConf = getTargetConfiguration(depSet, projectDependency);
-            Preconditions.checkState(targetConf.getAttributes().contains(GCV_SCOPE_ATTRIBUTE),
-                    "Expected all dependencies of unifiedClasspath to point to a configuration with a "
-                            + "GcvScope, but found: %s",
-                    targetConf);
-            return targetConf;
-        }).collect(Collectors.groupingBy(conf -> conf.getAttributes().getAttribute(GCV_SCOPE_ATTRIBUTE)));
+        Map<GcvScope, List<Configuration>> configurationsByScope =
+                depSet.stream().filter(dep -> dep instanceof ProjectDependency).map(dependency -> {
+                    ProjectDependency projectDependency = (ProjectDependency) dependency;
+                    Configuration targetConf = getTargetConfiguration(depSet, projectDependency);
+                    Preconditions.checkState(
+                            targetConf.getAttributes().contains(GCV_SCOPE_ATTRIBUTE),
+                            "Expected all dependencies of unifiedClasspath to point to a configuration with a "
+                                    + "GcvScope, but found: %s",
+                            targetConf);
+                    return targetConf;
+                }).collect(Collectors.groupingBy(conf -> conf.getAttributes().getAttribute(GCV_SCOPE_ATTRIBUTE)));
 
         Map<Configuration, String> copiedConfigurationsCache = new HashMap<>();
         // Ensure we process all of the production ones first, THEN test.
@@ -585,11 +597,40 @@ public class VersionsLockPlugin implements Plugin<Project> {
      */
     private static FullLockState computeLockState(ResolutionResult resolutionResult) {
         FullLockState.Builder builder = FullLockState.builder();
+        Map<ResolvedComponentResult, GcvScope> scopeMap = new HashMap<>();
         resolutionResult.allComponents(component -> {
-            extractDependents(component).ifPresent(dependents ->
-                    builder.putLines(MyModuleVersionIdentifier.copyOf(component.getModuleVersion()), dependents));
+            // Scope
+            extractDependents(component).ifPresent(dependents -> {
+                GcvScope scope = getScope(component, scopeMap).orElseThrow(() -> new RuntimeException(
+                        "Couldn't determine scope for dependency: " + component));
+                log.lifecycle("Component {} had scope: {}", component.getModuleVersion(), scope);
+                builder.putLines(MyModuleVersionIdentifier.copyOf(component.getModuleVersion()), dependents);
+            });
         });
         return builder.build();
+    }
+
+    private static Optional<GcvScope> getScope(
+            ResolvedComponentResult component,
+            Map<ResolvedComponentResult, GcvScope> scopeMap) {
+        if (scopeMap.containsKey(component)) {
+            return Optional.of(scopeMap.get(component));
+        }
+        Optional<GcvScope> scopeOpt = component
+                .getDependents()
+                .stream()
+                .flatMap(dependent -> {
+                    ComponentIdentifier id = dependent.getFrom().getId();
+                    if (id instanceof ProjectComponentIdentifier) {
+                        String maybeScope =
+                                dependent.getRequested().getAttributes().getAttribute(GCV_SCOPE_RESOLUTION_ATTRIBUTE);
+                        return Streams.stream(Optional.ofNullable(maybeScope).map(GcvScope::valueOf));
+                    }
+                    return Streams.stream(getScope(dependent.getFrom(), scopeMap));
+                })
+                .min(GCV_SCOPE_COMPARATOR);
+        scopeOpt.ifPresent(scope -> scopeMap.put(component, scope));
+        return scopeOpt;
     }
 
     private static Optional<Dependents> extractDependents(ResolvedComponentResult component) {
