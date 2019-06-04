@@ -18,6 +18,7 @@ package com.palantir.gradle.versions;
 
 import com.google.common.collect.Maps;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -25,9 +26,15 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
+import javax.inject.Inject;
 import org.gradle.api.ProjectState;
+import org.gradle.api.artifacts.ExternalDependency;
+import org.gradle.api.artifacts.ModuleDependency;
+import org.gradle.api.artifacts.ProjectDependency;
+import org.gradle.api.attributes.AttributeContainer;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
+import org.gradle.api.model.ObjectFactory;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -49,6 +56,35 @@ final class GradleWorkarounds {
             // It will give us a false negative if we're in 'afterEvaluate'
             return !state.getExecuted();
         }
+    }
+
+    /**
+     * Work around gradle < 5.3.rc-1 not adding an AttributeFactory to {@link ProjectDependency} with configuration,
+     * or {@link ExternalDependency#copy()} not configuring an attribute factory and ALSO not immutably copying the
+     * {@link AttributeContainer}.
+     */
+    static <T extends ModuleDependency> T fixAttributesOfModuleDependency(
+            ObjectFactory objectFactory, T dependency) {
+        org.gradle.api.internal.artifacts.dependencies.AbstractModuleDependency abstractModuleDependency =
+                (org.gradle.api.internal.artifacts.dependencies.AbstractModuleDependency) dependency;
+        org.gradle.api.internal.attributes.ImmutableAttributesFactory factory =
+                objectFactory.newInstance(Extractors.class).attributesFactory;
+        abstractModuleDependency.setAttributesFactory(factory);
+        // We might have a copied AttributeContainer, so get it immutably, then create a new mutable one.
+        org.gradle.api.internal.attributes.AttributeContainerInternal currentAttributes =
+                (org.gradle.api.internal.attributes.AttributeContainerInternal) dependency.getAttributes();
+
+        try {
+            Method method = factory
+                    .getClass()
+                    .getMethod("setAttributes", org.gradle.api.internal.attributes.AttributeContainerInternal.class);
+            method.invoke(dependency, factory.mutable(currentAttributes));
+        } catch (NoSuchMethodException e) {
+            throw new RuntimeException("Failed to get AttributeContainerInternal#setAttributes", e);
+        } catch (IllegalAccessException | InvocationTargetException e) {
+            throw new RuntimeException("Failed to invoke AttributeContainerInternal#setAttributes", e);
+        }
+        return dependency;
     }
 
     static void mergeImportsWithVersions(Element root) {
@@ -123,6 +159,15 @@ final class GradleWorkarounds {
         return nodesToStream(node.getChildNodes())
                 .flatMap(n -> (n instanceof Element) ? Stream.of(n) : Stream.of())
                 .collect(Collectors.toMap(Node::getNodeName, Node::getTextContent));
+    }
+
+    private static class Extractors {
+        private final org.gradle.api.internal.attributes.ImmutableAttributesFactory attributesFactory;
+
+        @Inject
+        Extractors(org.gradle.api.internal.attributes.ImmutableAttributesFactory attributesFactory) {
+            this.attributesFactory = attributesFactory;
+        }
     }
 
     private GradleWorkarounds() {}
