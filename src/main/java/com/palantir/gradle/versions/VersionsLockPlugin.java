@@ -55,6 +55,7 @@ import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.Dependency;
 import org.gradle.api.artifacts.DependencyConstraint;
 import org.gradle.api.artifacts.DependencySet;
+import org.gradle.api.artifacts.ModuleDependency;
 import org.gradle.api.artifacts.ProjectDependency;
 import org.gradle.api.artifacts.ResolvableDependencies;
 import org.gradle.api.artifacts.VersionConstraint;
@@ -309,8 +310,11 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 });
 
         project.getConfigurations().named(SUBPROJECT_UNIFIED_CONFIGURATION_NAME).configure(conf -> {
-            conf.getDependencies().add(createConfigurationDependency(project, consistentVersionsProduction.getName()));
-            conf.getDependencies().add(createConfigurationDependency(project, consistentVersionsTest.getName()));
+            conf.getDependencies().add(
+                    createConfigurationDependencyWithScope(
+                            project, consistentVersionsProduction.getName(), GcvScope.PRODUCTION));
+            conf.getDependencies().add(
+                    createConfigurationDependencyWithScope(project, consistentVersionsTest.getName(), GcvScope.TEST));
         });
 
         // Actually wire up the dependencies
@@ -338,11 +342,22 @@ public class VersionsLockPlugin implements Plugin<Project> {
     /**
      * Create a dependency to {@code toConfiguration}, where the latter should exist in the given {@code project}.
      */
-    private static Dependency createConfigurationDependency(
+    private static ProjectDependency createConfigurationDependency(
             Project project, String toConfiguration) {
-        return project
+        return (ProjectDependency) project
                 .getDependencies()
                 .project(ImmutableMap.of("path", project.getPath(), "configuration", toConfiguration));
+    }
+
+    /**
+     * Create a dependency to {@code toConfiguration}, where the latter should exist in the given {@code project}.
+     */
+    private static Dependency createConfigurationDependencyWithScope(
+            Project project, String toConfiguration, GcvScope scope) {
+        ModuleDependency dep = GradleWorkarounds.fixAttributesOfModuleDependency(
+                project.getObjects(), createConfigurationDependency(project, toConfiguration));
+        dep.attributes(attr -> attr.attribute(GCV_SCOPE_ATTRIBUTE, scope));
+        return dep;
     }
 
     private static void checkPreconditions(Project project) {
