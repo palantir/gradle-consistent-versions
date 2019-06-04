@@ -483,11 +483,6 @@ public class VersionsLockPlugin implements Plugin<Project> {
                         return;
                     }
 
-                    // We can depend on other configurations from the same project, so don't introduce a cycle.
-                    if (projectDep != currentProject) {
-                        currentProject.evaluationDependsOn(projectDep.getPath());
-                    }
-
                     Configuration targetConf = getTargetConfiguration(dependencySet, projectDependency);
 
                     log.info(
