@@ -496,6 +496,9 @@ public class VersionsLockPlugin implements Plugin<Project> {
                                 ImmutableList.copyOf(copiedConf.getAllDependencyConstraints()));
                     }
 
+                    // Must set this because we depend on this configuration when resolving unifiedClasspath.
+                    copiedConf.setCanBeConsumed(true);
+
                     projectDep.getConfigurations().add(copiedConf);
 
                     projectDependency.setTargetConfiguration(copiedConf.getName());
