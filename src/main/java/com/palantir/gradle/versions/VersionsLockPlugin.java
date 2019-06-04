@@ -43,6 +43,7 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.inject.Inject;
 import netflix.nebula.dependency.recommender.RecommendationStrategies;
 import netflix.nebula.dependency.recommender.provider.RecommendationProviderContainer;
@@ -55,13 +56,16 @@ import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.Dependency;
 import org.gradle.api.artifacts.DependencyConstraint;
 import org.gradle.api.artifacts.DependencySet;
+import org.gradle.api.artifacts.ExternalModuleDependency;
 import org.gradle.api.artifacts.ModuleDependency;
 import org.gradle.api.artifacts.ProjectDependency;
 import org.gradle.api.artifacts.ResolvableDependencies;
 import org.gradle.api.artifacts.VersionConstraint;
+import org.gradle.api.artifacts.component.ComponentIdentifier;
 import org.gradle.api.artifacts.component.ComponentSelector;
 import org.gradle.api.artifacts.component.ModuleComponentIdentifier;
 import org.gradle.api.artifacts.component.ModuleComponentSelector;
+import org.gradle.api.artifacts.component.ProjectComponentIdentifier;
 import org.gradle.api.artifacts.dsl.DependencyConstraintHandler;
 import org.gradle.api.artifacts.result.ResolutionResult;
 import org.gradle.api.artifacts.result.ResolvedComponentResult;
@@ -148,6 +152,9 @@ public class VersionsLockPlugin implements Plugin<Project> {
             Attribute.of("com.palantir.consistent-versions.usage", GcvUsage.class);
     private static final Attribute<GcvScope> GCV_SCOPE_ATTRIBUTE =
             Attribute.of("com.palantir.consistent-versions.scope", GcvScope.class);
+    private static final Attribute<String> GCV_SCOPE_RESOLUTION_ATTRIBUTE =
+            Attribute.of("com.palantir.consistent-versions.scope", String.class);
+
 
     private final ShowStacktrace showStacktrace;
 
@@ -417,8 +424,25 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 project.getState().getExecuted(),
                 "recursivelyCopyProjectDependencies should be called in afterEvaluate");
 
+        // First, find dependencies by target configuration scope.
+        // The target configurations of all dependencies of unifiedClasspath are expected to have a GcvScope.
+        Map<GcvScope, List<Configuration>> configurationsByScope = depSet.stream().map(dependency -> {
+            ProjectDependency projectDependency = (ProjectDependency) dependency;
+            Configuration targetConf = getTargetConfiguration(depSet, projectDependency);
+            Preconditions.checkState(targetConf.getAttributes().contains(GCV_SCOPE_ATTRIBUTE),
+                    "Expected all dependencies of unifiedClasspath to point to a configuration with a "
+                            + "GcvScope, but found: %s",
+                    targetConf);
+            return targetConf;
+        }).collect(Collectors.groupingBy(conf -> conf.getAttributes().getAttribute(GCV_SCOPE_ATTRIBUTE)));
+
         Map<Configuration, String> copiedConfigurationsCache = new HashMap<>();
-        recursivelyCopyProjectDependencies(project, depSet, copiedConfigurationsCache);
+        // Ensure we process all of the production ones first, THEN test.
+        Stream.of(GcvScope.PRODUCTION, GcvScope.TEST).forEachOrdered(scope -> {
+            configurationsByScope.get(scope).forEach(conf -> {
+                recursivelyCopyProjectDependencies(project, conf.getDependencies(), copiedConfigurationsCache, scope);
+            });
+        });
     }
 
     /**
@@ -429,7 +453,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
     private void recursivelyCopyProjectDependencies(
             Project currentProject,
             DependencySet dependencySet,
-            Map<Configuration, String> copiedConfigurationsCache) {
+            Map<Configuration, String> copiedConfigurationsCache,
+            GcvScope scope) {
         dependencySet
                 .matching(dependency -> ProjectDependency.class.isAssignableFrom(dependency.getClass()))
                 .all(dependency -> {
@@ -447,22 +472,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
                         currentProject.evaluationDependsOn(projectDep.getPath());
                     }
 
-                    Configuration targetConf = projectDep.getConfigurations().getByName(targetConfiguration);
-                    Preconditions.checkNotNull(targetConf,
-                            "Target configuration of project dependency was null: %s -> %s",
-                            dependencySet,
-                            projectDep);
-
-                    // First, check if it's an intermediate source, and if so, avoid copying it.
-                    if (targetConf.getAttributes().getAttribute(GCV_USAGE_ATTRIBUTE) == GcvUsage.GCV_INTERNAL) {
-                        log.debug("Not copying configuration with GCV_INTERNAL usage: {} -> {}",
-                                dependencySet,
-                                formatProjectDependency(projectDependency));
-
-                        recursivelyCopyProjectDependencies(
-                                projectDep, targetConf.getDependencies(), copiedConfigurationsCache);
-                        return;
-                    }
+                    Configuration targetConf = getTargetConfiguration(dependencySet, projectDependency);
 
                     log.info(
                             "Found legacy project dependency (with target configuration): {} -> {}",
@@ -498,14 +508,37 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
                     // Must set this because we depend on this configuration when resolving unifiedClasspath.
                     copiedConf.setCanBeConsumed(true);
+                    // This is so we can get back the scope from the ResolutionResult.
+                    copiedConf
+                            .getDependencies()
+                            .matching(dep -> dep instanceof ExternalModuleDependency)
+                            .all(dep -> {
+                                ExternalModuleDependency externalDep = (ExternalModuleDependency) dep;
+                                GradleWorkarounds.fixAttributesOfModuleDependency(projectDep.getObjects(), externalDep);
+                                externalDep.attributes(attr -> attr.attribute(GCV_SCOPE_ATTRIBUTE, scope));
+                            });
 
                     projectDep.getConfigurations().add(copiedConf);
 
                     projectDependency.setTargetConfiguration(copiedConf.getName());
 
                     recursivelyCopyProjectDependencies(
-                            projectDep, copiedConf.getDependencies(), copiedConfigurationsCache);
+                            projectDep, copiedConf.getDependencies(), copiedConfigurationsCache, scope);
                 });
+    }
+
+    private static Configuration getTargetConfiguration(DependencySet depSet, ProjectDependency projectDependency) {
+        String targetConfiguration = Preconditions.checkNotNull(
+                projectDependency.getTargetConfiguration(),
+                "Expected dependency to have a targetConfiguration: %s",
+                formatProjectDependency(projectDependency));
+        Configuration targetConf =
+                projectDependency.getDependencyProject().getConfigurations().getByName(targetConfiguration);
+        Preconditions.checkNotNull(targetConf,
+                "Target configuration of project dependency was null: %s -> %s",
+                depSet,
+                projectDependency.getDependencyProject());
+        return targetConf;
     }
 
     private static String formatProjectDependency(ProjectDependency dep) {
