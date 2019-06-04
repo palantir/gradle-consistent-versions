@@ -32,7 +32,6 @@ import org.gradle.api.artifacts.ExternalDependency;
 import org.gradle.api.artifacts.ModuleDependency;
 import org.gradle.api.artifacts.ProjectDependency;
 import org.gradle.api.attributes.AttributeContainer;
-import org.gradle.api.internal.artifacts.dependencies.AbstractModuleDependency;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 import org.gradle.api.model.ObjectFactory;
