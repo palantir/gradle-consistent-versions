@@ -114,7 +114,21 @@ public class VersionsLockPlugin implements Plugin<Project> {
         ;
 
         /**
-         * Must match the enum name exactly, so you can pass this into {@link GcvUsage#valueOf(String)}.
+         * Must match the enum name exactly, so you can pass this into {@link #valueOf(String)}.
+         */
+        @Override
+        public String getName() {
+            return this.name();
+        }
+    }
+
+    public enum GcvScope implements Named {
+        PRODUCTION,
+        TEST
+        ;
+
+        /**
+         * Must match the enum name exactly, so you can pass this into {@link #valueOf(String)}.
          */
         @Override
         public String getName() {
@@ -124,6 +138,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
     private static final Attribute<GcvUsage> GCV_USAGE_ATTRIBUTE =
             Attribute.of("com.palantir.consistent-versions.usage", GcvUsage.class);
+    private static final Attribute<GcvScope> GCV_SCOPE_ATTRIBUTE =
+            Attribute.of("com.palantir.consistent-versions.scope", GcvScope.class);
 
     private final ShowStacktrace showStacktrace;
 
@@ -143,8 +159,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
         project.getPluginManager().apply(LifecycleBasePlugin.class);
 
         project.allprojects(p -> {
-            // Create the attribute
             p.getDependencies().getAttributesSchema().attribute(GCV_USAGE_ATTRIBUTE);
+            p.getDependencies().getAttributesSchema().attribute(GCV_SCOPE_ATTRIBUTE);
         });
 
         Configuration unifiedClasspath = project
