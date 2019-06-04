@@ -334,8 +334,9 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
         // Actually wire up the dependencies
         project.afterEvaluate(p -> {
-            addConfigurationDependencies(project, consistentVersionsProduction, ext.getProductionConfigurations());
-            addConfigurationDependencies(project, consistentVersionsTest, ext.getTestConfigurations());
+            addConfigurationDependencies(
+                    project, consistentVersionsProduction.get(), ext.getProductionConfigurations());
+            addConfigurationDependencies(project, consistentVersionsTest.get(), ext.getTestConfigurations());
         });
 
         project.getPluginManager().withPlugin("java", plugin -> {
@@ -347,11 +348,13 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
     }
 
+    /**
+     * {@code fromConf} must be eager, as adding a dependency here will trigger other code to run in
+     * {@link #recursivelyCopyProjectDependencies}.
+     */
     private static void addConfigurationDependencies(
-            Project project, NamedDomainObjectProvider<Configuration> fromConf, SetProperty<String> toConfs) {
-        toConfs.get().forEach(toConf -> {
-            fromConf.configure(conf -> conf.getDependencies().add(createConfigurationDependency(project, toConf)));
-        });
+            Project project, Configuration fromConf, SetProperty<String> toConfs) {
+        toConfs.get().forEach(toConf -> fromConf.getDependencies().add(createConfigurationDependency(project, toConf)));
     }
 
     /**
