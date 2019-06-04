@@ -32,6 +32,7 @@ import org.gradle.api.artifacts.ExternalDependency;
 import org.gradle.api.artifacts.ModuleDependency;
 import org.gradle.api.artifacts.ProjectDependency;
 import org.gradle.api.attributes.AttributeContainer;
+import org.gradle.api.internal.artifacts.dependencies.AbstractModuleDependency;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 import org.gradle.api.model.ObjectFactory;
@@ -75,9 +76,11 @@ final class GradleWorkarounds {
                 (org.gradle.api.internal.attributes.AttributeContainerInternal) dependency.getAttributes();
 
         try {
-            Method method = factory
-                    .getClass()
-                    .getMethod("setAttributes", org.gradle.api.internal.attributes.AttributeContainerInternal.class);
+            Method method = org.gradle.api.internal.artifacts.dependencies.AbstractModuleDependency.class
+                    .getDeclaredMethod(
+                            "setAttributes",
+                            org.gradle.api.internal.attributes.AttributeContainerInternal.class);
+            method.setAccessible(true);
             method.invoke(dependency, factory.mutable(currentAttributes));
         } catch (NoSuchMethodException e) {
             throw new RuntimeException("Failed to get AttributeContainerInternal#setAttributes", e);
@@ -161,11 +164,12 @@ final class GradleWorkarounds {
                 .collect(Collectors.toMap(Node::getNodeName, Node::getTextContent));
     }
 
-    private static class Extractors {
+    static class Extractors {
         private final org.gradle.api.internal.attributes.ImmutableAttributesFactory attributesFactory;
 
         @Inject
-        Extractors(org.gradle.api.internal.attributes.ImmutableAttributesFactory attributesFactory) {
+        // CHECKSTYLE:OFF
+        public Extractors(org.gradle.api.internal.attributes.ImmutableAttributesFactory attributesFactory) {
             this.attributesFactory = attributesFactory;
         }
     }
