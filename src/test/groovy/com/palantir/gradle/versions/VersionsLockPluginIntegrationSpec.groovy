@@ -543,29 +543,4 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         expect:
         runTasks('--write-locks')
     }
-
-    def "works with conjure"() {
-        debug = true
-        buildFile.text = """
-            buildscript {
-                dependencies {
-                    classpath 'com.palantir.gradle.conjure:gradle-conjure:4.6.2'
-                }
-            }
-        """.stripIndent() + "\n" + buildFile.text
-        addSubproject('foo', """   
-            apply plugin: 'com.palantir.conjure'
-        """.stripIndent())
-        addSubproject(':foo:foo-objects')
-
-        expect:
-        runTasks('--write-locks')
-    }
-
-    File addSubproject(String name) {
-        File subprojectDir = new File(projectDir, name.replaceAll(":", "/"))
-        subprojectDir.mkdirs()
-        settingsFile << "include \"${name}\"${LINE_END}"
-        subprojectDir
-    }
 }
