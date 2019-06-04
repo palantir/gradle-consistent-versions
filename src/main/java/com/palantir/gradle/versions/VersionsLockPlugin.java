@@ -454,8 +454,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
                             projectDep);
 
                     // First, check if it's an intermediate source, and if so, avoid copying it.
-                    if (targetConf.getAttributes().getAttribute(GCV_USAGE_ATTRIBUTE) == GcvUsage.GCV_SOURCE) {
-                        log.debug("Not copying configuration with GCV_SOURCE usage: {} -> {}",
+                    if (targetConf.getAttributes().getAttribute(GCV_USAGE_ATTRIBUTE) == GcvUsage.GCV_INTERNAL) {
+                        log.debug("Not copying configuration with GCV_INTERNAL usage: {} -> {}",
                                 dependencySet,
                                 formatProjectDependency(projectDependency));
 
