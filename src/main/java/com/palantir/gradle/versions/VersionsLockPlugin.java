@@ -90,14 +90,13 @@ public class VersionsLockPlugin implements Plugin<Project> {
     private static final GradleVersion MINIMUM_GRADLE_VERSION = GradleVersion.version("5.1");
 
     /**
-     * Root project configuration that collects all the dependencies from the
-     * {@link #SUBPROJECT_UNIFIED_CONFIGURATION_NAME} of each project.
+     * Root project configuration that collects all the dependencies from each project.
      */
     static final String UNIFIED_CLASSPATH_CONFIGURATION_NAME = "unifiedClasspath";
     /**
-     * Per-project configuration that extends the configurations whose dependencies we are interested in.
+     * Per-project configuration that gets resolved when resolving the user's inter-project dependencies.
      */
-    static final String SUBPROJECT_UNIFIED_CONFIGURATION_NAME = "subprojectUnifiedClasspath";
+    private static final String DUMMY_CONFIGURATION_NAME = "consistentVersionsDummy";
     /** Configuration to which we apply the constraints from the lock file. */
     private static final String LOCK_CONSTRAINTS_CONFIGURATION_NAME = "lockConstraints";
     private static final Attribute<Boolean> CONSISTENT_VERSIONS_CONSTRAINT_ATTRIBUTE =
@@ -109,15 +108,15 @@ public class VersionsLockPlugin implements Plugin<Project> {
     public enum GcvUsage implements Named {
         /**
          * GCV is using configurations with this usage to source all dependencies from a given project.
-         * Only {@link #SUBPROJECT_UNIFIED_CONFIGURATION_NAME} should have this usage.
+         * Only {@link #DUMMY_CONFIGURATION_NAME} should have this usage.
          * <p>
          * This exists so that the build's normal inter-project dependencies will naturally resolve to that
          * configuration, without having to re-write
          */
         GCV_SOURCE,
         /**
-         * Meant for aggregated configurations / copies of user-defined configurations, that GCV has made resolvable
-         * for internal usage, but they are not meant to be discovered by user dependencies.
+         * Meant for {@link #CONSISTENT_VERSIONS_PRODUCTION} and {@link #CONSISTENT_VERSIONS_TEST}, that GCV has made
+         * resolvable for internal usage, but they are not meant to be discovered by user dependencies.
          */
         GCV_INTERNAL
         ;
@@ -274,18 +273,15 @@ public class VersionsLockPlugin implements Plugin<Project> {
             });
         }
 
-        project.getConfigurations().register(SUBPROJECT_UNIFIED_CONFIGURATION_NAME, conf -> {
+        // This is not how we collect dependencies, but is only meant to capture and neutralize the user's
+        // inter-project dependencies.
+        project.getConfigurations().register(DUMMY_CONFIGURATION_NAME, conf -> {
             conf.setVisible(false).setCanBeResolved(false);
 
             // Mark it as a GCV_SOURCE, so that it becomes selected (as the best matching configuration) for the
             // user's normal inter-project dependencies
             conf.getAttributes().attribute(GCV_USAGE_ATTRIBUTE, GcvUsage.GCV_SOURCE);
         });
-
-        // Depend on this "sink" configuration from our global aggregating configuration `unifiedClasspath`.
-        unifiedClasspath
-                .getDependencies()
-                .add(createConfigurationDependency(project, SUBPROJECT_UNIFIED_CONFIGURATION_NAME));
 
         NamedDomainObjectProvider<Configuration> consistentVersionsProduction =
                 project.getConfigurations().register(CONSISTENT_VERSIONS_PRODUCTION, conf -> {
@@ -309,13 +305,11 @@ public class VersionsLockPlugin implements Plugin<Project> {
                     conf.getAttributes().attribute(GCV_SCOPE_ATTRIBUTE, GcvScope.TEST);
                 });
 
-        project.getConfigurations().named(SUBPROJECT_UNIFIED_CONFIGURATION_NAME).configure(conf -> {
-            conf.getDependencies().add(
-                    createConfigurationDependencyWithScope(
-                            project, consistentVersionsProduction.getName(), GcvScope.PRODUCTION));
-            conf.getDependencies().add(
-                    createConfigurationDependencyWithScope(project, consistentVersionsTest.getName(), GcvScope.TEST));
-        });
+        unifiedClasspath.getDependencies().add(
+                createConfigurationDependencyWithScope(
+                        project, consistentVersionsProduction.getName(), GcvScope.PRODUCTION));
+        unifiedClasspath.getDependencies().add(
+                createConfigurationDependencyWithScope(project, consistentVersionsTest.getName(), GcvScope.TEST));
 
         // Actually wire up the dependencies
         project.afterEvaluate(p -> {
@@ -697,8 +691,9 @@ public class VersionsLockPlugin implements Plugin<Project> {
      * {@link #UNIFIED_CLASSPATH_CONFIGURATION_NAME}) to depend on configurations with the {@link GcvUsage#GCV_INTERNAL}
      * attribute.
      * <p>
-     * This is required for {@link #SUBPROJECT_UNIFIED_CONFIGURATION_NAME} to be able to depend on the other
-     * configurations that we actually aggregate (consistentVersionsCompile, consistentVersionsRuntime etc).
+     * This is required for {@link #UNIFIED_CLASSPATH_CONFIGURATION_NAME} to be able to depend on the other
+     * configurations that we actually aggregate ({@link #CONSISTENT_VERSIONS_PRODUCTION},
+     * {@link #CONSISTENT_VERSIONS_TEST}).
      */
     static class ConsistentVersionsCompatibilityRules implements AttributeCompatibilityRule<GcvUsage> {
         @Override

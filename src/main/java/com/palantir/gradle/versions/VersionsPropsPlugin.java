@@ -113,13 +113,6 @@ public class VersionsPropsPlugin implements Plugin<Project> {
             return;
         }
 
-        // As an optimization, don't extend some configurations created by VersionsLockPlugin, because
-        // it's unnecessary. Note that we still need to apply direct dependency injection on them though,
-        // that is intentional.
-        if (VersionsLockPlugin.SUBPROJECT_UNIFIED_CONFIGURATION_NAME.equals(conf.getName())) {
-            return;
-        }
-
         conf.extendsFrom(rootConfiguration.get());
 
         // We must allow unifiedClasspath to be resolved at configuration-time.
