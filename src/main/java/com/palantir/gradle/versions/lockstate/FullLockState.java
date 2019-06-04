@@ -31,7 +31,13 @@ public interface FullLockState {
      * {@link ComponentIdentifier} of {@link ResolvedDependencyResult#getFrom component that requested it} -&gt;
      * {@link ModuleComponentSelector#getVersionConstraint version constraint for that dependency}.
      */
-    Map<MyModuleVersionIdentifier, Dependents> lines();
+    Map<MyModuleVersionIdentifier, Dependents> productionDeps();
+
+    /**
+     * Same as {@link #productionDeps()} but for test-only dependencies.
+     * @see #productionDeps()
+     */
+    Map<MyModuleVersionIdentifier, Dependents> testDeps();
 
     class Builder extends ImmutableFullLockState.Builder {}
 

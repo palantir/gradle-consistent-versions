@@ -35,18 +35,32 @@ import org.immutables.value.Value.Parameter;
 public interface LockState extends Serializable {
 
     @Parameter
-    List<Line> lines();
+    List<Line> productionLines();
+
+    @Parameter
+    List<Line> testLines();
 
     /** Mapping from {@code group:artifact} to the full line. */
     @Value.Lazy
-    default SortedMap<MyModuleIdentifier, Line> linesByModuleIdentifier() {
-        return lines().stream().collect(ImmutableSortedMap.toImmutableSortedMap(
+    default SortedMap<MyModuleIdentifier, Line> productionLinesByModuleIdentifier() {
+        return productionLines().stream().collect(ImmutableSortedMap.toImmutableSortedMap(
                 GradleComparators.MODULE_IDENTIFIER_COMPARATOR,
                 Line::identifier,
                 Function.identity()));
     }
 
-    static LockState from(Stream<Line> lines) {
-        return ImmutableLockState.of(lines.collect(Collectors.toList()));
+    /** Mapping from {@code group:artifact} to the full line. */
+    @Value.Lazy
+    default SortedMap<MyModuleIdentifier, Line> testLinesByModuleIdentifier() {
+        return testLines().stream().collect(ImmutableSortedMap.toImmutableSortedMap(
+                GradleComparators.MODULE_IDENTIFIER_COMPARATOR,
+                Line::identifier,
+                Function.identity()));
+    }
+
+    static LockState from(Stream<Line> productionLines, Stream<Line> testLines) {
+        return ImmutableLockState.of(
+                productionLines.collect(Collectors.toList()),
+                testLines.collect(Collectors.toList()));
     }
 }

@@ -27,16 +27,20 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.gradle.api.GradleException;
+import org.jetbrains.annotations.NotNull;
 
 final class ConflictSafeLockFile {
     private static final String HEADER_COMMENT = "# Run ./gradlew --write-locks to regenerate this file";
     private static final Pattern LINE_PATTERN = Pattern.compile(
             "(?<group>[^(:]+):(?<artifact>[^(:]+):(?<version>[^(:\\s]+)"
                     + "\\s+\\((?<num>\\d+) constraints: (?<hash>\\w+)\\)");
+    private static final String TEST_DEPENDENCIES_MARKER = "[Test dependencies]";
 
     private final Path lockfile;
 
@@ -48,28 +52,45 @@ final class ConflictSafeLockFile {
      * Reads and returns the {@link LockState}.
      */
     public LockState readLocks() {
-        try (Stream<String> lines = Files.lines(lockfile)) {
-            return LockState.from(lines
-                    .filter(line -> !line.trim().startsWith("#"))
-                    .map(line -> {
-                        Matcher matcher = LINE_PATTERN.matcher(line);
-                        Preconditions.checkState(
-                                matcher.matches(),
-                                "Found unparseable line in dependency lock file '%s': %s",
-                                lockfile,
-                                line);
-                        return matcher;
-                    })
-                    .map(matcher -> ImmutableLine.of(
-                            matcher.group("group"),
-                            matcher.group("artifact"),
-                            matcher.group("version"),
-                            Integer.parseInt(matcher.group("num")),
-                            matcher.group("hash"))));
+        try (Stream<String> linesStream = Files.lines(lockfile)) {
+            List<String> lines = linesStream.filter(line -> !line.trim().startsWith("#")).collect(Collectors.toList());
+            int testDependenciesPosition = lines.indexOf(TEST_DEPENDENCIES_MARKER);
+            Stream<String> productionDeps;
+            Stream<String> testDeps;
+            if (testDependenciesPosition >= 0) {
+                productionDeps = lines.subList(0, testDependenciesPosition - 1) // skip blank line before marker
+                        .stream();
+                testDeps = lines.subList(testDependenciesPosition + 1, lines.size()).stream();
+            } else {
+                productionDeps = lines.stream().filter(line -> !line.trim().startsWith("#"));
+                testDeps = Stream.of();
+            }
+
+            return LockState.from(parseLines(productionDeps), parseLines(testDeps));
         } catch (IOException e) {
             throw new GradleException(
                     String.format("Couldn't load versions from palantir dependency lock file: %s", lockfile), e);
         }
+    }
+
+    @NotNull
+    public Stream<Line> parseLines(Stream<String> stringStream) {
+        return stringStream
+                .map(line -> {
+                    Matcher matcher = LINE_PATTERN.matcher(line);
+                    Preconditions.checkState(
+                            matcher.matches(),
+                            "Found unparseable line in dependency lock file '%s': %s",
+                            lockfile,
+                            line);
+                    return matcher;
+                })
+                .map(matcher -> ImmutableLine.of(
+                        matcher.group("group"),
+                        matcher.group("artifact"),
+                        matcher.group("version"),
+                        Integer.parseInt(matcher.group("num")),
+                        matcher.group("hash")));
     }
 
     public void writeLocks(FullLockState fullLockState) {
@@ -81,7 +102,14 @@ final class ConflictSafeLockFile {
             writer.append(HEADER_COMMENT);
             writer.newLine();
 
-            lockState.linesByModuleIdentifier().values().forEach(line -> writeLine(line, writer));
+            lockState.productionLinesByModuleIdentifier().values().forEach(line -> writeLine(line, writer));
+
+            if (!lockState.testLinesByModuleIdentifier().isEmpty()) {
+                writer.newLine();
+                writer.write(TEST_DEPENDENCIES_MARKER);
+                writer.newLine();
+                lockState.testLinesByModuleIdentifier().values().forEach(line -> writeLine(line, writer));
+            }
         } catch (IOException e) {
             throw new RuntimeException("Failed to write lock file: " + lockfile, e);
         }

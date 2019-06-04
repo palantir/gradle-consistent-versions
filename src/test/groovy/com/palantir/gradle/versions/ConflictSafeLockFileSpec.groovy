@@ -29,6 +29,7 @@ class ConflictSafeLockFileSpec extends Specification {
         LockState locks = file.readLocks()
 
         then:
-        locks.linesByModuleIdentifier().size() == 27
+        locks.productionLinesByModuleIdentifier().size() == 27
+        locks.testLinesByModuleIdentifier().size() == 0
     }
 }

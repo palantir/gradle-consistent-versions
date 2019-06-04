@@ -27,6 +27,8 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Set;
+import java.util.SortedMap;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.provider.Property;
@@ -67,8 +69,17 @@ public class VerifyLocksTask extends DefaultTask {
 
     @TaskAction
     public final void taskAction() throws IOException {
-        MapDifference<MyModuleIdentifier, Line> difference = Maps.difference(
-                persistedLockState.get().linesByModuleIdentifier(), currentLockState.get().linesByModuleIdentifier());
+        verifyLocksForScope(LockState::productionLinesByModuleIdentifier);
+        verifyLocksForScope(LockState::testLinesByModuleIdentifier);
+        Files.touch(outputFile);
+    }
+
+    private void verifyLocksForScope(
+            Function<LockState, SortedMap<MyModuleIdentifier, Line>> getterForScope) {
+        MapDifference<MyModuleIdentifier, Line> difference =
+                Maps.difference(
+                        getterForScope.apply(persistedLockState.get()),
+                        getterForScope.apply(currentLockState.get()));
 
         Set<MyModuleIdentifier> missing = difference.entriesOnlyOnLeft().keySet();
         if (!missing.isEmpty()) {
@@ -90,7 +101,6 @@ public class VerifyLocksTask extends DefaultTask {
                     + formatDependencyDifferences(differing) + "\n\n"
                     + "Please run './gradlew --write-locks'.");
         }
-        Files.touch(outputFile);
     }
 
     private static String formatDependencyDifferences(

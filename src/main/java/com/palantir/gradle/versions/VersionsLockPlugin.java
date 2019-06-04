@@ -24,9 +24,12 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Streams;
 import com.palantir.gradle.versions.VersionsLockExtension.Scope;
+import com.palantir.gradle.versions.internal.MyModuleIdentifier;
 import com.palantir.gradle.versions.internal.MyModuleVersionIdentifier;
 import com.palantir.gradle.versions.lockstate.Dependents;
 import com.palantir.gradle.versions.lockstate.FullLockState;
+import com.palantir.gradle.versions.lockstate.Line;
+import com.palantir.gradle.versions.lockstate.LockState;
 import com.palantir.gradle.versions.lockstate.LockStates;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -36,6 +39,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -603,8 +607,17 @@ public class VersionsLockPlugin implements Plugin<Project> {
             extractDependents(component).ifPresent(dependents -> {
                 GcvScope scope = getScope(component, scopeMap).orElseThrow(() -> new RuntimeException(
                         "Couldn't determine scope for dependency: " + component));
-                log.lifecycle("Component {} had scope: {}", component.getModuleVersion(), scope);
-                builder.putLines(MyModuleVersionIdentifier.copyOf(component.getModuleVersion()), dependents);
+                if (scope == GcvScope.PRODUCTION) {
+                    builder.putProductionDeps(
+                            MyModuleVersionIdentifier.copyOf(component.getModuleVersion()),
+                            dependents);
+                } else if (scope == GcvScope.TEST) {
+                    builder.putTestDeps(MyModuleVersionIdentifier.copyOf(component.getModuleVersion()), dependents);
+                } else {
+                    throw new RuntimeException(String.format("Unexpected scope for component %s: %s",
+                            component.getModuleVersion(),
+                            scope));
+                }
             });
         });
         return builder.build();
@@ -744,11 +757,11 @@ public class VersionsLockPlugin implements Plugin<Project> {
     @NotNull
     private static List<DependencyConstraint> constructConstraintsFromLockFile(
             Path gradleLockfile, DependencyConstraintHandler constraintHandler) {
-        return new ConflictSafeLockFile(gradleLockfile)
-                .readLocks()
-                .linesByModuleIdentifier()
-                .entrySet()
-                .stream()
+        LockState lockState = new ConflictSafeLockFile(gradleLockfile).readLocks();
+        Stream<Entry<MyModuleIdentifier, Line>> locks = Stream.concat(
+                lockState.productionLinesByModuleIdentifier().entrySet().stream(),
+                lockState.testLinesByModuleIdentifier().entrySet().stream());
+        return locks
                 .map(e -> e.getKey() + ":" + e.getValue().version())
                 // Note: constraints.create sets the version as preferred + required, we want 'strictly' just like
                 // gradle does when verifying a lock file.
