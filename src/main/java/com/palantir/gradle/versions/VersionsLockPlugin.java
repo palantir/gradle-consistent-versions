@@ -743,6 +743,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
                     sourceSets.getByName(SourceSet.TEST_SOURCE_SET_NAME)));
         }
         ImmutableLockedConfigurations result = lockedConfigurations.build();
+        log.info("Computed locked configurations for {}: {}", project, result);
 
         // Prevent user trying to lock any configuration that could get published, such as runtimeElements,
         // apiElements etc
