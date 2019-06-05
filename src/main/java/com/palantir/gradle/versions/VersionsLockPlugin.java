@@ -199,7 +199,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 .getConfigurations()
                 .create(UNIFIED_CLASSPATH_CONFIGURATION_NAME, conf -> {
                     conf.setVisible(false).setCanBeConsumed(false);
-                    // Mark it as accepting dependencies with our own usage
+
+                    // Attributes declared here will become required attributes when resolving this configuration
                     conf.getAttributes().attribute(GCV_USAGE_ATTRIBUTE, GcvUsage.GCV_SOURCE);
                 });
 
@@ -296,8 +297,9 @@ public class VersionsLockPlugin implements Plugin<Project> {
         project.getConfigurations().register(PLACEHOLDER_CONFIGURATION_NAME, conf -> {
             conf.setVisible(false).setCanBeResolved(false);
 
-            // Mark it as a GCV_SOURCE, so that it becomes selected (as the best matching configuration) for the
-            // user's normal inter-project dependencies
+            // Mark it as a GCV_SOURCE, so that when we resolve {@link #UNIFIED_CLASSPATH_CONFIGURATION_NAME}
+            // it becomes selected (as the best matching configuration) for the user's normal inter-project dependencies
+            // instead of the two configurations below (or apiElements, runtimeElements etc)
             conf.getAttributes().attribute(GCV_USAGE_ATTRIBUTE, GcvUsage.GCV_SOURCE);
         });
 
