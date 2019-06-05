@@ -16,8 +16,6 @@
 
 package com.palantir.gradle.versions;
 
-import static com.google.common.collect.ImmutableList.toImmutableList;
-
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.Suppliers;
@@ -336,7 +334,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
     /**
      * {@code fromConf} must be eager, as adding a dependency here will trigger other code to run in
-     * {@link #recursivelyCopyProjectDependencies}.
+     * {@link #recursivelyCopyProjectDependenciesWithScope}.
      */
     private static void addConfigurationDependencies(
             Project project, Configuration fromConf, SetProperty<String> toConfs) {
@@ -425,15 +423,15 @@ public class VersionsLockPlugin implements Plugin<Project> {
     private void recursivelyCopyProjectDependencies(Project project, DependencySet depSet) {
         Preconditions.checkState(
                 project.getState().getExecuted(),
-                "recursivelyCopyProjectDependencies should be called in afterEvaluate");
+                "recursivelyCopyProjectDependenciesWithScope should be called in afterEvaluate");
         Map<Configuration, String> copiedConfigurationsCache = new HashMap<>();
 
         findProjectDependencyWithTargetConfigurationName(depSet, CONSISTENT_VERSIONS_PRODUCTION)
-                .forEach(conf -> recursivelyCopyProjectDependencies(
+                .forEach(conf -> recursivelyCopyProjectDependenciesWithScope(
                         project, conf.getDependencies(), copiedConfigurationsCache, GcvScope.PRODUCTION));
 
         findProjectDependencyWithTargetConfigurationName(depSet, CONSISTENT_VERSIONS_TEST)
-                .forEach(conf -> recursivelyCopyProjectDependencies(
+                .forEach(conf -> recursivelyCopyProjectDependenciesWithScope(
                         project, conf.getDependencies(), copiedConfigurationsCache, GcvScope.TEST));
     }
 
@@ -446,7 +444,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
                     return getTargetConfiguration(depSet, projectDependency);
                 })
                 .filter(conf -> conf.getName().equals(configurationName))
-                .collect(toImmutableList());
+                .collect(Collectors.toList());
     }
 
     /**
@@ -454,7 +452,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
      * DependencySet}, and then amends their {@link ProjectDependency#getTargetConfiguration()} to point to the copied
      * configuration. It then eagerly configures any copied Configurations recursively.
      */
-    private void recursivelyCopyProjectDependencies(
+    private void recursivelyCopyProjectDependenciesWithScope(
             Project currentProject,
             DependencySet dependencySet,
             Map<Configuration, String> copiedConfigurationsCache,
@@ -521,7 +519,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
                     projectDependency.setTargetConfiguration(copiedConf.getName());
 
-                    recursivelyCopyProjectDependencies(
+                    recursivelyCopyProjectDependenciesWithScope(
                             projectDep, copiedConf.getDependencies(), copiedConfigurationsCache, scope);
                 });
     }
