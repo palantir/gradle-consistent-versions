@@ -511,6 +511,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
                             projectDep.getObjects().named(Usage.class, "consistent-versions-usage"));
                     // Must set this because we depend on this configuration when resolving unifiedClasspath.
                     copiedConf.setCanBeConsumed(true);
+                    // But this should never be resolved! (it will most likely fail to given the usage above)
+                    copiedConf.setCanBeResolved(false);
                     // This is so we can get back the scope from the ResolutionResult.
                     copiedConf
                             .getDependencies()
