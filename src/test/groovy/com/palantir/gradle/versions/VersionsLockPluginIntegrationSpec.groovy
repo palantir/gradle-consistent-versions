@@ -542,6 +542,22 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         """.stripIndent()
 
         expect:
-        runTasks('--write-locks')
+        runTasks('--write-locks', 'classes')
+    }
+
+    def "inter-project normal dependency works"() {
+        addSubproject("foo", """
+            apply plugin: 'java'
+            dependencies {
+                compile project(":bar") 
+            }
+        """.stripIndent())
+
+        addSubproject("bar", """
+            apply plugin: 'java'
+        """.stripIndent())
+
+        expect:
+        runTasks('--write-locks', 'classes')
     }
 }
