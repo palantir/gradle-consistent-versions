@@ -39,7 +39,7 @@ public class VersionsLockExtension {
         this.productionConfigurations = project.getObjects().setProperty(String.class).empty();
         this.testConfigurations = project.getObjects().setProperty(String.class).empty();
         this.productionConfigurer = new ScopeConfigurer(productionConfigurations);
-        this.testConfigurer = new ScopeConfigurer(productionConfigurations);
+        this.testConfigurer = new ScopeConfigurer(testConfigurations);
     }
 
     public final void production(Action<ScopeConfigurer> action) {
