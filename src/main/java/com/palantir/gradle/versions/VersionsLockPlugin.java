@@ -97,21 +97,23 @@ public class VersionsLockPlugin implements Plugin<Project> {
     private static final Logger log = Logging.getLogger(VersionsLockPlugin.class);
     private static final GradleVersion MINIMUM_GRADLE_VERSION = GradleVersion.version("5.1");
 
-    /**
-     * Root project configuration that collects all the dependencies from each project.
-     */
+    /** Root project configuration that collects all the dependencies from each project. */
     static final String UNIFIED_CLASSPATH_CONFIGURATION_NAME = "unifiedClasspath";
-    /**
-     * Per-project configuration that gets resolved when resolving the user's inter-project dependencies.
-     */
+
+    /** Per-project configuration that gets resolved when resolving the user's inter-project dependencies. */
     private static final String DUMMY_CONFIGURATION_NAME = "consistentVersionsDummy";
+
     /** Configuration to which we apply the constraints from the lock file. */
     private static final String LOCK_CONSTRAINTS_CONFIGURATION_NAME = "lockConstraints";
+
     private static final Attribute<Boolean> CONSISTENT_VERSIONS_CONSTRAINT_ATTRIBUTE =
             Attribute.of("consistent-versions", Boolean.class);
     private static final String CONSISTENT_VERSIONS_PRODUCTION = "consistentVersionsProduction";
     private static final String CONSISTENT_VERSIONS_TEST = "consistentVersionsTest";
     private static final String VERSIONS_LOCK_EXTENSION = "versionsLock";
+
+    private static final Attribute<GcvUsage> GCV_USAGE_ATTRIBUTE =
+            Attribute.of("com.palantir.consistent-versions.usage", GcvUsage.class);
 
     public enum GcvUsage implements Named {
         /**
@@ -129,6 +131,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
         GCV_INTERNAL
         ;
 
+
         /**
          * Must match the enum name exactly, so you can pass this into {@link #valueOf(String)}.
          */
@@ -136,7 +139,11 @@ public class VersionsLockPlugin implements Plugin<Project> {
         public String getName() {
             return this.name();
         }
+
     }
+
+    private static final Attribute<GcvScope> GCV_SCOPE_ATTRIBUTE =
+            Attribute.of("com.palantir.consistent-versions.scope", GcvScope.class);
 
     public enum GcvScope implements Named {
         PRODUCTION,
@@ -154,21 +161,15 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
     private static final Comparator<GcvScope> GCV_SCOPE_COMPARATOR = Comparator.comparing(scope -> {
         // Production takes priority over test when it comes to provenance.
-        if (scope == GcvScope.PRODUCTION) {
-            return 0;
-        } else if (scope == GcvScope.TEST) {
-            return 1;
+        switch (scope) {
+            case PRODUCTION: return 0;
+            case TEST: return 1;
         }
         throw new RuntimeException("Unexpected GcvScope: " + scope);
     });
 
-    private static final Attribute<GcvUsage> GCV_USAGE_ATTRIBUTE =
-            Attribute.of("com.palantir.consistent-versions.usage", GcvUsage.class);
-    private static final Attribute<GcvScope> GCV_SCOPE_ATTRIBUTE =
-            Attribute.of("com.palantir.consistent-versions.scope", GcvScope.class);
     private static final Attribute<String> GCV_SCOPE_RESOLUTION_ATTRIBUTE =
             Attribute.of("com.palantir.consistent-versions.scope", String.class);
-
 
     private final ShowStacktrace showStacktrace;
 

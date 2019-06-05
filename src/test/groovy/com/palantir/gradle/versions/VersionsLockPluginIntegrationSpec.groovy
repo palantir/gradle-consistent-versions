@@ -136,6 +136,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                     propertiesFile file: rootProject.file('versions.props')
                 }
             }
+            
             subprojects {
                 apply plugin: 'com.palantir.configuration-resolver'
             }
