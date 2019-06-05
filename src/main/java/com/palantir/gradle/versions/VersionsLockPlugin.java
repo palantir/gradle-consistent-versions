@@ -248,6 +248,14 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 incoming.getResolutionResult().getRoot();
             });
         } else {
+            // projectsEvaluated is necessary to ensure all projects' dependencies have been configured, because we
+            // need to copy them eagerly before we add the constraints from the lock file.
+            project.getGradle().projectsEvaluated(g -> {
+                // Recursively copy all project dependencies, so that the constraints we add below won't affect the
+                // resolution of unifiedClasspath.
+                recursivelyCopyProjectDependencies(project, unifiedClasspath.getIncoming().getDependencies());
+            });
+
             if (project.hasProperty("ignoreLockFile")) {
                 log.lifecycle("Ignoring lock file for debugging, because the 'ignoreLockFile' property was set");
                 return;
@@ -258,15 +266,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
                         + "`./gradlew --write-locks` to initialise locks", rootLockfile));
             }
 
-            // projectsEvaluated is necessary to ensure all projects' dependencies have been configured, because we
-            // need to copy them eagerly before we add the constraints from the lock file.
-            project.getGradle().projectsEvaluated(g -> {
-                // Recursively copy all project dependencies, so that the constraints we add below won't affect the
-                // resolution of unifiedClasspath.
-                recursivelyCopyProjectDependencies(project, unifiedClasspath.getIncoming().getDependencies());
-
-                configureAllProjectsUsingConstraints(project, rootLockfile);
-            });
+            project.getGradle().projectsEvaluated(g -> configureAllProjectsUsingConstraints(project, rootLockfile));
 
             TaskProvider verifyLocks = project.getTasks().register("verifyLocks", VerifyLocksTask.class, task -> {
                 task.getCurrentLockState()
