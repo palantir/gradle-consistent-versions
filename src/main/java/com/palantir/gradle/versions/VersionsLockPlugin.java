@@ -772,7 +772,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
         Set<String> productionConfigurations();
         Set<String> testConfigurations();
 
-        @Value.Derived
+        @Value.Auxiliary
         default ImmutableSet<String> allConfigurations() {
             return ImmutableSet.copyOf(Iterables.concat(productionConfigurations(), testConfigurations()));
         }
