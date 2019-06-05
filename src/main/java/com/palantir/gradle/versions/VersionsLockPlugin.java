@@ -188,8 +188,11 @@ public class VersionsLockPlugin implements Plugin<Project> {
         project.getPluginManager().apply(LifecycleBasePlugin.class);
 
         project.allprojects(p -> {
-            p.getDependencies().getAttributesSchema().attribute(GCV_USAGE_ATTRIBUTE);
-            p.getDependencies().getAttributesSchema().attribute(GCV_SCOPE_ATTRIBUTE);
+            AttributesSchema attributesSchema = p.getDependencies().getAttributesSchema();
+            attributesSchema.attribute(GCV_SCOPE_ATTRIBUTE);
+            attributesSchema.attribute(GCV_USAGE_ATTRIBUTE)
+                    .getCompatibilityRules()
+                    .add(ConsistentVersionsCompatibilityRules.class);
         });
 
         Configuration unifiedClasspath = project
@@ -199,12 +202,6 @@ public class VersionsLockPlugin implements Plugin<Project> {
                     // Mark it as accepting dependencies with our own usage
                     conf.getAttributes().attribute(GCV_USAGE_ATTRIBUTE, GcvUsage.GCV_SOURCE);
                 });
-
-        project.allprojects(p -> {
-            AttributesSchema attributesSchema = p.getDependencies().getAttributesSchema();
-            AttributeMatchingStrategy<GcvUsage> matchingStrategy = attributesSchema.attribute(GCV_USAGE_ATTRIBUTE);
-            matchingStrategy.getCompatibilityRules().add(ConsistentVersionsCompatibilityRules.class);
-        });
 
         project.allprojects(subproject -> {
             VersionsLockExtension ext =
