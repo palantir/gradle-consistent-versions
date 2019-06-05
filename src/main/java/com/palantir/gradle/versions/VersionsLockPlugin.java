@@ -101,7 +101,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
     static final String UNIFIED_CLASSPATH_CONFIGURATION_NAME = "unifiedClasspath";
 
     /** Per-project configuration that gets resolved when resolving the user's inter-project dependencies. */
-    private static final String DUMMY_CONFIGURATION_NAME = "consistentVersionsDummy";
+    private static final String PLACEHOLDER_CONFIGURATION_NAME = "consistentVersionsPlaceholder";
 
     /** Configuration to which we apply the constraints from the lock file. */
     private static final String LOCK_CONSTRAINTS_CONFIGURATION_NAME = "lockConstraints";
@@ -118,7 +118,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
     public enum GcvUsage implements Named {
         /**
          * GCV is using configurations with this usage to source all dependencies from a given project.
-         * Only {@link #DUMMY_CONFIGURATION_NAME} should have this usage.
+         * Only {@link #PLACEHOLDER_CONFIGURATION_NAME} should have this usage.
          * <p>
          * This exists so that the build's normal inter-project dependencies will naturally resolve to that
          * configuration, without having to re-write
@@ -130,7 +130,6 @@ public class VersionsLockPlugin implements Plugin<Project> {
          */
         GCV_INTERNAL
         ;
-
 
         /**
          * Must match the enum name exactly, so you can pass this into {@link #valueOf(String)}.
@@ -297,7 +296,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
         // This is not how we collect dependencies, but is only meant to capture and neutralize the user's
         // inter-project dependencies.
-        project.getConfigurations().register(DUMMY_CONFIGURATION_NAME, conf -> {
+        project.getConfigurations().register(PLACEHOLDER_CONFIGURATION_NAME, conf -> {
             conf.setVisible(false).setCanBeResolved(false);
 
             // Mark it as a GCV_SOURCE, so that it becomes selected (as the best matching configuration) for the
