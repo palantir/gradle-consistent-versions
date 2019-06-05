@@ -16,6 +16,8 @@
 
 package com.palantir.gradle.versions;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
+
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.Suppliers;
@@ -75,10 +77,7 @@ import org.gradle.api.artifacts.result.ResolutionResult;
 import org.gradle.api.artifacts.result.ResolvedComponentResult;
 import org.gradle.api.artifacts.result.UnresolvedDependencyResult;
 import org.gradle.api.attributes.Attribute;
-import org.gradle.api.attributes.AttributeCompatibilityRule;
-import org.gradle.api.attributes.AttributeMatchingStrategy;
 import org.gradle.api.attributes.AttributesSchema;
-import org.gradle.api.attributes.CompatibilityCheckDetails;
 import org.gradle.api.invocation.Gradle;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
@@ -302,7 +301,6 @@ public class VersionsLockPlugin implements Plugin<Project> {
                     conf.setVisible(false); // needn't be visible from other projects
                     conf.setCanBeConsumed(true);
                     conf.setCanBeResolved(false);
-                    conf.getAttributes().attribute(GCV_SCOPE_ATTRIBUTE, GcvScope.PRODUCTION);
                 });
 
         NamedDomainObjectProvider<Configuration> consistentVersionsTest =
@@ -312,7 +310,6 @@ public class VersionsLockPlugin implements Plugin<Project> {
                     conf.setVisible(false); // needn't be visible from other projects
                     conf.setCanBeConsumed(true);
                     conf.setCanBeResolved(false);
-                    conf.getAttributes().attribute(GCV_SCOPE_ATTRIBUTE, GcvScope.TEST);
                 });
 
         unifiedClasspath.getDependencies().add(
@@ -429,28 +426,27 @@ public class VersionsLockPlugin implements Plugin<Project> {
         Preconditions.checkState(
                 project.getState().getExecuted(),
                 "recursivelyCopyProjectDependencies should be called in afterEvaluate");
-
-        // First, find dependencies by target configuration scope.
-        // The target configurations of all dependencies of unifiedClasspath are expected to have a GcvScope.
-        Map<GcvScope, List<Configuration>> configurationsByScope =
-                depSet.stream().filter(dep -> dep instanceof ProjectDependency).map(dependency -> {
-                    ProjectDependency projectDependency = (ProjectDependency) dependency;
-                    Configuration targetConf = getTargetConfiguration(depSet, projectDependency);
-                    Preconditions.checkState(
-                            targetConf.getAttributes().contains(GCV_SCOPE_ATTRIBUTE),
-                            "Expected all dependencies of unifiedClasspath to point to a configuration with a "
-                                    + "GcvScope, but found: %s",
-                            targetConf);
-                    return targetConf;
-                }).collect(Collectors.groupingBy(conf -> conf.getAttributes().getAttribute(GCV_SCOPE_ATTRIBUTE)));
-
         Map<Configuration, String> copiedConfigurationsCache = new HashMap<>();
-        // Ensure we process all of the production ones first, THEN test.
-        Stream.of(GcvScope.PRODUCTION, GcvScope.TEST).forEachOrdered(scope -> {
-            configurationsByScope.get(scope).forEach(conf -> {
-                recursivelyCopyProjectDependencies(project, conf.getDependencies(), copiedConfigurationsCache, scope);
-            });
-        });
+
+        findProjectDependencyWithTargetConfigurationName(depSet, CONSISTENT_VERSIONS_PRODUCTION)
+                .forEach(conf -> recursivelyCopyProjectDependencies(
+                        project, conf.getDependencies(), copiedConfigurationsCache, GcvScope.PRODUCTION));
+
+        findProjectDependencyWithTargetConfigurationName(depSet, CONSISTENT_VERSIONS_TEST)
+                .forEach(conf -> recursivelyCopyProjectDependencies(
+                        project, conf.getDependencies(), copiedConfigurationsCache, GcvScope.TEST));
+    }
+
+    private static List<Configuration> findProjectDependencyWithTargetConfigurationName(
+            DependencySet depSet, String configurationName) {
+        return depSet.stream()
+                .filter(dep -> dep instanceof ProjectDependency)
+                .map(dependency -> {
+                    ProjectDependency projectDependency = (ProjectDependency) dependency;
+                    return getTargetConfiguration(depSet, projectDependency);
+                })
+                .filter(conf -> conf.getName().equals(configurationName))
+                .collect(toImmutableList());
     }
 
     /**
