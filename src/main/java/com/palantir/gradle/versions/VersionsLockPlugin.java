@@ -76,6 +76,7 @@ import org.gradle.api.artifacts.result.ResolvedComponentResult;
 import org.gradle.api.artifacts.result.UnresolvedDependencyResult;
 import org.gradle.api.attributes.Attribute;
 import org.gradle.api.attributes.AttributesSchema;
+import org.gradle.api.attributes.Usage;
 import org.gradle.api.invocation.Gradle;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
@@ -452,7 +453,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
      * DependencySet}, and then amends their {@link ProjectDependency#getTargetConfiguration()} to point to the copied
      * configuration. It then eagerly configures any copied Configurations recursively.
      */
-    private void recursivelyCopyProjectDependenciesWithScope(
+    private static void recursivelyCopyProjectDependenciesWithScope(
             Project currentProject,
             DependencySet dependencySet,
             Map<Configuration, String> copiedConfigurationsCache,
@@ -503,6 +504,11 @@ public class VersionsLockPlugin implements Plugin<Project> {
                                 ImmutableList.copyOf(copiedConf.getAllDependencyConstraints()));
                     }
 
+                    // We don't want this copied configuration to have any known usage.
+                    // This is so that copied `apiElements` etc don't get picked up via usage.
+                    copiedConf.getAttributes().attribute(
+                            Usage.USAGE_ATTRIBUTE,
+                            projectDep.getObjects().named(Usage.class, "consistent-versions-usage"));
                     // Must set this because we depend on this configuration when resolving unifiedClasspath.
                     copiedConf.setCanBeConsumed(true);
                     // This is so we can get back the scope from the ResolutionResult.
