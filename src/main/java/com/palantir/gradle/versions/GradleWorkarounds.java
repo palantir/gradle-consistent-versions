@@ -60,7 +60,7 @@ final class GradleWorkarounds {
 
     /**
      * Work around gradle < 5.3.rc-1 not adding an AttributeFactory to {@link ProjectDependency} with configuration,
-     * or {@link ExternalDependency#copy()} not configuring an attribute factory and ALSO not immutably copying the
+     * and {@link ExternalDependency#copy()} not configuring an AttributeFactory and ALSO not immutably copying the
      * {@link AttributeContainer}.
      */
     static <T extends ModuleDependency> T fixAttributesOfModuleDependency(
