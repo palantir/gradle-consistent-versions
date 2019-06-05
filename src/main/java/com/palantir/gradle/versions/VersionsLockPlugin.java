@@ -222,7 +222,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
             // Note: we don't use project.getGradle().projectsEvaluated() as gradle warns us against resolving the
             // configuration at that point. See https://docs.gradle.org/5.1/userguide/troubleshooting_dependency_resolution.html#sub:configuration_resolution_constraints
             project.afterEvaluate(p -> {
-                p.evaluationDependsOnChildren();
+                p.getSubprojects().forEach(subproject -> p.evaluationDependsOn(subproject.getPath()));
                 ResolvableDependencies incoming = unifiedClasspath.getIncoming();
 
                 Map<Project, LockedConfigurations> lockedConfigurations = wireUpLockedConfigurationsByProject(project);
@@ -725,7 +725,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
     private static LockedConfigurations computeConfigurationsToLock(Project project, VersionsLockExtension ext) {
         Preconditions.checkState(
                 project.getState().getExecuted(),
-                "computeConfigurationsToLock should be called in afterEvaluate");
+                "computeConfigurationsToLock should be called in afterEvaluate: %s",
+                project);
 
         ImmutableLockedConfigurations.Builder lockedConfigurations = ImmutableLockedConfigurations.builder();
 
