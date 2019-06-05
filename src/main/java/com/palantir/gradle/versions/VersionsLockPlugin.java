@@ -123,13 +123,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
          * This exists so that the build's normal inter-project dependencies will naturally resolve to that
          * configuration, without having to re-write
          */
-        GCV_SOURCE,
-        /**
-         * Meant for {@link #CONSISTENT_VERSIONS_PRODUCTION} and {@link #CONSISTENT_VERSIONS_TEST}, that GCV has made
-         * resolvable for internal usage, but they are not meant to be discovered by user dependencies.
-         */
-        GCV_INTERNAL
-        ;
+        GCV_SOURCE;
 
         /**
          * Must match the enum name exactly, so you can pass this into {@link #valueOf(String)}.
@@ -190,9 +184,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
         project.allprojects(p -> {
             AttributesSchema attributesSchema = p.getDependencies().getAttributesSchema();
             attributesSchema.attribute(GCV_SCOPE_ATTRIBUTE);
-            attributesSchema.attribute(GCV_USAGE_ATTRIBUTE)
-                    .getCompatibilityRules()
-                    .add(ConsistentVersionsCompatibilityRules.class);
+            attributesSchema.attribute(GCV_USAGE_ATTRIBUTE);
         });
 
         Configuration unifiedClasspath = project
@@ -310,7 +302,6 @@ public class VersionsLockPlugin implements Plugin<Project> {
                     conf.setVisible(false); // needn't be visible from other projects
                     conf.setCanBeConsumed(true);
                     conf.setCanBeResolved(false);
-                    conf.getAttributes().attribute(GCV_USAGE_ATTRIBUTE, GcvUsage.GCV_INTERNAL);
                     conf.getAttributes().attribute(GCV_SCOPE_ATTRIBUTE, GcvScope.PRODUCTION);
                 });
 
@@ -321,7 +312,6 @@ public class VersionsLockPlugin implements Plugin<Project> {
                     conf.setVisible(false); // needn't be visible from other projects
                     conf.setCanBeConsumed(true);
                     conf.setCanBeResolved(false);
-                    conf.getAttributes().attribute(GCV_USAGE_ATTRIBUTE, GcvUsage.GCV_INTERNAL);
                     conf.getAttributes().attribute(GCV_SCOPE_ATTRIBUTE, GcvScope.TEST);
                 });
 
@@ -771,25 +761,5 @@ public class VersionsLockPlugin implements Plugin<Project> {
                     });
                 }))
                 .collect(Collectors.toList());
-    }
-
-    /**
-     * Allows a resolution with a {@link GcvUsage#GCV_SOURCE} attribute (i.e. the resolution of
-     * {@link #UNIFIED_CLASSPATH_CONFIGURATION_NAME}) to depend on configurations with the {@link GcvUsage#GCV_INTERNAL}
-     * attribute.
-     * <p>
-     * This is required for {@link #UNIFIED_CLASSPATH_CONFIGURATION_NAME} to be able to depend on the other
-     * configurations that we actually aggregate ({@link #CONSISTENT_VERSIONS_PRODUCTION},
-     * {@link #CONSISTENT_VERSIONS_TEST}).
-     */
-    static class ConsistentVersionsCompatibilityRules implements AttributeCompatibilityRule<GcvUsage> {
-        @Override
-        public void execute(CompatibilityCheckDetails<GcvUsage> details) {
-            GcvUsage consumer = details.getConsumerValue();
-            GcvUsage producer = details.getProducerValue();
-            if (GcvUsage.GCV_SOURCE.equals(consumer) && GcvUsage.GCV_INTERNAL.equals(producer)) {
-                details.compatible();
-            }
-        }
     }
 }
