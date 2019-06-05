@@ -16,14 +16,15 @@
 
 package com.palantir.gradle.versions;
 
+import com.google.common.base.Functions;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Streams;
-import com.palantir.gradle.versions.VersionsLockExtension.Scope;
 import com.palantir.gradle.versions.internal.MyModuleIdentifier;
 import com.palantir.gradle.versions.internal.MyModuleVersionIdentifier;
 import com.palantir.gradle.versions.lockstate.Dependents;
@@ -81,14 +82,13 @@ import org.gradle.api.invocation.Gradle;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 import org.gradle.api.logging.configuration.ShowStacktrace;
-import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.plugins.JavaPluginConvention;
-import org.gradle.api.provider.SetProperty;
 import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.SourceSetContainer;
 import org.gradle.api.tasks.TaskProvider;
 import org.gradle.language.base.plugins.LifecycleBasePlugin;
 import org.gradle.util.GradleVersion;
+import org.immutables.value.Value;
 import org.jetbrains.annotations.NotNull;
 
 public class VersionsLockPlugin implements Plugin<Project> {
@@ -195,9 +195,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 });
 
         project.allprojects(subproject -> {
-            VersionsLockExtension ext =
-                    subproject.getExtensions().create(VERSIONS_LOCK_EXTENSION, VersionsLockExtension.class, subproject);
-            sourceDependenciesFromProject(project, unifiedClasspath, subproject, ext);
+            subproject.getExtensions().create(VERSIONS_LOCK_EXTENSION, VersionsLockExtension.class, subproject);
+            setupDependenciesToProject(project, unifiedClasspath, subproject);
         });
 
         Path rootLockfile = getRootLockFile(project);
@@ -216,13 +215,6 @@ public class VersionsLockPlugin implements Plugin<Project> {
         project.getPluginManager().apply("java-base");
 
         if (project.getGradle().getStartParameter().isWriteDependencyLocks()) {
-            // Must wire up the constraint configuration to right AFTER rootProject has written theirs
-            unifiedClasspath.getIncoming().afterResolve(r -> {
-                new ConflictSafeLockFile(rootLockfile).writeLocks(fullLockStateSupplier.get());
-                log.lifecycle("Finished writing lock state to {}", rootLockfile);
-                configureAllProjectsUsingConstraints(project, rootLockfile);
-            });
-
             // If you only run ':subproject:resolveConfigurations --write-locks', gradle wouldn't resolve the root
             // unifiedClasspath configuration, which would behave differently than if we ran 'resolveConfigurations'.
             // Workaround is we always force the 'unifiedClasspath' to be resolved.
@@ -232,8 +224,13 @@ public class VersionsLockPlugin implements Plugin<Project> {
             project.afterEvaluate(p -> {
                 p.evaluationDependsOnChildren();
                 ResolvableDependencies incoming = unifiedClasspath.getIncoming();
+
+                Map<Project, LockedConfigurations> lockedConfigurations = wireUpLockedConfigurationsByProject(project);
                 recursivelyCopyProjectDependencies(project, incoming.getDependencies());
-                incoming.getResolutionResult().getRoot();
+                // Triggers evaluation of unifiedClasspath
+                new ConflictSafeLockFile(rootLockfile).writeLocks(fullLockStateSupplier.get());
+                log.lifecycle("Finished writing lock state to {}", rootLockfile);
+                configureAllProjectsUsingConstraints(project, rootLockfile, lockedConfigurations);
             });
         } else {
             // projectsEvaluated is necessary to ensure all projects' dependencies have been configured, because we
@@ -241,20 +238,21 @@ public class VersionsLockPlugin implements Plugin<Project> {
             project.getGradle().projectsEvaluated(g -> {
                 // Recursively copy all project dependencies, so that the constraints we add below won't affect the
                 // resolution of unifiedClasspath.
+                Map<Project, LockedConfigurations> lockedConfigurations = wireUpLockedConfigurationsByProject(project);
                 recursivelyCopyProjectDependencies(project, unifiedClasspath.getIncoming().getDependencies());
+
+                if (project.hasProperty("ignoreLockFile")) {
+                    log.lifecycle("Ignoring lock file for debugging, because the 'ignoreLockFile' property was set");
+                    return;
+                }
+
+                if (Files.notExists(rootLockfile)) {
+                    throw new GradleException(String.format("Root lock file '%s' doesn't exist, please run "
+                            + "`./gradlew --write-locks` to initialise locks", rootLockfile));
+                }
+
+                configureAllProjectsUsingConstraints(project, rootLockfile, lockedConfigurations);
             });
-
-            if (project.hasProperty("ignoreLockFile")) {
-                log.lifecycle("Ignoring lock file for debugging, because the 'ignoreLockFile' property was set");
-                return;
-            }
-
-            if (Files.notExists(rootLockfile)) {
-                throw new GradleException(String.format("Root lock file '%s' doesn't exist, please run "
-                        + "`./gradlew --write-locks` to initialise locks", rootLockfile));
-            }
-
-            project.getGradle().projectsEvaluated(g -> configureAllProjectsUsingConstraints(project, rootLockfile));
 
             TaskProvider verifyLocks = project.getTasks().register("verifyLocks", VerifyLocksTask.class, task -> {
                 task.getCurrentLockState()
@@ -273,8 +271,28 @@ public class VersionsLockPlugin implements Plugin<Project> {
         }
     }
 
-    private static void sourceDependenciesFromProject(
-            Project rootProject, Configuration unifiedClasspath, Project project, VersionsLockExtension ext) {
+    private static Map<Project, LockedConfigurations> wireUpLockedConfigurationsByProject(Project rootProject) {
+        return rootProject.getAllprojects().stream().collect(Collectors.toMap(Functions.identity(), subproject -> {
+            VersionsLockExtension ext = subproject.getExtensions().getByType(VersionsLockExtension.class);
+            LockedConfigurations lockedConfigurations = computeConfigurationsToLock(subproject, ext);
+            addConfigurationDependencies(subproject,
+                    subproject.getConfigurations().getByName(CONSISTENT_VERSIONS_PRODUCTION),
+                    lockedConfigurations.productionConfigurations());
+            addConfigurationDependencies(subproject,
+                    subproject.getConfigurations().getByName(CONSISTENT_VERSIONS_TEST),
+                    lockedConfigurations.testConfigurations());
+            return lockedConfigurations;
+        }));
+    }
+
+    /**
+     * This method sets up the necessary intermediate configurations in each project, and wires up the
+     * dependencies from {@link #UNIFIED_CLASSPATH_CONFIGURATION_NAME} to these configurations.
+     * It doesn't wire up the actual configurations that we intend to lock, because that will be done later, in
+     * afterEvaluate.
+     */
+    private static void setupDependenciesToProject(
+            Project rootProject, Configuration unifiedClasspath, Project project) {
         // Parallel 'resolveConfigurations' sometimes breaks unless we force the root one to run first.
         if (rootProject != project) {
             project.getPluginManager().withPlugin("com.palantir.configuration-resolver", plugin -> {
@@ -316,21 +334,6 @@ public class VersionsLockPlugin implements Plugin<Project> {
                         project, consistentVersionsProduction.getName(), GcvScope.PRODUCTION));
         unifiedClasspath.getDependencies().add(
                 createConfigurationDependencyWithScope(project, consistentVersionsTest.getName(), GcvScope.TEST));
-
-        // Actually wire up the dependencies
-        project.afterEvaluate(p -> {
-            addConfigurationDependencies(
-                    project, consistentVersionsProduction.get(), ext.getProductionConfigurations());
-            addConfigurationDependencies(project, consistentVersionsTest.get(), ext.getTestConfigurations());
-        });
-
-        project.getPluginManager().withPlugin("java", plugin -> {
-            SourceSetContainer sourceSets =
-                    project.getConvention().getPlugin(JavaPluginConvention.class).getSourceSets();
-            ext.lockSourceSet(Scope.PRODUCTION, sourceSets.getByName(SourceSet.MAIN_SOURCE_SET_NAME));
-            ext.lockSourceSet(Scope.TEST, sourceSets.getByName(SourceSet.TEST_SOURCE_SET_NAME));
-        });
-
     }
 
     /**
@@ -338,8 +341,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
      * {@link #recursivelyCopyProjectDependenciesWithScope}.
      */
     private static void addConfigurationDependencies(
-            Project project, Configuration fromConf, SetProperty<String> toConfs) {
-        toConfs.get().forEach(toConf -> fromConf.getDependencies().add(createConfigurationDependency(project, toConf)));
+            Project project, Configuration fromConf, Iterable<String> toConfs) {
+        toConfs.forEach(toConf -> fromConf.getDependencies().add(createConfigurationDependency(project, toConf)));
     }
 
     /**
@@ -425,6 +428,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
         Preconditions.checkState(
                 project.getState().getExecuted(),
                 "recursivelyCopyProjectDependenciesWithScope should be called in afterEvaluate");
+
         Map<Configuration, String> copiedConfigurationsCache = new HashMap<>();
 
         findProjectDependencyWithTargetConfigurationName(depSet, CONSISTENT_VERSIONS_PRODUCTION)
@@ -688,26 +692,17 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 failures);
     }
 
-    private static void configureAllProjectsUsingConstraints(Project rootProject, Path gradleLockfile) {
+    private static void configureAllProjectsUsingConstraints(
+            Project rootProject, Path gradleLockfile, Map<Project, LockedConfigurations> lockedConfigurations) {
         List<DependencyConstraint> constraints =
                 constructConstraintsFromLockFile(gradleLockfile, rootProject.getDependencies().getConstraints());
-        rootProject.allprojects(subproject -> configureUsingConstraints(subproject, constraints));
+        rootProject.allprojects(subproject -> configureUsingConstraints(
+                subproject, constraints, lockedConfigurations.get(subproject)));
     }
 
     private static void configureUsingConstraints(
-            Project subproject, List<DependencyConstraint> constraints) {
-        Set<String> extraLockedConfigurations = getAndVerifyExtraLockedConfigurations(subproject);
-
-        // Figure out which configurations we are going to lock.
-        ImmutableSet.Builder<String> configurationsToLockBuilder = ImmutableSet.builder();
-        if (subproject.getPluginManager().hasPlugin("java")) {
-            configurationsToLockBuilder.add(
-                    JavaPlugin.COMPILE_CLASSPATH_CONFIGURATION_NAME,
-                    JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME);
-        }
-        configurationsToLockBuilder.addAll(extraLockedConfigurations);
-
-        ImmutableSet<String> configurationsToLock = configurationsToLockBuilder.build();
+            Project subproject, List<DependencyConstraint> constraints, LockedConfigurations lockedConfigurations) {
+        Set<String> configurationsToLock = lockedConfigurations.allConfigurations();
         log.info("Configuring locks for {}. Locked configurations: {}", subproject.getPath(), configurationsToLock);
         // Configure constraints on all configurations that should be locked.
         NamedDomainObjectProvider<Configuration> locksConfiguration =
@@ -727,20 +722,59 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 .configure(conf -> constraints.stream().forEach(conf.getDependencyConstraints()::add));
     }
 
-    private static Set<String> getAndVerifyExtraLockedConfigurations(Project project) {
-        VersionsLockExtension ext = project.getExtensions().getByType(VersionsLockExtension.class);
-        Set<String> extraLockedConfigurations = ext.getProductionConfigurations().get();
+    private static LockedConfigurations computeConfigurationsToLock(Project project, VersionsLockExtension ext) {
+        Preconditions.checkState(
+                project.getState().getExecuted(),
+                "computeConfigurationsToLock should be called in afterEvaluate");
+
+        ImmutableLockedConfigurations.Builder lockedConfigurations = ImmutableLockedConfigurations.builder();
+
+        lockedConfigurations.addAllProductionConfigurations(ext.getProductionConfigurations().get());
+        lockedConfigurations.addAllTestConfigurations(ext.getTestConfigurations().get());
+
+        if (ext.isUseDefaults() && project.getPluginManager().hasPlugin("java")) {
+            SourceSetContainer sourceSets =
+                    project.getConvention().getPlugin(JavaPluginConvention.class).getSourceSets();
+
+            lockedConfigurations.addAllProductionConfigurations(getConfigurationsForSourceSet(
+                    sourceSets.getByName(SourceSet.MAIN_SOURCE_SET_NAME)));
+            lockedConfigurations.addAllTestConfigurations(getConfigurationsForSourceSet(
+                    sourceSets.getByName(SourceSet.TEST_SOURCE_SET_NAME)));
+        }
+        ImmutableLockedConfigurations result = lockedConfigurations.build();
+
         // Prevent user trying to lock any configuration that could get published, such as runtimeElements,
         // apiElements etc
         // The heuristic we use here is we only allow locking
         // Their constraints get published so we don't want to start publishing strictly locked constraints.
-        extraLockedConfigurations.stream().map(project.getConfigurations()::getByName).forEach(conf -> {
+        result.allConfigurations().stream().map(project.getConfigurations()::getByName).forEach(conf -> {
             Preconditions.checkArgument(
                     !conf.isCanBeConsumed() && conf.isCanBeResolved(),
                     "May only lock 'sink' configurations that are resolvable and not consumable: %s",
                     conf);
         });
-        return extraLockedConfigurations;
+
+        return result;
+    }
+
+    private static ImmutableSet<String> getConfigurationsForSourceSet(SourceSet sourceSet) {
+        return ImmutableSet.of(
+                sourceSet.getCompileClasspathConfigurationName(),
+                sourceSet.getRuntimeClasspathConfigurationName());
+    }
+
+    /**
+     * The final set of configurations that will be locked for a given project.
+     */
+    @Value.Immutable
+    interface LockedConfigurations {
+        Set<String> productionConfigurations();
+        Set<String> testConfigurations();
+
+        @Value.Derived
+        default ImmutableSet<String> allConfigurations() {
+            return ImmutableSet.copyOf(Iterables.concat(productionConfigurations(), testConfigurations()));
+        }
     }
 
     @NotNull
