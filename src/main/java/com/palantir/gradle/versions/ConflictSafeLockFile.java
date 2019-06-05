@@ -33,7 +33,6 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.gradle.api.GradleException;
-import org.jetbrains.annotations.NotNull;
 
 final class ConflictSafeLockFile {
     private static final String HEADER_COMMENT = "# Run ./gradlew --write-locks to regenerate this file";
@@ -73,7 +72,6 @@ final class ConflictSafeLockFile {
         }
     }
 
-    @NotNull
     public Stream<Line> parseLines(Stream<String> stringStream) {
         return stringStream
                 .map(line -> {
