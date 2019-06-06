@@ -739,9 +739,10 @@ public class VersionsLockPlugin implements Plugin<Project> {
             lockedConfigurations.addAllProductionConfigurations(getConfigurationsForSourceSet(
                     project,
                     sourceSets.getByName(SourceSet.MAIN_SOURCE_SET_NAME)));
-            lockedConfigurations.addAllTestConfigurations(getConfigurationsForSourceSet(
-                    project,
-                    sourceSets.getByName(SourceSet.TEST_SOURCE_SET_NAME)));
+
+            // Use heuristic for test source sets.
+            sourceSets.matching(sourceSet -> sourceSet.getName().toLowerCase().endsWith("test")).forEach(sourceSet ->
+                    lockedConfigurations.addAllTestConfigurations(getConfigurationsForSourceSet(project, sourceSet)));
         }
         ImmutableLockedConfigurations result = lockedConfigurations.build();
         log.info("Computed locked configurations for {}: {}", project, result);

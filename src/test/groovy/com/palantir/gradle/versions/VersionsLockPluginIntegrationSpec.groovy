@@ -585,7 +585,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         file('versions.lock').text == expected
     }
 
-    def "locks dependencies from extra source sets"() {
+    def "locks dependencies from extra source sets that end in test"() {
         buildFile << """
             apply plugin: 'java'
             sourceSets {
@@ -595,12 +595,6 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                 compile 'ch.qos.logback:logback-classic:1.2.3'
                 testCompile 'junit:junit:4.10'
                 eteTestCompile 'org:test-dep-that-logs:1.0'
-            }
-            
-            versionsLock {
-                test {
-                    from sourceSets.eteTest
-                }
             }
         """.stripIndent()
 
