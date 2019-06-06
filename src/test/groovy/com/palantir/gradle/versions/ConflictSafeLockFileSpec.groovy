@@ -30,6 +30,6 @@ class ConflictSafeLockFileSpec extends Specification {
 
         then:
         locks.productionLinesByModuleIdentifier().size() == 27
-        locks.testLinesByModuleIdentifier().size() == 0
+        locks.testLinesByModuleIdentifier().size() == 16
     }
 }
