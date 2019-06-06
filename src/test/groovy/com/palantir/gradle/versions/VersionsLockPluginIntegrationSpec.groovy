@@ -632,4 +632,29 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         """.stripIndent()
         file('versions.lock').text == expected
     }
+
+    def "constraints on production do not affect scope of test only dependencies"() {
+        buildFile << """
+            apply plugin: 'java'
+            dependencies {
+                constraints {
+                    compile 'ch.qos.logback:logback-classic:1.2.3'
+                }
+                dependencies {
+                    testCompile 'ch.qos.logback:logback-classic'
+                }
+            }
+        """.stripIndent()
+
+        expect:
+        runTasks('--write-locks')
+        def expected = """\
+            # Run ./gradlew --write-locks to regenerate this file
+             
+            [Test dependencies]
+            ch.qos.logback:logback-classic:1.2.3 (1 constraints: 0805f935)
+            org.slf4j:slf4j-api:1.7.25 (1 constraints: 400d4d2a)
+        """.stripIndent()
+        file('versions.lock').text == expected
+    }
 }
