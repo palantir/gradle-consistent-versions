@@ -82,11 +82,8 @@ public class VersionsLockExtension {
         }
 
         public void from(SourceSet sourceSet) {
-            Stream
-                    .of(
-                            sourceSet.getCompileClasspathConfigurationName(),
-                            sourceSet.getRuntimeClasspathConfigurationName())
-                    .forEach(this::from);
+            from(sourceSet.getCompileClasspathConfigurationName());
+            from(sourceSet.getRuntimeClasspathConfigurationName());
         }
     }
 }
