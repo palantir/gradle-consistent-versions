@@ -611,4 +611,25 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         """.stripIndent()
         file('versions.lock').text == expected
     }
+
+    def "versionsLock.testProject() works"() {
+        buildFile << """
+            apply plugin: 'java'
+            dependencies {
+                compile 'junit:junit:4.10'
+            }
+            
+            versionsLock.testProject()
+        """.stripIndent()
+
+        expect:
+        runTasks('--write-locks')
+        def expected = """\
+            # Run ./gradlew --write-locks to regenerate this file
+             
+            [Test dependencies]
+            junit:junit:4.10 (1 constraints: d904fd30)
+        """.stripIndent()
+        file('versions.lock').text == expected
+    }
 }
