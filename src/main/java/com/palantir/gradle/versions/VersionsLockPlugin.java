@@ -592,33 +592,34 @@ public class VersionsLockPlugin implements Plugin<Project> {
      */
     private static FullLockState computeLockState(ResolutionResult resolutionResult) {
         FullLockState.Builder builder = FullLockState.builder();
-        Map<ResolvedComponentResult, GcvScope> scopeMap = new HashMap<>();
-        resolutionResult.allComponents(component -> {
-            // Scope
-            extractDependents(component).ifPresent(dependents -> {
-                GcvScope scope = getScope(component, scopeMap).orElseThrow(() -> new RuntimeException(
-                        "Couldn't determine scope for dependency: " + component));
-                if (scope == GcvScope.PRODUCTION) {
-                    builder.putProductionDeps(
-                            MyModuleVersionIdentifier.copyOf(component.getModuleVersion()),
-                            dependents);
-                } else if (scope == GcvScope.TEST) {
-                    builder.putTestDeps(MyModuleVersionIdentifier.copyOf(component.getModuleVersion()), dependents);
-                } else {
-                    throw new RuntimeException(String.format("Unexpected scope for component %s: %s",
-                            component.getModuleVersion(),
-                            scope));
-                }
-            });
-        });
+        Map<ResolvedComponentResult, GcvScope> scopeCache = new HashMap<>();
+        resolutionResult.getAllComponents().stream()
+                .filter(component -> component.getId() instanceof ModuleComponentIdentifier)
+                .forEach(component -> {
+                    Dependents dependents = extractDependents(component);
+                    GcvScope scope = getScope(component, scopeCache).orElseThrow(() -> new RuntimeException(
+                            "Couldn't determine scope for dependency: " + component));
+                    if (scope == GcvScope.PRODUCTION) {
+                        builder.putProductionDeps(
+                                MyModuleVersionIdentifier.copyOf(component.getModuleVersion()),
+                                dependents);
+                    } else if (scope == GcvScope.TEST) {
+                        builder.putTestDeps(MyModuleVersionIdentifier.copyOf(component.getModuleVersion()), dependents);
+                    } else {
+                        throw new RuntimeException(String.format(
+                                "Unexpected scope for component %s: %s",
+                                component.getModuleVersion(),
+                                scope));
+                    }
+                });
         return builder.build();
     }
 
     private static Optional<GcvScope> getScope(
             ResolvedComponentResult component,
-            Map<ResolvedComponentResult, GcvScope> scopeMap) {
-        if (scopeMap.containsKey(component)) {
-            return Optional.of(scopeMap.get(component));
+            Map<ResolvedComponentResult, GcvScope> scopeCache) {
+        if (scopeCache.containsKey(component)) {
+            return Optional.of(scopeCache.get(component));
         }
         Optional<GcvScope> scopeOpt = component
                 .getDependents()
@@ -630,18 +631,15 @@ public class VersionsLockPlugin implements Plugin<Project> {
                                 dependent.getRequested().getAttributes().getAttribute(GCV_SCOPE_RESOLUTION_ATTRIBUTE);
                         return Streams.stream(Optional.ofNullable(maybeScope).map(GcvScope::valueOf));
                     }
-                    return Streams.stream(getScope(dependent.getFrom(), scopeMap));
+                    return Streams.stream(getScope(dependent.getFrom(), scopeCache));
                 })
                 .min(GCV_SCOPE_COMPARATOR);
-        scopeOpt.ifPresent(scope -> scopeMap.put(component, scope));
+        scopeOpt.ifPresent(scope -> scopeCache.put(component, scope));
         return scopeOpt;
     }
 
-    private static Optional<Dependents> extractDependents(ResolvedComponentResult component) {
-        if (!(component.getId() instanceof ModuleComponentIdentifier)) {
-            return Optional.empty();
-        }
-        return Optional.of(Dependents.of(component
+    private static Dependents extractDependents(ResolvedComponentResult component) {
+        return Dependents.of(component
                 .getDependents()
                 .stream()
                 .filter(dep -> !dep.getRequested().getAttributes().contains(CONSISTENT_VERSIONS_CONSTRAINT_ATTRIBUTE))
@@ -651,7 +649,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
                         Collectors.mapping(
                                 dep -> getRequestedVersionConstraint(dep.getRequested()),
                                 Collectors.toCollection(
-                                        () -> new TreeSet<>(Comparator.comparing(VersionConstraint::toString))))))));
+                                        () -> new TreeSet<>(Comparator.comparing(VersionConstraint::toString)))))));
     }
 
     private static VersionConstraint getRequestedVersionConstraint(ComponentSelector requested) {
