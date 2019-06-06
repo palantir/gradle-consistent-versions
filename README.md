@@ -50,7 +50,6 @@ Direct dependencies are specified in a top level `versions.props` file and then 
     1. Downgrading things
     1. Common workflow: SLF4J
     1. Common workflow: dependencySubstitution
-    1. Common workflow: locking other source sets or configurations
     1. Common workflow: internal test utility projects
     1. Resolving dependencies at configuration time is banned
     1. Known limitation: root project must have a unique name
@@ -130,7 +129,7 @@ com.jayway.awaitility:awaitility:1.6.5 (1 constraints: c615c1d2)
 
 The lockfile sources production dependencies from the _compileClasspath_ and _runtimeClasspath_ configurations, and
 test dependencies from the compile/runtime classpaths of any source set that ends in test (e.g. `test`, `integrationTest`,
-`eteTest`). You can further [customize which source sets / configurations get locked](#common-workflow-locking-other-source-sets-or-configurations).
+`eteTest`).
 
 <!-- TODO(dfox): build some ./gradlew checkVersionsLock task and recommend running it on CI -->
 
@@ -263,21 +262,6 @@ Adding explicit `it` calls works around this error:
      }
  }
 ```
-
-### Common workflow: locking other source sets or configurations
-
-By default, we lock the `main` source set of java projects as production dependencies, and any source set that ends in 
-`test` as test dependencies. This behaviour can be configured per project via the `versionsLock` extension.
-
-For instance, the default behaviour (assuming you only have the default `main` and `test` source sets) can be replicated through:
-
-```gradle
-versionsLock {
-    disableJavaPluginDefaults()  // do not lock any configuration / source set by default
-    production { from sourceSets.main }
-    test { from sourceSets.test }
-}
-``` 
 
 ### Common workflow: internal test utility projects
 Sometimes, devs have multiple test projects (unit tests, integration tests) that use a subset of common test classes.
