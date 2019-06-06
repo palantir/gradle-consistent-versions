@@ -704,21 +704,18 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
     private static void configureUsingConstraints(
             Project subproject, List<DependencyConstraint> constraints, LockedConfigurations lockedConfigurations) {
-        Set<Configuration> configurationsToLock = lockedConfigurations.allConfigurations();
-        log.info("Configuring locks for {}. Locked configurations: {}", subproject.getPath(), configurationsToLock);
-        // Configure constraints on all configurations that should be locked.
-        NamedDomainObjectProvider<Configuration> locksConfiguration =
-                subproject.getConfigurations().register(LOCK_CONSTRAINTS_CONFIGURATION_NAME, conf1 -> {
-                    conf1.setVisible(false);
-                    conf1.setCanBeConsumed(false);
-                    conf1.setCanBeResolved(false);
+        Configuration locksConfiguration = subproject.getConfigurations().create(
+                LOCK_CONSTRAINTS_CONFIGURATION_NAME,
+                locksConf -> {
+                    locksConf.setVisible(false);
+                    locksConf.setCanBeConsumed(false);
+                    locksConf.setCanBeResolved(false);
+                    constraints.stream().forEach(locksConf.getDependencyConstraints()::add);
                 });
 
-        configurationsToLock
-                .forEach(conf -> conf.extendsFrom(locksConfiguration.get()));
-
-        locksConfiguration
-                .configure(conf -> constraints.stream().forEach(conf.getDependencyConstraints()::add));
+        Set<Configuration> configurationsToLock = lockedConfigurations.allConfigurations();
+        log.info("Configuring locks for {}. Locked configurations: {}", subproject.getPath(), configurationsToLock);
+        configurationsToLock.forEach(conf -> conf.extendsFrom(locksConfiguration));
     }
 
     private static LockedConfigurations computeConfigurationsToLock(Project project, VersionsLockExtension ext) {
