@@ -17,7 +17,6 @@
 package com.palantir.gradle.versions;
 
 import java.util.Set;
-import java.util.stream.Stream;
 import javax.inject.Inject;
 import org.gradle.api.Action;
 import org.gradle.api.Project;

@@ -591,51 +591,57 @@ public class VersionsLockPlugin implements Plugin<Project> {
      * throw.
      */
     private static FullLockState computeLockState(ResolutionResult resolutionResult) {
-        FullLockState.Builder builder = FullLockState.builder();
         Map<ResolvedComponentResult, GcvScope> scopeCache = new HashMap<>();
+
+        FullLockState.Builder builder = FullLockState.builder();
         resolutionResult.getAllComponents().stream()
                 .filter(component -> component.getId() instanceof ModuleComponentIdentifier)
                 .forEach(component -> {
-                    Dependents dependents = extractDependents(component);
-                    GcvScope scope = getScope(component, scopeCache).orElseThrow(() -> new RuntimeException(
-                            "Couldn't determine scope for dependency: " + component));
-                    if (scope == GcvScope.PRODUCTION) {
-                        builder.putProductionDeps(
-                                MyModuleVersionIdentifier.copyOf(component.getModuleVersion()),
-                                dependents);
-                    } else if (scope == GcvScope.TEST) {
-                        builder.putTestDeps(MyModuleVersionIdentifier.copyOf(component.getModuleVersion()), dependents);
-                    } else {
-                        throw new RuntimeException(String.format(
-                                "Unexpected scope for component %s: %s",
-                                component.getModuleVersion(),
-                                scope));
+                    GcvScope scope = getScopeRecursively(component, scopeCache);
+                    switch (scope) {
+                        case PRODUCTION:
+                            builder.putProductionDeps(
+                                    MyModuleVersionIdentifier.copyOf(component.getModuleVersion()),
+                                    extractDependents(component));
+                            return;
+                        case TEST:
+                            builder.putTestDeps(
+                                    MyModuleVersionIdentifier.copyOf(component.getModuleVersion()),
+                                    extractDependents(component));
+                            return;
                     }
+                    throw new RuntimeException(String.format(
+                            "Unexpected scope for component %s: %s",
+                            component.getModuleVersion(),
+                            scope));
                 });
         return builder.build();
     }
 
-    private static Optional<GcvScope> getScope(
+    private static GcvScope getScopeRecursively(
             ResolvedComponentResult component,
             Map<ResolvedComponentResult, GcvScope> scopeCache) {
-        if (scopeCache.containsKey(component)) {
-            return Optional.of(scopeCache.get(component));
+        Optional<GcvScope> cached = Optional.ofNullable(scopeCache.get(component));
+        if (cached.isPresent()) {
+            return cached.get();
         }
-        Optional<GcvScope> scopeOpt = component
-                .getDependents()
-                .stream()
+
+        GcvScope gcvScope = component.getDependents().stream()
                 .flatMap(dependent -> {
                     ComponentIdentifier id = dependent.getFrom().getId();
                     if (id instanceof ProjectComponentIdentifier) {
-                        String maybeScope =
-                                dependent.getRequested().getAttributes().getAttribute(GCV_SCOPE_RESOLUTION_ATTRIBUTE);
+                        String maybeScope = dependent.getRequested()
+                                .getAttributes()
+                                .getAttribute(GCV_SCOPE_RESOLUTION_ATTRIBUTE);
                         return Streams.stream(Optional.ofNullable(maybeScope).map(GcvScope::valueOf));
                     }
-                    return Streams.stream(getScope(dependent.getFrom(), scopeCache));
+                    return Stream.of(getScopeRecursively(dependent.getFrom(), scopeCache));
                 })
-                .min(GCV_SCOPE_COMPARATOR);
-        scopeOpt.ifPresent(scope -> scopeCache.put(component, scope));
-        return scopeOpt;
+                .min(GCV_SCOPE_COMPARATOR)
+                .orElseThrow(() -> new RuntimeException("Couldn't determine scope for dependency: " + component));
+
+        scopeCache.put(component, gcvScope);
+        return gcvScope;
     }
 
     private static Dependents extractDependents(ResolvedComponentResult component) {
