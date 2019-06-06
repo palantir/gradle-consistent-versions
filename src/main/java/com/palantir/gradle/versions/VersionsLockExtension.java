@@ -29,11 +29,11 @@ public class VersionsLockExtension {
     private final SetProperty<String> testConfigurations;
     private final ScopeConfigurer productionConfigurer;
     private final ScopeConfigurer testConfigurer;
-    private final Property<Boolean> useDefaults;
+    private final Property<Boolean> useJavaPluginDefaults;
 
     @Inject
     public VersionsLockExtension(Project project) {
-        this.useDefaults = project.getObjects().property(Boolean.class).convention(true);
+        this.useJavaPluginDefaults = project.getObjects().property(Boolean.class).convention(true);
         this.productionConfigurations = project.getObjects().setProperty(String.class).empty();
         this.testConfigurations = project.getObjects().setProperty(String.class).empty();
         this.productionConfigurer = new ScopeConfigurer(productionConfigurations);
@@ -48,13 +48,13 @@ public class VersionsLockExtension {
         action.execute(testConfigurer);
     }
 
-    public final void disableDefaults() {
-        useDefaults.set(false);
+    public final void disableJavaPluginDefaults() {
+        useJavaPluginDefaults.set(false);
     }
 
-    final boolean isUseDefaults() {
-        useDefaults.finalizeValue();
-        return useDefaults.get();
+    final boolean isUseJavaPluginDefaults() {
+        useJavaPluginDefaults.finalizeValue();
+        return useJavaPluginDefaults.get();
     }
 
     final Set<String> getProductionConfigurations() {

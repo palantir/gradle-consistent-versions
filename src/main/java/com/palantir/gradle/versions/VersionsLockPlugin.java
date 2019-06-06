@@ -90,7 +90,6 @@ import org.gradle.api.tasks.TaskProvider;
 import org.gradle.language.base.plugins.LifecycleBasePlugin;
 import org.gradle.util.GradleVersion;
 import org.immutables.value.Value;
-import org.jetbrains.annotations.NotNull;
 
 public class VersionsLockPlugin implements Plugin<Project> {
     private static final Logger log = Logging.getLogger(VersionsLockPlugin.class);
@@ -170,7 +169,6 @@ public class VersionsLockPlugin implements Plugin<Project> {
         showStacktrace = gradle.getStartParameter().getShowStacktrace();
     }
 
-    @NotNull
     static Path getRootLockFile(Project project) {
         return project.file("versions.lock").toPath();
     }
@@ -733,7 +731,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 ext.getTestConfigurations(),
                 project.getConfigurations()::getByName));
 
-        if (ext.isUseDefaults() && project.getPluginManager().hasPlugin("java")) {
+        if (ext.isUseJavaPluginDefaults() && project.getPluginManager().hasPlugin("java")) {
             SourceSetContainer sourceSets =
                     project.getConvention().getPlugin(JavaPluginConvention.class).getSourceSets();
 
@@ -748,9 +746,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
         log.info("Computed locked configurations for {}: {}", project, result);
 
         // Prevent user trying to lock any configuration that could get published, such as runtimeElements,
-        // apiElements etc
-        // The heuristic we use here is we only allow locking
-        // Their constraints get published so we don't want to start publishing strictly locked constraints.
+        // apiElements etc. (Their constraints get published so we don't want to start publishing strictly locked
+        // constraints)
         result.allConfigurations().forEach(conf -> {
             Preconditions.checkArgument(
                     !conf.isCanBeConsumed() && conf.isCanBeResolved(),
@@ -781,7 +778,6 @@ public class VersionsLockPlugin implements Plugin<Project> {
         }
     }
 
-    @NotNull
     private static List<DependencyConstraint> constructConstraintsFromLockFile(
             Path gradleLockfile, DependencyConstraintHandler constraintHandler) {
         LockState lockState = new ConflictSafeLockFile(gradleLockfile).readLocks();
