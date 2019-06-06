@@ -59,16 +59,16 @@ public class VersionsLockExtension {
         return useDefaults.get();
     }
 
-    final Provider<Set<String>> getProductionConfigurations() {
+    final Set<String> getProductionConfigurations() {
         // Prevent cheeky groovy code from accessing this and modifying the set
         productionConfigurations.finalizeValue();
-        return productionConfigurations;
+        return productionConfigurations.get();
     }
 
-    final Provider<Set<String>> getTestConfigurations() {
+    final Set<String> getTestConfigurations() {
         // Prevent cheeky groovy code from accessing this and modifying the set
         testConfigurations.finalizeValue();
-        return testConfigurations;
+        return testConfigurations.get();
     }
 
     public static final class ScopeConfigurer {

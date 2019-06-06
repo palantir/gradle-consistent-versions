@@ -730,8 +730,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
         ImmutableLockedConfigurations.Builder lockedConfigurations = ImmutableLockedConfigurations.builder();
 
-        lockedConfigurations.addAllProductionConfigurations(ext.getProductionConfigurations().get());
-        lockedConfigurations.addAllTestConfigurations(ext.getTestConfigurations().get());
+        lockedConfigurations.addAllProductionConfigurations(ext.getProductionConfigurations());
+        lockedConfigurations.addAllTestConfigurations(ext.getTestConfigurations());
 
         if (ext.isUseDefaults() && project.getPluginManager().hasPlugin("java")) {
             SourceSetContainer sourceSets =
