@@ -16,15 +16,18 @@
 
 package com.palantir.gradle.versions;
 
+import com.google.common.base.Preconditions;
 import java.util.Set;
 import javax.inject.Inject;
 import org.gradle.api.Action;
 import org.gradle.api.Project;
+import org.gradle.api.plugins.JavaPluginConvention;
 import org.gradle.api.provider.Property;
 import org.gradle.api.provider.SetProperty;
 import org.gradle.api.tasks.SourceSet;
 
 public class VersionsLockExtension {
+    private final Project project;
     private final SetProperty<String> productionConfigurations;
     private final SetProperty<String> testConfigurations;
     private final ScopeConfigurer productionConfigurer;
@@ -33,6 +36,7 @@ public class VersionsLockExtension {
 
     @Inject
     public VersionsLockExtension(Project project) {
+        this.project = project;
         this.useJavaPluginDefaults = project.getObjects().property(Boolean.class).convention(true);
         this.productionConfigurations = project.getObjects().setProperty(String.class).empty();
         this.testConfigurations = project.getObjects().setProperty(String.class).empty();
@@ -50,6 +54,15 @@ public class VersionsLockExtension {
 
     public final void disableJavaPluginDefaults() {
         useJavaPluginDefaults.set(false);
+    }
+
+    public final void testProject() {
+        disableJavaPluginDefaults();
+        Preconditions.checkArgument(
+                project.getPluginManager().hasPlugin("java"),
+                "The java plugin must be applied to consider this a test project: %s",
+                project);
+        project.getConvention().getPlugin(JavaPluginConvention.class).getSourceSets().all(testConfigurer::from);
     }
 
     final boolean isUseJavaPluginDefaults() {

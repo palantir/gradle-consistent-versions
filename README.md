@@ -278,18 +278,14 @@ Sometimes, devs have multiple test projects (unit tests, integration tests) that
 ```
 
 In this case, we'd like to prevent GCV from locking `:foo-test-common`'s `main` source set to production dependencies,
-and instead treat the entire project as test dependencies. We can do this by disabling the default locked source sets,
-and configuring them ourselves:
+and instead treat the entire project as test dependencies. We can do this via the following snippet:
 
 ```gradle
 # foo-test-common/build.gradle
 apply plugin: 'java'
 
 versionsLock {
-    disableJavaPluginDefaults()  // do not lock any configuration / source set by default
-    test {
-        from sourceSets.main
-    }
+    testProject()
 }
 ``` 
 
