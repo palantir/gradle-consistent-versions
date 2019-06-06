@@ -211,8 +211,6 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
         // We apply 'java-base' because we need the JavaEcosystemVariantDerivationStrategy for platforms to work
         // (but that's internal)
-        // TODO(dsanduleac): we will move to java-platform in the future (probably once 5.2 is out)
-        // See: https://github.com/gradle/gradle/pull/7967
         project.getPluginManager().apply("java-base");
 
         if (project.getGradle().getStartParameter().isWriteDependencyLocks()) {
@@ -254,22 +252,20 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
                 configureAllProjectsUsingConstraints(project, rootLockfile, lockedConfigurations);
             });
-
-            TaskProvider verifyLocks = project.getTasks().register("verifyLocks", VerifyLocksTask.class, task -> {
-                task.getCurrentLockState()
-                        .set(project.provider(() -> LockStates.toLockState(fullLockStateSupplier.get())));
-                task.getPersistedLockState()
-                        .set(project.provider(() -> new ConflictSafeLockFile(rootLockfile).readLocks()));
-            });
-            project.getTasks().named(LifecycleBasePlugin.CHECK_TASK_NAME).configure(check -> {
-                check.dependsOn(verifyLocks);
-            });
-
-            project.getTasks().register("why", WhyDependencyTask.class, t -> {
-                t.lockfile(rootLockfile);
-                t.fullLockState(project.provider(fullLockStateSupplier::get));
-            });
         }
+
+        TaskProvider verifyLocks = project.getTasks().register("verifyLocks", VerifyLocksTask.class, task -> {
+            task.getCurrentLockState()
+                    .set(project.provider(() -> LockStates.toLockState(fullLockStateSupplier.get())));
+            task.getPersistedLockState()
+                    .set(project.provider(() -> new ConflictSafeLockFile(rootLockfile).readLocks()));
+        });
+        project.getTasks().named(LifecycleBasePlugin.CHECK_TASK_NAME).configure(check -> check.dependsOn(verifyLocks));
+
+        project.getTasks().register("why", WhyDependencyTask.class, t -> {
+            t.lockfile(rootLockfile);
+            t.fullLockState(project.provider(fullLockStateSupplier::get));
+        });
     }
 
     private static Map<Project, LockedConfigurations> wireUpLockedConfigurationsByProject(Project rootProject) {
