@@ -20,6 +20,7 @@ import com.google.common.base.Functions;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.Suppliers;
+import com.google.common.collect.Collections2;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -331,9 +332,11 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
         unifiedClasspath.getDependencies().add(
                 createConfigurationDependencyWithScope(
-                        project, consistentVersionsProduction.getName(), GcvScope.PRODUCTION));
+                        project,
+                        consistentVersionsProduction.get(),
+                        GcvScope.PRODUCTION));
         unifiedClasspath.getDependencies().add(
-                createConfigurationDependencyWithScope(project, consistentVersionsTest.getName(), GcvScope.TEST));
+                createConfigurationDependencyWithScope(project, consistentVersionsTest.get(), GcvScope.TEST));
     }
 
     /**
@@ -341,25 +344,24 @@ public class VersionsLockPlugin implements Plugin<Project> {
      * {@link #recursivelyCopyProjectDependenciesWithScope}.
      */
     private static void addConfigurationDependencies(
-            Project project, Configuration fromConf, Iterable<String> toConfs) {
+            Project project, Configuration fromConf, Set<Configuration> toConfs) {
         toConfs.forEach(toConf -> fromConf.getDependencies().add(createConfigurationDependency(project, toConf)));
     }
 
     /**
      * Create a dependency to {@code toConfiguration}, where the latter should exist in the given {@code project}.
      */
-    private static ProjectDependency createConfigurationDependency(
-            Project project, String toConfiguration) {
+    private static ProjectDependency createConfigurationDependency(Project project, Configuration toConfiguration) {
         return (ProjectDependency) project
                 .getDependencies()
-                .project(ImmutableMap.of("path", project.getPath(), "configuration", toConfiguration));
+                .project(ImmutableMap.of("path", project.getPath(), "configuration", toConfiguration.getName()));
     }
 
     /**
      * Create a dependency to {@code toConfiguration}, where the latter should exist in the given {@code project}.
      */
     private static Dependency createConfigurationDependencyWithScope(
-            Project project, String toConfiguration, GcvScope scope) {
+            Project project, Configuration toConfiguration, GcvScope scope) {
         ModuleDependency dep = GradleWorkarounds.fixAttributesOfModuleDependency(
                 project.getObjects(), createConfigurationDependency(project, toConfiguration));
         dep.attributes(attr -> attr.attribute(GCV_SCOPE_ATTRIBUTE, scope));
@@ -702,7 +704,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
     private static void configureUsingConstraints(
             Project subproject, List<DependencyConstraint> constraints, LockedConfigurations lockedConfigurations) {
-        Set<String> configurationsToLock = lockedConfigurations.allConfigurations();
+        Set<Configuration> configurationsToLock = lockedConfigurations.allConfigurations();
         log.info("Configuring locks for {}. Locked configurations: {}", subproject.getPath(), configurationsToLock);
         // Configure constraints on all configurations that should be locked.
         NamedDomainObjectProvider<Configuration> locksConfiguration =
@@ -713,10 +715,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 });
 
         configurationsToLock
-                .forEach(name -> subproject
-                        .getConfigurations()
-                        .named(name)
-                        .configure(conf -> conf.extendsFrom(locksConfiguration.get())));
+                .forEach(conf -> conf.extendsFrom(locksConfiguration.get()));
 
         locksConfiguration
                 .configure(conf -> constraints.stream().forEach(conf.getDependencyConstraints()::add));
@@ -730,16 +729,22 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
         ImmutableLockedConfigurations.Builder lockedConfigurations = ImmutableLockedConfigurations.builder();
 
-        lockedConfigurations.addAllProductionConfigurations(ext.getProductionConfigurations());
-        lockedConfigurations.addAllTestConfigurations(ext.getTestConfigurations());
+        lockedConfigurations.addAllProductionConfigurations(Collections2.transform(
+                ext.getProductionConfigurations(),
+                project.getConfigurations()::getByName));
+        lockedConfigurations.addAllTestConfigurations(Collections2.transform(
+                ext.getTestConfigurations(),
+                project.getConfigurations()::getByName));
 
         if (ext.isUseDefaults() && project.getPluginManager().hasPlugin("java")) {
             SourceSetContainer sourceSets =
                     project.getConvention().getPlugin(JavaPluginConvention.class).getSourceSets();
 
             lockedConfigurations.addAllProductionConfigurations(getConfigurationsForSourceSet(
+                    project,
                     sourceSets.getByName(SourceSet.MAIN_SOURCE_SET_NAME)));
             lockedConfigurations.addAllTestConfigurations(getConfigurationsForSourceSet(
+                    project,
                     sourceSets.getByName(SourceSet.TEST_SOURCE_SET_NAME)));
         }
         ImmutableLockedConfigurations result = lockedConfigurations.build();
@@ -749,7 +754,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
         // apiElements etc
         // The heuristic we use here is we only allow locking
         // Their constraints get published so we don't want to start publishing strictly locked constraints.
-        result.allConfigurations().stream().map(project.getConfigurations()::getByName).forEach(conf -> {
+        result.allConfigurations().forEach(conf -> {
             Preconditions.checkArgument(
                     !conf.isCanBeConsumed() && conf.isCanBeResolved(),
                     "May only lock 'sink' configurations that are resolvable and not consumable: %s",
@@ -759,10 +764,10 @@ public class VersionsLockPlugin implements Plugin<Project> {
         return result;
     }
 
-    private static ImmutableSet<String> getConfigurationsForSourceSet(SourceSet sourceSet) {
+    private static ImmutableSet<Configuration> getConfigurationsForSourceSet(Project project, SourceSet sourceSet) {
         return ImmutableSet.of(
-                sourceSet.getCompileClasspathConfigurationName(),
-                sourceSet.getRuntimeClasspathConfigurationName());
+                project.getConfigurations().getByName(sourceSet.getCompileClasspathConfigurationName()),
+                project.getConfigurations().getByName(sourceSet.getRuntimeClasspathConfigurationName()));
     }
 
     /**
@@ -770,11 +775,11 @@ public class VersionsLockPlugin implements Plugin<Project> {
      */
     @Value.Immutable
     interface LockedConfigurations {
-        Set<String> productionConfigurations();
-        Set<String> testConfigurations();
+        Set<Configuration> productionConfigurations();
+        Set<Configuration> testConfigurations();
 
         @Value.Auxiliary
-        default ImmutableSet<String> allConfigurations() {
+        default ImmutableSet<Configuration> allConfigurations() {
             return ImmutableSet.copyOf(Iterables.concat(productionConfigurations(), testConfigurations()));
         }
     }
