@@ -167,7 +167,7 @@ final class GradleWorkarounds {
         private final org.gradle.api.internal.attributes.ImmutableAttributesFactory attributesFactory;
 
         @Inject
-        // CHECKSTYLE:OFF
+        @SuppressWarnings("RedundantModifier")
         public Extractors(org.gradle.api.internal.attributes.ImmutableAttributesFactory attributesFactory) {
             this.attributesFactory = attributesFactory;
         }
