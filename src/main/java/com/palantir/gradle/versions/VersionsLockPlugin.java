@@ -625,6 +625,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
         }
 
         GcvScope gcvScope = component.getDependents().stream()
+                .filter(dep -> !dep.isConstraint())
                 .flatMap(dependent -> {
                     ComponentIdentifier id = dependent.getFrom().getId();
                     if (id instanceof ProjectComponentIdentifier) {
