@@ -36,7 +36,6 @@ import org.gradle.api.artifacts.ModuleVersionIdentifier;
 import org.gradle.api.artifacts.VersionConstraint;
 import org.gradle.api.artifacts.component.ComponentIdentifier;
 import org.gradle.api.artifacts.component.ModuleComponentIdentifier;
-import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,7 +52,6 @@ public final class LockStates {
         return LockState.from(computeLines(fullLockState.productionDeps()), computeLines(fullLockState.testDeps()));
     }
 
-    @NotNull
     public static Stream<Line> computeLines(Map<MyModuleVersionIdentifier, Dependents> deps) {
         return deps
                 .entrySet()

@@ -16,6 +16,7 @@
 
 package com.palantir.gradle.versions.lockstate;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSortedMap;
 import com.palantir.gradle.versions.GradleComparators;
 import com.palantir.gradle.versions.internal.MyModuleIdentifier;
@@ -39,6 +40,11 @@ public interface LockState extends Serializable {
 
     @Parameter
     List<Line> testLines();
+
+    @Value.Lazy
+    default List<Line> allLines() {
+        return ImmutableList.<Line>builder().addAll(productionLines()).addAll(testLines()).build();
+    }
 
     /** Mapping from {@code group:artifact} to the full line. */
     @Value.Lazy
