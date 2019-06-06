@@ -131,7 +131,8 @@ The lockfile sources production dependencies from the _compileClasspath_ and _ru
 test dependencies from the compile/runtime classpaths of any source set that ends in test (e.g. `test`, `integrationTest`,
 `eteTest`).
 
-<!-- TODO(dfox): build some ./gradlew checkVersionsLock task and recommend running it on CI -->
+There is a `verifyLocks` task (automatically run as part of `check`) that will ensure `versions.lock` is still consistent
+with the current dependencies.
 
 ### ./gradlew why
 To understand why a particular version in your lockfile has been chosen, run `./gradlew why --hash a60c3ce8` to expand the constraints:
