@@ -33,6 +33,8 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                 "org.slf4j:slf4j-api:1.7.24",
                 "org.slf4j:slf4j-api:1.7.25",
                 "org:platform:1.0",
+                "junit:junit:4.10",
+                "org:test-dep-that-logs:1.0 -> org.slf4j:slf4j-api:1.7.11"
         )
         buildFile << """
             buildscript {
@@ -136,6 +138,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                     propertiesFile file: rootProject.file('versions.props')
                 }
             }
+            
             subprojects {
                 apply plugin: 'com.palantir.configuration-resolver'
             }
@@ -541,6 +544,117 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         """.stripIndent()
 
         expect:
+        runTasks('--write-locks', 'classes')
+    }
+
+    def "inter-project normal dependency works"() {
+        addSubproject("foo", """
+            apply plugin: 'java'
+            dependencies {
+                compile project(":bar") 
+            }
+        """.stripIndent())
+
+        addSubproject("bar", """
+            apply plugin: 'java'
+        """.stripIndent())
+
+        expect:
+        runTasks('--write-locks', 'classes')
+    }
+
+    def "test dependencies appear in a separate block"() {
+        buildFile << """
+            apply plugin: 'java'           
+            dependencies {
+                compile 'ch.qos.logback:logback-classic:1.2.3'
+                testCompile 'org:test-dep-that-logs:1.0'
+            }
+        """.stripIndent()
+
+        expect:
         runTasks('--write-locks')
+        def expected = """\
+            # Run ./gradlew --write-locks to regenerate this file
+            ch.qos.logback:logback-classic:1.2.3 (1 constraints: 0805f935)
+            org.slf4j:slf4j-api:1.7.25 (2 constraints: 7917e690)
+             
+            [Test dependencies]
+            org:test-dep-that-logs:1.0 (1 constraints: a5041a2c)
+        """.stripIndent()
+        file('versions.lock').text == expected
+    }
+
+    def "locks dependencies from extra source sets that end in test"() {
+        buildFile << """
+            apply plugin: 'java'
+            sourceSets {
+                eteTest
+            }           
+            dependencies {
+                compile 'ch.qos.logback:logback-classic:1.2.3'
+                testCompile 'junit:junit:4.10'
+                eteTestCompile 'org:test-dep-that-logs:1.0'
+            }
+        """.stripIndent()
+
+        expect:
+        runTasks('--write-locks')
+        def expected = """\
+            # Run ./gradlew --write-locks to regenerate this file
+            ch.qos.logback:logback-classic:1.2.3 (1 constraints: 0805f935)
+            org.slf4j:slf4j-api:1.7.25 (2 constraints: 7917e690)
+             
+            [Test dependencies]
+            junit:junit:4.10 (1 constraints: d904fd30)
+            org:test-dep-that-logs:1.0 (1 constraints: a5041a2c)
+        """.stripIndent()
+        file('versions.lock').text == expected
+    }
+
+    def "versionsLock.testProject() works"() {
+        buildFile << """
+            apply plugin: 'java'
+            dependencies {
+                compile 'junit:junit:4.10'
+            }
+            
+            versionsLock.testProject()
+        """.stripIndent()
+
+        expect:
+        runTasks('--write-locks')
+        def expected = """\
+            # Run ./gradlew --write-locks to regenerate this file
+             
+            [Test dependencies]
+            junit:junit:4.10 (1 constraints: d904fd30)
+        """.stripIndent()
+        file('versions.lock').text == expected
+    }
+
+    def "constraints on production do not affect scope of test only dependencies"() {
+        buildFile << """
+            apply plugin: 'java'
+            dependencies {
+                constraints {
+                    compile 'ch.qos.logback:logback-classic:1.2.3'
+                }
+                dependencies {
+                    testCompile 'ch.qos.logback:logback-classic'
+                }
+            }
+        """.stripIndent()
+
+        expect:
+        runTasks('--write-locks')
+        def expected = """\
+            # Run ./gradlew --write-locks to regenerate this file
+             
+            [Test dependencies]
+            ch.qos.logback:logback-classic:1.2.3 (1 constraints: 0805f935)
+            org.slf4j:slf4j-api:1.7.25 (1 constraints: 400d4d2a)
+        """.stripIndent()
+        file('versions.lock').text == expected
     }
 }

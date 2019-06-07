@@ -23,9 +23,11 @@ import com.google.common.collect.Streams;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
+import com.palantir.gradle.versions.internal.MyModuleVersionIdentifier;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -47,11 +49,14 @@ public final class LockStates {
      * file.
      */
     public static LockState toLockState(FullLockState fullLockState) {
-        return LockState.from(fullLockState
-                .lines()
+        return LockState.from(computeLines(fullLockState.productionDeps()), computeLines(fullLockState.testDeps()));
+    }
+
+    public static Stream<Line> computeLines(Map<MyModuleVersionIdentifier, Dependents> deps) {
+        return deps
                 .entrySet()
                 .stream()
-                .map(entry -> componentWithDependentsToLine(entry.getKey(), entry.getValue())));
+                .map(entry -> componentWithDependentsToLine(entry.getKey(), entry.getValue()));
     }
 
     private static Line componentWithDependentsToLine(ModuleVersionIdentifier component, Dependents dependents) {

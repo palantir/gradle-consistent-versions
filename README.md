@@ -50,6 +50,7 @@ Direct dependencies are specified in a top level `versions.props` file and then 
     1. Downgrading things
     1. Common workflow: SLF4J
     1. Common workflow: dependencySubstitution
+    1. Common workflow: internal test utility projects
     1. Resolving dependencies at configuration time is banned
     1. Known limitation: root project must have a unique name
     1. Scala
@@ -119,12 +120,19 @@ javax.inject:javax.inject:1 (2 constraints: d614a0ab)
 javax.servlet:javax.servlet-api:3.1.0 (1 constraints: 830dcc28)
 javax.validation:validation-api:1.1.0.Final (3 constraints: dc393f20)
 javax.ws.rs:javax.ws.rs-api:2.0.1 (8 constraints: 7e9ce067)
+
+[Test dependencies]
+cglib:cglib-nodep:3.1 (1 constraints: 2a0e1330)
+com.github.zafarkhaja:java-semver:0.9.0 (1 constraints: c315c0d2)
+com.jayway.awaitility:awaitility:1.6.5 (1 constraints: c615c1d2)
 ```
 
-The lockfile is sourced from the _compileClasspath_ and _runtimeClasspath_ configurations.
-(Test-only dependencies will not appear in `versions.lock`)
+The lockfile sources production dependencies from the _compileClasspath_ and _runtimeClasspath_ configurations, and
+test dependencies from the compile/runtime classpaths of any source set that ends in test (e.g. `test`, `integrationTest`,
+`eteTest`).
 
-<!-- TODO(dfox): build some ./gradlew checkVersionsLock task and recommend running it on CI -->
+There is a `verifyLocks` task (automatically run as part of `check`) that will ensure `versions.lock` is still consistent
+with the current dependencies.
 
 ### ./gradlew why
 To understand why a particular version in your lockfile has been chosen, run `./gradlew why --hash a60c3ce8` to expand the constraints:
@@ -255,6 +263,31 @@ Adding explicit `it` calls works around this error:
      }
  }
 ```
+
+### Common workflow: internal test utility projects
+Sometimes, devs have multiple test projects (unit tests, integration tests) that use a subset of common test classes.
+```
+* :foo
+   \--- source set 'test'
+         \--- :foo-test-common
+* :foo-integration
+   \--- source set 'integrationTest'
+         \--- :foo-test-common
+* :foo-test-common
+   \--- source set 'main'
+```
+
+In this case, we'd like to prevent GCV from locking `:foo-test-common`'s `main` source set to production dependencies,
+and instead treat the entire project as test dependencies. We can do this via the following snippet:
+
+```gradle
+# foo-test-common/build.gradle
+apply plugin: 'java'
+
+versionsLock {
+    testProject()
+}
+``` 
 
 ### Resolving dependencies at configuration time is banned
 In order for this plugin to function, we must be able to guarantee that no dependencies are resolved at configuration time.  Gradle already [recommends this](https://guides.gradle.org/performance/#don_t_resolve_dependencies_at_configuration_time) but gradle-consistent-versions enforces it.

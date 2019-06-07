@@ -16,7 +16,6 @@
 
 package com.palantir.gradle.versions;
 
-import com.google.common.base.Preconditions;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Multimaps;
@@ -26,8 +25,10 @@ import com.palantir.gradle.versions.lockstate.FullLockState;
 import com.palantir.gradle.versions.lockstate.Line;
 import com.palantir.gradle.versions.lockstate.LockStates;
 import java.nio.file.Path;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.stream.Stream;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.artifacts.ModuleVersionIdentifier;
 import org.gradle.api.provider.Property;
@@ -65,7 +66,7 @@ public class WhyDependencyTask extends DefaultTask {
     @TaskAction
     public final void taskAction() {
         // read the lockfile from disk so that we can fail fast without resolving anything if the hash isn't found
-        Multimap<String, Line> lineByHash = new ConflictSafeLockFile(lockfile).readLocks().lines().stream()
+        Multimap<String, Line> lineByHash = new ConflictSafeLockFile(lockfile).readLocks().allLines().stream()
                 .collect(Multimaps.toMultimap(Line::dependentsHash, Function.identity(), HashMultimap::create));
 
         if (!hashOption.isPresent()) {
@@ -78,9 +79,13 @@ public class WhyDependencyTask extends DefaultTask {
         lineByHash.get(hashOption.get()).forEach(line -> {
             ModuleVersionIdentifier key = MyModuleVersionIdentifier.of(line.group(), line.name(), line.version());
 
-            Dependents dependents = Preconditions.checkNotNull(
-                    fullLockState.get().lines().get(key),
-                    "Unable to find group/name in fullLockState");
+            Optional<Dependents> entry = Stream
+                    .of(fullLockState.get().productionDeps(), fullLockState.get().testDeps())
+                    .map(state -> state.get(key))
+                    .filter(Objects::nonNull)
+                    .findFirst();
+            Dependents dependents = entry.orElseThrow(() ->
+                    new NullPointerException("Unable to find group/name in fullLockState"));
 
             getLogger().lifecycle("{}", key);
             LockStates.prettyPrintConstraints(dependents).forEach(pretty -> {
