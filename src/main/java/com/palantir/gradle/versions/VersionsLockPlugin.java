@@ -370,6 +370,11 @@ public class VersionsLockPlugin implements Plugin<Project> {
             throw new GradleException("Must be applied only to root project");
         }
 
+        Preconditions.checkState(
+                !project.getGradle().getStartParameter().isConfigureOnDemand(),
+                "Gradle Consistent Versions doesn't currently work with configure-on-demand, please remove"
+                        + " 'org.gradle.configureondemand' from your gradle.properties");
+
         project.subprojects(subproject -> {
             subproject.afterEvaluate(sub -> {
                 if (haveSameGroupAndName(project, sub)) {
