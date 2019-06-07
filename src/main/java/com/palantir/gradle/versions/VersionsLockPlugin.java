@@ -104,8 +104,6 @@ public class VersionsLockPlugin implements Plugin<Project> {
     /** Configuration to which we apply the constraints from the lock file. */
     private static final String LOCK_CONSTRAINTS_CONFIGURATION_NAME = "lockConstraints";
 
-    private static final Attribute<Boolean> CONSISTENT_VERSIONS_CONSTRAINT_ATTRIBUTE =
-            Attribute.of("consistent-versions", Boolean.class);
     private static final String CONSISTENT_VERSIONS_PRODUCTION = "consistentVersionsProduction";
     private static final String CONSISTENT_VERSIONS_TEST = "consistentVersionsTest";
     private static final String VERSIONS_LOCK_EXTENSION = "versionsLock";
@@ -647,7 +645,6 @@ public class VersionsLockPlugin implements Plugin<Project> {
         return Dependents.of(component
                 .getDependents()
                 .stream()
-                .filter(dep -> !dep.getRequested().getAttributes().contains(CONSISTENT_VERSIONS_CONSTRAINT_ATTRIBUTE))
                 .collect(Collectors.groupingBy(
                         dep -> dep.getFrom().getId(),
                         () -> new TreeMap<>(GradleComparators.COMPONENT_IDENTIFIER_COMPARATOR),
@@ -793,10 +790,6 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 .map(notation -> constraintHandler.create(notation, constraint -> {
                     constraint.version(v -> v.strictly(Objects.requireNonNull(constraint.getVersion())));
                     constraint.because("Locked by versions.lock");
-                    // We set this in order to identify these constraints later.
-                    constraint.attributes(attributeContainer -> {
-                        attributeContainer.attribute(CONSISTENT_VERSIONS_CONSTRAINT_ATTRIBUTE, true);
-                    });
                 }))
                 .collect(Collectors.toList());
     }
