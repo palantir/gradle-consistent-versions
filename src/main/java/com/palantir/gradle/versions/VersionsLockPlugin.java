@@ -535,6 +535,9 @@ public class VersionsLockPlugin implements Plugin<Project> {
                     copiedConf.setCanBeConsumed(true);
                     // But this should never be resolved! (it will most likely fail to given the usage above)
                     copiedConf.setCanBeResolved(false);
+                    // Since we only depend on these from the same project (via CONSISTENT_VERSIONS_PRODUCTION or
+                    // CONSISTENT_VERSIONS_TEST), we shouldn't allow them to be visible outside this project.
+                    copiedConf.setVisible(false);
                     // This is so we can get back the scope from the ResolutionResult.
                     copiedConf
                             .getDependencies()
