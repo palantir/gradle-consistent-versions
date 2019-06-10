@@ -231,7 +231,7 @@ allprojects {
 }
 ```
 
-## Common workflow: SLF4J
+### Common workflow: SLF4J
 Developers usually want just one SLF4J implementation on the classpath. If some of your dependencies rely on their own logging implementations (e.g. commons-logging or log4j), you can use the following snippet to ensure that all logging will go through SLF4J.
 
 ```gradle
