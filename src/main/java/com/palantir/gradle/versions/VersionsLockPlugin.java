@@ -83,6 +83,7 @@ import org.gradle.api.invocation.Gradle;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 import org.gradle.api.logging.configuration.ShowStacktrace;
+import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.plugins.JavaPluginConvention;
 import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.SourceSetContainer;
@@ -162,9 +163,26 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
     private final ShowStacktrace showStacktrace;
 
+    /**
+     * We don't want the consumable configurations we create ({@link #PLACEHOLDER_CONFIGURATION_NAME},
+     * {@link #CONSISTENT_VERSIONS_PRODUCTION}, {@link #CONSISTENT_VERSIONS_TEST}) and downstream collected
+     * {@link #recursivelyCopyProjectDependencies(Project, DependencySet) configurations that we copy} to have
+     * any known usage, so we give them this usage. This is so that:
+     * <ul>
+     *     <li>they don't cause an ambiguity between the copied and the original {@code apiElements}, {@code
+     *     runtimeElements} etc., when a resolution with a required usage is performed (such as by resolving
+     *     a {@code compileClasspath} or {@code runtimeClasspath} configuration)</li>
+     *     <li>to avoid {@link #PLACEHOLDER_CONFIGURATION_NAME} being resolved as an actual candidate in normal
+     *     resolution, when all other candidates didn't match, simply because it had completely distinct attributes
+     *     from the requested attributes.</li>
+     * </ul>
+     */
+    private final Usage internalUsage;
+
     @Inject
-    public VersionsLockPlugin(Gradle gradle) {
+    public VersionsLockPlugin(Gradle gradle, ObjectFactory objectFactory) {
         showStacktrace = gradle.getStartParameter().getShowStacktrace();
+        internalUsage = objectFactory.named(Usage.class, "consistent-versions-usage");
     }
 
     static Path getRootLockFile(Project project) {
@@ -284,7 +302,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
      * It doesn't wire up the actual configurations that we intend to lock, because that will be done later, in
      * afterEvaluate.
      */
-    private static void setupDependenciesToProject(
+    private void setupDependenciesToProject(
             Project rootProject, Configuration unifiedClasspath, Project project) {
         // Parallel 'resolveConfigurations' sometimes breaks unless we force the root one to run first.
         if (rootProject != project) {
@@ -297,6 +315,9 @@ public class VersionsLockPlugin implements Plugin<Project> {
         // inter-project dependencies.
         project.getConfigurations().register(PLACEHOLDER_CONFIGURATION_NAME, conf -> {
             conf.setVisible(false).setCanBeResolved(false);
+
+            // Make sure it can never be selected as part of normal resolution that declares a required usage.
+            conf.getAttributes().attribute(Usage.USAGE_ATTRIBUTE, internalUsage);
 
             // Mark it as a GCV_SOURCE, so that when we resolve {@link #UNIFIED_CLASSPATH_CONFIGURATION_NAME}
             // it becomes selected (as the best matching configuration) for the user's normal inter-project dependencies
@@ -311,6 +332,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
                     conf.setVisible(false); // needn't be visible from other projects
                     conf.setCanBeConsumed(true);
                     conf.setCanBeResolved(false);
+                    conf.getAttributes().attribute(Usage.USAGE_ATTRIBUTE, internalUsage);
                 });
 
         NamedDomainObjectProvider<Configuration> consistentVersionsTest =
@@ -320,6 +342,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
                     conf.setVisible(false); // needn't be visible from other projects
                     conf.setCanBeConsumed(true);
                     conf.setCanBeResolved(false);
+                    conf.getAttributes().attribute(Usage.USAGE_ATTRIBUTE, internalUsage);
                 });
 
         unifiedClasspath.getDependencies().add(
@@ -456,7 +479,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
      * DependencySet}, and then amends their {@link ProjectDependency#getTargetConfiguration()} to point to the copied
      * configuration. It then eagerly configures any copied Configurations recursively.
      */
-    private static void recursivelyCopyProjectDependenciesWithScope(
+    private void recursivelyCopyProjectDependenciesWithScope(
             Project currentProject,
             DependencySet dependencySet,
             Map<Configuration, String> copiedConfigurationsCache,
@@ -507,11 +530,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
                                 ImmutableList.copyOf(copiedConf.getAllDependencyConstraints()));
                     }
 
-                    // We don't want this copied configuration to have any known usage.
-                    // This is so that copied `apiElements` etc don't get picked up via usage.
-                    copiedConf.getAttributes().attribute(
-                            Usage.USAGE_ATTRIBUTE,
-                            projectDep.getObjects().named(Usage.class, "consistent-versions-usage"));
+                    copiedConf.getAttributes().attribute(Usage.USAGE_ATTRIBUTE, internalUsage);
                     // Must set this because we depend on this configuration when resolving unifiedClasspath.
                     copiedConf.setCanBeConsumed(true);
                     // But this should never be resolved! (it will most likely fail to given the usage above)
