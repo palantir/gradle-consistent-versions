@@ -254,6 +254,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
             // [1]: https://github.com/JetBrains/intellij-community/commit/f394c51cff59c69bbaf63a8bf67cefbad9e357aa#diff-04b9936e4249a0f5727414555b76c4b9R123
             project.afterEvaluate(g -> {
                 // Ensure all other projects have been resolved before.
+                // This is so that plugins that configure subprojects (gradle-conjure) continue to work.
                 project.getSubprojects().forEach(subproject -> project.evaluationDependsOn(subproject.getPath()));
 
                 // Recursively copy all project dependencies, so that the constraints we add below won't affect the
