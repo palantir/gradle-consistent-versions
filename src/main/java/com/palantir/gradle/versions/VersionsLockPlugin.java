@@ -246,9 +246,17 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 configureAllProjectsUsingConstraints(project, rootLockfile, lockedConfigurations);
             });
         } else {
-            // projectsEvaluated is necessary to ensure all projects' dependencies have been configured, because we
+            // afterEvaluate is necessary to ensure all projects' dependencies have been configured, because we
             // need to copy them eagerly before we add the constraints from the lock file.
-            project.getGradle().projectsEvaluated(g -> {
+
+            // Note: do not use Gradle.projectsEvaluated here, as IntelliJ's [gradle import action][1] happens BEFORE
+            // that, and will thus resolve the locked configurations before we get a change to add constraints to them.
+            // [1]: https://github.com/JetBrains/intellij-community/commit/f394c51cff59c69bbaf63a8bf67cefbad9e357aa#diff-04b9936e4249a0f5727414555b76c4b9R123
+            project.afterEvaluate(g -> {
+                // Ensure all other projects have been resolved before.
+                // This is so that plugins that configure subprojects (gradle-conjure) continue to work.
+                project.getSubprojects().forEach(subproject -> project.evaluationDependsOn(subproject.getPath()));
+
                 // Recursively copy all project dependencies, so that the constraints we add below won't affect the
                 // resolution of unifiedClasspath.
                 Map<Project, LockedConfigurations> lockedConfigurations = wireUpLockedConfigurationsByProject(project);
