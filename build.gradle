@@ -46,10 +46,28 @@ dependencies {
     implementation 'com.google.guava:guava'
     implementation 'com.netflix.nebula:nebula-dependency-recommender'
 
-    testCompile 'com.netflix.nebula:nebula-test'
+    testImplementation 'com.netflix.nebula:nebula-test'
+    testImplementation "org.junit.jupiter:junit-jupiter-api"
+    testRuntimeOnly "org.junit.vintage:junit-vintage-engine"
 
     annotationProcessor "org.immutables:value"
     compileOnly "org.immutables:value::annotations"
+}
+
+tasks.withType(Test) {
+    useJUnitPlatform()
+
+    testLogging {
+        events "passed", "skipped", "failed"
+    }
+
+    systemProperties = [
+            'junit.platform.output.capture.stdout'                  : 'true',
+            'junit.platform.output.capture.stderr'                  : 'true',
+            'junit.jupiter.execution.parallel.enabled'              : 'true',
+            'junit.jupiter.execution.parallel.config.strategy'      : 'dynamic',
+            'junit.jupiter.execution.parallel.config.dynamic.factor': '1'
+    ]
 }
 
 tasks.withType(JavaCompile) {

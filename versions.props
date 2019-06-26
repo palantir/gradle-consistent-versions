@@ -2,6 +2,8 @@ com.netflix.nebula:nebula-dependency-recommender = 7.5.6
 com.netflix.nebula:nebula-test = 7.2.5
 com.google.guava:guava = 23.6.1-jre
 org.immutables:value = 2.7.5
+org.junit.jupiter:* = 5.4.0
+org.junit.vintage:* = 5.4.0
 
 # Unnecessary once we have lock files
 com.google.code.findbugs:jsr305 = 3.0.2
