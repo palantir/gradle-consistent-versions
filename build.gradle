@@ -55,10 +55,6 @@ dependencies {
 tasks.withType(Test) {
     useJUnitPlatform()
 
-    testLogging {
-        events "passed", "skipped", "failed"
-    }
-
     systemProperties = [
             'junit.platform.output.capture.stdout'                  : 'true',
             'junit.platform.output.capture.stderr'                  : 'true',
