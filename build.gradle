@@ -21,7 +21,6 @@ plugins {
     id 'org.inferred.processors' version '2.2.0'
     id 'com.palantir.baseline' version '0.62.1'
     id 'com.palantir.git-version' version '0.7.3'
-    id 'com.adarshr.test-logger' version '1.7.0'
 }
 
 repositories {
