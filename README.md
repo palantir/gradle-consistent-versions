@@ -1,3 +1,7 @@
+<p align="right">
+<a href="https://autorelease.general.dmz.palantir.tech/palantir/gradle-consistent-versions"><img src="https://img.shields.io/badge/Perform%20an-Autorelease-success.svg" alt="Autorelease"></a>
+</p>
+
 # com.palantir.consistent-versions [ ![Download](https://api.bintray.com/packages/palantir/releases/gradle-consistent-versions/images/download.svg) ](https://plugins.gradle.org/plugin/com.palantir.consistent-versions)
 
 _A gradle plugin to ensure your dependency versions are *consistent* across all subprojects, without requiring you to hunt down and force every single conflicting transitive dependency._
