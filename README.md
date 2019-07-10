@@ -183,6 +183,7 @@ Gradle has [first-class support][bom] for sourcing version constraints from publ
 
 ```gradle
 allprojects {
+    apply plugin: 'java-base'
     dependencies {
         rootConfiguration platform('com.foo.bar:your-bom')
     }
@@ -191,6 +192,8 @@ allprojects {
 [bom]: https://docs.gradle.org/4.6/release-notes.html#bom-import
 
 Make sure you apply BOMs within an `allprojects` closure, as gradle-consistent-versions must be able to unify constraints from all subprojects.
+
+Note: **`java-base` is necessary**, even on projects that don't have java source code, otherwise gradle will silently interpret the `platform(...)` dependency as if it was a normal library dependency, and will not import the constraints from that BOM.
 
 ### Specifying exact versions
 The preferred way to control your dependency graph is using [dependency constraints][] on gradle-consistent-versions' `rootConfiguration`. For example:
