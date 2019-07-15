@@ -31,6 +31,7 @@ import org.gradle.api.artifacts.ExternalDependency;
 import org.gradle.api.artifacts.dsl.DependencyConstraintHandler;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
+import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.publish.PublishingExtension;
 import org.gradle.api.publish.maven.MavenPublication;
 import org.gradle.util.GradleVersion;
@@ -99,6 +100,13 @@ public class VersionsPropsPlugin implements Plugin<Project> {
             NamedDomainObjectProvider<Configuration> rootConfiguration,
             VersionsProps versionsProps,
             Configuration conf) {
+
+        if (conf.getName().equals(JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME)
+                || conf.getName().equals(JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME)) {
+            log.debug("Not configuring {} because it's a published java configuration", conf);
+            return;
+        }
+
         if (extension.shouldExcludeConfiguration(conf.getName())) {
             log.debug("Not configuring {} because it's excluded", conf);
             return;
