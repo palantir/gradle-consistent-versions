@@ -418,15 +418,24 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
         project.subprojects(subproject -> {
             subproject.afterEvaluate(sub -> {
-                sub.getConfigurations().configureEach(conf -> {
-                    org.gradle.api.internal.artifacts.configurations.ConflictResolution conflictResolution =
-                            ((org.gradle.api.internal.artifacts.configurations.ResolutionStrategyInternal)
-                                    conf.getResolutionStrategy()).getConflictResolution();
-                    if (conflictResolution
-                            == org.gradle.api.internal.artifacts.configurations.ConflictResolution.strict) {
-                        throw new GradleException("Must not use failOnVersionConflict() for " + conf);
-                    }
-                });
+                subproject
+                        .getConfigurations()
+                        .matching(conf -> conf.getName().equals(LOCK_CONSTRAINTS_CONFIGURATION_NAME))
+                        .all(lockConstraints -> {
+                            sub.getConfigurations().configureEach(conf -> {
+                                // Don't enforce this precondition on configurations that are not being locked.
+                                if (!conf.getExtendsFrom().contains(lockConstraints)) {
+                                    return;
+                                }
+                                org.gradle.api.internal.artifacts.configurations.ConflictResolution conflictResolution =
+                                        ((org.gradle.api.internal.artifacts.configurations.ResolutionStrategyInternal)
+                                                 conf.getResolutionStrategy()).getConflictResolution();
+                                if (conflictResolution
+                                        == org.gradle.api.internal.artifacts.configurations.ConflictResolution.strict) {
+                                    throw new GradleException("Must not use failOnVersionConflict() for " + conf);
+                                }
+                            });
+                        });
                 sub.getPluginManager().withPlugin("nebula.dependency-recommender", plugin -> {
                     RecommendationProviderContainer container =
                             sub.getExtensions().findByType(RecommendationProviderContainer.class);
