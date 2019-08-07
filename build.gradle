@@ -10,7 +10,7 @@ buildscript {
     }
 
     dependencies {
-        classpath 'com.netflix.nebula:nebula-publishing-plugin:13.1.0'
+        classpath 'com.netflix.nebula:nebula-publishing-plugin:13.2.0'
     }
 }
 
