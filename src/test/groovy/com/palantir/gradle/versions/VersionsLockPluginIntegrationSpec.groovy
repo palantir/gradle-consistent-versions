@@ -291,6 +291,25 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         error.output.contains(expectedError)
     }
 
+    def 'fails fast when multiple subprojects share the same coordinate'() {
+        def expectedError = "All subprojects must have unique \$group:\$name"
+        buildFile << """
+            allprojects {
+                group 'same'
+            }
+        """.stripIndent()
+        // both projects will have name = 'a'
+        addSubproject("foo:a")
+        addSubproject("bar:a")
+        // Otherwise the lack of a lock file will throw first
+        file('versions.lock') << ""
+
+        expect:
+        def error = runTasksAndFail()
+        error.output.contains(expectedError)
+    }
+
+
     def 'fails if new dependency added that was not in the lock file'() {
         def expectedError = "Found dependencies that were not in the lock state"
         DependencyGraph dependencyGraph = new DependencyGraph("org:a:1.0", "org:b:1.0")

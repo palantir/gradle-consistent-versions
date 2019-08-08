@@ -406,12 +406,19 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 "Gradle Consistent Versions doesn't currently work with configure-on-demand, please remove"
                         + " 'org.gradle.configureondemand' from your gradle.properties");
 
+        Map<String, Project> projectCoordinates = new HashMap<>();
         project.subprojects(subproject -> {
             subproject.afterEvaluate(sub -> {
                 if (haveSameGroupAndName(project, sub)) {
                     throw new GradleException(String.format("This plugin doesn't work if the root project shares both "
                             + "group and name with a subproject. Consider adding the following to settings.gradle:\n"
                             + "rootProject.name = '%s-root'", project.getName()));
+                }
+                String coordinate = String.format("%s:%s", subproject.getGroup(), subproject.getName());
+                Project old = projectCoordinates.put(coordinate, subproject);
+                if (old != null) {
+                    throw new GradleException(String.format("All subprojects must have unique $group:$name "
+                            + "coordinates, but found duplicates: '%s' and '%s'", old, subproject));
                 }
             });
         });
