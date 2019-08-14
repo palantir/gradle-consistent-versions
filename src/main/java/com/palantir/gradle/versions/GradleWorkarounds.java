@@ -28,6 +28,7 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import javax.inject.Inject;
 import org.gradle.api.ProjectState;
+import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.ExternalDependency;
 import org.gradle.api.artifacts.ModuleDependency;
 import org.gradle.api.artifacts.ProjectDependency;
@@ -161,6 +162,13 @@ final class GradleWorkarounds {
         return nodesToStream(node.getChildNodes())
                 .flatMap(n -> (n instanceof Element) ? Stream.of(n) : Stream.of())
                 .collect(Collectors.toMap(Node::getNodeName, Node::getTextContent));
+    }
+
+    static boolean isFailOnVersionConflict(Configuration conf) {
+        org.gradle.api.internal.artifacts.configurations.ConflictResolution conflictResolution =
+                ((org.gradle.api.internal.artifacts.configurations.ResolutionStrategyInternal)
+                         conf.getResolutionStrategy()).getConflictResolution();
+        return conflictResolution == org.gradle.api.internal.artifacts.configurations.ConflictResolution.strict;
     }
 
     static class Extractors {

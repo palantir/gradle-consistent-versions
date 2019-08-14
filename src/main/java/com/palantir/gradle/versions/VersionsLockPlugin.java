@@ -431,11 +431,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
     }
 
     private static void ensureNoFailOnVersionConflict(Configuration conf) {
-        org.gradle.api.internal.artifacts.configurations.ConflictResolution conflictResolution =
-                ((org.gradle.api.internal.artifacts.configurations.ResolutionStrategyInternal)
-                         conf.getResolutionStrategy()).getConflictResolution();
-        if (conflictResolution
-                == org.gradle.api.internal.artifacts.configurations.ConflictResolution.strict) {
+        if (GradleWorkarounds.isFailOnVersionConflict(conf)) {
             throw new GradleException("Must not use failOnVersionConflict() for " + conf);
         }
     }
