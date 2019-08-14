@@ -1,0 +1,5 @@
+type: improvement
+improvement:
+  description: Fail if _any_ projects share the same group:name coordinate.
+  links:
+  - https://github.com/palantir/gradle-consistent-versions/pull/188
