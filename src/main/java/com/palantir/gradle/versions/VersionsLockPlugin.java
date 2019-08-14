@@ -418,21 +418,6 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
         project.subprojects(subproject -> {
             subproject.afterEvaluate(sub -> {
-                Configuration lockConstraints =
-                        subproject.getConfigurations().getByName(LOCK_CONSTRAINTS_CONFIGURATION_NAME);
-                project
-                        .getConfigurations()
-                        // Don't enforce this precondition on configurations that are not being locked.
-                        .matching(conf -> conf.getExtendsFrom().contains(lockConstraints))
-                        .configureEach(conf -> {
-                            org.gradle.api.internal.artifacts.configurations.ConflictResolution conflictResolution =
-                                    ((org.gradle.api.internal.artifacts.configurations.ResolutionStrategyInternal)
-                                             conf.getResolutionStrategy()).getConflictResolution();
-                            if (conflictResolution
-                                    == org.gradle.api.internal.artifacts.configurations.ConflictResolution.strict) {
-                                throw new GradleException("Must not use failOnVersionConflict() for " + conf);
-                            }
-                        });
                 sub.getPluginManager().withPlugin("nebula.dependency-recommender", plugin -> {
                     RecommendationProviderContainer container =
                             sub.getExtensions().findByType(RecommendationProviderContainer.class);
@@ -443,6 +428,16 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 });
             });
         });
+    }
+
+    private static void ensureNoFailOnVersionConflict(Configuration conf) {
+        org.gradle.api.internal.artifacts.configurations.ConflictResolution conflictResolution =
+                ((org.gradle.api.internal.artifacts.configurations.ResolutionStrategyInternal)
+                         conf.getResolutionStrategy()).getConflictResolution();
+        if (conflictResolution
+                == org.gradle.api.internal.artifacts.configurations.ConflictResolution.strict) {
+            throw new GradleException("Must not use failOnVersionConflict() for " + conf);
+        }
     }
 
     /**
@@ -752,7 +747,10 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
         Set<Configuration> configurationsToLock = lockedConfigurations.allConfigurations();
         log.info("Configuring locks for {}. Locked configurations: {}", subproject.getPath(), configurationsToLock);
-        configurationsToLock.forEach(conf -> conf.extendsFrom(locksConfiguration));
+        configurationsToLock.forEach(conf -> {
+            conf.extendsFrom(locksConfiguration);
+            VersionsLockPlugin.ensureNoFailOnVersionConflict(conf);
+        });
     }
 
     private static LockedConfigurations computeConfigurationsToLock(Project project, VersionsLockExtension ext) {
