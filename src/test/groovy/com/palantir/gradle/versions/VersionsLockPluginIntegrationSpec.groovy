@@ -291,6 +291,33 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         error.output.contains(expectedError)
     }
 
+    def "detects failOnVersionConflict on locked configuration"() {
+        buildFile << """
+            apply plugin: 'java'    
+            configurations.compileClasspath.resolutionStrategy.failOnVersionConflict()
+        """.stripIndent()
+        file('versions.lock').text = ''
+
+        expect:
+        def failure = runTasksAndFail()
+        failure.output.contains('Must not use failOnVersionConflict')
+    }
+
+    def "ignores failOnVersionConflict on non-locked configuration"() {
+        buildFile << """
+            apply plugin: 'java'    
+            configurations {
+                foo {
+                    resolutionStrategy.failOnVersionConflict()
+                }
+            }
+        """.stripIndent()
+        file('versions.lock').text = ''
+
+        expect:
+        runTasks()
+    }
+
     def 'fails if new dependency added that was not in the lock file'() {
         def expectedError = "Found dependencies that were not in the lock state"
         DependencyGraph dependencyGraph = new DependencyGraph("org:a:1.0", "org:b:1.0")
