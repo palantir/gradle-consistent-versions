@@ -418,7 +418,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 Project old = projectCoordinates.put(coordinate, subproject);
                 if (old != null) {
                     throw new GradleException(String.format("All subprojects must have unique $group:$name "
-                            + "coordinates, but found duplicates: '%s' and '%s'", old.getPath(), subproject.getPath()));
+                            + "coordinates, but found duplicates: '%s' and '%s'", old, subproject));
                 }
             });
         });
