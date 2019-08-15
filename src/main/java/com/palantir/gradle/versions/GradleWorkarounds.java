@@ -29,6 +29,7 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import javax.inject.Inject;
 import org.gradle.api.DomainObjectCollection;
+import org.gradle.api.GradleException;
 import org.gradle.api.ProjectState;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.ExternalDependency;
@@ -80,9 +81,17 @@ final class GradleWorkarounds {
                     //org.gradle.api.internal.provider.CollectionProviderInternal
                     if (method.getDeclaringClass()
                             == org.gradle.api.internal.provider.CollectionProviderInternal.class) {
-                        // Proxy to `propertyInternalClass` which we know DefaultListProperty implements.
-                        return propertyInternalClass.getMethod(method.getName(), method.getParameterTypes())
-                                .invoke(property, args);
+                        if (method.getName().equals("getElementType")) {
+                            // Proxy to `propertyInternalClass` which we know DefaultListProperty implements.
+                            return propertyInternalClass.getMethod(method.getName(), method.getParameterTypes())
+                                    .invoke(property, args);
+                        } else if (method.getName().equals("size")) {
+                            return property.get().size();
+                        }
+                        throw new GradleException(String.format(
+                                "Could not proxy method '%s' to object %s",
+                                method,
+                                property));
                     } else {
                         return method.invoke(property, args);
                     }
