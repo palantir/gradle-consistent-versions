@@ -63,9 +63,21 @@ public class VersionsPropsPlugin implements Plugin<Project> {
                     conf.setVisible(false);
                 });
 
+        // We want to configure unifiedClasspath right away.
+        // Other configurations might be excluded, so we delay configuring them until afterEvaluate.
+        project
+                .getConfigurations()
+                .matching(conf -> conf.getName().equals(VersionsLockPlugin.UNIFIED_CLASSPATH_CONFIGURATION_NAME))
+                .configureEach(unifiedClasspath -> {
+                    setupConfiguration(project, extension, rootConfiguration.get(), versionsProps, unifiedClasspath);
+                });
         project.afterEvaluate(p -> {
-            project.getConfigurations().configureEach(conf ->
-                    setupConfiguration(project, extension, rootConfiguration.get(), versionsProps, conf));
+            project.getConfigurations().configureEach(conf -> {
+                if (conf.getName().equals(VersionsLockPlugin.UNIFIED_CLASSPATH_CONFIGURATION_NAME)) {
+                    return;
+                }
+                setupConfiguration(project, extension, rootConfiguration.get(), versionsProps, conf);
+            });
         });
 
         // Note: don't add constraints to this, only call `create` / `platform` on it.
