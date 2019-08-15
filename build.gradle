@@ -45,6 +45,7 @@ dependencies {
 
     testCompile platform('org.junit:junit-bom')
     testImplementation 'com.netflix.nebula:nebula-test'
+    testImplementation 'com.fasterxml.jackson.core:jackson-databind'
     testImplementation "org.junit.jupiter:junit-jupiter-api"
     testRuntimeOnly "org.junit.vintage:junit-vintage-engine"
 
