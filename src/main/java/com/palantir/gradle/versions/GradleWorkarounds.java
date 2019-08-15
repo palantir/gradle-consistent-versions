@@ -19,6 +19,7 @@ package com.palantir.gradle.versions;
 import com.google.common.collect.Maps;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -27,6 +28,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import javax.inject.Inject;
+import org.gradle.api.DomainObjectCollection;
 import org.gradle.api.ProjectState;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.ExternalDependency;
@@ -36,11 +38,13 @@ import org.gradle.api.attributes.AttributeContainer;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 import org.gradle.api.model.ObjectFactory;
+import org.gradle.api.provider.ListProperty;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
+@SuppressWarnings("UnstableApiUsage")
 final class GradleWorkarounds {
     private static final Logger log = Logging.getLogger(GradleWorkarounds.class);
 
@@ -57,6 +61,32 @@ final class GradleWorkarounds {
             // It will give us a false negative if we're in 'afterEvaluate'
             return !state.getExecuted();
         }
+    }
+
+    /**
+     * Allow a {@link ListProperty} to be used with {@link DomainObjectCollection#addAllLater}.
+     * <p>
+     * Pending fix: https://github.com/gradle/gradle/pull/10288
+     */
+    @SuppressWarnings("unchecked")
+    static <T> ListProperty<T> fixListProperty(ListProperty<T> property) {
+        Class<?> propertyInternalClass = org.gradle.api.internal.provider.CollectionPropertyInternal.class;
+        return (ListProperty<T>) Proxy.newProxyInstance(GradleWorkarounds.class.getClassLoader(),
+                new Class<?>[]{
+                        org.gradle.api.internal.provider.CollectionProviderInternal.class,
+                        ListProperty.class},
+                (proxy, method, args) -> {
+                    // Find matching method on CollectionPropertyInternal
+                    //org.gradle.api.internal.provider.CollectionProviderInternal
+                    if (method.getDeclaringClass()
+                            == org.gradle.api.internal.provider.CollectionProviderInternal.class) {
+                        // Proxy to `propertyInternalClass` which we know DefaultListProperty implements.
+                        return propertyInternalClass.getMethod(method.getName(), method.getParameterTypes())
+                                .invoke(property, args);
+                    } else {
+                        return method.invoke(property, args);
+                    }
+                });
     }
 
     /**
