@@ -73,7 +73,8 @@ public class VersionsPropsPlugin implements Plugin<Project> {
                 });
         project.afterEvaluate(p -> {
             project.getConfigurations().configureEach(conf -> {
-                if (conf.getName().equals(VersionsLockPlugin.UNIFIED_CLASSPATH_CONFIGURATION_NAME)) {
+                if (conf.getName().equals(VersionsLockPlugin.UNIFIED_CLASSPATH_CONFIGURATION_NAME)
+                        || conf.getName().equals(ROOT_CONFIGURATION_NAME)) {
                     return;
                 }
                 setupConfiguration(project, extension, rootConfiguration.get(), versionsProps, conf);
