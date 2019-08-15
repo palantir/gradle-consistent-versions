@@ -20,18 +20,23 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import org.gradle.api.GradleException;
 import org.gradle.api.NamedDomainObjectProvider;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.ComponentMetadataDetails;
 import org.gradle.api.artifacts.Configuration;
+import org.gradle.api.artifacts.Dependency;
 import org.gradle.api.artifacts.DependencyConstraint;
 import org.gradle.api.artifacts.ExternalDependency;
+import org.gradle.api.artifacts.ModuleDependency;
 import org.gradle.api.artifacts.dsl.DependencyConstraintHandler;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 import org.gradle.api.plugins.JavaPlugin;
+import org.gradle.api.provider.ListProperty;
+import org.gradle.api.provider.Provider;
 import org.gradle.api.publish.PublishingExtension;
 import org.gradle.api.publish.maven.MavenPublication;
 import org.gradle.util.GradleVersion;
@@ -60,7 +65,7 @@ public class VersionsPropsPlugin implements Plugin<Project> {
 
         project.afterEvaluate(p -> {
             project.getConfigurations().configureEach(conf ->
-                    setupConfiguration(project, extension, rootConfiguration, versionsProps, conf));
+                    setupConfiguration(project, extension, rootConfiguration.get(), versionsProps, conf));
         });
 
         // Note: don't add constraints to this, only call `create` / `platform` on it.
@@ -97,13 +102,14 @@ public class VersionsPropsPlugin implements Plugin<Project> {
     private static void setupConfiguration(
             Project subproject,
             VersionRecommendationsExtension extension,
-            NamedDomainObjectProvider<Configuration> rootConfiguration,
+            Configuration rootConfiguration,
             VersionsProps versionsProps,
             Configuration conf) {
 
         if (conf.getName().equals(JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME)
                 || conf.getName().equals(JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME)) {
-            log.debug("Not configuring {} because it's a published java configuration", conf);
+            log.debug("Only configuring BOM dependencies on published java configuration: {}", conf);
+            conf.getDependencies().addAllLater(extractPlatformDependencies(subproject, rootConfiguration));
             return;
         }
 
@@ -123,7 +129,7 @@ public class VersionsPropsPlugin implements Plugin<Project> {
             return;
         }
 
-        conf.extendsFrom(rootConfiguration.get());
+        conf.extendsFrom(rootConfiguration);
 
         // We must allow unifiedClasspath to be resolved at configuration-time.
         if (VersionsLockPlugin.UNIFIED_CLASSPATH_CONFIGURATION_NAME.equals(conf.getName())) {
@@ -139,6 +145,15 @@ public class VersionsPropsPlugin implements Plugin<Project> {
                         + "plugins and double-check your gradle scripts (see stacktrace)", conf));
             }
         });
+    }
+
+    private static Provider<List<Dependency>> extractPlatformDependencies(
+            Project project, Configuration rootConfiguration) {
+        ListProperty<Dependency> proxiedDependencies = project.getObjects().listProperty(Dependency.class);
+        proxiedDependencies.addAll(project.provider(() -> rootConfiguration.getDependencies()
+                    .withType(ModuleDependency.class)
+                    .matching(dep -> GradleWorkarounds.isPlatform(dep.getAttributes()))));
+        return GradleWorkarounds.fixListProperty(proxiedDependencies);
     }
 
     /**

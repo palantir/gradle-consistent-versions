@@ -35,11 +35,16 @@ import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.ExternalDependency;
 import org.gradle.api.artifacts.ModuleDependency;
 import org.gradle.api.artifacts.ProjectDependency;
+import org.gradle.api.artifacts.dsl.DependencyConstraintHandler;
+import org.gradle.api.artifacts.dsl.DependencyHandler;
+import org.gradle.api.attributes.Attribute;
 import org.gradle.api.attributes.AttributeContainer;
+import org.gradle.api.attributes.Category;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.provider.ListProperty;
+import org.gradle.util.GradleVersion;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -48,6 +53,15 @@ import org.w3c.dom.NodeList;
 @SuppressWarnings("UnstableApiUsage")
 final class GradleWorkarounds {
     private static final Logger log = Logging.getLogger(GradleWorkarounds.class);
+
+    private static final GradleVersion GRADLE_VERSION_CATEGORY_AVAILABLE = GradleVersion.version("5.3-rc-1");
+
+    /**
+     * Copied from {@code org.gradle.api.internal.artifacts.dsl.dependencies.PlatformSupport#COMPONENT_CATEGORY} since
+     * that's internal. This is only meant to be used with gradle < {@link #GRADLE_VERSION_CATEGORY_AVAILABLE}
+     */
+    private static final Attribute<String> OLD_COMPONENT_CATEGORY =
+            Attribute.of("org.gradle.component.category", String.class);
 
     /** Check if the project is still in the "configuring" stage, i.e. before or including afterEvaluate. */
     static boolean isConfiguring(ProjectState state) {
@@ -180,6 +194,27 @@ final class GradleWorkarounds {
                 importingNode.appendChild(createProperty(doc, "version", nodeWithVersionMap.get("version")));
             });
         });
+    }
+
+    /**
+     * Returns whether a dependency / component is a non-enforced platform, i.e. what you create with
+     * {@link DependencyHandler#platform} or {@link DependencyConstraintHandler#platform}.
+     */
+    static boolean isPlatform(AttributeContainer attributes) {
+        if (GradleVersion.current().compareTo(GRADLE_VERSION_CATEGORY_AVAILABLE) < 0) {
+            return isPlatformPre53(attributes);
+        }
+        return isPlatformPost53(attributes);
+    }
+
+    private static boolean isPlatformPost53(AttributeContainer attributes) {
+        Category category = attributes.getAttribute(Category.CATEGORY_ATTRIBUTE);
+        return category != null && Category.REGULAR_PLATFORM.equals(category.getName());
+    }
+
+    private static boolean isPlatformPre53(AttributeContainer attributes) {
+        String category = attributes.getAttribute(OLD_COMPONENT_CATEGORY);
+        return category != null && category.equals("platform");
     }
 
     private static Element createProperty(Document doc, String groupId, String text) {
