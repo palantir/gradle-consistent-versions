@@ -41,6 +41,7 @@ class MetadataFile {
 
     @ToString
     @EqualsAndHashCode
+    @JsonIgnoreProperties(ignoreUnknown = true)
     static class Dependency {
         String group
         String module
