@@ -724,10 +724,10 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
     private static void configureAllProjectsUsingConstraints(
             Project rootProject, Path gradleLockfile, Map<Project, LockedConfigurations> lockedConfigurations) {
-        List<DependencyConstraint> constraints =
-                constructConstraintsFromLockFile(gradleLockfile, rootProject.getDependencies().getConstraints());
+        List<DependencyConstraint> strictConstraints =
+                constructConstraintsFromLockFile(gradleLockfile, rootProject.getDependencies().getConstraints(), true);
         rootProject.allprojects(subproject -> configureUsingConstraints(
-                subproject, constraints, lockedConfigurations.get(subproject)));
+                subproject, strictConstraints, lockedConfigurations.get(subproject)));
     }
 
     private static void configureUsingConstraints(
@@ -813,7 +813,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
     }
 
     private static List<DependencyConstraint> constructConstraintsFromLockFile(
-            Path gradleLockfile, DependencyConstraintHandler constraintHandler) {
+            Path gradleLockfile, DependencyConstraintHandler constraintHandler, boolean strictly) {
         LockState lockState = new ConflictSafeLockFile(gradleLockfile).readLocks();
         Stream<Entry<MyModuleIdentifier, Line>> locks = Stream.concat(
                 lockState.productionLinesByModuleIdentifier().entrySet().stream(),
@@ -823,7 +823,14 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 // Note: constraints.create sets the version as preferred + required, we want 'strictly' just like
                 // gradle does when verifying a lock file.
                 .map(notation -> constraintHandler.create(notation, constraint -> {
-                    constraint.version(v -> v.strictly(Objects.requireNonNull(constraint.getVersion())));
+                    constraint.version(v -> {
+                        String version = Objects.requireNonNull(constraint.getVersion());
+                        if (strictly) {
+                            v.strictly(version);
+                        } else {
+                            v.require(version);
+                        }
+                    });
                     constraint.because("Locked by versions.lock");
                 }))
                 .collect(Collectors.toList());
