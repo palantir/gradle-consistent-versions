@@ -20,9 +20,8 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.gradle.api.GradleException;
 import org.gradle.api.NamedDomainObjectProvider;
 import org.gradle.api.Plugin;
@@ -123,9 +122,9 @@ public class VersionsPropsPlugin implements Plugin<Project> {
         // afterEvaluate, leading to sadness.
         // This way however, we guarantee that this is evaluated exactly once and right at the moment when
         // conf.getDependencies() is called.
-        Set<Configuration> configuredConfigurations = new HashSet<>();
+        AtomicBoolean wasConfigured = new AtomicBoolean();
         conf.withDependencies(deps -> {
-            if (!configuredConfigurations.add(conf)) {
+            if (!wasConfigured.compareAndSet(false, true)) {
                 // We are configuring a copy of the original dependency, as they inherit the withDependenciesActions.
                 log.debug("Not configuring {} because it's a copy of an already configured configuration.", conf);
                 return;
