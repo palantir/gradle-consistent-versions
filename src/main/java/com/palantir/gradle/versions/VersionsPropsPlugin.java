@@ -48,6 +48,9 @@ public class VersionsPropsPlugin implements Plugin<Project> {
     private static final Logger log = Logging.getLogger(VersionsPropsPlugin.class);
     private static final String ROOT_CONFIGURATION_NAME = "rootConfiguration";
     private static final GradleVersion MINIMUM_GRADLE_VERSION = GradleVersion.version("5.1");
+    private static final ImmutableList<String> JAVA_PUBLISHED_CONFIGURATION_NAMES = ImmutableList.of(
+            JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME,
+            JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME);
 
     @Override
     public final void apply(Project project) {
@@ -111,13 +114,6 @@ public class VersionsPropsPlugin implements Plugin<Project> {
             Configuration rootConfiguration,
             VersionsProps versionsProps,
             Configuration conf) {
-        if (conf.getName().equals(JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME)
-                || conf.getName().equals(JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME)) {
-            log.debug("Only configuring BOM dependencies on published java configuration: {}", conf);
-            conf.getDependencies().addAllLater(extractPlatformDependencies(subproject, rootConfiguration));
-            return;
-        }
-
         // Must do all this in a withDependencies block so that it's run lazily, so that
         // `extension.shouldExcludeConfiguration` isn't queried too early (before the user had the change to configure).
         // However, we must not make this lazy using an afterEvaluate.
@@ -138,6 +134,19 @@ public class VersionsPropsPlugin implements Plugin<Project> {
                 log.debug("Not configuring {} because it's excluded", conf);
                 return;
             }
+
+            if (JAVA_PUBLISHED_CONFIGURATION_NAMES.stream().anyMatch(conf.getName()::equals)) {
+                log.debug("Only configuring BOM dependencies on published java configuration: {}", conf);
+                deps.addAllLater(extractPlatformDependencies(subproject, rootConfiguration));
+            }
+            // But don't configure any _ancestors_ of these
+            if (JAVA_PUBLISHED_CONFIGURATION_NAMES
+                    .stream()
+                    .anyMatch(confName -> isSameOrSuperconfigurationOf(subproject, conf, confName))) {
+                log.debug("Not configuring published java configuration or its ancestor: {}", conf);
+                return;
+            }
+
             // Because of https://github.com/gradle/gradle/issues/7954, we need to manually inject versions
             // of direct dependencies if they come from a *-constraint
             // Note: this is necessary on the rootConfiguration too in order to support injecting versions of
@@ -163,12 +172,18 @@ public class VersionsPropsPlugin implements Plugin<Project> {
         });
     }
 
+    private static boolean isSameOrSuperconfigurationOf(
+            Project project, Configuration conf, String targetConfigurationName) {
+        Configuration targetConf = project.getConfigurations().getByName(targetConfigurationName);
+        return targetConf.getHierarchy().contains(conf);
+    }
+
     private static Provider<List<Dependency>> extractPlatformDependencies(
             Project project, Configuration rootConfiguration) {
         ListProperty<Dependency> proxiedDependencies = project.getObjects().listProperty(Dependency.class);
         proxiedDependencies.addAll(project.provider(() -> rootConfiguration.getDependencies()
-                    .withType(ModuleDependency.class)
-                    .matching(dep -> GradleWorkarounds.isPlatform(dep.getAttributes()))));
+                .withType(ModuleDependency.class)
+                .matching(dep -> GradleWorkarounds.isPlatform(dep.getAttributes()))));
         return GradleWorkarounds.fixListProperty(proxiedDependencies);
     }
 
