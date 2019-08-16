@@ -69,6 +69,8 @@ import org.gradle.api.artifacts.DependencyConstraint;
 import org.gradle.api.artifacts.DependencySet;
 import org.gradle.api.artifacts.ExternalModuleDependency;
 import org.gradle.api.artifacts.ModuleDependency;
+import org.gradle.api.artifacts.ModuleIdentifier;
+import org.gradle.api.artifacts.ModuleVersionIdentifier;
 import org.gradle.api.artifacts.ProjectDependency;
 import org.gradle.api.artifacts.ResolvableDependencies;
 import org.gradle.api.artifacts.VersionConstraint;
@@ -84,12 +86,15 @@ import org.gradle.api.artifacts.result.UnresolvedDependencyResult;
 import org.gradle.api.attributes.Attribute;
 import org.gradle.api.attributes.AttributesSchema;
 import org.gradle.api.attributes.Usage;
+import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.invocation.Gradle;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 import org.gradle.api.logging.configuration.ShowStacktrace;
 import org.gradle.api.model.ObjectFactory;
+import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.plugins.JavaPluginConvention;
+import org.gradle.api.provider.ListProperty;
 import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.SourceSetContainer;
 import org.gradle.api.tasks.TaskProvider;
@@ -756,21 +761,27 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
     private static void configureAllProjectsUsingConstraints(
             Project rootProject, Path gradleLockfile, Map<Project, LockedConfigurations> lockedConfigurations) {
-        List<DependencyConstraint> constraints =
+        List<DependencyConstraint> strictConstraints =
                 constructConstraintsFromLockFile(gradleLockfile, rootProject.getDependencies().getConstraints());
+        List<DependencyConstraint> publishableConstraints =
+                constructPublishableConstraintsFromLockFile(
+                        gradleLockfile, rootProject.getDependencies().getConstraints());
         rootProject.allprojects(subproject -> configureUsingConstraints(
-                subproject, constraints, lockedConfigurations.get(subproject)));
+                subproject, strictConstraints, publishableConstraints, lockedConfigurations.get(subproject)));
     }
 
     private static void configureUsingConstraints(
-            Project subproject, List<DependencyConstraint> constraints, LockedConfigurations lockedConfigurations) {
+            Project subproject,
+            List<DependencyConstraint> lockConstraints,
+            List<DependencyConstraint> publishableConstraints,
+            LockedConfigurations lockedConfigurations) {
         Configuration locksConfiguration = subproject.getConfigurations().create(
                 LOCK_CONSTRAINTS_CONFIGURATION_NAME,
                 locksConf -> {
                     locksConf.setVisible(false);
                     locksConf.setCanBeConsumed(false);
                     locksConf.setCanBeResolved(false);
-                    constraints.stream().forEach(locksConf.getDependencyConstraints()::add);
+                    lockConstraints.stream().forEach(locksConf.getDependencyConstraints()::add);
                 });
 
         Set<Configuration> configurationsToLock = lockedConfigurations.allConfigurations();
@@ -778,6 +789,57 @@ public class VersionsLockPlugin implements Plugin<Project> {
         configurationsToLock.forEach(conf -> {
             conf.extendsFrom(locksConfiguration);
             VersionsLockPlugin.ensureNoFailOnVersionConflict(conf);
+        });
+
+        // Ok, now configure the published configurations.
+        subproject.getPluginManager().withPlugin("java", plugin -> {
+            configurePublishConstraints(
+                    subproject,
+                    subproject.getConfigurations().named(JavaPlugin.COMPILE_CLASSPATH_CONFIGURATION_NAME),
+                    subproject.getConfigurations().named(JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME),
+                    publishableConstraints);
+            configurePublishConstraints(
+                    subproject,
+                    subproject.getConfigurations().named(JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME),
+                    subproject.getConfigurations().named(JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME),
+                    publishableConstraints);
+        });
+    }
+
+    /**
+     * Configures constraints on the given {@code configuration}, but only on the dependencies that show up in the
+     * resolution result of {@code configurationForFiltering}.
+     */
+    private static void configurePublishConstraints(
+            Project project,
+            NamedDomainObjectProvider<Configuration> configurationForFiltering,
+            NamedDomainObjectProvider<Configuration> configuration,
+            List<DependencyConstraint> publishConstraints) {
+        ListProperty<DependencyConstraint> constraintsProperty =
+                GradleWorkarounds.fixListProperty(project.getObjects().listProperty(DependencyConstraint.class));
+        constraintsProperty.addAll(project.provider(Suppliers.memoize(() -> {
+            log.debug("Computing publish constraints for {} by resolving {}",
+                    configuration.get(),
+                    configurationForFiltering.get());
+            Set<ModuleIdentifier> modulesToInclude = configurationForFiltering
+                    .get()
+                    .getIncoming()
+                    .getResolutionResult()
+                    .getAllComponents()
+                    .stream()
+                    .map(ResolvedComponentResult::getModuleVersion)
+                    .filter(Objects::nonNull)
+                    .map(ModuleVersionIdentifier::getModule)
+                    .collect(Collectors.toSet());
+            return Collections2.filter(
+                    publishConstraints,
+                    constraint -> modulesToInclude.contains(constraint.getModule()));
+        })::get));
+        configuration.configure(conf -> {
+            conf.getDependencyConstraints().addAllLater(constraintsProperty);
+            // Make it obvious to gradle that "building" this configuration depends on configurationForFiltering
+            ConfigurableFileCollection fileCollection = project.files().builtBy(configurationForFiltering);
+            conf.getDependencies().add(project.getDependencies().create(fileCollection));
         });
     }
 
@@ -855,8 +917,27 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 // Note: constraints.create sets the version as preferred + required, we want 'strictly' just like
                 // gradle does when verifying a lock file.
                 .map(notation -> constraintHandler.create(notation, constraint -> {
-                    constraint.version(v -> v.strictly(Objects.requireNonNull(constraint.getVersion())));
+                    constraint.version(v -> {
+                        String version = Objects.requireNonNull(constraint.getVersion());
+                        v.strictly(version);
+                    });
                     constraint.because("Locked by versions.lock");
+                }))
+                .collect(Collectors.toList());
+    }
+
+    private static List<DependencyConstraint> constructPublishableConstraintsFromLockFile(
+            Path gradleLockfile, DependencyConstraintHandler constraintHandler) {
+        LockState lockState = new ConflictSafeLockFile(gradleLockfile).readLocks();
+        // We only publish the production locks.
+        return lockState.productionLinesByModuleIdentifier().entrySet().stream()
+                .map(e -> e.getKey() + ":" + e.getValue().version())
+                .map(notation -> constraintHandler.create(notation, constraint -> {
+                    constraint.version(v -> {
+                        String version = Objects.requireNonNull(constraint.getVersion());
+                        v.require(version);
+                    });
+                    constraint.because("Computed from com.palantir.consistent-versions' versions.lock");
                 }))
                 .collect(Collectors.toList());
     }

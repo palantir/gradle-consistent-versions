@@ -20,17 +20,26 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import org.gradle.api.GradleException;
 import org.gradle.api.NamedDomainObjectProvider;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.ComponentMetadataDetails;
 import org.gradle.api.artifacts.Configuration;
+import org.gradle.api.artifacts.Dependency;
 import org.gradle.api.artifacts.DependencyConstraint;
+import org.gradle.api.artifacts.DependencySet;
 import org.gradle.api.artifacts.ExternalDependency;
+import org.gradle.api.artifacts.ModuleDependency;
 import org.gradle.api.artifacts.dsl.DependencyConstraintHandler;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
+import org.gradle.api.plugins.JavaPlugin;
+import org.gradle.api.provider.ListProperty;
+import org.gradle.api.provider.Provider;
 import org.gradle.api.publish.PublishingExtension;
 import org.gradle.api.publish.maven.MavenPublication;
 import org.gradle.util.GradleVersion;
@@ -54,11 +63,16 @@ public class VersionsPropsPlugin implements Plugin<Project> {
 
         NamedDomainObjectProvider<Configuration> rootConfiguration =
                 project.getConfigurations().register(ROOT_CONFIGURATION_NAME, conf -> {
+                    conf.setCanBeResolved(false);
                     conf.setVisible(false);
                 });
 
-        project.getConfigurations().configureEach(conf ->
-                setupConfiguration(project, extension, rootConfiguration, versionsProps, conf));
+        project.getConfigurations().configureEach(conf -> {
+            if (conf.getName().equals(ROOT_CONFIGURATION_NAME)) {
+                return;
+            }
+            setupConfiguration(project, extension, rootConfiguration.get(), versionsProps, conf);
+        });
 
         // Note: don't add constraints to this, only call `create` / `platform` on it.
         DependencyConstraintHandler constraintHandler = project.getDependencies().getConstraints();
@@ -94,26 +108,44 @@ public class VersionsPropsPlugin implements Plugin<Project> {
     private static void setupConfiguration(
             Project subproject,
             VersionRecommendationsExtension extension,
-            NamedDomainObjectProvider<Configuration> rootConfiguration,
+            Configuration rootConfiguration,
             VersionsProps versionsProps,
             Configuration conf) {
-        if (extension.shouldExcludeConfiguration(conf.getName())) {
-            log.debug("Not configuring {} because it's excluded", conf);
+        if (conf.getName().equals(JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME)
+                || conf.getName().equals(JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME)) {
+            log.debug("Only configuring BOM dependencies on published java configuration: {}", conf);
+            conf.getDependencies().addAllLater(extractPlatformDependencies(subproject, rootConfiguration));
             return;
         }
 
-        // Because of https://github.com/gradle/gradle/issues/7954, we need to manually inject versions
-        // of direct dependencies if they come from a *-constraint
-        // Note: this is necessary on the rootConfiguration too in order to support injecting versions of
-        // BOMs.
-        configureDirectDependencyInjection(conf, versionsProps);
+        // Must do all this in a withDependencies block so that it's run lazily, so that
+        // `extension.shouldExcludeConfiguration` isn't queried too early (before the user had the change to configure).
+        // However, we must not make this lazy using an afterEvaluate.
+        // The reason for that is because we want to ensure we set this up before VersionsLockPlugin's
+        // unifiedClasspath gets resolved (in afterEvaluate of the root project), and if we're currently setting up
+        // configurations in the root project, _our_ afterEvaluate might then be run after _VersionsLockPlugin_'s
+        // afterEvaluate, leading to sadness.
+        // This way however, we guarantee that this is evaluated exactly once and right at the moment when
+        // conf.getDependencies() is called.
+        Set<Configuration> configuredConfigurations = new HashSet<>();
+        conf.withDependencies(deps -> {
+            if (!configuredConfigurations.add(conf)) {
+                // We are configuring a copy of the original dependency, as they inherit the withDependenciesActions.
+                log.debug("Not configuring {} because it's a copy of an already configured configuration.", conf);
+                return;
+            }
+            if (extension.shouldExcludeConfiguration(conf.getName())) {
+                log.debug("Not configuring {} because it's excluded", conf);
+                return;
+            }
+            // Because of https://github.com/gradle/gradle/issues/7954, we need to manually inject versions
+            // of direct dependencies if they come from a *-constraint
+            // Note: this is necessary on the rootConfiguration too in order to support injecting versions of
+            // BOMs.
+            configureDirectDependencyInjection(versionsProps, deps);
 
-        // Can't make the root configuration extend itself, can we now
-        if (conf.getName().equals(ROOT_CONFIGURATION_NAME)) {
-            return;
-        }
-
-        conf.extendsFrom(rootConfiguration.get());
+            conf.extendsFrom(rootConfiguration);
+        });
 
         // We must allow unifiedClasspath to be resolved at configuration-time.
         if (VersionsLockPlugin.UNIFIED_CLASSPATH_CONFIGURATION_NAME.equals(conf.getName())) {
@@ -131,24 +163,31 @@ public class VersionsPropsPlugin implements Plugin<Project> {
         });
     }
 
+    private static Provider<List<Dependency>> extractPlatformDependencies(
+            Project project, Configuration rootConfiguration) {
+        ListProperty<Dependency> proxiedDependencies = project.getObjects().listProperty(Dependency.class);
+        proxiedDependencies.addAll(project.provider(() -> rootConfiguration.getDependencies()
+                    .withType(ModuleDependency.class)
+                    .matching(dep -> GradleWorkarounds.isPlatform(dep.getAttributes()))));
+        return GradleWorkarounds.fixListProperty(proxiedDependencies);
+    }
+
     /**
-     * For dependencies of {@code conf} that don't have a version, sets a version if there is a corresponding
+     * For dependencies inside {@code deps} that don't have a version, sets a version if there is a corresponding
      * platform constraint (one containing at least a {@code *} character).
      */
-    private static void configureDirectDependencyInjection(Configuration conf, VersionsProps versionsProps) {
-        conf.withDependencies(deps -> {
-            deps.withType(ExternalDependency.class).configureEach(moduleDependency -> {
-                if (moduleDependency.getVersion() != null) {
-                    return;
-                }
-                versionsProps
-                        .getRecommendedVersion(moduleDependency.getModule())
-                        .ifPresent(version -> moduleDependency.version(constraint -> {
-                            log.info("Found direct dependency without version: {} -> {}, requiring: {}",
-                                    conf, moduleDependency, version);
-                            constraint.require(version);
-                        }));
-            });
+    private static void configureDirectDependencyInjection(VersionsProps versionsProps, DependencySet deps) {
+        deps.withType(ExternalDependency.class).configureEach(moduleDependency -> {
+            if (moduleDependency.getVersion() != null) {
+                return;
+            }
+            versionsProps
+                    .getRecommendedVersion(moduleDependency.getModule())
+                    .ifPresent(version -> moduleDependency.version(constraint -> {
+                        log.info("Found direct dependency without version: {} -> {}, requiring: {}",
+                                deps, moduleDependency, version);
+                        constraint.require(version);
+                    }));
         });
     }
 

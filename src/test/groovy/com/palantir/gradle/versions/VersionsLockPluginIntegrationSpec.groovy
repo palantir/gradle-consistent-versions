@@ -16,6 +16,7 @@
 
 package com.palantir.gradle.versions
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import nebula.test.dependencies.DependencyGraph
 import nebula.test.dependencies.GradleDependencyGenerator
 import org.gradle.testkit.runner.BuildResult
@@ -701,5 +702,85 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
             org.slf4j:slf4j-api:1.7.25 (1 constraints: 400d4d2a)
         """.stripIndent()
         file('versions.lock').text == expected
+    }
+
+    def "published constraints are derived from filtered lock file"() {
+        buildFile << """
+            allprojects {
+                apply plugin: 'java'
+                apply plugin: 'maven-publish'
+                
+                publishing.publications {
+                    maven(MavenPublication) {
+                        from components.java
+                    }
+                }
+            }
+        """.stripIndent()
+
+        addSubproject('foo', """
+            dependencies {
+                compile 'ch.qos.logback:logback-classic:1.2.3'
+            }
+        """.stripIndent())
+
+        addSubproject('bar', """
+            dependencies {
+                compile 'junit:junit:4.10'
+            }
+        """.stripIndent())
+
+        settingsFile << """
+            enableFeaturePreview('GRADLE_METADATA')
+        """.stripIndent()
+
+        runTasks('--write-locks')
+
+        when:
+        runTasks('generatePomFileForMavenPublication', 'generateMetadataFileForMavenPublication')
+
+        def junitDep = new MetadataFile.Dependency(
+                group: 'junit',
+                module: 'junit',
+                version: [requires: '4.10'])
+        def logbackDep = new MetadataFile.Dependency(
+                group: 'ch.qos.logback',
+                module: 'logback-classic',
+                version: [requires: '1.2.3'])
+        def slf4jDep = new MetadataFile.Dependency(
+                group: 'org.slf4j',
+                module: 'slf4j-api',
+                version: [requires: '1.7.25'])
+
+        then: "foo's metadata file has the right dependency constraints"
+        def fooMetadataFilename = new File(projectDir, "foo/build/publications/maven/module.json")
+        def fooMetadata = new ObjectMapper().readValue(fooMetadataFilename, MetadataFile)
+
+        fooMetadata.variants == [
+                new MetadataFile.Variant(
+                        name: 'apiElements',
+                        dependencies: [logbackDep],
+                        dependencyConstraints: [logbackDep, slf4jDep]),
+                new MetadataFile.Variant(
+                        name: 'runtimeElements',
+                        dependencies: [logbackDep],
+                        dependencyConstraints: [logbackDep, slf4jDep]),
+        ] as Set
+
+        and: "bar's metadata file has the right dependency constraints"
+        def barMetadataFilename = new File(projectDir, "bar/build/publications/maven/module.json")
+        def barMetadata = new ObjectMapper().readValue(barMetadataFilename, MetadataFile)
+
+        barMetadata.variants == [
+                new MetadataFile.Variant(
+                        name: 'apiElements',
+                        dependencies: [junitDep],
+                        dependencyConstraints: [junitDep]),
+                new MetadataFile.Variant(
+                        name: 'runtimeElements',
+                        dependencies: [junitDep],
+                        dependencyConstraints: [junitDep]),
+        ] as Set
+
     }
 }

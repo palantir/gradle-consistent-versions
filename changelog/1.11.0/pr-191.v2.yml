@@ -1,0 +1,6 @@
+type: feature
+feature:
+  description: Publish constraints from versions.lock filtered by the transitive closure
+    of dependencies for each project.
+  links:
+  - https://github.com/palantir/gradle-consistent-versions/pull/191
