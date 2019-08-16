@@ -16,6 +16,8 @@
 
 package com.palantir.gradle.versions
 
+import com.fasterxml.jackson.databind.ObjectMapper
+
 class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
 
     static def PLUGIN_NAME = "com.palantir.consistent-versions"
@@ -171,5 +173,68 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
 
         // Ensure that this is a required constraint
         runTasks('why', '--hash', '4105483b').output.contains "projects -> 1.7.25"
+    }
+
+    def "versions props contents do not get published as constraints"() {
+        buildFile << """
+            allprojects {
+                apply plugin: 'java'
+                apply plugin: 'maven-publish'
+                
+                publishing.publications {
+                    maven(MavenPublication) {
+                        from components.java
+                    }
+                }
+            }
+        """.stripIndent()
+
+        addSubproject('foo', """
+            apply plugin: 'java'
+            dependencies {
+                compile 'ch.qos.logback:logback-classic'
+            }
+        """.stripIndent())
+
+        file('versions.props') << """
+            org.slf4j:* = 1.7.25
+            ch.qos.logback:* = 1.1.11
+            should:not-publish = 1.0
+        """.stripIndent()
+
+        settingsFile << """
+            enableFeaturePreview('GRADLE_METADATA')
+        """.stripIndent()
+
+        when:
+        runTasks('--write-locks', 'generateMetadataFileForMavenPublication')
+
+        def logbackDepWithoutVersion = new MetadataFile.Dependency(
+                group: 'ch.qos.logback',
+                module: 'logback-classic',
+                version: [:])
+        def logbackDep = new MetadataFile.Dependency(
+                group: 'ch.qos.logback',
+                module: 'logback-classic',
+                version: [requires: '1.1.11'])
+        def slf4jDep = new MetadataFile.Dependency(
+                group: 'org.slf4j',
+                module: 'slf4j-api',
+                version: [requires: '1.7.25'])
+
+        then: "foo's metadata file has the right dependency constraints"
+        def fooMetadataFilename = new File(projectDir, "foo/build/publications/maven/module.json")
+        def fooMetadata = new ObjectMapper().readValue(fooMetadataFilename, MetadataFile)
+
+        fooMetadata.variants == [
+                new MetadataFile.Variant(
+                        name: 'apiElements',
+                        dependencies: [logbackDepWithoutVersion],
+                        dependencyConstraints: [logbackDep, slf4jDep]),
+                new MetadataFile.Variant(
+                        name: 'runtimeElements',
+                        dependencies: [logbackDepWithoutVersion],
+                        dependencyConstraints: [logbackDep, slf4jDep]),
+        ] as Set
     }
 }
