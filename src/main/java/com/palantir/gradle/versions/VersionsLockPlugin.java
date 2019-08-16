@@ -900,14 +900,12 @@ public class VersionsLockPlugin implements Plugin<Project> {
         // We only publish the production locks.
         return lockState.productionLinesByModuleIdentifier().entrySet().stream()
                 .map(e -> e.getKey() + ":" + e.getValue().version())
-                // Note: constraints.create sets the version as preferred + required, we want 'strictly' just like
-                // gradle does when verifying a lock file.
                 .map(notation -> constraintHandler.create(notation, constraint -> {
                     constraint.version(v -> {
                         String version = Objects.requireNonNull(constraint.getVersion());
                         v.require(version);
                     });
-                    constraint.because("Computed from versions.lock");
+                    constraint.because("Computed from com.palantir.consistent-versions' versions.lock");
                 }))
                 .collect(Collectors.toList());
     }
