@@ -111,7 +111,6 @@ public class VersionsPropsPlugin implements Plugin<Project> {
             Configuration rootConfiguration,
             VersionsProps versionsProps,
             Configuration conf) {
-
         if (conf.getName().equals(JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME)
                 || conf.getName().equals(JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME)) {
             log.debug("Only configuring BOM dependencies on published java configuration: {}", conf);
