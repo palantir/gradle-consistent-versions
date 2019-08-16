@@ -209,10 +209,6 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         when:
         runTasks('--write-locks', 'generateMetadataFileForMavenPublication')
 
-        def logbackDepWithoutVersion = new MetadataFile.Dependency(
-                group: 'ch.qos.logback',
-                module: 'logback-classic',
-                version: [:])
         def logbackDep = new MetadataFile.Dependency(
                 group: 'ch.qos.logback',
                 module: 'logback-classic',
@@ -229,11 +225,11 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         fooMetadata.variants == [
                 new MetadataFile.Variant(
                         name: 'apiElements',
-                        dependencies: [logbackDepWithoutVersion],
+                        dependencies: [logbackDep],
                         dependencyConstraints: [logbackDep, slf4jDep]),
                 new MetadataFile.Variant(
                         name: 'runtimeElements',
-                        dependencies: [logbackDepWithoutVersion],
+                        dependencies: [logbackDep],
                         dependencyConstraints: [logbackDep, slf4jDep]),
         ] as Set
     }
