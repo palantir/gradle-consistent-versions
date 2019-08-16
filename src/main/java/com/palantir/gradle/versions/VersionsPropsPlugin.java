@@ -20,7 +20,9 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import org.gradle.api.GradleException;
 import org.gradle.api.NamedDomainObjectProvider;
 import org.gradle.api.Plugin;
@@ -61,6 +63,7 @@ public class VersionsPropsPlugin implements Plugin<Project> {
 
         NamedDomainObjectProvider<Configuration> rootConfiguration =
                 project.getConfigurations().register(ROOT_CONFIGURATION_NAME, conf -> {
+                    conf.setCanBeResolved(false);
                     conf.setVisible(false);
                 });
 
@@ -117,7 +120,7 @@ public class VersionsPropsPlugin implements Plugin<Project> {
         }
 
         // Must do all this in a withDependencies block so that it's run lazily, so that
-        // `extension.shouldExcludeConfiguration` isn't queried too early.
+        // `extension.shouldExcludeConfiguration` isn't queried too early (before the user had the change to configure).
         // However, we must not make this lazy using an afterEvaluate.
         // The reason for that is because we want to ensure we set this up before VersionsLockPlugin's
         // unifiedClasspath gets resolved (in afterEvaluate of the root project), and if we're currently setting up
@@ -125,7 +128,13 @@ public class VersionsPropsPlugin implements Plugin<Project> {
         // afterEvaluate, leading to sadness.
         // This way however, we guarantee that this is evaluated exactly once and right at the moment when
         // conf.getDependencies() is called.
+        Set<Configuration> configuredConfigurations = new HashSet<>();
         conf.withDependencies(deps -> {
+            if (!configuredConfigurations.add(conf)) {
+                // We are configuring a copy of the original dependency, as they inherit the withDependenciesActions.
+                log.debug("Not configuring {} because it's a copy of an already configured configuration.", conf);
+                return;
+            }
             if (extension.shouldExcludeConfiguration(conf.getName())) {
                 log.debug("Not configuring {} because it's excluded", conf);
                 return;
