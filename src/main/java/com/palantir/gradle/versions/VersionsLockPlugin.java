@@ -731,17 +731,17 @@ public class VersionsLockPlugin implements Plugin<Project> {
             Project rootProject, Path gradleLockfile, Map<Project, LockedConfigurations> lockedConfigurations) {
         List<DependencyConstraint> strictConstraints =
                 constructConstraintsFromLockFile(gradleLockfile, rootProject.getDependencies().getConstraints());
-        List<DependencyConstraint> publishConstraints =
+        List<DependencyConstraint> publishableConstraints =
                 constructPublishableConstraintsFromLockFile(
                         gradleLockfile, rootProject.getDependencies().getConstraints());
         rootProject.allprojects(subproject -> configureUsingConstraints(
-                subproject, strictConstraints, publishConstraints, lockedConfigurations.get(subproject)));
+                subproject, strictConstraints, publishableConstraints, lockedConfigurations.get(subproject)));
     }
 
     private static void configureUsingConstraints(
             Project subproject,
             List<DependencyConstraint> lockConstraints,
-            List<DependencyConstraint> publishConstraints,
+            List<DependencyConstraint> publishableConstraints,
             LockedConfigurations lockedConfigurations) {
         Configuration locksConfiguration = subproject.getConfigurations().create(
                 LOCK_CONSTRAINTS_CONFIGURATION_NAME,
@@ -765,12 +765,12 @@ public class VersionsLockPlugin implements Plugin<Project> {
                     subproject,
                     subproject.getConfigurations().named(JavaPlugin.COMPILE_CLASSPATH_CONFIGURATION_NAME),
                     subproject.getConfigurations().named(JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME),
-                    publishConstraints);
+                    publishableConstraints);
             configurePublishConstraints(
                     subproject,
                     subproject.getConfigurations().named(JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME),
                     subproject.getConfigurations().named(JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME),
-                    publishConstraints);
+                    publishableConstraints);
         });
     }
 
