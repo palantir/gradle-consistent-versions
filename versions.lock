@@ -23,6 +23,9 @@ org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.3.11 (1 constraints: 551134e1)
 
 [Test dependencies]
 cglib:cglib-nodep:3.2.2 (1 constraints: 490ded24)
+com.fasterxml.jackson.core:jackson-annotations:2.9.9 (1 constraints: 5b12bf0e)
+com.fasterxml.jackson.core:jackson-core:2.9.9 (1 constraints: 6412c80e)
+com.fasterxml.jackson.core:jackson-databind:2.9.9 (1 constraints: 16051936)
 com.netflix.nebula:nebula-test:7.2.5 (1 constraints: 10051936)
 commons-io:commons-io:2.5 (1 constraints: eb0c8d0a)
 junit:junit:4.12 (2 constraints: 531d130d)

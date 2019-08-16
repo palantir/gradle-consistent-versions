@@ -19,6 +19,7 @@ package com.palantir.gradle.versions;
 import com.google.common.collect.Maps;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -27,22 +28,40 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import javax.inject.Inject;
+import org.gradle.api.DomainObjectCollection;
+import org.gradle.api.GradleException;
 import org.gradle.api.ProjectState;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.ExternalDependency;
 import org.gradle.api.artifacts.ModuleDependency;
 import org.gradle.api.artifacts.ProjectDependency;
+import org.gradle.api.artifacts.dsl.DependencyConstraintHandler;
+import org.gradle.api.artifacts.dsl.DependencyHandler;
+import org.gradle.api.attributes.Attribute;
 import org.gradle.api.attributes.AttributeContainer;
+import org.gradle.api.attributes.Category;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 import org.gradle.api.model.ObjectFactory;
+import org.gradle.api.provider.ListProperty;
+import org.gradle.util.GradleVersion;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
+@SuppressWarnings("UnstableApiUsage")
 final class GradleWorkarounds {
     private static final Logger log = Logging.getLogger(GradleWorkarounds.class);
+
+    private static final GradleVersion GRADLE_VERSION_CATEGORY_AVAILABLE = GradleVersion.version("5.3-rc-1");
+
+    /**
+     * Copied from {@code org.gradle.api.internal.artifacts.dsl.dependencies.PlatformSupport#COMPONENT_CATEGORY} since
+     * that's internal. This is only meant to be used with gradle < {@link #GRADLE_VERSION_CATEGORY_AVAILABLE}
+     */
+    private static final Attribute<String> OLD_COMPONENT_CATEGORY =
+            Attribute.of("org.gradle.component.category", String.class);
 
     /** Check if the project is still in the "configuring" stage, i.e. before or including afterEvaluate. */
     static boolean isConfiguring(ProjectState state) {
@@ -57,6 +76,40 @@ final class GradleWorkarounds {
             // It will give us a false negative if we're in 'afterEvaluate'
             return !state.getExecuted();
         }
+    }
+
+    /**
+     * Allow a {@link ListProperty} to be used with {@link DomainObjectCollection#addAllLater}.
+     * <p>
+     * Pending fix: https://github.com/gradle/gradle/pull/10288
+     */
+    @SuppressWarnings("unchecked")
+    static <T> ListProperty<T> fixListProperty(ListProperty<T> property) {
+        Class<?> propertyInternalClass = org.gradle.api.internal.provider.CollectionPropertyInternal.class;
+        return (ListProperty<T>) Proxy.newProxyInstance(GradleWorkarounds.class.getClassLoader(),
+                new Class<?>[]{
+                        org.gradle.api.internal.provider.CollectionProviderInternal.class,
+                        ListProperty.class},
+                (proxy, method, args) -> {
+                    // Find matching method on CollectionPropertyInternal
+                    //org.gradle.api.internal.provider.CollectionProviderInternal
+                    if (method.getDeclaringClass()
+                            == org.gradle.api.internal.provider.CollectionProviderInternal.class) {
+                        if (method.getName().equals("getElementType")) {
+                            // Proxy to `propertyInternalClass` which we know DefaultListProperty implements.
+                            return propertyInternalClass.getMethod(method.getName(), method.getParameterTypes())
+                                    .invoke(property, args);
+                        } else if (method.getName().equals("size")) {
+                            return property.get().size();
+                        }
+                        throw new GradleException(String.format(
+                                "Could not proxy method '%s' to object %s",
+                                method,
+                                property));
+                    } else {
+                        return method.invoke(property, args);
+                    }
+                });
     }
 
     /**
@@ -141,6 +194,27 @@ final class GradleWorkarounds {
                 importingNode.appendChild(createProperty(doc, "version", nodeWithVersionMap.get("version")));
             });
         });
+    }
+
+    /**
+     * Returns whether a dependency / component is a non-enforced platform, i.e. what you create with
+     * {@link DependencyHandler#platform} or {@link DependencyConstraintHandler#platform}.
+     */
+    static boolean isPlatform(AttributeContainer attributes) {
+        if (GradleVersion.current().compareTo(GRADLE_VERSION_CATEGORY_AVAILABLE) < 0) {
+            return isPlatformPre53(attributes);
+        }
+        return isPlatformPost53(attributes);
+    }
+
+    private static boolean isPlatformPost53(AttributeContainer attributes) {
+        Category category = attributes.getAttribute(Category.CATEGORY_ATTRIBUTE);
+        return category != null && Category.REGULAR_PLATFORM.equals(category.getName());
+    }
+
+    private static boolean isPlatformPre53(AttributeContainer attributes) {
+        String category = attributes.getAttribute(OLD_COMPONENT_CATEGORY);
+        return category != null && category.equals("platform");
     }
 
     private static Element createProperty(Document doc, String groupId, String text) {
