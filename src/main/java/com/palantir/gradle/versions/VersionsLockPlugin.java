@@ -81,6 +81,7 @@ import org.gradle.api.artifacts.result.UnresolvedDependencyResult;
 import org.gradle.api.attributes.Attribute;
 import org.gradle.api.attributes.AttributesSchema;
 import org.gradle.api.attributes.Usage;
+import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.invocation.Gradle;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
@@ -89,7 +90,6 @@ import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.plugins.JavaPluginConvention;
 import org.gradle.api.provider.ListProperty;
-import org.gradle.api.provider.ProviderFactory;
 import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.SourceSetContainer;
 import org.gradle.api.tasks.TaskProvider;
@@ -762,14 +762,12 @@ public class VersionsLockPlugin implements Plugin<Project> {
         // Ok, now configure the published configurations.
         subproject.getPluginManager().withPlugin("java", plugin -> {
             configurePublishConstraints(
-                    subproject.getObjects(),
-                    subproject.getProviders(),
+                    subproject,
                     subproject.getConfigurations().named(JavaPlugin.COMPILE_CLASSPATH_CONFIGURATION_NAME),
                     subproject.getConfigurations().named(JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME),
                     publishConstraints);
             configurePublishConstraints(
-                    subproject.getObjects(),
-                    subproject.getProviders(),
+                    subproject,
                     subproject.getConfigurations().named(JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME),
                     subproject.getConfigurations().named(JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME),
                     publishConstraints);
@@ -781,14 +779,16 @@ public class VersionsLockPlugin implements Plugin<Project> {
      * resolution result of {@code configurationForFiltering}.
      */
     private static void configurePublishConstraints(
-            ObjectFactory objectFactory,
-            ProviderFactory providerFactory,
+            Project project,
             NamedDomainObjectProvider<Configuration> configurationForFiltering,
             NamedDomainObjectProvider<Configuration> configuration,
             List<DependencyConstraint> publishConstraints) {
         ListProperty<DependencyConstraint> constraintsProperty =
-                GradleWorkarounds.fixListProperty(objectFactory.listProperty(DependencyConstraint.class));
-        constraintsProperty.addAll(providerFactory.provider(() -> {
+                GradleWorkarounds.fixListProperty(project.getObjects().listProperty(DependencyConstraint.class));
+        constraintsProperty.addAll(project.provider(Suppliers.memoize(() -> {
+            log.debug("Computing publish constraints for {} by resolving {}",
+                    configuration.get(),
+                    configurationForFiltering.get());
             Set<ModuleIdentifier> modulesToInclude = configurationForFiltering
                     .get()
                     .getIncoming()
@@ -802,9 +802,12 @@ public class VersionsLockPlugin implements Plugin<Project> {
             return Collections2.filter(
                     publishConstraints,
                     constraint -> modulesToInclude.contains(constraint.getModule()));
-        }));
+        })::get));
         configuration.configure(conf -> {
             conf.getDependencyConstraints().addAllLater(constraintsProperty);
+            // Make it obvious to gradle that "building" this configuration depends on configurationForFiltering
+            ConfigurableFileCollection fileCollection = project.files().builtBy(configurationForFiltering);
+            conf.getDependencies().add(project.getDependencies().create(fileCollection));
         });
     }
 
