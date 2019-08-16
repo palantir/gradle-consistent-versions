@@ -69,12 +69,8 @@ public class VersionsPropsPlugin implements Plugin<Project> {
                     conf.setVisible(false);
                 });
 
-        project.getConfigurations().configureEach(conf -> {
-            if (conf.getName().equals(ROOT_CONFIGURATION_NAME)) {
-                return;
-            }
-            setupConfiguration(project, extension, rootConfiguration.get(), versionsProps, conf);
-        });
+        project.getConfigurations().configureEach(conf ->
+                setupConfiguration(project, extension, rootConfiguration.get(), versionsProps, conf));
 
         // Note: don't add constraints to this, only call `create` / `platform` on it.
         DependencyConstraintHandler constraintHandler = project.getDependencies().getConstraints();
@@ -137,20 +133,30 @@ public class VersionsPropsPlugin implements Plugin<Project> {
             if (JAVA_PUBLISHED_CONFIGURATION_NAMES.stream().anyMatch(conf.getName()::equals)) {
                 log.debug("Only configuring BOM dependencies on published java configuration: {}", conf);
                 deps.addAllLater(extractPlatformDependencies(subproject, rootConfiguration));
+                return;
             }
-            // But don't configure any _ancestors_ of these
+
+            // This will ensure that e.g. dependencies declared in almost all configurations, including `compile` or
+            // `runtimeOnly` or `implementation`, have a version if there only a star-constraint in versions.props
+            // that matches them.
+            // This is also necessary on the rootConfiguration in order to support injecting versions of BOMs.
+            //
+            // Reason: virtual platforms don't do dependency injection, see https://github.com/gradle/gradle/issues/7954
+            configureDirectDependencyInjection(versionsProps, deps);
+
+            // But don't configure any _ancestors_ of our published configurations to extend rootConfiguration, as we
+            // explicitly DO NOT WANT to republish the constraints that come from it (that come from versions.props).
             if (JAVA_PUBLISHED_CONFIGURATION_NAMES
                     .stream()
-                    .anyMatch(confName -> isSameOrSuperconfigurationOf(subproject, conf, confName))) {
+                    .anyMatch(confName -> subproject.getConfigurations().findByName(confName) != null
+                            && isSameOrSuperconfigurationOf(subproject, conf, confName))) {
                 log.debug("Not configuring published java configuration or its ancestor: {}", conf);
                 return;
             }
 
-            // Because of https://github.com/gradle/gradle/issues/7954, we need to manually inject versions
-            // of direct dependencies if they come from a *-constraint
-            // Note: this is necessary on the rootConfiguration too in order to support injecting versions of
-            // BOMs.
-            configureDirectDependencyInjection(versionsProps, deps);
+            if (conf.getName().equals(ROOT_CONFIGURATION_NAME)) {
+                return;
+            }
 
             conf.extendsFrom(rootConfiguration);
         });
