@@ -140,7 +140,7 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
             apply plugin: 'java-library'
             apply plugin: 'maven-publish'
             dependencies {
-                compile platform('org.apache.spark:spark-dist_2.11-hadoop-palantir-bom')
+                rootConfiguration platform('org.apache.spark:spark-dist_2.11-hadoop-palantir-bom')
             }
             publishing {
                 publications {
