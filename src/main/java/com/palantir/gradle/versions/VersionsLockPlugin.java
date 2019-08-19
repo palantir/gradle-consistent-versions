@@ -495,9 +495,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
             Map<Configuration, String> copiedConfigurationsCache,
             GcvScope scope) {
         dependencySet
-                .matching(dependency -> ProjectDependency.class.isAssignableFrom(dependency.getClass()))
-                .all(dependency -> {
-                    ProjectDependency projectDependency = (ProjectDependency) dependency;
+                .withType(ProjectDependency.class)
+                .all(projectDependency -> {
                     Project projectDep = projectDependency.getDependencyProject();
 
                     String targetConfiguration = projectDependency.getTargetConfiguration();
@@ -551,9 +550,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
                     // This is so we can get back the scope from the ResolutionResult.
                     copiedConf
                             .getDependencies()
-                            .matching(dep -> dep instanceof ExternalModuleDependency)
-                            .all(dep -> {
-                                ExternalModuleDependency externalDep = (ExternalModuleDependency) dep;
+                            .withType(ExternalModuleDependency.class)
+                            .all(externalDep -> {
                                 GradleWorkarounds.fixAttributesOfModuleDependency(projectDep.getObjects(), externalDep);
                                 externalDep.attributes(attr -> attr.attribute(GCV_SCOPE_ATTRIBUTE, scope));
                             });
