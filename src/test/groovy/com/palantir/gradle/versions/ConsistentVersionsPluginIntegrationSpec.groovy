@@ -175,6 +175,48 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         runTasks('why', '--hash', '4105483b').output.contains "projects -> 1.7.25"
     }
 
+    def "writeLocks and verifyLocks work in the presence of versions props constraints"() {
+        generateMavenRepo(
+                "org1:platform:1.0",
+                "org2:platform:1.0",
+        )
+        addSubproject('foo', """
+            apply plugin: 'java'
+            dependencies {
+                compile 'org.slf4j:slf4j-api'
+                
+                rootConfiguration platform('org1:platform')
+                rootConfiguration platform('org2:platform')
+            }
+            
+            task resolveLockedConfigurations {
+                doLast {
+                    configurations.compileClasspath.resolve()
+                    configurations.runtimeClasspath.resolve()
+                }
+            }
+        """.stripIndent())
+
+        file('versions.props') << """
+            org1:platform = 1.0
+            org2:* = 1.0
+            org.slf4j:slf4j-api = 1.7.25
+        """.stripIndent()
+
+        expect:
+        runTasks('--write-locks')
+
+        file('versions.lock').text == """\
+            # Run ./gradlew --write-locks to regenerate this file
+            org.slf4j:slf4j-api:1.7.25 (1 constraints: 4105483b)
+            org1:platform:1.0 (1 constraints: a5041a2c)
+            org2:platform:1.0 (1 constraints: a5041a2c)
+        """.stripIndent()
+
+        and: 'Ensure you can verify locks and resolve the actual locked configurations'
+        runTasks('verifyLocks', 'resolveLockedConfigurations')
+    }
+
     def "versions props contents do not get published as constraints"() {
         buildFile << """
             allprojects {

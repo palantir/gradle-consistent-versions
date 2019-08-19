@@ -1,0 +1,6 @@
+type: fix
+fix:
+  description: Fix error writing lock file in the presence of platform dependencies
+    coming from `rootConfiguration`.
+  links:
+  - https://github.com/palantir/gradle-consistent-versions/pull/195

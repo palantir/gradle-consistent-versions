@@ -495,9 +495,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
             Map<Configuration, String> copiedConfigurationsCache,
             GcvScope scope) {
         dependencySet
-                .matching(dependency -> ProjectDependency.class.isAssignableFrom(dependency.getClass()))
-                .all(dependency -> {
-                    ProjectDependency projectDependency = (ProjectDependency) dependency;
+                .withType(ProjectDependency.class)
+                .all(projectDependency -> {
                     Project projectDep = projectDependency.getDependencyProject();
 
                     String targetConfiguration = projectDependency.getTargetConfiguration();
@@ -520,6 +519,11 @@ public class VersionsLockPlugin implements Plugin<Project> {
                         projectDependency.setTargetConfiguration(copiedConf);
                         return;
                     }
+
+                    // Necessary to run withDependency actions run on the targetConf, because VersionsPropsPlugin
+                    // configures its constraints that way.
+                    // Without this, they'd just be propagated to the copiedConf and probably never run!
+                    causeWithDependenciesActionsToRun(targetConf);
 
                     Configuration copiedConf = targetConf.copyRecursive();
                     copiedConf.setDescription(String.format("Copy of the '%s' configuration that can be resolved by "
@@ -551,9 +555,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
                     // This is so we can get back the scope from the ResolutionResult.
                     copiedConf
                             .getDependencies()
-                            .matching(dep -> dep instanceof ExternalModuleDependency)
-                            .all(dep -> {
-                                ExternalModuleDependency externalDep = (ExternalModuleDependency) dep;
+                            .withType(ExternalModuleDependency.class)
+                            .all(externalDep -> {
                                 GradleWorkarounds.fixAttributesOfModuleDependency(projectDep.getObjects(), externalDep);
                                 externalDep.attributes(attr -> attr.attribute(GCV_SCOPE_ATTRIBUTE, scope));
                             });
@@ -565,6 +568,15 @@ public class VersionsLockPlugin implements Plugin<Project> {
                     recursivelyCopyProjectDependenciesWithScope(
                             projectDep, copiedConf.getDependencies(), copiedConfigurationsCache, scope);
                 });
+    }
+
+    /**
+     * This causes {@link Configuration#withDependencies} actions to be run eagerly.
+     * <p>
+     * It's a hack but necessary to ensure that these actions run before copying said configuration.
+     */
+    private static void causeWithDependenciesActionsToRun(Configuration conf) {
+        conf.getIncoming().getDependencies();
     }
 
     private static Configuration getTargetConfiguration(DependencySet depSet, ProjectDependency projectDependency) {
