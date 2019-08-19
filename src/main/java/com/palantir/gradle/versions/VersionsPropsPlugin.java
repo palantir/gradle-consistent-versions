@@ -72,8 +72,16 @@ public class VersionsPropsPlugin implements Plugin<Project> {
                     conf.setVisible(false);
                 });
 
-        project.getConfigurations().configureEach(conf ->
-                setupConfiguration(project, extension, rootConfiguration.get(), versionsProps, conf));
+        project.getConfigurations().configureEach(conf -> {
+            if (conf.getName().equals(ROOT_CONFIGURATION_NAME)) {
+                // We only expect 'platform' dependencies to be declared in rootConfiguration.
+                // This injects missing versions, in case the version comes from a *-dependency in versions.props.
+                // For rootConfiguration, unlike other configurations, this is the only customization necessary.
+                conf.withDependencies(deps -> configureDirectDependencyInjection(versionsProps, deps));
+                return;
+            }
+            setupConfiguration(project, extension, rootConfiguration.get(), versionsProps, conf);
+        });
 
         // Note: don't add constraints to this, only call `create` / `platform` on it.
         DependencyConstraintHandler constraintHandler = project.getDependencies().getConstraints();
@@ -150,14 +158,6 @@ public class VersionsPropsPlugin implements Plugin<Project> {
                 return;
             }
 
-            // This will ensure that e.g. dependencies declared in almost all configurations, including `compile` or
-            // `runtimeOnly` or `implementation`, have a version if there only a star-constraint in versions.props
-            // that matches them.
-            // This is also necessary on the rootConfiguration in order to support injecting versions of BOMs.
-            //
-            // Reason: virtual platforms don't do dependency injection, see https://github.com/gradle/gradle/issues/7954
-            configureDirectDependencyInjection(versionsProps, deps);
-
             // But don't configure any _ancestors_ of our published configurations to extend rootConfiguration, as we
             // explicitly DO NOT WANT to republish the constraints that come from it (that come from versions.props).
             if (JAVA_PUBLISHED_CONFIGURATION_NAMES
@@ -168,9 +168,10 @@ public class VersionsPropsPlugin implements Plugin<Project> {
                 return;
             }
 
-            if (conf.getName().equals(ROOT_CONFIGURATION_NAME)) {
-                return;
-            }
+            // This will ensure that dependencies declared in almost all configurations - those that are NOT
+            // ancestors of published configurations (such as `compile`, `runtimeOnly`) - have a version if there only
+            // a star-constraint in versions.props that matches them.
+            configureDirectDependencyInjection(versionsProps, deps);
 
             conf.extendsFrom(rootConfiguration);
         });
@@ -209,6 +210,9 @@ public class VersionsPropsPlugin implements Plugin<Project> {
     /**
      * For dependencies inside {@code deps} that don't have a version, sets a version if there is a corresponding
      * platform constraint (one containing at least a {@code *} character).
+     * <p>
+     * This is necessary because virtual platforms don't do dependency injection, see
+     * <a href=https://github.com/gradle/gradle/issues/7954>gradle/gradle#7954</a>
      */
     private static void configureDirectDependencyInjection(VersionsProps versionsProps, DependencySet deps) {
         deps.withType(ExternalDependency.class).configureEach(moduleDependency -> {
