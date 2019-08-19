@@ -158,6 +158,11 @@ public class VersionsPropsPlugin implements Plugin<Project> {
                 return;
             }
 
+            // This will ensure that dependencies declared in almost all configurations - including ancestors of
+            // published configurations (such as `compile`, `runtimeOnly`) - have a version if there only
+            // a star-constraint in versions.props that matches them.
+            configureDirectDependencyInjection(versionsProps, deps);
+
             // But don't configure any _ancestors_ of our published configurations to extend rootConfiguration, as we
             // explicitly DO NOT WANT to republish the constraints that come from it (that come from versions.props).
             if (JAVA_PUBLISHED_CONFIGURATION_NAMES
@@ -167,11 +172,6 @@ public class VersionsPropsPlugin implements Plugin<Project> {
                 log.debug("Not configuring published java configuration or its ancestor: {}", conf);
                 return;
             }
-
-            // This will ensure that dependencies declared in almost all configurations - those that are NOT
-            // ancestors of published configurations (such as `compile`, `runtimeOnly`) - have a version if there only
-            // a star-constraint in versions.props that matches them.
-            configureDirectDependencyInjection(versionsProps, deps);
 
             conf.extendsFrom(rootConfiguration);
         });
