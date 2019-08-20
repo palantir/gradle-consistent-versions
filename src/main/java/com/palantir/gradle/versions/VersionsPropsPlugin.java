@@ -40,8 +40,6 @@ import org.gradle.api.logging.Logging;
 import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.provider.ListProperty;
 import org.gradle.api.provider.Provider;
-import org.gradle.api.publish.PublishingExtension;
-import org.gradle.api.publish.maven.MavenPublication;
 import org.gradle.util.GradleVersion;
 
 public class VersionsPropsPlugin implements Plugin<Project> {
@@ -92,20 +90,6 @@ public class VersionsPropsPlugin implements Plugin<Project> {
         project.getDependencies()
                 .getComponents()
                 .all(component -> tryAssignComponentToPlatform(versionsProps, component));
-
-        // Gradle 5.1 has a bug whereby a platform dependency whose version comes from a separate constraint end
-        // up as two separate entries in the resulting POM, making it invalid.
-        // https://github.com/gradle/gradle/issues/8238
-        project.getPluginManager().withPlugin("publishing", plugin -> {
-            PublishingExtension publishingExtension =
-                    project.getExtensions().getByType(PublishingExtension.class);
-            publishingExtension.getPublications().withType(MavenPublication.class, publication -> {
-                log.info("Fixing pom publication for {}: {}", project, publication);
-                publication.getPom().withXml(xmlProvider -> {
-                    GradleWorkarounds.mergeImportsWithVersions(xmlProvider.asElement());
-                });
-            });
-        });
     }
 
     private void fixLegacyResolvableJavaConfigurations(Project project) {
