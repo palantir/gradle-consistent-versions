@@ -68,6 +68,10 @@ public class VersionsPropsPlugin implements Plugin<Project> {
 
         project.getConfigurations().configureEach(conf -> {
             if (conf.getName().equals(ROOT_CONFIGURATION_NAME)) {
+                // We only expect 'platform' dependencies to be declared in rootConfiguration.
+                // This injects missing versions, in case the version comes from a *-dependency in versions.props.
+                // For rootConfiguration, unlike other configurations, this is the only customization necessary.
+                conf.withDependencies(deps -> configureDirectDependencyInjection(versionsProps, deps));
                 return;
             }
             setupConfiguration(project, extension, rootConfiguration.get(), versionsProps, conf);
@@ -174,6 +178,9 @@ public class VersionsPropsPlugin implements Plugin<Project> {
     /**
      * For dependencies inside {@code deps} that don't have a version, sets a version if there is a corresponding
      * platform constraint (one containing at least a {@code *} character).
+     * <p>
+     * This is necessary because virtual platforms don't do dependency injection, see
+     * <a href=https://github.com/gradle/gradle/issues/7954>gradle/gradle#7954</a>
      */
     private static void configureDirectDependencyInjection(VersionsProps versionsProps, DependencySet deps) {
         deps.withType(ExternalDependency.class).configureEach(moduleDependency -> {
