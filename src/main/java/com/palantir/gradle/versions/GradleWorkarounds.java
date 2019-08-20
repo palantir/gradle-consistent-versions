@@ -113,11 +113,15 @@ final class GradleWorkarounds {
     }
 
     /**
-     * Work around gradle < 5.3.rc-1 not adding an AttributeFactory to {@link ProjectDependency} with configuration,
-     * and {@link ExternalDependency#copy()} not configuring an AttributeFactory and ALSO not immutably copying the
-     * {@link AttributeContainer}.
-     *
-     * PR to fix upstream: https://github.com/gradle/gradle/pull/9653
+     * Work around the following issues with {@link ModuleDependency} attributes.
+     * <ul>
+     *     <li>Gradle not adding an AttributeFactory to {@link ProjectDependency} with configuration, fixed in
+     *     5.3-rc-1</li>
+     *     <li>{@link ExternalDependency#copy()} not configuring an AttributeFactory and ALSO not immutably copying the
+     *      {@link AttributeContainer}, fixed in 5.6-rc-1.
+     *      <p>
+     *      See https://github.com/gradle/gradle/pull/9653</li>
+     * </ul>
      */
     static <T extends ModuleDependency> T fixAttributesOfModuleDependency(
             ObjectFactory objectFactory, T dependency) {
