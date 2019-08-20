@@ -121,7 +121,7 @@ final class GradleWorkarounds {
      */
     static <T extends ModuleDependency> T fixAttributesOfModuleDependency(
             ObjectFactory objectFactory, T dependency) {
-        if (GradleVersion.current().compareTo(GradleVersion.version("5.6-rc-1")) >= 0
+        if (GradleVersion.current().compareTo(GradleVersion.version("5.6")) >= 0
                 // Merged on 2019-06-12 so next nightly should be good
                 || GradleVersion.current().compareTo(GradleVersion.version("5.6-20190613000000+0000")) >= 0) {
             return dependency;
