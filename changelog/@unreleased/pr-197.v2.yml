@@ -1,0 +1,12 @@
+type: fix
+fix:
+  description: |-
+    Fix regression from 1.11.0 where non-locked configurations could not resolve a `platform()` dependency if its constraint was declared using a `*` in `versions.props`.
+
+    Example:
+    ```
+    Could not resolve all files for configuration ':some-api:conjureJava'.
+       > Could not find com.palantir.witchcraft:witchcraft-core-bom:.
+    ```
+  links:
+  - https://github.com/palantir/gradle-consistent-versions/pull/197
