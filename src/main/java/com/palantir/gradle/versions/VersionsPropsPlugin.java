@@ -45,7 +45,7 @@ import org.gradle.util.GradleVersion;
 public class VersionsPropsPlugin implements Plugin<Project> {
     private static final Logger log = Logging.getLogger(VersionsPropsPlugin.class);
     private static final String ROOT_CONFIGURATION_NAME = "rootConfiguration";
-    private static final GradleVersion MINIMUM_GRADLE_VERSION = GradleVersion.version("5.1");
+    private static final GradleVersion MINIMUM_GRADLE_VERSION = GradleVersion.version("5.2");
     private static final ImmutableList<String> JAVA_PUBLISHED_CONFIGURATION_NAMES = ImmutableList.of(
             JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME,
             JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME);
