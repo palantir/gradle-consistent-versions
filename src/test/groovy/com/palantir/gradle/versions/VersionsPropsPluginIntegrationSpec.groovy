@@ -96,7 +96,7 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
         addSubproject('foo', """
             apply plugin: 'java'
             dependencies {
-                compile 'ch.qos.logback:logback-classic'
+                implementation 'ch.qos.logback:logback-classic'
             }
         """.stripIndent())
 
@@ -117,7 +117,7 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
         addSubproject('foo', """
             apply plugin: 'java'
             dependencies {
-                compile 'ch.qos.logback:logback-classic'
+                implementation 'ch.qos.logback:logback-classic'
             }
         """.stripIndent())
 
