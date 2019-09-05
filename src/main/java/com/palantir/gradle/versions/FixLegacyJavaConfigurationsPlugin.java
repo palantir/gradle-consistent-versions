@@ -102,7 +102,7 @@ public class FixLegacyJavaConfigurationsPlugin implements Plugin<Project> {
                 getVersion.getVersion(details.getRequested().getGroup(), details.getRequested().getName())
                         .ifPresent(ver -> {
                             details.useVersion(ver);
-                            details.because("Locked by gradle-consistent-versions versions.lock");
+                            details.because("Forced by gradle-consistent-versions versions.lock");
                         });
             });
         });
