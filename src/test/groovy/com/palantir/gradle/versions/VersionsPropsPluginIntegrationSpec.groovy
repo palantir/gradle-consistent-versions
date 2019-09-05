@@ -141,6 +141,13 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
             dependencies {
                 rootConfiguration platform('org:platform')
             }
+            publishing {
+                publications {
+                    main(MavenPublication) {
+                        from components.java
+                    }
+                }
+            }
         """.stripIndent())
 
         expect:
