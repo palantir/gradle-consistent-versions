@@ -16,6 +16,7 @@
 
 package com.palantir.gradle.versions;
 
+import java.util.Optional;
 import java.util.stream.Stream;
 import org.gradle.api.GradleException;
 import org.gradle.api.Plugin;
@@ -61,11 +62,11 @@ public class FixLegacyJavaConfigurationsPlugin implements Plugin<Project> {
                 .map(project.getConfigurations()::named)
                 .forEach(confProvider -> confProvider.configure(conf -> injectVersions(
                         conf,
-                        (group, name) -> GetVersionPlugin.getVersion(project, group, name, unifiedClasspath))));
+                        (group, name) -> GetVersionPlugin.getOptionalVersion(project, group, name, unifiedClasspath))));
     }
 
     private interface GetVersion {
-        String getVersion(String group, String name);
+        Optional<String> getVersion(String group, String name);
     }
 
     /**
@@ -94,9 +95,11 @@ public class FixLegacyJavaConfigurationsPlugin implements Plugin<Project> {
                     }
                 }
 
-                String ver = getVersion.getVersion(details.getRequested().getGroup(), details.getRequested().getName());
-                details.useVersion(ver);
-                details.because("Locked by gradle-consistent-versions versions.lock");
+                getVersion.getVersion(details.getRequested().getGroup(), details.getRequested().getName())
+                        .ifPresent(ver -> {
+                            details.useVersion(ver);
+                            details.because("Locked by gradle-consistent-versions versions.lock");
+                        });
             });
         });
     }

@@ -23,6 +23,7 @@ import com.google.common.base.Splitter;
 import com.google.common.collect.Iterables;
 import groovy.lang.Closure;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import org.gradle.api.GradleException;
 import org.gradle.api.Plugin;
@@ -70,7 +71,13 @@ public final class GetVersionPlugin implements Plugin<Project> {
         });
     }
 
-    static String getVersion(Project project, String group, String name, Configuration configuration) {
+    private static String getVersion(Project project, String group, String name, Configuration configuration) {
+        return getOptionalVersion(project, group, name, configuration)
+                .orElseThrow(() -> notFound(group, name, configuration));
+    }
+
+    static Optional<String> getOptionalVersion(
+            Project project, String group, String name, Configuration configuration) {
         if (GradleWorkarounds.isConfiguring(project.getState())) {
             throw new GradleException(
                     String.format("Not allowed to call gradle-consistent-versions's getVersion(\"%s\", \"%s\", "
@@ -87,7 +94,7 @@ public final class GetVersionPlugin implements Plugin<Project> {
                 .collect(toList());
 
         if (list.isEmpty()) {
-            throw notFound(group, name, configuration);
+            return Optional.empty();
         }
 
         if (list.size() > 1) {
@@ -95,7 +102,7 @@ public final class GetVersionPlugin implements Plugin<Project> {
                     group, name, configuration, list));
         }
 
-        return Iterables.getOnlyElement(list).getVersion();
+        return Optional.of(Iterables.getOnlyElement(list).getVersion());
     }
 
     private static GradleException notFound(String group, String name, Configuration configuration) {
