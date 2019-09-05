@@ -17,7 +17,6 @@
 package com.palantir.gradle.versions;
 
 import com.google.common.collect.Maps;
-import com.palantir.logsafe.exceptions.SafeRuntimeException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
@@ -137,9 +136,9 @@ final class GradleWorkarounds {
             method.setAccessible(true);
             method.invoke(dependency, factory.mutable(currentAttributes));
         } catch (NoSuchMethodException e) {
-            throw new SafeRuntimeException("Failed to get AttributeContainerInternal#setAttributes", e);
+            throw new RuntimeException("Failed to get AttributeContainerInternal#setAttributes", e);
         } catch (IllegalAccessException | InvocationTargetException e) {
-            throw new SafeRuntimeException("Failed to invoke AttributeContainerInternal#setAttributes", e);
+            throw new RuntimeException("Failed to invoke AttributeContainerInternal#setAttributes", e);
         }
         return dependency;
     }

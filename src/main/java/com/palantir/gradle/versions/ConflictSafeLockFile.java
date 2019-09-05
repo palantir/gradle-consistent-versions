@@ -22,7 +22,6 @@ import com.palantir.gradle.versions.lockstate.ImmutableLine;
 import com.palantir.gradle.versions.lockstate.Line;
 import com.palantir.gradle.versions.lockstate.LockState;
 import com.palantir.gradle.versions.lockstate.LockStates;
-import com.palantir.logsafe.exceptions.SafeRuntimeException;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -119,7 +118,7 @@ final class ConflictSafeLockFile {
             writer.append(line.stringRepresentation());
             writer.newLine();
         } catch (IOException e) {
-            throw new SafeRuntimeException("Failed writing line", e);
+            throw new RuntimeException("Failed writing line", e);
         }
     }
 }
