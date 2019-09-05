@@ -18,6 +18,7 @@ package com.palantir.gradle.versions;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -45,7 +46,7 @@ public class VersionsPropsPlugin implements Plugin<Project> {
     private static final Logger log = Logging.getLogger(VersionsPropsPlugin.class);
     private static final String ROOT_CONFIGURATION_NAME = "rootConfiguration";
     private static final GradleVersion MINIMUM_GRADLE_VERSION = GradleVersion.version("5.2");
-    private static final ImmutableList<String> JAVA_PUBLISHED_CONFIGURATION_NAMES = ImmutableList.of(
+    private static final ImmutableSet<String> JAVA_PUBLISHED_CONFIGURATION_NAMES = ImmutableSet.of(
             JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME,
             JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME);
 
@@ -122,7 +123,7 @@ public class VersionsPropsPlugin implements Plugin<Project> {
                 return;
             }
 
-            if (JAVA_PUBLISHED_CONFIGURATION_NAMES.stream().anyMatch(conf.getName()::equals)) {
+            if (JAVA_PUBLISHED_CONFIGURATION_NAMES.contains(conf.getName())) {
                 log.debug("Only configuring BOM dependencies on published java configuration: {}", conf);
                 deps.addAllLater(extractPlatformDependencies(subproject, rootConfiguration));
                 return;
