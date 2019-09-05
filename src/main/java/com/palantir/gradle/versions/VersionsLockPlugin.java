@@ -267,7 +267,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 Map<Project, LockedConfigurations> lockedConfigurations = wireUpLockedConfigurationsByProject(project);
                 recursivelyCopyProjectDependencies(project, unifiedClasspath.getIncoming().getDependencies());
 
-                if (project.hasProperty("ignoreLockFile")) {
+                if (isIgnoreLockFile(project)) {
                     log.lifecycle("Ignoring lock file for debugging, because the 'ignoreLockFile' property was set");
                     return;
                 }
@@ -293,6 +293,10 @@ public class VersionsLockPlugin implements Plugin<Project> {
             t.lockfile(rootLockfile);
             t.fullLockState(project.provider(fullLockStateSupplier::get));
         });
+    }
+
+    static boolean isIgnoreLockFile(Project project) {
+        return project.hasProperty("ignoreLockFile");
     }
 
     private static Map<Project, LockedConfigurations> wireUpLockedConfigurationsByProject(Project rootProject) {

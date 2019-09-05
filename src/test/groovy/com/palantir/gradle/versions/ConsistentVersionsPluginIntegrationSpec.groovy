@@ -16,6 +16,8 @@
 
 package com.palantir.gradle.versions
 
+import com.fasterxml.jackson.databind.ObjectMapper
+
 class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
 
     static def PLUGIN_NAME = "com.palantir.consistent-versions"
@@ -57,6 +59,26 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
 
         then:
         new File(projectDir, "versions.lock").exists()
+        runTasks('resolveConfigurations')
+    }
+
+    def 'can resolve all configurations like compile with version coming only from versions props'() {
+        file('versions.props') << """
+            org.slf4j:slf4j-api:1.7.22
+        """.stripIndent()
+
+        buildFile << """
+            apply plugin: 'java'
+            dependencies {
+                compile "org.slf4j:slf4j-api"
+            }
+        """.stripIndent()
+
+        when:
+        runTasks('--write-locks')
+
+        then:
+        // Ensures that configurations like 'compile' are resolved and their dependencies have versions
         runTasks('resolveConfigurations')
     }
 
@@ -225,5 +247,64 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
 
         and: 'Ensure you can verify locks and resolve the actual locked configurations'
         runTasks('verifyLocks', 'resolveLockedConfigurations', 'resolveNonLockedConfiguration')
+    }
+
+    def "versions props contents do not get published as constraints"() {
+        buildFile << """
+            allprojects {
+                apply plugin: 'java'
+                apply plugin: 'maven-publish'
+                
+                publishing.publications {
+                    maven(MavenPublication) {
+                        from components.java
+                    }
+                }
+            }
+        """.stripIndent()
+
+        addSubproject('foo', """
+            apply plugin: 'java'
+            dependencies {
+                compile 'ch.qos.logback:logback-classic'
+            }
+        """.stripIndent())
+
+        file('versions.props') << """
+            org.slf4j:* = 1.7.25
+            ch.qos.logback:* = 1.1.11
+            should:not-publish = 1.0
+        """.stripIndent()
+
+        settingsFile << """
+            enableFeaturePreview('GRADLE_METADATA')
+        """.stripIndent()
+
+        when:
+        runTasks('--write-locks', 'generateMetadataFileForMavenPublication')
+
+        def logbackDep = new MetadataFile.Dependency(
+                group: 'ch.qos.logback',
+                module: 'logback-classic',
+                version: [requires: '1.1.11'])
+        def slf4jDep = new MetadataFile.Dependency(
+                group: 'org.slf4j',
+                module: 'slf4j-api',
+                version: [requires: '1.7.25'])
+
+        then: "foo's metadata file has the right dependency constraints"
+        def fooMetadataFilename = new File(projectDir, "foo/build/publications/maven/module.json")
+        def fooMetadata = new ObjectMapper().readValue(fooMetadataFilename, MetadataFile)
+
+        fooMetadata.variants == [
+                new MetadataFile.Variant(
+                        name: 'apiElements',
+                        dependencies: [logbackDep],
+                        dependencyConstraints: [logbackDep, slf4jDep]),
+                new MetadataFile.Variant(
+                        name: 'runtimeElements',
+                        dependencies: [logbackDep],
+                        dependencyConstraints: [logbackDep, slf4jDep]),
+        ] as Set
     }
 }

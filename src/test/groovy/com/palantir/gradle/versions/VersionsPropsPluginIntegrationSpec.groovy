@@ -35,6 +35,7 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
                 "com.fasterxml.jackson.core:jackson-annotations:2.9.0",
                 "com.fasterxml.jackson.core:jackson-annotations:2.9.7",
                 "com.fasterxml.jackson.core:jackson-databind:2.9.7",
+                "org:platform:1.0",
         )
         buildFile << """
             buildscript {
@@ -95,7 +96,7 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
         addSubproject('foo', """
             apply plugin: 'java'
             dependencies {
-                compile 'ch.qos.logback:logback-classic'
+                implementation 'ch.qos.logback:logback-classic'
             }
         """.stripIndent())
 
@@ -116,7 +117,7 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
         addSubproject('foo', """
             apply plugin: 'java'
             dependencies {
-                compile 'ch.qos.logback:logback-classic'
+                implementation 'ch.qos.logback:logback-classic'
             }
         """.stripIndent())
 
@@ -128,11 +129,9 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
     }
 
     def 'imported platform generated correctly in pom'() {
-        debug = true
-        keepFiles = true
         file("versions.props") << """
-            org.apache.spark:spark-dist_2.11-hadoop-palantir-bom = 2.5.0-palantir.7
-            # Just to make sure this doesn't get removed from the constraints
+            org:platform = 1.0
+            # This shouldn't end up in the POM
             other:constraint = 1.0.0
         """.stripIndent()
 
@@ -140,12 +139,17 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
             apply plugin: 'java-library'
             apply plugin: 'maven-publish'
             dependencies {
-                compile platform('org.apache.spark:spark-dist_2.11-hadoop-palantir-bom')
+                rootConfiguration platform('org:platform')
             }
             publishing {
                 publications {
                     main(MavenPublication) {
                         from components.java
+                        versionMapping {
+                            allVariants {
+                                fromResolutionResult()
+                            }
+                        }
                     }
                 }
             }
@@ -161,18 +165,12 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
         NodeChildren dependencies = pom.dependencyManagement.dependencies.dependency
         dependencies.collect { convertToMap(it) } as Set == [
                 [
-                        groupId: 'org.apache.spark',
-                        artifactId: 'spark-dist_2.11-hadoop-palantir-bom',
-                        version: '2.5.0-palantir.7',
+                        groupId: 'org',
+                        artifactId: 'platform',
+                        version: '1.0',
                         scope: 'import',
                         type: 'pom'
                 ],
-                [
-                        groupId: 'other',
-                        artifactId: 'constraint',
-                        version: '1.0.0',
-                        scope: 'compile',
-                ]
         ] as Set
     }
 

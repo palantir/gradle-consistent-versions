@@ -1,0 +1,5 @@
+type: improvement
+improvement:
+  description: Properly remove versions.props constraints from being published.
+  links:
+  - https://github.com/palantir/gradle-consistent-versions/pull/193

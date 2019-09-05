@@ -18,6 +18,7 @@ package com.palantir.gradle.versions;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -39,14 +40,15 @@ import org.gradle.api.logging.Logging;
 import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.provider.ListProperty;
 import org.gradle.api.provider.Provider;
-import org.gradle.api.publish.PublishingExtension;
-import org.gradle.api.publish.maven.MavenPublication;
 import org.gradle.util.GradleVersion;
 
 public class VersionsPropsPlugin implements Plugin<Project> {
     private static final Logger log = Logging.getLogger(VersionsPropsPlugin.class);
     private static final String ROOT_CONFIGURATION_NAME = "rootConfiguration";
-    private static final GradleVersion MINIMUM_GRADLE_VERSION = GradleVersion.version("5.1");
+    private static final GradleVersion MINIMUM_GRADLE_VERSION = GradleVersion.version("5.2");
+    private static final ImmutableSet<String> JAVA_PUBLISHED_CONFIGURATION_NAMES = ImmutableSet.of(
+            JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME,
+            JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME);
 
     @Override
     public final void apply(Project project) {
@@ -71,7 +73,7 @@ public class VersionsPropsPlugin implements Plugin<Project> {
                 // We only expect 'platform' dependencies to be declared in rootConfiguration.
                 // This injects missing versions, in case the version comes from a *-dependency in versions.props.
                 // For rootConfiguration, unlike other configurations, this is the only customization necessary.
-                conf.withDependencies(deps -> configureDirectDependencyInjection(versionsProps, deps));
+                conf.withDependencies(deps -> provideVersionsFromStarDependencies(versionsProps, deps));
                 return;
             }
             setupConfiguration(project, extension, rootConfiguration.get(), versionsProps, conf);
@@ -86,20 +88,6 @@ public class VersionsPropsPlugin implements Plugin<Project> {
         project.getDependencies()
                 .getComponents()
                 .all(component -> tryAssignComponentToPlatform(versionsProps, component));
-
-        // Gradle 5.1 has a bug whereby a platform dependency whose version comes from a separate constraint end
-        // up as two separate entries in the resulting POM, making it invalid.
-        // https://github.com/gradle/gradle/issues/8238
-        project.getPluginManager().withPlugin("publishing", plugin -> {
-            PublishingExtension publishingExtension =
-                    project.getExtensions().getByType(PublishingExtension.class);
-            publishingExtension.getPublications().withType(MavenPublication.class, publication -> {
-                log.info("Fixing pom publication for {}: {}", project, publication);
-                publication.getPom().withXml(xmlProvider -> {
-                    GradleWorkarounds.mergeImportsWithVersions(xmlProvider.asElement());
-                });
-            });
-        });
     }
 
     private static void applyToRootProject(Project project) {
@@ -114,13 +102,6 @@ public class VersionsPropsPlugin implements Plugin<Project> {
             Configuration rootConfiguration,
             VersionsProps versionsProps,
             Configuration conf) {
-        if (conf.getName().equals(JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME)
-                || conf.getName().equals(JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME)) {
-            log.debug("Only configuring BOM dependencies on published java configuration: {}", conf);
-            conf.getDependencies().addAllLater(extractPlatformDependencies(subproject, rootConfiguration));
-            return;
-        }
-
         // Must do all this in a withDependencies block so that it's run lazily, so that
         // `extension.shouldExcludeConfiguration` isn't queried too early (before the user had the change to configure).
         // However, we must not make this lazy using an afterEvaluate.
@@ -141,11 +122,24 @@ public class VersionsPropsPlugin implements Plugin<Project> {
                 log.debug("Not configuring {} because it's excluded", conf);
                 return;
             }
-            // Because of https://github.com/gradle/gradle/issues/7954, we need to manually inject versions
-            // of direct dependencies if they come from a *-constraint
-            // Note: this is necessary on the rootConfiguration too in order to support injecting versions of
-            // BOMs.
-            configureDirectDependencyInjection(versionsProps, deps);
+
+            if (JAVA_PUBLISHED_CONFIGURATION_NAMES.contains(conf.getName())) {
+                log.debug("Only configuring BOM dependencies on published java configuration: {}", conf);
+                deps.addAllLater(extractPlatformDependencies(subproject, rootConfiguration));
+                return;
+            }
+
+            // This will ensure that dependencies declared in almost all configurations - including ancestors of
+            // published configurations (such as `compile`, `runtimeOnly`) - have a version if there only
+            // a star-constraint in versions.props that matches them.
+            provideVersionsFromStarDependencies(versionsProps, deps);
+
+            // But don't configure any _ancestors_ of our published configurations to extend rootConfiguration, as we
+            // explicitly DO NOT WANT to republish the constraints that come from it (that come from versions.props).
+            if (configurationWillAffectPublishedConstraints(subproject, conf)) {
+                log.debug("Not configuring published java configuration or its ancestor: {}", conf);
+                return;
+            }
 
             conf.extendsFrom(rootConfiguration);
         });
@@ -166,12 +160,29 @@ public class VersionsPropsPlugin implements Plugin<Project> {
         });
     }
 
+    private static boolean configurationWillAffectPublishedConstraints(Project subproject, Configuration conf) {
+        return JAVA_PUBLISHED_CONFIGURATION_NAMES
+                .stream()
+                .anyMatch(confName -> isSameOrSuperconfigurationOf(subproject, conf, confName));
+    }
+
+    private static boolean isSameOrSuperconfigurationOf(
+            Project project, Configuration conf, String targetConfigurationName) {
+        if (project.getConfigurations().findByName(targetConfigurationName) == null) {
+            // this may happens if the project doesn't have 'java' applied, so the configuration was never created
+            return false;
+        }
+
+        Configuration targetConf = project.getConfigurations().getByName(targetConfigurationName);
+        return targetConf.getHierarchy().contains(conf);
+    }
+
     private static Provider<List<Dependency>> extractPlatformDependencies(
             Project project, Configuration rootConfiguration) {
         ListProperty<Dependency> proxiedDependencies = project.getObjects().listProperty(Dependency.class);
         proxiedDependencies.addAll(project.provider(() -> rootConfiguration.getDependencies()
-                    .withType(ModuleDependency.class)
-                    .matching(dep -> GradleWorkarounds.isPlatform(dep.getAttributes()))));
+                .withType(ModuleDependency.class)
+                .matching(dep -> GradleWorkarounds.isPlatform(dep.getAttributes()))));
         return GradleWorkarounds.fixListProperty(proxiedDependencies);
     }
 
@@ -182,15 +193,15 @@ public class VersionsPropsPlugin implements Plugin<Project> {
      * This is necessary because virtual platforms don't do dependency injection, see
      * <a href=https://github.com/gradle/gradle/issues/7954>gradle/gradle#7954</a>
      */
-    private static void configureDirectDependencyInjection(VersionsProps versionsProps, DependencySet deps) {
+    private static void provideVersionsFromStarDependencies(VersionsProps versionsProps, DependencySet deps) {
         deps.withType(ExternalDependency.class).configureEach(moduleDependency -> {
             if (moduleDependency.getVersion() != null) {
                 return;
             }
             versionsProps
-                    .getRecommendedVersion(moduleDependency.getModule())
+                    .getStarVersion(moduleDependency.getModule())
                     .ifPresent(version -> moduleDependency.version(constraint -> {
-                        log.info("Found direct dependency without version: {} -> {}, requiring: {}",
+                        log.debug("Found direct dependency without version: {} -> {}, requiring: {}",
                                 deps, moduleDependency, version);
                         constraint.require(version);
                     }));

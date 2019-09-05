@@ -24,6 +24,7 @@ import nebula.test.dependencies.GradleDependencyGenerator
 class IntegrationSpec extends IntegrationTestKitSpec {
     void setup() {
         keepFiles = true
+        debug = true
         settingsFile.createNewFile()
     }
 
