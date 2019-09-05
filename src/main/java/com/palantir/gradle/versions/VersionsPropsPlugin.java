@@ -135,10 +135,7 @@ public class VersionsPropsPlugin implements Plugin<Project> {
 
             // But don't configure any _ancestors_ of our published configurations to extend rootConfiguration, as we
             // explicitly DO NOT WANT to republish the constraints that come from it (that come from versions.props).
-            if (JAVA_PUBLISHED_CONFIGURATION_NAMES
-                    .stream()
-                    .anyMatch(confName -> subproject.getConfigurations().findByName(confName) != null
-                            && isSameOrSuperconfigurationOf(subproject, conf, confName))) {
+            if (configurationWillAffectPublishedConstraints(subproject, conf)) {
                 log.debug("Not configuring published java configuration or its ancestor: {}", conf);
                 return;
             }
@@ -162,8 +159,19 @@ public class VersionsPropsPlugin implements Plugin<Project> {
         });
     }
 
+    private static boolean configurationWillAffectPublishedConstraints(Project subproject, Configuration conf) {
+        return JAVA_PUBLISHED_CONFIGURATION_NAMES
+                .stream()
+                .anyMatch(confName -> isSameOrSuperconfigurationOf(subproject, conf, confName));
+    }
+
     private static boolean isSameOrSuperconfigurationOf(
             Project project, Configuration conf, String targetConfigurationName) {
+        if (project.getConfigurations().findByName(targetConfigurationName) == null) {
+            // this may happens if the project doesn't have 'java' applied, so the configuration was never created
+            return false;
+        }
+
         Configuration targetConf = project.getConfigurations().getByName(targetConfigurationName);
         return targetConf.getHierarchy().contains(conf);
     }
