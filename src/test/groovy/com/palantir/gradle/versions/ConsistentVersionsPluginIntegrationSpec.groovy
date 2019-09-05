@@ -182,17 +182,29 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         )
         addSubproject('foo', """
             apply plugin: 'java'
+            
+            configurations {
+                other
+            }
+            
             dependencies {
                 compile 'org.slf4j:slf4j-api'
                 
                 rootConfiguration platform('org1:platform')
                 rootConfiguration platform('org2:platform')
             }
-            
+  
             task resolveLockedConfigurations {
                 doLast {
                     configurations.compileClasspath.resolve()
                     configurations.runtimeClasspath.resolve()
+                }
+            }
+            
+            // This is to ensure that the platform deps are successfully resolvable on a non-locked configuration
+            task resolveNonLockedConfiguration {
+                doLast {
+                    configurations.other.resolve()
                 }
             }
         """.stripIndent())
@@ -214,7 +226,7 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         """.stripIndent()
 
         and: 'Ensure you can verify locks and resolve the actual locked configurations'
-        runTasks('verifyLocks', 'resolveLockedConfigurations')
+        runTasks('verifyLocks', 'resolveLockedConfigurations', 'resolveNonLockedConfiguration')
     }
 
     def "versions props contents do not get published as constraints"() {
