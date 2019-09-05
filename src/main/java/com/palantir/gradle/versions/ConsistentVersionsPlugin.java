@@ -19,9 +19,6 @@ package com.palantir.gradle.versions;
 import org.gradle.api.GradleException;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
-import org.gradle.api.publish.PublishingExtension;
-import org.gradle.api.publish.VariantVersionMappingStrategy;
-import org.gradle.api.publish.maven.MavenPublication;
 
 public class ConsistentVersionsPlugin implements Plugin<Project> {
     @Override
@@ -38,20 +35,6 @@ public class ConsistentVersionsPlugin implements Plugin<Project> {
                 proj.getPluginManager().apply(FixLegacyJavaConfigurationsPlugin.class);
             });
         });
-
-        // This is to ensure that we're not producing broken POMs due to missing versions
-        project.allprojects(ConsistentVersionsPlugin::configureResolvedVersionsWithVersionMapping);
     }
 
-
-    private static void configureResolvedVersionsWithVersionMapping(Project project) {
-        project
-                .getExtensions()
-                .getByType(PublishingExtension.class)
-                .getPublications()
-                .withType(MavenPublication.class)
-                .configureEach(publication -> publication.versionMapping(mapping -> {
-                    mapping.allVariants(VariantVersionMappingStrategy::fromResolutionResult);
-                }));
-    }
 }
