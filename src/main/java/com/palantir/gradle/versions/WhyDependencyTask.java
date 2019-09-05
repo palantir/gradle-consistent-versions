@@ -24,6 +24,7 @@ import com.palantir.gradle.versions.lockstate.Dependents;
 import com.palantir.gradle.versions.lockstate.FullLockState;
 import com.palantir.gradle.versions.lockstate.Line;
 import com.palantir.gradle.versions.lockstate.LockStates;
+import com.palantir.logsafe.exceptions.SafeNullPointerException;
 import java.nio.file.Path;
 import java.util.Objects;
 import java.util.Optional;
@@ -85,7 +86,7 @@ public class WhyDependencyTask extends DefaultTask {
                     .filter(Objects::nonNull)
                     .findFirst();
             Dependents dependents = entry.orElseThrow(() ->
-                    new NullPointerException("Unable to find group/name in fullLockState"));
+                    new SafeNullPointerException("Unable to find group/name in fullLockState"));
 
             getLogger().lifecycle("{}", key);
             LockStates.prettyPrintConstraints(dependents).forEach(pretty -> {

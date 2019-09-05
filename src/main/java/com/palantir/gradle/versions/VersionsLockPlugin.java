@@ -406,7 +406,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
             throw new GradleException("Must be applied only to root project");
         }
 
-        Preconditions.checkState(
+        com.palantir.logsafe.Preconditions.checkState(
                 !project.getGradle().getStartParameter().isConfigureOnDemand(),
                 "Gradle Consistent Versions doesn't currently work with configure-on-demand, please remove"
                         + " 'org.gradle.configureondemand' from your gradle.properties");
@@ -457,7 +457,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
      enforce constraints on.
      */
     private void recursivelyCopyProjectDependencies(Project project, DependencySet depSet) {
-        Preconditions.checkState(
+        com.palantir.logsafe.Preconditions.checkState(
                 project.getState().getExecuted(),
                 "recursivelyCopyProjectDependenciesWithScope should be called in afterEvaluate");
 
@@ -898,7 +898,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 // gradle does when verifying a lock file.
                 .map(notation -> constraintHandler.create(notation, constraint -> {
                     constraint.version(v -> {
-                        String version = Objects.requireNonNull(constraint.getVersion());
+                        String version = com.palantir.logsafe.Preconditions.checkNotNull(constraint.getVersion());
                         v.strictly(version);
                     });
                     constraint.because("Locked by versions.lock");
@@ -914,7 +914,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 .map(e -> e.getKey() + ":" + e.getValue().version())
                 .map(notation -> constraintHandler.create(notation, constraint -> {
                     constraint.version(v -> {
-                        String version = Objects.requireNonNull(constraint.getVersion());
+                        String version = com.palantir.logsafe.Preconditions.checkNotNull(constraint.getVersion());
                         v.require(version);
                     });
                     constraint.because("Computed from com.palantir.consistent-versions' versions.lock");
