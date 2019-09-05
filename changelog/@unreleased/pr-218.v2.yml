@@ -1,0 +1,5 @@
+type: fix
+fix:
+  description: Fix missing versions in POMs of MavenPublications.
+  links:
+  - https://github.com/palantir/gradle-consistent-versions/pull/218
