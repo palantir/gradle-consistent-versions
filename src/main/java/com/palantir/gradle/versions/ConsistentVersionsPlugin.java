@@ -31,7 +31,7 @@ public class ConsistentVersionsPlugin implements Plugin<Project> {
         project.getPluginManager().apply(GetVersionPlugin.class);
 
         project.allprojects(proj -> {
-            project.getPluginManager().withPlugin("java", plugin -> {
+            proj.getPluginManager().withPlugin("java", plugin -> {
                 proj.getPluginManager().apply(FixLegacyJavaConfigurationsPlugin.class);
             });
         });

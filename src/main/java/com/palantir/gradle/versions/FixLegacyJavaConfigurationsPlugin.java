@@ -36,6 +36,10 @@ public class FixLegacyJavaConfigurationsPlugin implements Plugin<Project> {
         if (!project.getRootProject().getPlugins().hasPlugin(VersionsLockPlugin.class)) {
             throw new GradleException("FixLegacyJavaConfigurationsPlugin must be applied after VersionsLockPlugin");
         }
+        // ConsistentVersionsPlugin should ensure that we only get applied onto java projects
+        if (!project.getPlugins().hasPlugin(JavaPlugin.class)) {
+            throw new GradleException("FixLegacyJavaConfigurationsPlugin must be applied after 'java' / JavaPlugin");
+        }
 
         if (VersionsLockPlugin.isIgnoreLockFile(project)) {
             return;
