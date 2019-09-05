@@ -22,7 +22,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Stream;
 import org.gradle.api.GradleException;
 import org.gradle.api.NamedDomainObjectProvider;
 import org.gradle.api.Plugin;
@@ -57,8 +56,6 @@ public class VersionsPropsPlugin implements Plugin<Project> {
             applyToRootProject(project);
         }
 
-        fixLegacyResolvableJavaConfigurations(project);
-
         VersionRecommendationsExtension extension =
                 project.getRootProject().getExtensions().getByType(VersionRecommendationsExtension.class);
 
@@ -90,17 +87,6 @@ public class VersionsPropsPlugin implements Plugin<Project> {
         project.getDependencies()
                 .getComponents()
                 .all(component -> tryAssignComponentToPlatform(versionsProps, component));
-    }
-
-    private void fixLegacyResolvableJavaConfigurations(Project project) {
-        project.getPluginManager().withPlugin("java", plugin -> {
-            Stream.of(
-                JavaPlugin.COMPILE_CONFIGURATION_NAME,
-                JavaPlugin.COMPILE_ONLY_CONFIGURATION_NAME,
-                JavaPlugin.RUNTIME_CONFIGURATION_NAME)
-                .map(project.getConfigurations()::named)
-                .forEach(confProvider -> confProvider.configure(conf -> conf.setCanBeResolved(false)));
-        });
     }
 
     private static void applyToRootProject(Project project) {

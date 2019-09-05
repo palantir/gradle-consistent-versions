@@ -70,7 +70,7 @@ public final class GetVersionPlugin implements Plugin<Project> {
         });
     }
 
-    private static String getVersion(Project project, String group, String name, Configuration configuration) {
+    static String getVersion(Project project, String group, String name, Configuration configuration) {
         if (GradleWorkarounds.isConfiguring(project.getState())) {
             throw new GradleException(
                     String.format("Not allowed to call gradle-consistent-versions's getVersion(\"%s\", \"%s\", "
