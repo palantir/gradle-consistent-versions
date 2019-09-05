@@ -16,6 +16,7 @@
 
 package com.palantir.gradle.versions;
 
+import com.google.common.base.Preconditions;
 import java.util.Optional;
 import java.util.stream.Stream;
 import org.gradle.api.GradleException;
@@ -34,9 +35,6 @@ import org.gradle.api.plugins.JavaPlugin;
 public class FixLegacyJavaConfigurationsPlugin implements Plugin<Project> {
     @Override
     public final void apply(Project project) {
-        if (!project.getRootProject().getPlugins().hasPlugin(VersionsLockPlugin.class)) {
-            throw new GradleException("FixLegacyJavaConfigurationsPlugin must be applied after VersionsLockPlugin");
-        }
         // ConsistentVersionsPlugin should ensure that we only get applied onto java projects
         if (!project.getPlugins().hasPlugin(JavaPlugin.class)) {
             throw new GradleException("FixLegacyJavaConfigurationsPlugin must be applied after 'java' / JavaPlugin");
@@ -49,7 +47,10 @@ public class FixLegacyJavaConfigurationsPlugin implements Plugin<Project> {
         Configuration unifiedClasspath = project
                 .getRootProject()
                 .getConfigurations()
-                .getByName(VersionsLockPlugin.UNIFIED_CLASSPATH_CONFIGURATION_NAME);
+                .findByName(VersionsLockPlugin.UNIFIED_CLASSPATH_CONFIGURATION_NAME);
+        Preconditions.checkNotNull(
+                unifiedClasspath,
+                "FixLegacyJavaConfigurationsPlugin must be applied after VersionsLockPlugin");
 
         fixLegacyResolvableJavaConfigurations(project, unifiedClasspath);
     }
