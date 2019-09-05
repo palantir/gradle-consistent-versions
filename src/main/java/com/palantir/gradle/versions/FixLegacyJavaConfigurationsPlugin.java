@@ -33,7 +33,7 @@ import org.gradle.api.plugins.JavaPlugin;
 public class FixLegacyJavaConfigurationsPlugin implements Plugin<Project> {
     @Override
     public final void apply(Project project) {
-        if (!project.getPlugins().hasPlugin(VersionsLockPlugin.class)) {
+        if (!project.getRootProject().getPlugins().hasPlugin(VersionsLockPlugin.class)) {
             throw new GradleException("FixLegacyJavaConfigurationsPlugin must be applied after VersionsLockPlugin");
         }
 
