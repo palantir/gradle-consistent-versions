@@ -20,7 +20,7 @@ plugins {
     id 'com.palantir.consistent-versions' version '1.11.2'
     id 'org.inferred.processors' version '3.1.0'
     id 'com.palantir.baseline' version '0.64.0'
-    id 'com.palantir.git-version' version '0.7.3'
+    id 'com.palantir.git-version' version '0.11.0'
 }
 
 repositories {
