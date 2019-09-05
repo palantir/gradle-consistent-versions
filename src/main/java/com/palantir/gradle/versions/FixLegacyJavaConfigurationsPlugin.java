@@ -61,9 +61,12 @@ public class FixLegacyJavaConfigurationsPlugin implements Plugin<Project> {
                 JavaPlugin.COMPILE_ONLY_CONFIGURATION_NAME,
                 JavaPlugin.RUNTIME_CONFIGURATION_NAME)
                 .map(project.getConfigurations()::named)
-                .forEach(confProvider -> confProvider.configure(conf -> injectVersions(
-                        conf,
-                        (group, name) -> GetVersionPlugin.getOptionalVersion(project, group, name, unifiedClasspath))));
+                .forEach(confProvider -> confProvider.configure(conf -> {
+                    injectVersions(
+                            conf,
+                            (group, name) -> GetVersionPlugin.getOptionalVersion(
+                                    project, group, name, unifiedClasspath));
+                }));
     }
 
     private interface GetVersion {
