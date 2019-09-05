@@ -83,7 +83,7 @@ public final class VersionsProps {
      * This is necessary for direct dependency injection, which is not supported by virtual platforms.
      * See <a href=https://github.com/gradle/gradle/issues/7954>gradle#7954</a> for more details.
      */
-    public Optional<String> getRecommendedVersion(ModuleIdentifier dependency) {
+    public Optional<String> getStarVersion(ModuleIdentifier dependency) {
         String notation = dependency.getGroup() + ":" + dependency.getName();
         return Optional.ofNullable(fuzzyResolver.patternFor(notation)).map(fuzzyResolver.versions()::get);
     }

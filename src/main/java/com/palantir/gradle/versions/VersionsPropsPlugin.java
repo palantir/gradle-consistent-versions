@@ -72,7 +72,7 @@ public class VersionsPropsPlugin implements Plugin<Project> {
                 // We only expect 'platform' dependencies to be declared in rootConfiguration.
                 // This injects missing versions, in case the version comes from a *-dependency in versions.props.
                 // For rootConfiguration, unlike other configurations, this is the only customization necessary.
-                conf.withDependencies(deps -> configureDirectDependencyInjection(versionsProps, deps));
+                conf.withDependencies(deps -> provideVersionsFromStarDependencies(versionsProps, deps));
                 return;
             }
             setupConfiguration(project, extension, rootConfiguration.get(), versionsProps, conf);
@@ -131,7 +131,7 @@ public class VersionsPropsPlugin implements Plugin<Project> {
             // This will ensure that dependencies declared in almost all configurations - including ancestors of
             // published configurations (such as `compile`, `runtimeOnly`) - have a version if there only
             // a star-constraint in versions.props that matches them.
-            configureDirectDependencyInjection(versionsProps, deps);
+            provideVersionsFromStarDependencies(versionsProps, deps);
 
             // But don't configure any _ancestors_ of our published configurations to extend rootConfiguration, as we
             // explicitly DO NOT WANT to republish the constraints that come from it (that come from versions.props).
@@ -184,13 +184,13 @@ public class VersionsPropsPlugin implements Plugin<Project> {
      * This is necessary because virtual platforms don't do dependency injection, see
      * <a href=https://github.com/gradle/gradle/issues/7954>gradle/gradle#7954</a>
      */
-    private static void configureDirectDependencyInjection(VersionsProps versionsProps, DependencySet deps) {
+    private static void provideVersionsFromStarDependencies(VersionsProps versionsProps, DependencySet deps) {
         deps.withType(ExternalDependency.class).configureEach(moduleDependency -> {
             if (moduleDependency.getVersion() != null) {
                 return;
             }
             versionsProps
-                    .getRecommendedVersion(moduleDependency.getModule())
+                    .getStarVersion(moduleDependency.getModule())
                     .ifPresent(version -> moduleDependency.version(constraint -> {
                         log.debug("Found direct dependency without version: {} -> {}, requiring: {}",
                                 deps, moduleDependency, version);
