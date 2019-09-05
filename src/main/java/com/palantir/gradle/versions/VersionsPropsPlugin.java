@@ -40,6 +40,9 @@ import org.gradle.api.logging.Logging;
 import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.provider.ListProperty;
 import org.gradle.api.provider.Provider;
+import org.gradle.api.publish.PublishingExtension;
+import org.gradle.api.publish.VariantVersionMappingStrategy;
+import org.gradle.api.publish.maven.MavenPublication;
 import org.gradle.util.GradleVersion;
 
 public class VersionsPropsPlugin implements Plugin<Project> {
@@ -88,6 +91,9 @@ public class VersionsPropsPlugin implements Plugin<Project> {
         project.getDependencies()
                 .getComponents()
                 .all(component -> tryAssignComponentToPlatform(versionsProps, component));
+
+        // This is to ensure that we're not producing broken POMs due to missing versions
+        configureResolvedVersionsWithVersionMapping(project);
     }
 
     private static void applyToRootProject(Project project) {
@@ -242,5 +248,18 @@ public class VersionsPropsPlugin implements Plugin<Project> {
                 GradleVersion.current().compareTo(MINIMUM_GRADLE_VERSION) >= 0,
                 "This plugin requires gradle >= %s",
                 MINIMUM_GRADLE_VERSION);
+    }
+
+    private static void configureResolvedVersionsWithVersionMapping(Project project) {
+        project.getPluginManager().withPlugin("maven-publish", plugin -> {
+            project
+                    .getExtensions()
+                    .getByType(PublishingExtension.class)
+                    .getPublications()
+                    .withType(MavenPublication.class)
+                    .configureEach(publication -> publication.versionMapping(mapping -> {
+                        mapping.allVariants(VariantVersionMappingStrategy::fromResolutionResult);
+                    }));
+        });
     }
 }

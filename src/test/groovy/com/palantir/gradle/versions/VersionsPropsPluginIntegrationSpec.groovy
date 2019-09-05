@@ -145,11 +145,6 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
                 publications {
                     main(MavenPublication) {
                         from components.java
-                        versionMapping {
-                            allVariants {
-                                fromResolutionResult()
-                            }
-                        }
                     }
                 }
             }
