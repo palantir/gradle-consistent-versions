@@ -62,6 +62,26 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         runTasks('resolveConfigurations')
     }
 
+    def 'can resolve all configurations like compile with version coming only from versions props'() {
+        file('versions.props') << """
+            org.slf4j:slf4j-api:1.7.22
+        """.stripIndent()
+
+        buildFile << """
+            apply plugin: 'java'
+            dependencies {
+                compile "org.slf4j:slf4j-api"
+            }
+        """.stripIndent()
+
+        when:
+        runTasks('--write-locks')
+
+        then:
+        // Ensures that configurations like 'compile' are resolved and their dependencies have versions
+        runTasks('resolveConfigurations')
+    }
+
     def "locks are consistent whether or not we do --write-locks for glob-forced direct dependency"() {
         buildFile << '''
             apply plugin: 'java'
