@@ -101,12 +101,24 @@ final class GradleWorkarounds {
     }
 
     /**
-     * Work around gradle < 5.3.rc-1 not adding an AttributeFactory to {@link ProjectDependency} with configuration,
-     * and {@link ExternalDependency#copy()} not configuring an AttributeFactory and ALSO not immutably copying the
-     * {@link AttributeContainer}.
+     * Work around the following issues with {@link ModuleDependency} attributes.
+     * <ul>
+     *     <li>Gradle not adding an AttributeFactory to {@link ProjectDependency} with configuration, fixed in
+     *     5.3-rc-1</li>
+     *     <li>{@link ExternalDependency#copy()} not configuring an AttributeFactory and ALSO not immutably copying the
+     *      {@link AttributeContainer}, fixed in 5.6-rc-1.
+     *      <p>
+     *      See https://github.com/gradle/gradle/pull/9653</li>
+     * </ul>
      */
     static <T extends ModuleDependency> T fixAttributesOfModuleDependency(
             ObjectFactory objectFactory, T dependency) {
+        if (GradleVersion.current().compareTo(GradleVersion.version("5.6")) >= 0
+                // Merged on 2019-06-12 so next nightly should be good
+                || GradleVersion.current().compareTo(GradleVersion.version("5.6-20190613000000+0000")) >= 0) {
+            return dependency;
+        }
+        log.debug("Fixing attributes of module dependency to work around gradle#9653: {}", dependency.toString());
         org.gradle.api.internal.artifacts.dependencies.AbstractModuleDependency abstractModuleDependency =
                 (org.gradle.api.internal.artifacts.dependencies.AbstractModuleDependency) dependency;
         org.gradle.api.internal.attributes.ImmutableAttributesFactory factory =
