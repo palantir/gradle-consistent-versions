@@ -53,6 +53,7 @@ import java.util.stream.Stream;
 import javax.inject.Inject;
 import netflix.nebula.dependency.recommender.RecommendationStrategies;
 import netflix.nebula.dependency.recommender.provider.RecommendationProviderContainer;
+import org.gradle.api.Buildable;
 import org.gradle.api.GradleException;
 import org.gradle.api.Named;
 import org.gradle.api.NamedDomainObjectProvider;
@@ -81,7 +82,6 @@ import org.gradle.api.artifacts.result.UnresolvedDependencyResult;
 import org.gradle.api.attributes.Attribute;
 import org.gradle.api.attributes.AttributesSchema;
 import org.gradle.api.attributes.Usage;
-import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.invocation.Gradle;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
@@ -90,10 +90,14 @@ import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.plugins.JavaPluginConvention;
 import org.gradle.api.provider.ListProperty;
+import org.gradle.api.publish.PublishingExtension;
+import org.gradle.api.publish.maven.MavenPublication;
+import org.gradle.api.publish.maven.tasks.GenerateMavenPom;
 import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.SourceSetContainer;
 import org.gradle.api.tasks.TaskProvider;
 import org.gradle.language.base.plugins.LifecycleBasePlugin;
+import org.gradle.util.GUtil;
 import org.gradle.util.GradleVersion;
 import org.immutables.value.Value;
 
@@ -822,8 +826,26 @@ public class VersionsLockPlugin implements Plugin<Project> {
         configuration.configure(conf -> {
             conf.getDependencyConstraints().addAllLater(constraintsProperty);
             // Make it obvious to gradle that "building" this configuration depends on configurationForFiltering
-            ConfigurableFileCollection fileCollection = project.files().builtBy(configurationForFiltering);
-            conf.getDependencies().add(project.getDependencies().create(fileCollection));
+            Buildable dependsOnConfigurationForFiltering = project.files().builtBy(configurationForFiltering);
+            conf.getDependencies().add(project.getDependencies().create(dependsOnConfigurationForFiltering));
+            // Make it _more_ obvious since the above dependency doesn't seem to influence generatePomFile tasks
+            project.getPluginManager().withPlugin("maven-publish", plugin -> project
+                    .getExtensions()
+                    .getByType(PublishingExtension.class)
+                    .getPublications()
+                    .withType(MavenPublication.class)
+                    // TODO matching from components.java
+                    .all(publication -> {
+                        String publicationName = publication.getName();
+                        String publishTaskName = GUtil.toLowerCamelCase(
+                                "generatePomFileFor " + publicationName + "Publication");
+                        // TODO can also publication.getPom() == task.getPom()
+                        project
+                                .getTasks()
+                                .withType(GenerateMavenPom.class)
+                                .named(publishTaskName)
+                                .configure(task -> task.dependsOn(configuration));
+                    }));
         });
     }
 
