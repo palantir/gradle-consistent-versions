@@ -88,7 +88,7 @@ public final class LockStates {
                             .filter(string -> !string.isEmpty()) // toString is empty if the constraint is a no-op
                             .collect(toList());
 
-                    if (constraintsStr.size() == 0) {
+                    if (constraintsStr.isEmpty()) {
                         return Optional.<String>empty();
                     } else if (constraintsStr.size() == 1) {
                         return Optional.of(e.getKey() + " -> " + constraintsStr.get(0));
