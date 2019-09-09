@@ -84,8 +84,7 @@ public class VersionsPropsPlugin implements Plugin<Project> {
 
         // Note: don't add constraints to this, only call `create` / `platform` on it.
         DependencyConstraintHandler constraintHandler = project.getDependencies().getConstraints();
-        rootConfiguration.configure(conf ->
-                addVersionsPropsConstraints(constraintHandler, conf, versionsProps));
+        rootConfiguration.configure(conf -> addVersionsPropsConstraints(constraintHandler, conf, versionsProps));
 
         log.info("Configuring rules to assign *-constraints to platforms in {}", project);
         project.getDependencies()
@@ -98,7 +97,7 @@ public class VersionsPropsPlugin implements Plugin<Project> {
 
     private static void applyToRootProject(Project project) {
         project.getExtensions()
-                    .create(VersionRecommendationsExtension.EXTENSION, VersionRecommendationsExtension.class, project);
+                .create(VersionRecommendationsExtension.EXTENSION, VersionRecommendationsExtension.class, project);
         project.subprojects(subproject -> subproject.getPluginManager().apply(VersionsPropsPlugin.class));
     }
 
@@ -173,7 +172,9 @@ public class VersionsPropsPlugin implements Plugin<Project> {
     }
 
     private static boolean isSameOrSuperconfigurationOf(
-            Project project, Configuration conf, String targetConfigurationName) {
+            Project project,
+            Configuration conf,
+            String targetConfigurationName) {
         if (project.getConfigurations().findByName(targetConfigurationName) == null) {
             // this may happens if the project doesn't have 'java' applied, so the configuration was never created
             return false;
@@ -184,7 +185,8 @@ public class VersionsPropsPlugin implements Plugin<Project> {
     }
 
     private static Provider<List<Dependency>> extractPlatformDependencies(
-            Project project, Configuration rootConfiguration) {
+            Project project,
+            Configuration rootConfiguration) {
         ListProperty<Dependency> proxiedDependencies = project.getObjects().listProperty(Dependency.class);
         proxiedDependencies.addAll(project.provider(() -> rootConfiguration.getDependencies()
                 .withType(ModuleDependency.class)
@@ -208,7 +210,9 @@ public class VersionsPropsPlugin implements Plugin<Project> {
                     .getStarVersion(moduleDependency.getModule())
                     .ifPresent(version -> moduleDependency.version(constraint -> {
                         log.debug("Found direct dependency without version: {} -> {}, requiring: {}",
-                                deps, moduleDependency, version);
+                                deps,
+                                moduleDependency,
+                                version);
                         constraint.require(version);
                     }));
         });
@@ -228,7 +232,9 @@ public class VersionsPropsPlugin implements Plugin<Project> {
     }
 
     private static void addVersionsPropsConstraints(
-            DependencyConstraintHandler constraintHandler, Configuration conf, VersionsProps versionsProps) {
+            DependencyConstraintHandler constraintHandler,
+            Configuration conf,
+            VersionsProps versionsProps) {
         ImmutableList<DependencyConstraint> constraints =
                 versionsProps.constructConstraints(constraintHandler).collect(ImmutableList.toImmutableList());
         log.info("Adding constraints to {}: {}", conf, constraints);

@@ -57,8 +57,12 @@ final class GradleWorkarounds {
             Class<?> stateInternal = Class.forName("org.gradle.api.internal.project.ProjectStateInternal");
             Object internal = stateInternal.cast(state);
             return (boolean) stateInternal.getDeclaredMethod("isConfiguring").invoke(internal);
-        } catch (ClassNotFoundException | ClassCastException | NoSuchMethodException
-                | IllegalAccessException | InvocationTargetException e) {
+        } catch (
+                ClassNotFoundException
+                | ClassCastException
+                | NoSuchMethodException
+                | IllegalAccessException
+                | InvocationTargetException e) {
             log.warn("Couldn't use ProjectStateInternal to determine whether project is configuring", e);
             // This is an approximation the public API exposes.
             // It will give us a false negative if we're in 'afterEvaluate'
@@ -75,14 +79,14 @@ final class GradleWorkarounds {
     static <T> ListProperty<T> fixListProperty(ListProperty<T> property) {
         Class<?> propertyInternalClass = org.gradle.api.internal.provider.CollectionPropertyInternal.class;
         return (ListProperty<T>) Proxy.newProxyInstance(GradleWorkarounds.class.getClassLoader(),
-                new Class<?>[]{
+                new Class<?>[] {
                         org.gradle.api.internal.provider.CollectionProviderInternal.class,
                         ListProperty.class},
                 (proxy, method, args) -> {
                     // Find matching method on CollectionPropertyInternal
                     //org.gradle.api.internal.provider.CollectionProviderInternal
-                    if (method.getDeclaringClass()
-                            == org.gradle.api.internal.provider.CollectionProviderInternal.class) {
+                    if (method
+                            .getDeclaringClass() == org.gradle.api.internal.provider.CollectionProviderInternal.class) {
                         if (method.getName().equals("getElementType")) {
                             // Proxy to `propertyInternalClass` which we know DefaultListProperty implements.
                             return propertyInternalClass.getMethod(method.getName(), method.getParameterTypes())
@@ -112,7 +116,8 @@ final class GradleWorkarounds {
      * </ul>
      */
     static <T extends ModuleDependency> T fixAttributesOfModuleDependency(
-            ObjectFactory objectFactory, T dependency) {
+            ObjectFactory objectFactory,
+            T dependency) {
         if (GradleVersion.current().compareTo(GradleVersion.version("5.6")) >= 0
                 // Merged on 2019-06-12 so next nightly should be good
                 || GradleVersion.current().compareTo(GradleVersion.version("5.6-20190613000000+0000")) >= 0) {
@@ -166,8 +171,8 @@ final class GradleWorkarounds {
 
     static boolean isFailOnVersionConflict(Configuration conf) {
         org.gradle.api.internal.artifacts.configurations.ConflictResolution conflictResolution =
-                ((org.gradle.api.internal.artifacts.configurations.ResolutionStrategyInternal)
-                         conf.getResolutionStrategy()).getConflictResolution();
+                ((org.gradle.api.internal.artifacts.configurations.ResolutionStrategyInternal) conf
+                        .getResolutionStrategy()).getConflictResolution();
         return conflictResolution == org.gradle.api.internal.artifacts.configurations.ConflictResolution.strict;
     }
 
