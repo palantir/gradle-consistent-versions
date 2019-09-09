@@ -53,12 +53,12 @@ import java.util.stream.Stream;
 import javax.inject.Inject;
 import netflix.nebula.dependency.recommender.RecommendationStrategies;
 import netflix.nebula.dependency.recommender.provider.RecommendationProviderContainer;
-import org.gradle.api.Buildable;
 import org.gradle.api.GradleException;
 import org.gradle.api.Named;
 import org.gradle.api.NamedDomainObjectProvider;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
+import org.gradle.api.Task;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.Dependency;
 import org.gradle.api.artifacts.DependencyConstraint;
@@ -797,6 +797,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
     /**
      * Configures constraints on the given {@code configuration}, but only on the dependencies that show up in the
      * resolution result of {@code configurationForFiltering}.
+     * <p>
+     * We can assume that the {@code java} plugin has been applied on the project.
      */
     private static void configurePublishConstraints(
             Project project,
@@ -825,26 +827,31 @@ public class VersionsLockPlugin implements Plugin<Project> {
         })::get));
         configuration.configure(conf -> {
             conf.getDependencyConstraints().addAllLater(constraintsProperty);
-            // Make it obvious to gradle that "building" this configuration depends on configurationForFiltering
-            Buildable dependsOnConfigurationForFiltering = project.files().builtBy(configurationForFiltering);
-            conf.getDependencies().add(project.getDependencies().create(dependsOnConfigurationForFiltering));
-            // Make it _more_ obvious since the above dependency doesn't seem to influence generatePomFile tasks
+
+            // Make it obvious to gradle that generating  a pom file for java publications requires resolving the
+            // configurationForFiltering.
+            // This requires figuring out which publications depend on the `jar` task, and adding a dependency from
+            // their 'generatePomFileFor<name>Publication` to the configurationForFiltering.
             project.getPluginManager().withPlugin("maven-publish", plugin -> project
                     .getExtensions()
                     .getByType(PublishingExtension.class)
                     .getPublications()
                     .withType(MavenPublication.class)
-                    // TODO matching from components.java
+                    // Indirect test to verify that we are publishing components.java, by checking if the jar task
+                    // is involved in building one of the publications.
+                    .matching(publication -> !publication.getArtifacts().matching(ma -> {
+                        Set<? extends Task> deps = ma.getBuildDependencies().getDependencies(null);
+                        return deps.contains(project.getTasks().getByName(JavaPlugin.JAR_TASK_NAME));
+                    }).isEmpty())
                     .all(publication -> {
                         String publicationName = publication.getName();
                         String publishTaskName = GUtil.toLowerCamelCase(
                                 "generatePomFileFor " + publicationName + "Publication");
-                        // TODO can also publication.getPom() == task.getPom()
                         project
                                 .getTasks()
                                 .withType(GenerateMavenPom.class)
                                 .named(publishTaskName)
-                                .configure(task -> task.dependsOn(configuration));
+                                .configure(task -> task.dependsOn(configurationForFiltering));
                     }));
         });
     }
