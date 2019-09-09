@@ -53,13 +53,11 @@ import java.util.stream.Stream;
 import javax.inject.Inject;
 import netflix.nebula.dependency.recommender.RecommendationStrategies;
 import netflix.nebula.dependency.recommender.provider.RecommendationProviderContainer;
-import org.gradle.api.DomainObjectSet;
 import org.gradle.api.GradleException;
 import org.gradle.api.Named;
 import org.gradle.api.NamedDomainObjectProvider;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
-import org.gradle.api.Task;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.Dependency;
 import org.gradle.api.artifacts.DependencyConstraint;
@@ -92,7 +90,6 @@ import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.plugins.JavaPluginConvention;
 import org.gradle.api.provider.ListProperty;
 import org.gradle.api.publish.PublishingExtension;
-import org.gradle.api.publish.maven.MavenArtifact;
 import org.gradle.api.publish.maven.MavenPublication;
 import org.gradle.api.publish.maven.tasks.GenerateMavenPom;
 import org.gradle.api.tasks.SourceSet;
@@ -586,7 +583,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
      * It's a hack but necessary to ensure that these actions run before copying said configuration.
      */
     private static void causeWithDependenciesActionsToRun(Configuration conf) {
-        conf.getIncoming().getDependencies();
+        conf.getIncoming().getDependencyConstraints();
     }
 
     private static Configuration getTargetConfiguration(DependencySet depSet, ProjectDependency projectDependency) {
@@ -830,25 +827,17 @@ public class VersionsLockPlugin implements Plugin<Project> {
         configuration.configure(conf -> {
             conf.getDependencyConstraints().addAllLater(constraintsProperty);
 
-            // Make it obvious to gradle that generating  a pom file for java publications requires resolving the
+            // Make it obvious to gradle that generating a pom file for java publications requires resolving the
             // configurationForFiltering.
-            // This requires figuring out which publications depend on the `jar` task, and adding a dependency from
-            // their 'generatePomFileFor<name>Publication` to the configurationForFiltering.
+            // We'd like to figure out which publications depend on the `jar` task, and configure just those,
+            // but I don't know how to do that without triggering a resolve of the configurationForFiltering,
+            // which can transitively "lock" other publishable configurations by walking through its project
+            // dependencies, thereby breaking the 'addAllLater' call above for other projects.
             project.getPluginManager().withPlugin("maven-publish", plugin -> project
                     .getExtensions()
                     .getByType(PublishingExtension.class)
                     .getPublications()
                     .withType(MavenPublication.class)
-                    // Indirect test to verify that we are publishing components.java.
-                    .matching(publication -> {
-                        DomainObjectSet<MavenArtifact> artifactsBuiltByJarTask = publication
-                                .getArtifacts()
-                                .matching(ma -> {
-                                    Set<? extends Task> deps = ma.getBuildDependencies().getDependencies(null);
-                                    return deps.contains(project.getTasks().getByName(JavaPlugin.JAR_TASK_NAME));
-                                });
-                        return !artifactsBuiltByJarTask.isEmpty();
-                    })
                     .all(publication -> {
                         log.info("Configuring publication {} of project {}", publication.getName(), project.getPath());
                         String publicationName = publication.getName();
