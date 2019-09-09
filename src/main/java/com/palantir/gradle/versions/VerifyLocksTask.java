@@ -85,7 +85,6 @@ public class VerifyLocksTask extends DefaultTask {
         if (!missing.isEmpty()) {
             throw new RuntimeException(
                     "Locked dependencies missing from the resolution result: " + missing
-                            + ". "
                             + ". Please run './gradlew --write-locks'.");
         }
 
@@ -93,8 +92,7 @@ public class VerifyLocksTask extends DefaultTask {
         if (!unknown.isEmpty()) {
             throw new RuntimeException(
                     "Found dependencies that were not in the lock state: " + unknown
-                            + ". "
-                            + "Please run './gradlew --write-locks'.");
+                            + ". Please run './gradlew --write-locks'.");
         }
 
         Map<MyModuleIdentifier, ValueDifference<Line>> differing = difference.entriesDiffering();
