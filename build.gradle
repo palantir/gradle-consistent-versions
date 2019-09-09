@@ -10,18 +10,18 @@ buildscript {
     }
 
     dependencies {
-        classpath 'com.netflix.nebula:gradle-info-plugin:5.0.3'
         classpath 'com.netflix.nebula:nebula-publishing-plugin:13.4.0'
+        classpath 'com.netflix.nebula:gradle-info-plugin:5.0.3'
+        classpath 'com.palantir.gradle.consistentversions:gradle-consistent-versions:1.12.1'
+        classpath 'com.palantir.baseline:gradle-baseline-java:2.1.1'
+        classpath 'com.palantir.gradle.gitversion:gradle-git-version:0.12.2'
+        classpath 'gradle.plugin.org.inferred:gradle-processors:3.1.0'
+        classpath "com.jfrog.bintray.gradle:gradle-bintray-plugin:1.8.4"
     }
 }
 
 plugins {
-    id 'com.jfrog.bintray' version '1.8.4' apply false
     id 'com.gradle.plugin-publish' version '0.10.1'
-    id 'com.palantir.consistent-versions' version '1.12.1'
-    id 'org.inferred.processors' version '3.1.0'
-    id 'com.palantir.baseline' version '2.1.1'
-    id 'com.palantir.git-version' version '0.12.2'
 }
 
 repositories {
@@ -31,12 +31,17 @@ repositories {
     }
 }
 
-group 'com.palantir.gradle.consistentversions'
-version gitVersion()
 
 apply plugin: 'java-gradle-plugin'
 apply plugin: 'groovy'
+apply plugin: 'com.palantir.baseline'
+apply plugin: 'com.palantir.consistent-versions'
+apply plugin: 'com.palantir.git-version'
+apply plugin: 'org.inferred.processors'
 apply from: "$rootDir/gradle/publish-jar.gradle"
+
+group 'com.palantir.gradle.consistentversions'
+version gitVersion()
 
 sourceCompatibility = 1.8
 
