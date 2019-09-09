@@ -583,7 +583,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
      * It's a hack but necessary to ensure that these actions run before copying said configuration.
      */
     private static void causeWithDependenciesActionsToRun(Configuration conf) {
-        conf.getIncoming().getDependencyConstraints();
+        conf.getIncoming().getDependencies();
     }
 
     private static Configuration getTargetConfiguration(DependencySet depSet, ProjectDependency projectDependency) {
