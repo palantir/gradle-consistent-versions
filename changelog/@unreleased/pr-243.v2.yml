@@ -1,0 +1,8 @@
+type: fix
+fix:
+  description: |-
+    Fixes regression introduced in 1.12.0 where you might get a gradle error like the following:
+
+    `Cannot change dependencies of configuration ':foo:runtimeElements' after it has been included in dependency resolution.`
+  links:
+  - https://github.com/palantir/gradle-consistent-versions/pull/243
