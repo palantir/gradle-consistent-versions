@@ -68,7 +68,8 @@ final class ConflictSafeLockFile {
             return LockState.from(parseLines(productionDeps), parseLines(testDeps));
         } catch (IOException e) {
             throw new GradleException(
-                    String.format("Couldn't load versions from palantir dependency lock file: %s", lockfile), e);
+                    String.format("Couldn't load versions from palantir dependency lock file: %s", lockfile),
+                    e);
         }
     }
 
@@ -93,10 +94,11 @@ final class ConflictSafeLockFile {
 
     public void writeLocks(FullLockState fullLockState) {
         LockState lockState = LockStates.toLockState(fullLockState);
-        try (BufferedWriter writer = Files.newBufferedWriter(
-                lockfile,
-                StandardOpenOption.CREATE,
-                StandardOpenOption.TRUNCATE_EXISTING)) {
+        try (
+                BufferedWriter writer = Files.newBufferedWriter(
+                        lockfile,
+                        StandardOpenOption.CREATE,
+                        StandardOpenOption.TRUNCATE_EXISTING)) {
             writer.append(HEADER_COMMENT);
             writer.newLine();
 
