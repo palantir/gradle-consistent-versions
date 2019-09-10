@@ -57,8 +57,7 @@ final class GradleWorkarounds {
             Class<?> stateInternal = Class.forName("org.gradle.api.internal.project.ProjectStateInternal");
             Object internal = stateInternal.cast(state);
             return (boolean) stateInternal.getDeclaredMethod("isConfiguring").invoke(internal);
-        } catch (
-                ClassNotFoundException
+        } catch (ClassNotFoundException
                 | ClassCastException
                 | NoSuchMethodException
                 | IllegalAccessException
