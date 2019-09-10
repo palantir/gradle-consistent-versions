@@ -29,4 +29,4 @@ import org.immutables.value.Value;
         overshadowImplementation = true,
         jdkOnly = true,
         get = {"get*", "is*"})
-@interface ImmutablesStyle { }
+@interface ImmutablesStyle {}
