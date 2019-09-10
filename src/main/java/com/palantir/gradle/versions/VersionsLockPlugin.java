@@ -551,8 +551,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
                     Configuration copiedConf = targetConf.copyRecursive();
                     copiedConf.setDescription(String.format("Copy of the '%s' configuration that can be resolved by "
-                            + "com.palantir.consistent-versions without resolving the '%s' configuration "
-                            + "itself.",
+                            + "com.palantir.consistent-versions without resolving the '%s' configuration itself.",
                             targetConf.getName(),
                             targetConf.getName()));
 
