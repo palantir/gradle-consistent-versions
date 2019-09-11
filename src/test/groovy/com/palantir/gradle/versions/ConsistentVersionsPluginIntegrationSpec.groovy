@@ -30,6 +30,7 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
                 "test-alignment:module-that-should-be-aligned-up:1.0",
                 "test-alignment:module-that-should-be-aligned-up:1.1",
                 "test-alignment:module-with-higher-version:1.1",
+                "org:platform:1.0",
         )
         buildFile << """
             buildscript {
@@ -306,5 +307,45 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
                         dependencies: [logbackDep],
                         dependencyConstraints: [logbackDep, slf4jDep]),
         ] as Set
+    }
+
+    def "realizing published configuration early should not break in the presence of platform dependencies"() {
+        addSubproject('a', """
+            apply plugin: 'java'
+            dependencies {
+                implementation project(':b')
+            }
+            // Immediately cause published runtime dependencies to be realized
+            println configurations.apiElements.incoming.dependencyConstraints
+        """.stripIndent())
+
+        addSubproject('b', """
+            apply plugin: 'java'
+            
+            evaluationDependsOn(':a')
+            
+            dependencies {
+                rootConfiguration platform("org:platform")
+            }
+        """.stripIndent())
+
+        file('versions.props') << """
+            org:platform = 1.0
+        """.stripIndent()
+
+        buildFile << """
+            allprojects {
+                configurations.all {
+                    incoming.beforeResolve {
+                        println "Resolving: \$it"
+                    }
+                }
+            }
+        """.stripIndent()
+
+        runTasks('--write-locks')
+
+        expect:
+        runTasks('compileJava')
     }
 }

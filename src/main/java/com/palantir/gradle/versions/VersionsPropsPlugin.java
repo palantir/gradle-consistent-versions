@@ -109,15 +109,6 @@ public class VersionsPropsPlugin implements Plugin<Project> {
             return;
         }
 
-        // We must do this addAllLater as soon as possible, otherwise conf.getDependencies() could get realized
-        // early by some other plugin and then we can't modify it anymore.
-        // These configurations can never be excluded anyway so we don't need the laziness.
-        if (JAVA_PUBLISHED_CONFIGURATION_NAMES.contains(conf.getName())) {
-            log.debug("Only configuring BOM dependencies on published java configuration: {}", conf);
-            conf.getDependencies().addAllLater(extractPlatformDependencies(subproject, rootConfiguration));
-            return;
-        }
-
         // Must do all this in a withDependencies block so that it's run lazily, so that
         // `extension.shouldExcludeConfiguration` isn't queried too early (before the user had the change to configure).
         // However, we must not make this lazy using an afterEvaluate.
@@ -136,6 +127,15 @@ public class VersionsPropsPlugin implements Plugin<Project> {
             }
             if (extension.shouldExcludeConfiguration(conf.getName())) {
                 log.debug("Not configuring {} because it's excluded", conf);
+                return;
+            }
+
+            // We must do this addAllLater as soon as possible, otherwise conf.getDependencies() could get realized
+            // early by some other plugin and then we can't modify it anymore.
+            // These configurations can never be excluded anyway so we don't need the laziness.
+            if (JAVA_PUBLISHED_CONFIGURATION_NAMES.contains(conf.getName())) {
+                log.debug("Only configuring BOM dependencies on published java configuration: {}", conf);
+                conf.getDependencies().addAllLater(extractPlatformDependencies(subproject, rootConfiguration));
                 return;
             }
 
