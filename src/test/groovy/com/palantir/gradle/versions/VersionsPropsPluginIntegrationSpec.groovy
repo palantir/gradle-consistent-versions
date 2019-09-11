@@ -207,6 +207,24 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
         e.output.contains("Not allowed to resolve")
     }
 
+    def "does not throw if excluded configuration is resolved early"() {
+        buildFile << '''
+            configurations { foo }
+            
+            versionRecommendations {
+                excludeConfigurations 'foo'
+            }
+            
+            afterEvaluate {
+                configurations.foo.resolve()
+            }
+        '''
+        file('versions.props') << ''
+
+        expect:
+        runTasks()
+    }
+
     def "creates rootConfiguration even if versions props file missing"() {
         buildFile << """
             dependencies {
