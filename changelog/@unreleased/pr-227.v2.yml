@@ -1,5 +1,5 @@
 type: fix
 fix:
-  description: <!-- User-facing outcomes this PR delivers -->
+  description: 'Fix potential deadlock between generatePomFile tasks - a regression introduced in 1.12.0 by #193.'
   links:
   - https://github.com/palantir/gradle-consistent-versions/pull/227
