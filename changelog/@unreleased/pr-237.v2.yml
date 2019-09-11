@@ -1,0 +1,6 @@
+type: fix
+fix:
+  description: Fix regression where we were failing if an excluded configuration is
+    resolved early.
+  links:
+  - https://github.com/palantir/gradle-consistent-versions/pull/237
