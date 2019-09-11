@@ -147,21 +147,21 @@ public class VersionsPropsPlugin implements Plugin<Project> {
             }
 
             conf.extendsFrom(rootConfiguration);
-        });
 
-        // We must allow unifiedClasspath to be resolved at configuration-time.
-        if (VersionsLockPlugin.UNIFIED_CLASSPATH_CONFIGURATION_NAME.equals(conf.getName())) {
-            return;
-        }
-
-        // Add fail-safe error reporting
-        conf.getIncoming().beforeResolve(resolvableDependencies -> {
-            if (GradleWorkarounds.isConfiguring(subproject.getState())) {
-                throw new GradleException(String.format("Not allowed to resolve %s at "
-                        + "configuration time (https://guides.gradle.org/performance/"
-                        + "#don_t_resolve_dependencies_at_configuration_time). Please upgrade your "
-                        + "plugins and double-check your gradle scripts (see stacktrace)", conf));
+            // We must allow unifiedClasspath to be resolved at configuration-time.
+            if (VersionsLockPlugin.UNIFIED_CLASSPATH_CONFIGURATION_NAME.equals(conf.getName())) {
+                return;
             }
+
+            // Add fail-safe error reporting
+            conf.getIncoming().beforeResolve(resolvableDependencies -> {
+                if (GradleWorkarounds.isConfiguring(subproject.getState())) {
+                    throw new GradleException(String.format("Not allowed to resolve %s at "
+                            + "configuration time (https://guides.gradle.org/performance/"
+                            + "#don_t_resolve_dependencies_at_configuration_time). Please upgrade your "
+                            + "plugins and double-check your gradle scripts (see stacktrace)", conf));
+                }
+            });
         });
     }
 

@@ -1,4 +1,4 @@
-com.netflix.nebula:nebula-dependency-recommender = 7.5.6
+com.netflix.nebula:nebula-dependency-recommender = 8.0.1
 com.netflix.nebula:nebula-test = 7.3.0
 com.google.guava:guava = 23.6.1-jre
 org.immutables:value = 2.7.5
