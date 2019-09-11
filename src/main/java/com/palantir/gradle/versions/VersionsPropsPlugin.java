@@ -16,13 +16,11 @@
 
 package com.palantir.gradle.versions;
 
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+
 import org.gradle.api.GradleException;
 import org.gradle.api.NamedDomainObjectProvider;
 import org.gradle.api.Plugin;
@@ -44,6 +42,10 @@ import org.gradle.api.publish.PublishingExtension;
 import org.gradle.api.publish.VariantVersionMappingStrategy;
 import org.gradle.api.publish.maven.MavenPublication;
 import org.gradle.util.GradleVersion;
+
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 
 public class VersionsPropsPlugin implements Plugin<Project> {
     private static final Logger log = Logging.getLogger(VersionsPropsPlugin.class);
@@ -147,21 +149,21 @@ public class VersionsPropsPlugin implements Plugin<Project> {
             }
 
             conf.extendsFrom(rootConfiguration);
-        });
 
-        // We must allow unifiedClasspath to be resolved at configuration-time.
-        if (VersionsLockPlugin.UNIFIED_CLASSPATH_CONFIGURATION_NAME.equals(conf.getName())) {
-            return;
-        }
-
-        // Add fail-safe error reporting
-        conf.getIncoming().beforeResolve(resolvableDependencies -> {
-            if (GradleWorkarounds.isConfiguring(subproject.getState())) {
-                throw new GradleException(String.format("Not allowed to resolve %s at "
-                        + "configuration time (https://guides.gradle.org/performance/"
-                        + "#don_t_resolve_dependencies_at_configuration_time). Please upgrade your "
-                        + "plugins and double-check your gradle scripts (see stacktrace)", conf));
+            // We must allow unifiedClasspath to be resolved at configuration-time.
+            if (VersionsLockPlugin.UNIFIED_CLASSPATH_CONFIGURATION_NAME.equals(conf.getName())) {
+                return;
             }
+
+            // Add fail-safe error reporting
+            conf.getIncoming().beforeResolve(resolvableDependencies -> {
+                if (GradleWorkarounds.isConfiguring(subproject.getState())) {
+                    throw new GradleException(String.format("Not allowed to resolve %s at "
+                            + "configuration time (https://guides.gradle.org/performance/"
+                            + "#don_t_resolve_dependencies_at_configuration_time). Please upgrade your "
+                            + "plugins and double-check your gradle scripts (see stacktrace)", conf));
+                }
+            });
         });
     }
 
