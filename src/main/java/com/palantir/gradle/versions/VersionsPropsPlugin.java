@@ -109,8 +109,9 @@ public class VersionsPropsPlugin implements Plugin<Project> {
             return;
         }
 
-        // We must do this addAllLater as soon as possible, otherwise conf.getDependencies() could get realized
-        // early by some other plugin and then we can't modify it anymore.
+        // We must do this addAllLater as soon as possible, otherwise 'conf' could get observed early
+        // by some other configuration that depends on it being resolved, and then we can't modify it anymore.
+        // This can happen if some other configuration depends on 'conf' *intransitively*.
         // These configurations can never be excluded anyway so we don't need the laziness.
         if (JAVA_PUBLISHED_CONFIGURATION_NAMES.contains(conf.getName())) {
             log.debug("Only configuring BOM dependencies on published java configuration: {}", conf);
