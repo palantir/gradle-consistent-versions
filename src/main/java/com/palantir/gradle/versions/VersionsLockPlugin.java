@@ -872,22 +872,26 @@ public class VersionsLockPlugin implements Plugin<Project> {
             // but I don't know how to do that without triggering a resolve of the configurationForFiltering,
             // which can transitively "lock" other publishable configurations by walking through its project
             // dependencies, thereby breaking the 'addAllLater' call above for other projects.
-            project.getPluginManager().withPlugin("maven-publish", plugin -> project
-                    .getExtensions()
-                    .getByType(PublishingExtension.class)
-                    .getPublications()
-                    .withType(MavenPublication.class)
-                    .all(publication -> {
-                        log.info("Configuring publication {} of project {}", publication.getName(), project.getPath());
-                        String publicationName = publication.getName();
-                        String publishTaskName = GUtil.toLowerCamelCase(
-                                "generatePomFileFor " + publicationName + "Publication");
-                        project
-                                .getTasks()
-                                .withType(GenerateMavenPom.class)
-                                .named(publishTaskName)
-                                .configure(task -> task.dependsOn(configurationForFiltering));
-                    }));
+            project.getPluginManager()
+                    .withPlugin("maven-publish",
+                            plugin -> project
+                                    .getExtensions()
+                                    .getByType(PublishingExtension.class)
+                                    .getPublications()
+                                    .withType(MavenPublication.class)
+                                    .all(publication -> {
+                                        log.info("Configuring publication {} of project {}",
+                                                publication.getName(),
+                                                project.getPath());
+                                        String publicationName = publication.getName();
+                                        String publishTaskName = GUtil.toLowerCamelCase(
+                                                "generatePomFileFor " + publicationName + "Publication");
+                                        project
+                                                .getTasks()
+                                                .withType(GenerateMavenPom.class)
+                                                .named(publishTaskName)
+                                                .configure(task -> task.dependsOn(configurationForFiltering));
+                                    }));
         });
     }
 
