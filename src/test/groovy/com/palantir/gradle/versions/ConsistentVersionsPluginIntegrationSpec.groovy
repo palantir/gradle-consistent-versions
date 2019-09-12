@@ -309,30 +309,47 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         ] as Set
     }
 
-    def "realizing published configuration early should not break in the presence of platform dependencies"() {
-        addSubproject('a', """
-            apply plugin: 'java'
-            dependencies {
-                implementation project(':b')
+    def "intransitive dependency on published configuration should not break realizing it later"() {
+        addSubproject('source', """
+            configurations {
+                transitive
+                intransitive
             }
-            // Immediately cause published runtime dependencies to be realized
-            println configurations.apiElements.incoming.dependencyConstraints
+            dependencies {
+                // This wrecks us
+                intransitive project(':target'), { transitive = false }
+                
+                transitive project(':target')
+            }
+            
+            task resolveIntransitively {
+                doLast {
+                    configurations.intransitive.resolvedConfiguration
+                }
+            }
+            task resolveTransitively {
+                mustRunAfter resolveIntransitively
+                doLast {
+                    configurations.transitive.resolvedConfiguration
+                }
+            }
         """.stripIndent())
 
-        addSubproject('b', """
+        addSubproject('target', """
             apply plugin: 'java'
             
-            evaluationDependsOn(':a')
-            
             dependencies {
+                // Test the lazy action on published configurations like apiElements, runtimeElements
+                // that copies over platform dependencies from rootConfiguration.
                 rootConfiguration platform("org:platform")
-            }
+            }            
         """.stripIndent())
 
         file('versions.props') << """
             org:platform = 1.0
         """.stripIndent()
 
+        // This is just for debugging
         buildFile << """
             allprojects {
                 configurations.all {
@@ -346,6 +363,6 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         runTasks('--write-locks')
 
         expect:
-        runTasks('compileJava')
+        runTasks('resolveIntransitively', 'resolveTransitively')
     }
 }
