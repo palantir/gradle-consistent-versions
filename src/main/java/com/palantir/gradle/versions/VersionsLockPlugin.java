@@ -81,6 +81,7 @@ import org.gradle.api.artifacts.result.UnresolvedDependencyResult;
 import org.gradle.api.attributes.Attribute;
 import org.gradle.api.attributes.AttributesSchema;
 import org.gradle.api.attributes.Usage;
+import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.invocation.Gradle;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
@@ -860,6 +861,10 @@ public class VersionsLockPlugin implements Plugin<Project> {
         })::get));
         configuration.configure(conf -> {
             conf.getDependencyConstraints().addAllLater(constraintsProperty);
+
+            // Make it obvious to gradle that "building" this configuration depends on configurationForFiltering
+            ConfigurableFileCollection fileCollection = project.files().builtBy(configurationForFiltering);
+            conf.getDependencies().add(project.getDependencies().create(fileCollection));
 
             // Make it obvious to gradle that generating a pom file for java publications requires resolving the
             // configurationForFiltering.
