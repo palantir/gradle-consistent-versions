@@ -30,6 +30,7 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
                 "test-alignment:module-that-should-be-aligned-up:1.0",
                 "test-alignment:module-that-should-be-aligned-up:1.1",
                 "test-alignment:module-with-higher-version:1.1",
+                "org:platform:1.0",
         )
         buildFile << """
             buildscript {
@@ -306,5 +307,62 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
                         dependencies: [logbackDep],
                         dependencyConstraints: [logbackDep, slf4jDep]),
         ] as Set
+    }
+
+    def "intransitive dependency on published configuration should not break realizing it later"() {
+        addSubproject('source', """
+            configurations {
+                transitive
+                intransitive
+            }
+            dependencies {
+                // This wrecks us
+                intransitive project(':target'), { transitive = false }
+                
+                transitive project(':target')
+            }
+            
+            task resolveIntransitively {
+                doLast {
+                    configurations.intransitive.resolvedConfiguration
+                }
+            }
+            task resolveTransitively {
+                mustRunAfter resolveIntransitively
+                doLast {
+                    configurations.transitive.resolvedConfiguration
+                }
+            }
+        """.stripIndent())
+
+        addSubproject('target', """
+            apply plugin: 'java'
+            
+            dependencies {
+                // Test the lazy action on published configurations like apiElements, runtimeElements
+                // that copies over platform dependencies from rootConfiguration.
+                rootConfiguration platform("org:platform")
+            }            
+        """.stripIndent())
+
+        file('versions.props') << """
+            org:platform = 1.0
+        """.stripIndent()
+
+        // This is just for debugging
+        buildFile << """
+            allprojects {
+                configurations.all {
+                    incoming.beforeResolve {
+                        println "Resolving: \$it"
+                    }
+                }
+            }
+        """.stripIndent()
+
+        runTasks('--write-locks')
+
+        expect:
+        runTasks('resolveIntransitively', 'resolveTransitively')
     }
 }

@@ -72,13 +72,6 @@ public class VersionsPropsPlugin implements Plugin<Project> {
                 });
 
         project.getConfigurations().configureEach(conf -> {
-            if (conf.getName().equals(ROOT_CONFIGURATION_NAME)) {
-                // We only expect 'platform' dependencies to be declared in rootConfiguration.
-                // This injects missing versions, in case the version comes from a *-dependency in versions.props.
-                // For rootConfiguration, unlike other configurations, this is the only customization necessary.
-                conf.withDependencies(deps -> provideVersionsFromStarDependencies(versionsProps, deps));
-                return;
-            }
             setupConfiguration(project, extension, rootConfiguration.get(), versionsProps, conf);
         });
 
@@ -107,6 +100,24 @@ public class VersionsPropsPlugin implements Plugin<Project> {
             Configuration rootConfiguration,
             VersionsProps versionsProps,
             Configuration conf) {
+        // We only expect 'platform' dependencies to be declared in rootConfiguration.
+        // This injects missing versions, in case the version comes from a *-dependency in versions.props.
+        // For rootConfiguration, unlike other configurations, this is the only customization necessary.
+        if (conf.getName().equals(ROOT_CONFIGURATION_NAME)) {
+            conf.withDependencies(deps -> provideVersionsFromStarDependencies(versionsProps, deps));
+            return;
+        }
+
+        // We must do this addAllLater as soon as possible, otherwise 'conf' could get observed early
+        // by some other configuration that depends on it being resolved, and then we can't modify it anymore.
+        // This can happen if some other configuration depends on 'conf' *intransitively*.
+        // These configurations can never be excluded anyway so we don't need the laziness.
+        if (JAVA_PUBLISHED_CONFIGURATION_NAMES.contains(conf.getName())) {
+            log.debug("Only configuring BOM dependencies on published java configuration: {}", conf);
+            conf.getDependencies().addAllLater(extractPlatformDependencies(subproject, rootConfiguration));
+            return;
+        }
+
         // Must do all this in a withDependencies block so that it's run lazily, so that
         // `extension.shouldExcludeConfiguration` isn't queried too early (before the user had the change to configure).
         // However, we must not make this lazy using an afterEvaluate.
@@ -125,12 +136,6 @@ public class VersionsPropsPlugin implements Plugin<Project> {
             }
             if (extension.shouldExcludeConfiguration(conf.getName())) {
                 log.debug("Not configuring {} because it's excluded", conf);
-                return;
-            }
-
-            if (JAVA_PUBLISHED_CONFIGURATION_NAMES.contains(conf.getName())) {
-                log.debug("Only configuring BOM dependencies on published java configuration: {}", conf);
-                deps.addAllLater(extractPlatformDependencies(subproject, rootConfiguration));
                 return;
             }
 
