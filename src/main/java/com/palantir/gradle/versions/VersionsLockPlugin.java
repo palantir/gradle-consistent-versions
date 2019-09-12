@@ -90,10 +90,14 @@ import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.plugins.JavaPluginConvention;
 import org.gradle.api.provider.ListProperty;
+import org.gradle.api.publish.PublishingExtension;
+import org.gradle.api.publish.maven.MavenPublication;
+import org.gradle.api.publish.maven.tasks.GenerateMavenPom;
 import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.SourceSetContainer;
 import org.gradle.api.tasks.TaskProvider;
 import org.gradle.language.base.plugins.LifecycleBasePlugin;
+import org.gradle.util.GUtil;
 import org.gradle.util.GradleVersion;
 import org.immutables.value.Value;
 
@@ -827,6 +831,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
     /**
      * Configures constraints on the given {@code configuration}, but only on the dependencies that show up in the
      * resolution result of {@code configurationForFiltering}.
+     * <p>
+     * We can assume that the {@code java} plugin has been applied on the project.
      */
     private static void configurePublishConstraints(
             Project project,
@@ -855,9 +861,37 @@ public class VersionsLockPlugin implements Plugin<Project> {
         })::get));
         configuration.configure(conf -> {
             conf.getDependencyConstraints().addAllLater(constraintsProperty);
+
             // Make it obvious to gradle that "building" this configuration depends on configurationForFiltering
             ConfigurableFileCollection fileCollection = project.files().builtBy(configurationForFiltering);
             conf.getDependencies().add(project.getDependencies().create(fileCollection));
+
+            // Make it obvious to gradle that generating a pom file for java publications requires resolving the
+            // configurationForFiltering.
+            // We'd like to figure out which publications depend on the `jar` task, and configure just those,
+            // but I don't know how to do that without triggering a resolve of the configurationForFiltering,
+            // which can transitively "lock" other publishable configurations by walking through its project
+            // dependencies, thereby breaking the 'addAllLater' call above for other projects.
+            project.getPluginManager()
+                    .withPlugin("maven-publish",
+                            plugin -> project
+                                    .getExtensions()
+                                    .getByType(PublishingExtension.class)
+                                    .getPublications()
+                                    .withType(MavenPublication.class)
+                                    .all(publication -> {
+                                        log.info("Configuring publication {} of project {}",
+                                                publication.getName(),
+                                                project.getPath());
+                                        String publicationName = publication.getName();
+                                        String publishTaskName = GUtil.toLowerCamelCase(
+                                                "generatePomFileFor " + publicationName + "Publication");
+                                        project
+                                                .getTasks()
+                                                .withType(GenerateMavenPom.class)
+                                                .named(publishTaskName)
+                                                .configure(task -> task.dependsOn(configurationForFiltering));
+                                    }));
         });
     }
 
