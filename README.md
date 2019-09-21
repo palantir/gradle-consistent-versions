@@ -12,7 +12,7 @@ Direct dependencies are specified in a top level `versions.props` file and then 
 1. Apply the plugin (root project only):
     ```gradle
     plugins {
-        id "com.palantir.consistent-versions" version "1.4.0"
+        id "com.palantir.consistent-versions" version "1.12.4"
     }
     ```
 
@@ -338,7 +338,7 @@ Using a combination of automation and some elbow grease, we've migrated ~150 pro
 
 ```diff
  plugins {
-+    id 'com.palantir.consistent-versions' version '1.4.0'
++    id 'com.palantir.consistent-versions' version '1.12.4'
  }
 
  allprojects {
