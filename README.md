@@ -12,9 +12,10 @@ Direct dependencies are specified in a top level `versions.props` file and then 
 1. Apply the plugin (root project only):
     ```gradle
     plugins {
-        id "com.palantir.consistent-versions" version "1.12.4"
+        id "com.palantir.consistent-versions" version "<current version>"
     }
     ```
+    You can find the current version under [releases](https://github.com/palantir/gradle-consistent-versions/releases).
 
 2. In one of your build.gradle files, define a _versionless_ dependency on some jar:
 
@@ -338,7 +339,7 @@ Using a combination of automation and some elbow grease, we've migrated ~150 pro
 
 ```diff
  plugins {
-+    id 'com.palantir.consistent-versions' version '1.12.4'
++    id 'com.palantir.consistent-versions' version '<current version>'
  }
 
  allprojects {
