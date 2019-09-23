@@ -25,6 +25,9 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.LinkedHashMultimap;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Multimap;
 import com.google.common.collect.Streams;
 import com.palantir.gradle.versions.internal.MyModuleIdentifier;
 import com.palantir.gradle.versions.internal.MyModuleVersionIdentifier;
@@ -37,8 +40,10 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -429,12 +434,22 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 "Gradle Consistent Versions doesn't currently work with configure-on-demand, please remove"
                         + " 'org.gradle.configureondemand' from your gradle.properties");
 
+        Multimap<String, Project> coordinateDuplicates = LinkedHashMultimap.create();
+        Set<Project> subprojectsLeft = new HashSet<>(project.getSubprojects());
         project.subprojects(subproject -> {
             subproject.afterEvaluate(sub -> {
                 if (haveSameGroupAndName(project, sub)) {
                     throw new GradleException(String.format("This plugin doesn't work if the root project shares both "
                             + "group and name with a subproject. Consider adding the following to settings.gradle:\n"
                             + "rootProject.name = '%s-root'", project.getName()));
+                }
+                String coordinate = String.format("%s:%s", subproject.getGroup(), subproject.getName());
+                coordinateDuplicates.put(coordinate, subproject);
+
+                // Finally, check if there were any duplicates.
+                subprojectsLeft.remove(subproject);
+                if (subprojectsLeft.isEmpty()) {
+                    checkForDuplicatesInSubprojects(coordinateDuplicates);
                 }
             });
         });
@@ -452,6 +467,23 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 });
             });
         });
+    }
+
+    private static void checkForDuplicatesInSubprojects(Multimap<String, Project> coordinateDuplicates) {
+        Map<String, Collection<Project>> duplicates = ImmutableMap.copyOf(
+                Maps.filterValues(coordinateDuplicates.asMap(), projects -> projects.size() > 1));
+
+        if (!duplicates.isEmpty()) {
+            throw new GradleException(String.format(
+                    "All subprojects must have unique $group:$name coordinates, but found duplicates:\n%s",
+                    duplicates
+                            .entrySet()
+                            .stream()
+                            .map(entry -> String.format("- '%s' -> %s",
+                                    entry.getKey(),
+                                    Collections2.transform(entry.getValue(), Project::getPath)))
+                            .collect(Collectors.joining("\n"))));
+        }
     }
 
     private static void ensureNoFailOnVersionConflict(Configuration conf) {
