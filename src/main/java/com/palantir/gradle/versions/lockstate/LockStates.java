@@ -62,8 +62,8 @@ public final class LockStates {
         all.forEach(item -> hasher.putString(item, StandardCharsets.UTF_8));
         HashCode hash = hasher.hash();
 
-        Line line = ImmutableLine.of(component.getGroup(), component.getName(), component.getVersion(), all.size(), hash
-                .toString());
+        Line line = ImmutableLine.of(
+                component.getGroup(), component.getName(), component.getVersion(), all.size(), hash.toString());
         log.info("{}: {}", line.stringRepresentation(), all);
         return line;
     }
@@ -74,8 +74,8 @@ public final class LockStates {
                 dependents.projectConstraints().isEmpty()
                         ? Stream.of()
                         : Stream.of(Maps.immutableEntry("projects", dependents.projectConstraints())),
-                dependents.nonProjectConstraints().entrySet().stream().map(e -> Maps.immutableEntry(
-                        formatComponentIdentifier(e.getKey()), e.getValue())));
+                dependents.nonProjectConstraints().entrySet().stream()
+                        .map(e -> Maps.immutableEntry(formatComponentIdentifier(e.getKey()), e.getValue())));
 
         return constraintEntries
                 .map(e -> {

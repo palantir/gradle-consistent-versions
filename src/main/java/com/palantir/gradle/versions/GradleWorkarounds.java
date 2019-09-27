@@ -96,8 +96,8 @@ final class GradleWorkarounds {
                                 } else if (method.getName().equals("size")) {
                                     return property.get().size();
                                 }
-                                throw new GradleException(String.format(
-                                        "Could not proxy method '%s' to object %s", method, property));
+                                throw new GradleException(
+                                        String.format("Could not proxy method '%s' to object %s", method, property));
                             } else {
                                 return method.invoke(property, args);
                             }
@@ -132,7 +132,8 @@ final class GradleWorkarounds {
 
         try {
             Method method = org.gradle.api.internal.artifacts.dependencies.AbstractModuleDependency.class
-                    .getDeclaredMethod("setAttributes", org.gradle.api.internal.attributes.AttributeContainerInternal.class);
+                    .getDeclaredMethod(
+                            "setAttributes", org.gradle.api.internal.attributes.AttributeContainerInternal.class);
             method.setAccessible(true);
             method.invoke(dependency, factory.mutable(currentAttributes));
         } catch (NoSuchMethodException e) {

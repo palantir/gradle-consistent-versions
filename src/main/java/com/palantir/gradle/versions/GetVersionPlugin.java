@@ -44,29 +44,23 @@ public final class GetVersionPlugin implements Plugin<Project> {
                      * is the preferred signature because it's shortest.
                      */
                     public String doCall(Object moduleVersion) {
-                        return doCall(
-                                moduleVersion,
-                                project.getRootProject().getConfigurations().getByName(VersionsLockPlugin
-                                        .UNIFIED_CLASSPATH_CONFIGURATION_NAME));
+                        return doCall(moduleVersion, project.getRootProject().getConfigurations().getByName(
+                                VersionsLockPlugin.UNIFIED_CLASSPATH_CONFIGURATION_NAME));
                     }
 
                     /** Find a version from another configuration, e.g. from the gradle-docker plugin. */
                     public String doCall(Object moduleVersion, Configuration configuration) {
                         List<String> strings = Splitter.on(':').splitToList(moduleVersion.toString());
-                        Preconditions.checkState(strings.size() == 2, "Expected 'group:name', found: %s", moduleVersion
-                                .toString());
+                        Preconditions.checkState(
+                                strings.size() == 2, "Expected 'group:name', found: %s", moduleVersion.toString());
 
                         return getVersion(project, strings.get(0), strings.get(1), configuration);
                     }
 
                     /** This matches the signature of nebula's dependencyRecommendations.getRecommendedVersion. */
                     public String doCall(String group, String name) {
-                        return getVersion(
-                                project,
-                                group,
-                                name,
-                                project.getRootProject().getConfigurations().getByName(VersionsLockPlugin
-                                        .UNIFIED_CLASSPATH_CONFIGURATION_NAME));
+                        return getVersion(project, group, name, project.getRootProject().getConfigurations().getByName(
+                                VersionsLockPlugin.UNIFIED_CLASSPATH_CONFIGURATION_NAME));
                     }
 
                     public String doCall(String group, String name, Configuration configuration) {
@@ -76,18 +70,19 @@ public final class GetVersionPlugin implements Plugin<Project> {
     }
 
     private static String getVersion(Project project, String group, String name, Configuration configuration) {
-        return getOptionalVersion(project, group, name, configuration).orElseThrow(() -> notFound(
-                group, name, configuration));
+        return getOptionalVersion(project, group, name, configuration)
+                .orElseThrow(() -> notFound(group, name, configuration));
     }
 
     static Optional<String> getOptionalVersion(
             Project project, String group, String name, Configuration configuration) {
         if (GradleWorkarounds.isConfiguring(project.getState())) {
-            throw new GradleException(String.format(
-                    "Not allowed to call gradle-consistent-versions's getVersion(\"%s\", \"%s\", "
-                            + "configurations.%s) "
-                            + "at configuration time",
-                    group, name, configuration.getName()));
+            throw new GradleException(
+                    String.format(
+                            "Not allowed to call gradle-consistent-versions's getVersion(\"%s\", \"%s\", "
+                                    + "configurations.%s) "
+                                    + "at configuration time",
+                            group, name, configuration.getName()));
         }
 
         List<ModuleVersionIdentifier> list = configuration
@@ -104,8 +99,8 @@ public final class GetVersionPlugin implements Plugin<Project> {
         }
 
         if (list.size() > 1) {
-            throw new GradleException(String.format(
-                    "Multiple modules matching '%s:%s' in %s: %s", group, name, configuration, list));
+            throw new GradleException(
+                    String.format("Multiple modules matching '%s:%s' in %s: %s", group, name, configuration, list));
         }
 
         return Optional.of(Iterables.getOnlyElement(list).getVersion());
@@ -116,9 +111,10 @@ public final class GetVersionPlugin implements Plugin<Project> {
                 .map(ResolvedComponentResult::getModuleVersion)
                 .map(mvi -> String.format("\t- %s:%s:%s", mvi.getGroup(), mvi.getName(), mvi.getVersion()))
                 .collect(Collectors.joining("\n"));
-        return new GradleException(String.format(
-                "Unable to find '%s:%s' in %s. This may happen if you specify the version in versions.props but do not"
-                        + " have a dependency in the configuration. The configuration contained:\n%s",
-                group, name, configuration, actual));
+        return new GradleException(
+                String.format(
+                        "Unable to find '%s:%s' in %s. This may happen if you specify the version in versions.props but do not"
+                                + " have a dependency in the configuration. The configuration contained:\n%s",
+                        group, name, configuration, actual));
     }
 }

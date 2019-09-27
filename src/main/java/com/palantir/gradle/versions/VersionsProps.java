@@ -39,8 +39,8 @@ public final class VersionsProps {
     private VersionsProps(FuzzyPatternResolver fuzzyResolver) {
         this.fuzzyResolver = fuzzyResolver;
         this.patternToPlatform =
-                Sets.difference(fuzzyResolver.versions().keySet(), fuzzyResolver.exactMatches()).stream().collect(
-                        Collectors.toMap(key -> key, this::constructPlatform));
+                Sets.difference(fuzzyResolver.versions().keySet(), fuzzyResolver.exactMatches()).stream()
+                        .collect(Collectors.toMap(key -> key, this::constructPlatform));
     }
 
     public static VersionsProps loadFromFile(Path path) {

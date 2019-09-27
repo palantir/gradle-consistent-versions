@@ -64,8 +64,8 @@ public class VersionsPropsPlugin implements Plugin<Project> {
 
         VersionsProps versionsProps = loadVersionsProps(project.getRootProject().file("versions.props").toPath());
 
-        NamedDomainObjectProvider<Configuration> rootConfiguration = project.getConfigurations().register(
-                ROOT_CONFIGURATION_NAME, conf -> {
+        NamedDomainObjectProvider<Configuration> rootConfiguration = project.getConfigurations()
+                .register(ROOT_CONFIGURATION_NAME, conf -> {
                     conf.setCanBeResolved(false);
                     conf.setVisible(false);
                 });
@@ -87,8 +87,8 @@ public class VersionsPropsPlugin implements Plugin<Project> {
     }
 
     private static void applyToRootProject(Project project) {
-        project.getExtensions().create(
-                VersionRecommendationsExtension.EXTENSION, VersionRecommendationsExtension.class, project);
+        project.getExtensions()
+                .create(VersionRecommendationsExtension.EXTENSION, VersionRecommendationsExtension.class, project);
         project.subprojects(subproject -> subproject.getPluginManager().apply(VersionsPropsPlugin.class));
     }
 
@@ -159,20 +159,21 @@ public class VersionsPropsPlugin implements Plugin<Project> {
             // Add fail-safe error reporting
             conf.getIncoming().beforeResolve(resolvableDependencies -> {
                 if (GradleWorkarounds.isConfiguring(subproject.getState())) {
-                    throw new GradleException(String.format(
-                            "Not allowed to resolve %s at "
-                                    + "configuration time (https://guides.gradle.org/performance/"
-                                    + "#don_t_resolve_dependencies_at_configuration_time). Please upgrade your "
-                                    + "plugins and double-check your gradle scripts (see stacktrace)",
-                            conf));
+                    throw new GradleException(
+                            String.format(
+                                    "Not allowed to resolve %s at "
+                                            + "configuration time (https://guides.gradle.org/performance/"
+                                            + "#don_t_resolve_dependencies_at_configuration_time). Please upgrade your "
+                                            + "plugins and double-check your gradle scripts (see stacktrace)",
+                                    conf));
                 }
             });
         });
     }
 
     private static boolean configurationWillAffectPublishedConstraints(Project subproject, Configuration conf) {
-        return JAVA_PUBLISHED_CONFIGURATION_NAMES.stream().anyMatch(confName -> isSameOrSuperconfigurationOf(
-                subproject, conf, confName));
+        return JAVA_PUBLISHED_CONFIGURATION_NAMES.stream()
+                .anyMatch(confName -> isSameOrSuperconfigurationOf(subproject, conf, confName));
     }
 
     private static boolean isSameOrSuperconfigurationOf(
@@ -189,10 +190,9 @@ public class VersionsPropsPlugin implements Plugin<Project> {
     private static Provider<List<Dependency>> extractPlatformDependencies(
             Project project, Configuration rootConfiguration) {
         ListProperty<Dependency> proxiedDependencies = project.getObjects().listProperty(Dependency.class);
-        proxiedDependencies.addAll(project.provider(() -> rootConfiguration
-                .getDependencies()
-                .withType(ModuleDependency.class)
-                .matching(dep -> GradleWorkarounds.isPlatform(dep.getAttributes()))));
+        proxiedDependencies.addAll(
+                project.provider(() -> rootConfiguration.getDependencies().withType(ModuleDependency.class).matching(
+                        dep -> GradleWorkarounds.isPlatform(dep.getAttributes()))));
         return GradleWorkarounds.fixListProperty(proxiedDependencies);
     }
 
@@ -209,14 +209,14 @@ public class VersionsPropsPlugin implements Plugin<Project> {
                 return;
             }
             versionsProps.getStarVersion(moduleDependency.getModule()).ifPresent(version -> moduleDependency.version(
-                    constraint -> {
-                        log.debug(
-                                "Found direct dependency without version: {} -> {}, requiring: {}",
-                                deps,
-                                moduleDependency,
-                                version);
-                        constraint.require(version);
-                    }));
+                            constraint -> {
+                                log.debug(
+                                        "Found direct dependency without version: {} -> {}, requiring: {}",
+                                        deps,
+                                        moduleDependency,
+                                        version);
+                                constraint.require(version);
+                            }));
         });
     }
 
