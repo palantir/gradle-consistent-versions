@@ -74,45 +74,45 @@ public class VerifyLocksTask extends DefaultTask {
         Files.touch(outputFile);
     }
 
-    private void verifyLocksForScope(
-            Function<LockState, SortedMap<MyModuleIdentifier, Line>> getterForScope) {
-        MapDifference<MyModuleIdentifier, Line> difference =
-                Maps.difference(
-                        getterForScope.apply(persistedLockState.get()),
-                        getterForScope.apply(currentLockState.get()));
+    private void verifyLocksForScope(Function<LockState, SortedMap<MyModuleIdentifier, Line>> getterForScope) {
+        MapDifference<MyModuleIdentifier, Line> difference = Maps.difference(
+                getterForScope.apply(persistedLockState.get()), getterForScope.apply(currentLockState.get()));
 
         Set<MyModuleIdentifier> missing = difference.entriesOnlyOnLeft().keySet();
         if (!missing.isEmpty()) {
             throw new RuntimeException(
-                    "Locked dependencies missing from the resolution result: " + missing
+                    "Locked dependencies missing from the resolution result: "
+                            + missing
                             + ". Please run './gradlew --write-locks'.");
         }
 
         Set<MyModuleIdentifier> unknown = difference.entriesOnlyOnRight().keySet();
         if (!unknown.isEmpty()) {
             throw new RuntimeException(
-                    "Found dependencies that were not in the lock state: " + unknown
+                    "Found dependencies that were not in the lock state: "
+                            + unknown
                             + ". Please run './gradlew --write-locks'.");
         }
 
         Map<MyModuleIdentifier, ValueDifference<Line>> differing = difference.entriesDiffering();
         if (!differing.isEmpty()) {
-            throw new RuntimeException("Found dependencies whose dependents changed:\n"
-                    + formatDependencyDifferences(differing)
-                    + "\n\n"
-                    + "Please run './gradlew --write-locks'.");
+            throw new RuntimeException(
+                    "Found dependencies whose dependents changed:\n"
+                            + formatDependencyDifferences(differing)
+                            + "\n\n"
+                            + "Please run './gradlew --write-locks'.");
         }
     }
 
-    private static String formatDependencyDifferences(
-            Map<MyModuleIdentifier, ValueDifference<Line>> differing) {
-        return differing.entrySet()
-                .stream()
-                .map(diff -> String.format("" // to align strings
-                        + "-%s\n"
-                        + "+%s",
-                        diff.getValue().leftValue().stringRepresentation(),
-                        diff.getValue().rightValue().stringRepresentation()))
+    private static String formatDependencyDifferences(Map<MyModuleIdentifier, ValueDifference<Line>> differing) {
+        return differing.entrySet().stream()
+                .map(diff -> String.format(
+                        "" // to align strings
+                                + "-%s\n"
+                                + "+%s",
+                        diff.getValue().leftValue().stringRepresentation(), diff.getValue()
+                                .rightValue()
+                                .stringRepresentation()))
                 .collect(Collectors.joining("\n"));
     }
 }

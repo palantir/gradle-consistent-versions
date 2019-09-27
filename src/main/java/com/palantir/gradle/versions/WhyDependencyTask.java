@@ -66,36 +66,37 @@ public class WhyDependencyTask extends DefaultTask {
     @TaskAction
     public final void taskAction() {
         // read the lockfile from disk so that we can fail fast without resolving anything if the hash isn't found
-        Multimap<String, Line> lineByHash = new ConflictSafeLockFile(lockfile).readLocks()
-                .allLines()
-                .stream()
+        Multimap<String, Line> lineByHash = new ConflictSafeLockFile(lockfile).readLocks().allLines().stream()
                 .collect(Multimaps.toMultimap(Line::dependentsHash, Function.identity(), HashMultimap::create));
 
         if (!hashOption.isPresent()) {
-            Optional<String> example = lineByHash.keySet()
-                    .stream()
-                    .map(h -> ", e.g. './gradlew why --hash " + h + "'")
-                    .findFirst();
+            Optional<String> example =
+                    lineByHash.keySet().stream().map(h -> ", e.g. './gradlew why --hash " + h + "'").findFirst();
             throw new RuntimeException(
                     "./gradlew why requires a '--hash <hash>' from versions.lock" + example.orElse(""));
         }
 
-        lineByHash.get(hashOption.get()).forEach(line -> {
-            ModuleVersionIdentifier key = MyModuleVersionIdentifier.of(line.group(), line.name(), line.version());
+        lineByHash
+                .get(hashOption.get())
+                .forEach(line -> {
+                    ModuleVersionIdentifier key =
+                            MyModuleVersionIdentifier.of(line.group(), line.name(), line.version());
 
-            Optional<Dependents> entry = Stream
-                    .of(fullLockState.get().productionDeps(), fullLockState.get().testDeps())
-                    .map(state -> state.get(key))
-                    .filter(Objects::nonNull)
-                    .findFirst();
-            Dependents dependents =
-                    entry.orElseThrow(() -> new NullPointerException("Unable to find group/name in fullLockState"));
+                    Optional<Dependents> entry = Stream.of(fullLockState.get().productionDeps(), fullLockState
+                            .get()
+                            .testDeps())
+                            .map(state -> state.get(key))
+                            .filter(Objects::nonNull)
+                            .findFirst();
+                    Dependents dependents = entry.orElseThrow(() -> new NullPointerException(
+                            "Unable to find group/name in fullLockState"));
 
-            getLogger().lifecycle("{}", key);
-            LockStates.prettyPrintConstraints(dependents).forEach(pretty -> {
-                getLogger().lifecycle("\t{}", pretty);
-            });
-            getLogger().lifecycle("");
-        });
+                    getLogger().lifecycle("{}", key);
+                    LockStates.prettyPrintConstraints(dependents)
+                            .forEach(pretty -> {
+                                getLogger().lifecycle("\t{}", pretty);
+                            });
+                    getLogger().lifecycle("");
+                });
     }
 }

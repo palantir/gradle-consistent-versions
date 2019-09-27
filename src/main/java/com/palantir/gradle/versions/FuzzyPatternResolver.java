@@ -26,9 +26,7 @@ import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 import org.immutables.value.Value;
 
-/**
- * Adapted from {@code nebula.dependency-recommender}.
- */
+/** Adapted from {@code nebula.dependency-recommender}. */
 @Value.Immutable
 @SuppressWarnings("checkstyle:DesignForExtension")
 public abstract class FuzzyPatternResolver {

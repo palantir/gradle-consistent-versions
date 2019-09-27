@@ -29,9 +29,7 @@ import java.util.stream.Stream;
 import org.immutables.value.Value;
 import org.immutables.value.Value.Parameter;
 
-/**
- * Holds the state of dependencies that should be written to disk when gradle is invoked with {@code --write-locks}.
- */
+/** Holds the state of dependencies that should be written to disk when gradle is invoked with {@code --write-locks}. */
 @Value.Immutable
 public interface LockState extends Serializable {
 
@@ -51,9 +49,7 @@ public interface LockState extends Serializable {
     default SortedMap<MyModuleIdentifier, Line> productionLinesByModuleIdentifier() {
         return productionLines().stream()
                 .collect(ImmutableSortedMap.toImmutableSortedMap(
-                        GradleComparators.MODULE_IDENTIFIER_COMPARATOR,
-                        Line::identifier,
-                        Function.identity()));
+                        GradleComparators.MODULE_IDENTIFIER_COMPARATOR, Line::identifier, Function.identity()));
     }
 
     /** Mapping from {@code group:artifact} to the full line. */
@@ -61,14 +57,11 @@ public interface LockState extends Serializable {
     default SortedMap<MyModuleIdentifier, Line> testLinesByModuleIdentifier() {
         return testLines().stream()
                 .collect(ImmutableSortedMap.toImmutableSortedMap(
-                        GradleComparators.MODULE_IDENTIFIER_COMPARATOR,
-                        Line::identifier,
-                        Function.identity()));
+                        GradleComparators.MODULE_IDENTIFIER_COMPARATOR, Line::identifier, Function.identity()));
     }
 
     static LockState from(Stream<Line> productionLines, Stream<Line> testLines) {
-        return ImmutableLockState.of(
-                productionLines.collect(Collectors.toList()),
-                testLines.collect(Collectors.toList()));
+        return ImmutableLockState.of(productionLines.collect(Collectors.toList()), testLines.collect(Collectors
+                .toList()));
     }
 }

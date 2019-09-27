@@ -31,19 +31,16 @@ import org.gradle.api.artifacts.DependencyConstraint;
 import org.gradle.api.artifacts.ModuleIdentifier;
 import org.gradle.api.artifacts.dsl.DependencyConstraintHandler;
 
-/**
- * A {@code versions.props} file.
- */
+/** A {@code versions.props} file. */
 public final class VersionsProps {
     private final FuzzyPatternResolver fuzzyResolver;
     private final Map<String, String> patternToPlatform;
 
     private VersionsProps(FuzzyPatternResolver fuzzyResolver) {
         this.fuzzyResolver = fuzzyResolver;
-        this.patternToPlatform = Sets
-                .difference(fuzzyResolver.versions().keySet(), fuzzyResolver.exactMatches())
-                .stream()
-                .collect(Collectors.toMap(key -> key, this::constructPlatform));
+        this.patternToPlatform =
+                Sets.difference(fuzzyResolver.versions().keySet(), fuzzyResolver.exactMatches()).stream()
+                        .collect(Collectors.toMap(key -> key, this::constructPlatform));
     }
 
     public static VersionsProps loadFromFile(Path path) {
@@ -56,9 +53,9 @@ public final class VersionsProps {
         FuzzyPatternResolver.Builder builder = FuzzyPatternResolver.builder();
         recommendations
                 .stringPropertyNames()
-                .forEach(name -> builder.putVersions(
-                        name.replaceAll("/", ":"),
-                        recommendations.getProperty(name).trim()));
+                .forEach(name -> builder.putVersions(name.replaceAll("/", ":"), recommendations
+                        .getProperty(name)
+                        .trim()));
         return new VersionsProps(builder.build());
     }
 
@@ -71,17 +68,15 @@ public final class VersionsProps {
         Map<String, String> versions = fuzzyResolver.versions();
         return Stream.concat(
                 fuzzyResolver.exactMatches().stream().map(key -> key + ":" + versions.get(key)).map(handler::create),
-                patternToPlatform
-                        .entrySet()
-                        .stream()
+                patternToPlatform.entrySet().stream()
                         .map(entry -> entry.getValue() + ":" + versions.get(entry.getKey()))
                         .map(handler::platform));
     }
 
     /**
-     * Get a recommended version for a module if it matches one of the non-exact platforms.
-     * This is necessary for direct dependency injection, which is not supported by virtual platforms.
-     * See <a href=https://github.com/gradle/gradle/issues/7954>gradle#7954</a> for more details.
+     * Get a recommended version for a module if it matches one of the non-exact platforms. This is necessary for direct
+     * dependency injection, which is not supported by virtual platforms. See <a
+     * href=https://github.com/gradle/gradle/issues/7954>gradle#7954</a> for more details.
      */
     public Optional<String> getStarVersion(ModuleIdentifier dependency) {
         String notation = dependency.getGroup() + ":" + dependency.getName();
@@ -119,9 +114,7 @@ public final class VersionsProps {
         return sanitized;
     }
 
-    /**
-     * Because unfortunately {@link Properties#load} treats colons as an assignment operator.
-     */
+    /** Because unfortunately {@link Properties#load} treats colons as an assignment operator. */
     private static class ColonFilteringReader extends Reader {
         private final Reader reader;
 
