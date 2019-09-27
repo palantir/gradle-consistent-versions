@@ -44,9 +44,8 @@ public class FixLegacyJavaConfigurationsPlugin implements Plugin<Project> {
             return;
         }
 
-        Configuration unifiedClasspath = project.getRootProject()
-                .getConfigurations()
-                .findByName(VersionsLockPlugin.UNIFIED_CLASSPATH_CONFIGURATION_NAME);
+        Configuration unifiedClasspath = project.getRootProject().getConfigurations().findByName(VersionsLockPlugin
+                .UNIFIED_CLASSPATH_CONFIGURATION_NAME);
         Preconditions.checkNotNull(
                 unifiedClasspath, "FixLegacyJavaConfigurationsPlugin must be applied after VersionsLockPlugin");
 
@@ -77,28 +76,25 @@ public class FixLegacyJavaConfigurationsPlugin implements Plugin<Project> {
             }
             // Code adapted from:
             // https://github.com/nebula-plugins/nebula-dependency-recommender-plugin/blob/64ed7c6853f80b909918e6a595231a5e9803ae8b/src/main/groovy/netflix/nebula/dependency/recommender/DependencyRecommendationsPlugin.java
-            conf.getResolutionStrategy()
-                    .eachDependency(details -> {
-                        ModuleVersionSelector requested = details.getTarget();
+            conf.getResolutionStrategy().eachDependency(details -> {
+                ModuleVersionSelector requested = details.getTarget();
 
-                        // don't interfere with the way forces trump everything
-                        for (ModuleVersionSelector force : conf.getResolutionStrategy().getForcedModules()) {
-                            if (requested.getGroup().equals(force.getGroup())
-                                    && requested.getName().equals(force.getName())) {
-                                details.because(String.format(
-                                        "Would have recommended a version for %s:%s, but a force is in place",
-                                        requested.getGroup(), requested.getName()));
-                                return;
-                            }
-                        }
+                // don't interfere with the way forces trump everything
+                for (ModuleVersionSelector force : conf.getResolutionStrategy().getForcedModules()) {
+                    if (requested.getGroup().equals(force.getGroup()) && requested.getName().equals(force.getName())) {
+                        details.because(String.format(
+                                "Would have recommended a version for %s:%s, but a force is in place",
+                                requested.getGroup(), requested.getName()));
+                        return;
+                    }
+                }
 
-                        getVersion
-                                .getVersion(details.getRequested().getGroup(), details.getRequested().getName())
-                                .ifPresent(ver -> {
-                                    details.useVersion(ver);
-                                    details.because("Forced by gradle-consistent-versions versions.lock");
-                                });
-                    });
+                getVersion.getVersion(details.getRequested().getGroup(), details.getRequested().getName()).ifPresent(
+                        ver -> {
+                            details.useVersion(ver);
+                            details.because("Forced by gradle-consistent-versions versions.lock");
+                        });
+            });
         });
     }
 }

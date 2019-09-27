@@ -110,9 +110,8 @@ public class VerifyLocksTask extends DefaultTask {
                         "" // to align strings
                                 + "-%s\n"
                                 + "+%s",
-                        diff.getValue().leftValue().stringRepresentation(), diff.getValue()
-                                .rightValue()
-                                .stringRepresentation()))
+                        diff.getValue().leftValue().stringRepresentation(),
+                        diff.getValue().rightValue().stringRepresentation()))
                 .collect(Collectors.joining("\n"));
     }
 }

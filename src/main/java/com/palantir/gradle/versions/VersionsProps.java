@@ -39,8 +39,8 @@ public final class VersionsProps {
     private VersionsProps(FuzzyPatternResolver fuzzyResolver) {
         this.fuzzyResolver = fuzzyResolver;
         this.patternToPlatform =
-                Sets.difference(fuzzyResolver.versions().keySet(), fuzzyResolver.exactMatches()).stream()
-                        .collect(Collectors.toMap(key -> key, this::constructPlatform));
+                Sets.difference(fuzzyResolver.versions().keySet(), fuzzyResolver.exactMatches()).stream().collect(
+                        Collectors.toMap(key -> key, this::constructPlatform));
     }
 
     public static VersionsProps loadFromFile(Path path) {
@@ -51,11 +51,8 @@ public final class VersionsProps {
             throw new RuntimeException("Couldn't read properties file from: " + path, e);
         }
         FuzzyPatternResolver.Builder builder = FuzzyPatternResolver.builder();
-        recommendations
-                .stringPropertyNames()
-                .forEach(name -> builder.putVersions(name.replaceAll("/", ":"), recommendations
-                        .getProperty(name)
-                        .trim()));
+        recommendations.stringPropertyNames().forEach(name -> builder.putVersions(
+                name.replaceAll("/", ":"), recommendations.getProperty(name).trim()));
         return new VersionsProps(builder.build());
     }
 

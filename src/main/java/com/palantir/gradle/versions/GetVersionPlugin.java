@@ -36,49 +36,48 @@ public final class GetVersionPlugin implements Plugin<Project> {
 
     @Override
     public void apply(Project project) {
-        project.getExtensions()
-                .getExtraProperties()
-                .set(
-                        "getVersion",
-                        new Closure<String>(project, project) {
-                            /**
-                             * Groovy will invoke this method if they just supply one arg, e.g.
-                             * 'com.google.guava:guava'. This is the preferred signature because it's shortest.
-                             */
-                            public String doCall(Object moduleVersion) {
-                                return doCall(moduleVersion, project.getRootProject()
-                                        .getConfigurations()
-                                        .getByName(VersionsLockPlugin.UNIFIED_CLASSPATH_CONFIGURATION_NAME));
-                            }
+        project.getExtensions().getExtraProperties().set(
+                "getVersion",
+                new Closure<String>(project, project) {
+                    /**
+                     * Groovy will invoke this method if they just supply one arg, e.g. 'com.google.guava:guava'. This
+                     * is the preferred signature because it's shortest.
+                     */
+                    public String doCall(Object moduleVersion) {
+                        return doCall(
+                                moduleVersion,
+                                project.getRootProject().getConfigurations().getByName(VersionsLockPlugin
+                                        .UNIFIED_CLASSPATH_CONFIGURATION_NAME));
+                    }
 
-                            /** Find a version from another configuration, e.g. from the gradle-docker plugin. */
-                            public String doCall(Object moduleVersion, Configuration configuration) {
-                                List<String> strings = Splitter.on(':').splitToList(moduleVersion.toString());
-                                Preconditions.checkState(
-                                        strings.size() == 2, "Expected 'group:name', found: %s", moduleVersion
-                                                .toString());
+                    /** Find a version from another configuration, e.g. from the gradle-docker plugin. */
+                    public String doCall(Object moduleVersion, Configuration configuration) {
+                        List<String> strings = Splitter.on(':').splitToList(moduleVersion.toString());
+                        Preconditions.checkState(strings.size() == 2, "Expected 'group:name', found: %s", moduleVersion
+                                .toString());
 
-                                return getVersion(project, strings.get(0), strings.get(1), configuration);
-                            }
+                        return getVersion(project, strings.get(0), strings.get(1), configuration);
+                    }
 
-                            /**
-                             * This matches the signature of nebula's dependencyRecommendations.getRecommendedVersion.
-                             */
-                            public String doCall(String group, String name) {
-                                return getVersion(project, group, name, project.getRootProject()
-                                        .getConfigurations()
-                                        .getByName(VersionsLockPlugin.UNIFIED_CLASSPATH_CONFIGURATION_NAME));
-                            }
+                    /** This matches the signature of nebula's dependencyRecommendations.getRecommendedVersion. */
+                    public String doCall(String group, String name) {
+                        return getVersion(
+                                project,
+                                group,
+                                name,
+                                project.getRootProject().getConfigurations().getByName(VersionsLockPlugin
+                                        .UNIFIED_CLASSPATH_CONFIGURATION_NAME));
+                    }
 
-                            public String doCall(String group, String name, Configuration configuration) {
-                                return getVersion(project, group, name, configuration);
-                            }
-                        });
+                    public String doCall(String group, String name, Configuration configuration) {
+                        return getVersion(project, group, name, configuration);
+                    }
+                });
     }
 
     private static String getVersion(Project project, String group, String name, Configuration configuration) {
-        return getOptionalVersion(project, group, name, configuration)
-                .orElseThrow(() -> notFound(group, name, configuration));
+        return getOptionalVersion(project, group, name, configuration).orElseThrow(() -> notFound(
+                group, name, configuration));
     }
 
     static Optional<String> getOptionalVersion(

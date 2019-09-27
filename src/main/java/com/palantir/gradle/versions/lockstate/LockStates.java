@@ -74,8 +74,8 @@ public final class LockStates {
                 dependents.projectConstraints().isEmpty()
                         ? Stream.of()
                         : Stream.of(Maps.immutableEntry("projects", dependents.projectConstraints())),
-                dependents.nonProjectConstraints().entrySet().stream()
-                        .map(e -> Maps.immutableEntry(formatComponentIdentifier(e.getKey()), e.getValue())));
+                dependents.nonProjectConstraints().entrySet().stream().map(e -> Maps.immutableEntry(
+                        formatComponentIdentifier(e.getKey()), e.getValue())));
 
         return constraintEntries
                 .map(e -> {

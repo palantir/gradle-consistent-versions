@@ -64,33 +64,31 @@ public class VersionsPropsPlugin implements Plugin<Project> {
 
         VersionsProps versionsProps = loadVersionsProps(project.getRootProject().file("versions.props").toPath());
 
-        NamedDomainObjectProvider<Configuration> rootConfiguration = project.getConfigurations()
-                .register(ROOT_CONFIGURATION_NAME, conf -> {
+        NamedDomainObjectProvider<Configuration> rootConfiguration = project.getConfigurations().register(
+                ROOT_CONFIGURATION_NAME, conf -> {
                     conf.setCanBeResolved(false);
                     conf.setVisible(false);
                 });
 
-        project.getConfigurations()
-                .configureEach(conf -> {
-                    setupConfiguration(project, extension, rootConfiguration.get(), versionsProps, conf);
-                });
+        project.getConfigurations().configureEach(conf -> {
+            setupConfiguration(project, extension, rootConfiguration.get(), versionsProps, conf);
+        });
 
         // Note: don't add constraints to this, only call `create` / `platform` on it.
         DependencyConstraintHandler constraintHandler = project.getDependencies().getConstraints();
         rootConfiguration.configure(conf -> addVersionsPropsConstraints(constraintHandler, conf, versionsProps));
 
         log.info("Configuring rules to assign *-constraints to platforms in {}", project);
-        project.getDependencies()
-                .getComponents()
-                .all(component -> tryAssignComponentToPlatform(versionsProps, component));
+        project.getDependencies().getComponents().all(component -> tryAssignComponentToPlatform(
+                versionsProps, component));
 
         // This is to ensure that we're not producing broken POMs due to missing versions
         configureResolvedVersionsWithVersionMapping(project);
     }
 
     private static void applyToRootProject(Project project) {
-        project.getExtensions()
-                .create(VersionRecommendationsExtension.EXTENSION, VersionRecommendationsExtension.class, project);
+        project.getExtensions().create(
+                VersionRecommendationsExtension.EXTENSION, VersionRecommendationsExtension.class, project);
         project.subprojects(subproject -> subproject.getPluginManager().apply(VersionsPropsPlugin.class));
     }
 
@@ -159,23 +157,22 @@ public class VersionsPropsPlugin implements Plugin<Project> {
             }
 
             // Add fail-safe error reporting
-            conf.getIncoming()
-                    .beforeResolve(resolvableDependencies -> {
-                        if (GradleWorkarounds.isConfiguring(subproject.getState())) {
-                            throw new GradleException(String.format(
-                                    "Not allowed to resolve %s at "
-                                            + "configuration time (https://guides.gradle.org/performance/"
-                                            + "#don_t_resolve_dependencies_at_configuration_time). Please upgrade your "
-                                            + "plugins and double-check your gradle scripts (see stacktrace)",
-                                    conf));
-                        }
-                    });
+            conf.getIncoming().beforeResolve(resolvableDependencies -> {
+                if (GradleWorkarounds.isConfiguring(subproject.getState())) {
+                    throw new GradleException(String.format(
+                            "Not allowed to resolve %s at "
+                                    + "configuration time (https://guides.gradle.org/performance/"
+                                    + "#don_t_resolve_dependencies_at_configuration_time). Please upgrade your "
+                                    + "plugins and double-check your gradle scripts (see stacktrace)",
+                            conf));
+                }
+            });
         });
     }
 
     private static boolean configurationWillAffectPublishedConstraints(Project subproject, Configuration conf) {
-        return JAVA_PUBLISHED_CONFIGURATION_NAMES.stream()
-                .anyMatch(confName -> isSameOrSuperconfigurationOf(subproject, conf, confName));
+        return JAVA_PUBLISHED_CONFIGURATION_NAMES.stream().anyMatch(confName -> isSameOrSuperconfigurationOf(
+                subproject, conf, confName));
     }
 
     private static boolean isSameOrSuperconfigurationOf(
@@ -207,22 +204,20 @@ public class VersionsPropsPlugin implements Plugin<Project> {
      * href=https://github.com/gradle/gradle/issues/7954>gradle/gradle#7954</a>
      */
     private static void provideVersionsFromStarDependencies(VersionsProps versionsProps, DependencySet deps) {
-        deps.withType(ExternalDependency.class)
-                .configureEach(moduleDependency -> {
-                    if (moduleDependency.getVersion() != null) {
-                        return;
-                    }
-                    versionsProps
-                            .getStarVersion(moduleDependency.getModule())
-                            .ifPresent(version -> moduleDependency.version(constraint -> {
-                                log.debug(
-                                        "Found direct dependency without version: {} -> {}, requiring: {}",
-                                        deps,
-                                        moduleDependency,
-                                        version);
-                                constraint.require(version);
-                            }));
-                });
+        deps.withType(ExternalDependency.class).configureEach(moduleDependency -> {
+            if (moduleDependency.getVersion() != null) {
+                return;
+            }
+            versionsProps.getStarVersion(moduleDependency.getModule()).ifPresent(version -> moduleDependency.version(
+                    constraint -> {
+                        log.debug(
+                                "Found direct dependency without version: {} -> {}, requiring: {}",
+                                deps,
+                                moduleDependency,
+                                version);
+                        constraint.require(version);
+                    }));
+        });
     }
 
     /**
@@ -231,13 +226,11 @@ public class VersionsPropsPlugin implements Plugin<Project> {
      */
     private static void tryAssignComponentToPlatform(VersionsProps versionsProps, ComponentMetadataDetails component) {
         log.debug("Configuring component: {}", component);
-        versionsProps
-                .getPlatform(component.getId().getModule())
-                .ifPresent(platform -> {
-                    String platformNotation = platform + ":" + component.getId().getVersion();
-                    log.info("Assigning component {} to virtual platform {}", component, platformNotation);
-                    component.belongsTo(platformNotation);
-                });
+        versionsProps.getPlatform(component.getId().getModule()).ifPresent(platform -> {
+            String platformNotation = platform + ":" + component.getId().getVersion();
+            log.info("Assigning component {} to virtual platform {}", component, platformNotation);
+            component.belongsTo(platformNotation);
+        });
     }
 
     private static void addVersionsPropsConstraints(
@@ -264,15 +257,14 @@ public class VersionsPropsPlugin implements Plugin<Project> {
     }
 
     private static void configureResolvedVersionsWithVersionMapping(Project project) {
-        project.getPluginManager()
-                .withPlugin("maven-publish", plugin -> {
-                    project.getExtensions()
-                            .getByType(PublishingExtension.class)
-                            .getPublications()
-                            .withType(MavenPublication.class)
-                            .configureEach(publication -> publication.versionMapping(mapping -> {
-                                mapping.allVariants(VariantVersionMappingStrategy::fromResolutionResult);
-                            }));
-                });
+        project.getPluginManager().withPlugin("maven-publish", plugin -> {
+            project.getExtensions()
+                    .getByType(PublishingExtension.class)
+                    .getPublications()
+                    .withType(MavenPublication.class)
+                    .configureEach(publication -> publication.versionMapping(mapping -> {
+                        mapping.allVariants(VariantVersionMappingStrategy::fromResolutionResult);
+                    }));
+        });
     }
 }

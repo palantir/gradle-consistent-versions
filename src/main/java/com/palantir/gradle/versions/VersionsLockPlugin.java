@@ -206,8 +206,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
             attributesSchema.attribute(GCV_USAGE_ATTRIBUTE);
         });
 
-        Configuration unifiedClasspath = project.getConfigurations()
-                .create(UNIFIED_CLASSPATH_CONFIGURATION_NAME, conf -> {
+        Configuration unifiedClasspath = project.getConfigurations().create(
+                UNIFIED_CLASSPATH_CONFIGURATION_NAME, conf -> {
                     conf.setVisible(false).setCanBeConsumed(false);
 
                     // Attributes declared here will become required attributes when resolving this configuration
@@ -285,20 +285,17 @@ public class VersionsLockPlugin implements Plugin<Project> {
             });
         }
 
-        TaskProvider verifyLocks = project.getTasks()
-                .register("verifyLocks", VerifyLocksTask.class, task -> {
-                    task.getCurrentLockState()
-                            .set(project.provider(() -> LockStates.toLockState(fullLockStateSupplier.get())));
-                    task.getPersistedLockState()
-                            .set(project.provider(() -> new ConflictSafeLockFile(rootLockfile).readLocks()));
-                });
+        TaskProvider verifyLocks = project.getTasks().register("verifyLocks", VerifyLocksTask.class, task -> {
+            task.getCurrentLockState().set(project.provider(() -> LockStates.toLockState(fullLockStateSupplier.get())));
+            task.getPersistedLockState().set(project.provider(() -> new ConflictSafeLockFile(rootLockfile)
+                    .readLocks()));
+        });
         project.getTasks().named(LifecycleBasePlugin.CHECK_TASK_NAME).configure(check -> check.dependsOn(verifyLocks));
 
-        project.getTasks()
-                .register("why", WhyDependencyTask.class, t -> {
-                    t.lockfile(rootLockfile);
-                    t.fullLockState(project.provider(fullLockStateSupplier::get));
-                });
+        project.getTasks().register("why", WhyDependencyTask.class, t -> {
+            t.lockfile(rootLockfile);
+            t.fullLockState(project.provider(fullLockStateSupplier::get));
+        });
     }
 
     static boolean isIgnoreLockFile(Project project) {
@@ -306,20 +303,18 @@ public class VersionsLockPlugin implements Plugin<Project> {
     }
 
     private static Map<Project, LockedConfigurations> wireUpLockedConfigurationsByProject(Project rootProject) {
-        return rootProject.getAllprojects().stream()
-                .collect(Collectors.toMap(Functions.identity(), subproject -> {
-                    VersionsLockExtension ext = subproject.getExtensions().getByType(VersionsLockExtension.class);
-                    LockedConfigurations lockedConfigurations = computeConfigurationsToLock(subproject, ext);
-                    addConfigurationDependencies(
-                            subproject,
-                            subproject.getConfigurations().getByName(CONSISTENT_VERSIONS_PRODUCTION),
-                            lockedConfigurations.productionConfigurations());
-                    addConfigurationDependencies(
-                            subproject,
-                            subproject.getConfigurations().getByName(CONSISTENT_VERSIONS_TEST),
-                            lockedConfigurations.testConfigurations());
-                    return lockedConfigurations;
-                }));
+        return rootProject.getAllprojects().stream().collect(Collectors.toMap(Functions.identity(), subproject -> {
+            VersionsLockExtension ext = subproject.getExtensions().getByType(VersionsLockExtension.class);
+            LockedConfigurations lockedConfigurations = computeConfigurationsToLock(subproject, ext);
+            addConfigurationDependencies(
+                    subproject,
+                    subproject.getConfigurations().getByName(CONSISTENT_VERSIONS_PRODUCTION),
+                    lockedConfigurations.productionConfigurations());
+            addConfigurationDependencies(
+                    subproject, subproject.getConfigurations().getByName(CONSISTENT_VERSIONS_TEST), lockedConfigurations
+                            .testConfigurations());
+            return lockedConfigurations;
+        }));
     }
 
     /**
@@ -330,31 +325,28 @@ public class VersionsLockPlugin implements Plugin<Project> {
     private void setupDependenciesToProject(Project rootProject, Configuration unifiedClasspath, Project project) {
         // Parallel 'resolveConfigurations' sometimes breaks unless we force the root one to run first.
         if (rootProject != project) {
-            project.getPluginManager()
-                    .withPlugin("com.palantir.configuration-resolver", plugin -> {
-                        project.getTasks()
-                                .named("resolveConfigurations", task -> task.mustRunAfter(":resolveConfigurations"));
-                    });
+            project.getPluginManager().withPlugin("com.palantir.configuration-resolver", plugin -> {
+                project.getTasks().named("resolveConfigurations", task -> task.mustRunAfter(":resolveConfigurations"));
+            });
         }
 
         // This is not how we collect dependencies, but is only meant to capture and neutralize the user's
         // inter-project dependencies.
-        project.getConfigurations()
-                .register(PLACEHOLDER_CONFIGURATION_NAME, conf -> {
-                    conf.setVisible(false).setCanBeResolved(false);
+        project.getConfigurations().register(PLACEHOLDER_CONFIGURATION_NAME, conf -> {
+            conf.setVisible(false).setCanBeResolved(false);
 
-                    // Make sure it can never be selected as part of normal resolution that declares a required usage.
-                    conf.getAttributes().attribute(Usage.USAGE_ATTRIBUTE, internalUsage);
+            // Make sure it can never be selected as part of normal resolution that declares a required usage.
+            conf.getAttributes().attribute(Usage.USAGE_ATTRIBUTE, internalUsage);
 
-                    // Mark it as a GCV_SOURCE, so that when we resolve {@link #UNIFIED_CLASSPATH_CONFIGURATION_NAME}
-                    // it becomes selected (as the best matching configuration) for the user's normal inter-project
-                    // dependencies
-                    // instead of the two configurations below (or apiElements, runtimeElements etc)
-                    conf.getAttributes().attribute(GCV_USAGE_ATTRIBUTE, GcvUsage.GCV_SOURCE);
-                });
+            // Mark it as a GCV_SOURCE, so that when we resolve {@link #UNIFIED_CLASSPATH_CONFIGURATION_NAME}
+            // it becomes selected (as the best matching configuration) for the user's normal inter-project
+            // dependencies
+            // instead of the two configurations below (or apiElements, runtimeElements etc)
+            conf.getAttributes().attribute(GCV_USAGE_ATTRIBUTE, GcvUsage.GCV_SOURCE);
+        });
 
-        NamedDomainObjectProvider<Configuration> consistentVersionsProduction = project.getConfigurations()
-                .register(CONSISTENT_VERSIONS_PRODUCTION, conf -> {
+        NamedDomainObjectProvider<Configuration> consistentVersionsProduction = project.getConfigurations().register(
+                CONSISTENT_VERSIONS_PRODUCTION, conf -> {
                     conf.setDescription(
                             "Outgoing configuration for production dependencies meant to be used by "
                                     + "consistent-versions");
@@ -364,8 +356,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
                     conf.getAttributes().attribute(Usage.USAGE_ATTRIBUTE, internalUsage);
                 });
 
-        NamedDomainObjectProvider<Configuration> consistentVersionsTest = project.getConfigurations()
-                .register(CONSISTENT_VERSIONS_TEST, conf -> {
+        NamedDomainObjectProvider<Configuration> consistentVersionsTest = project.getConfigurations().register(
+                CONSISTENT_VERSIONS_TEST, conf -> {
                     conf.setDescription(
                             "Outgoing configuration for test dependencies meant to be used by "
                                     + "consistent-versions");
@@ -375,13 +367,11 @@ public class VersionsLockPlugin implements Plugin<Project> {
                     conf.getAttributes().attribute(Usage.USAGE_ATTRIBUTE, internalUsage);
                 });
 
-        unifiedClasspath
-                .getDependencies()
-                .add(createConfigurationDependencyWithScope(project, consistentVersionsProduction.get(), GcvScope
+        unifiedClasspath.getDependencies().add(
+                createConfigurationDependencyWithScope(project, consistentVersionsProduction.get(), GcvScope
                         .PRODUCTION));
-        unifiedClasspath
-                .getDependencies()
-                .add(createConfigurationDependencyWithScope(project, consistentVersionsTest.get(), GcvScope.TEST));
+        unifiedClasspath.getDependencies().add(
+                createConfigurationDependencyWithScope(project, consistentVersionsTest.get(), GcvScope.TEST));
     }
 
     /**
@@ -396,9 +386,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
     /** Create a dependency to {@code toConfiguration}, where the latter should exist in the given {@code project}. */
     private static ProjectDependency createConfigurationDependency(Project project, Configuration toConfiguration) {
         return (ProjectDependency)
-                project.getDependencies()
-                        .project(ImmutableMap.of("path", project.getPath(), "configuration", toConfiguration
-                                .getName()));
+                project.getDependencies().project(ImmutableMap.of(
+                        "path", project.getPath(), "configuration", toConfiguration.getName()));
     }
 
     /** Create a dependency to {@code toConfiguration}, where the latter should exist in the given {@code project}. */
@@ -439,18 +428,17 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
         project.subprojects(subproject -> {
             subproject.afterEvaluate(sub -> {
-                sub.getPluginManager()
-                        .withPlugin("nebula.dependency-recommender", plugin -> {
-                            RecommendationProviderContainer container =
-                                    sub.getExtensions().findByType(RecommendationProviderContainer.class);
-                            if (container.getStrategy() == RecommendationStrategies.OverrideTransitives) {
-                                throw new GradleException(
-                                        "Must not use strategy OverrideTransitives for "
-                                                + sub
-                                                + ". "
-                                                + "Use this instead: dependencyRecommendations { strategy ConflictResolved }");
-                            }
-                        });
+                sub.getPluginManager().withPlugin("nebula.dependency-recommender", plugin -> {
+                    RecommendationProviderContainer container =
+                            sub.getExtensions().findByType(RecommendationProviderContainer.class);
+                    if (container.getStrategy() == RecommendationStrategies.OverrideTransitives) {
+                        throw new GradleException(
+                                "Must not use strategy OverrideTransitives for "
+                                        + sub
+                                        + ". "
+                                        + "Use this instead: dependencyRecommendations { strategy ConflictResolved }");
+                    }
+                });
             });
         });
     }
@@ -480,12 +468,12 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
         Map<Configuration, String> copiedConfigurationsCache = new HashMap<>();
 
-        findProjectDependencyWithTargetConfigurationName(depSet, CONSISTENT_VERSIONS_PRODUCTION)
-                .forEach(conf -> recursivelyCopyProjectDependenciesWithScope(
+        findProjectDependencyWithTargetConfigurationName(depSet, CONSISTENT_VERSIONS_PRODUCTION).forEach(
+                conf -> recursivelyCopyProjectDependenciesWithScope(
                         project, conf.getDependencies(), copiedConfigurationsCache, GcvScope.PRODUCTION));
 
-        findProjectDependencyWithTargetConfigurationName(depSet, CONSISTENT_VERSIONS_TEST)
-                .forEach(conf -> recursivelyCopyProjectDependenciesWithScope(
+        findProjectDependencyWithTargetConfigurationName(depSet, CONSISTENT_VERSIONS_TEST).forEach(
+                conf -> recursivelyCopyProjectDependenciesWithScope(
                         project, conf.getDependencies(), copiedConfigurationsCache, GcvScope.TEST));
     }
 
@@ -511,84 +499,79 @@ public class VersionsLockPlugin implements Plugin<Project> {
             DependencySet dependencySet,
             Map<Configuration, String> copiedConfigurationsCache,
             GcvScope scope) {
-        dependencySet
-                .withType(ProjectDependency.class)
-                .all(projectDependency -> {
-                    Project projectDep = projectDependency.getDependencyProject();
+        dependencySet.withType(ProjectDependency.class).all(projectDependency -> {
+            Project projectDep = projectDependency.getDependencyProject();
 
-                    String targetConfiguration = projectDependency.getTargetConfiguration();
-                    if (targetConfiguration == null) {
-                        // Not handling variant-based selection in this code path
-                        return;
-                    }
+            String targetConfiguration = projectDependency.getTargetConfiguration();
+            if (targetConfiguration == null) {
+                // Not handling variant-based selection in this code path
+                return;
+            }
 
-                    Configuration targetConf = getTargetConfiguration(dependencySet, projectDependency);
+            Configuration targetConf = getTargetConfiguration(dependencySet, projectDependency);
 
-                    log.info(
-                            "Found legacy project dependency (with target configuration): {} -> {}",
-                            dependencySet,
-                            formatProjectDependency(projectDependency));
+            log.info(
+                    "Found legacy project dependency (with target configuration): {} -> {}",
+                    dependencySet,
+                    formatProjectDependency(projectDependency));
 
-                    if (copiedConfigurationsCache.containsKey(targetConf)) {
-                        String copiedConf = copiedConfigurationsCache.get(targetConf);
-                        log.debug(
-                                "Re-using already copied target configuration for dep {} -> {}: {}",
-                                currentProject,
-                                targetConf,
-                                copiedConf);
-                        projectDependency.setTargetConfiguration(copiedConf);
-                        return;
-                    }
+            if (copiedConfigurationsCache.containsKey(targetConf)) {
+                String copiedConf = copiedConfigurationsCache.get(targetConf);
+                log.debug(
+                        "Re-using already copied target configuration for dep {} -> {}: {}",
+                        currentProject,
+                        targetConf,
+                        copiedConf);
+                projectDependency.setTargetConfiguration(copiedConf);
+                return;
+            }
 
-                    // Necessary to run withDependency actions run on the targetConf, because VersionsPropsPlugin
-                    // configures its constraints that way.
-                    // Without this, they'd just be propagated to the copiedConf and probably never run!
-                    causeWithDependenciesActionsToRun(targetConf);
+            // Necessary to run withDependency actions run on the targetConf, because VersionsPropsPlugin
+            // configures its constraints that way.
+            // Without this, they'd just be propagated to the copiedConf and probably never run!
+            causeWithDependenciesActionsToRun(targetConf);
 
-                    Configuration copiedConf = targetConf.copyRecursive();
-                    copiedConf.setDescription(String.format(
-                            "Copy of the '%s' configuration that can be resolved by "
-                                    + "com.palantir.consistent-versions without resolving the '%s' configuration itself.",
-                            targetConf.getName(), targetConf.getName()));
+            Configuration copiedConf = targetConf.copyRecursive();
+            copiedConf.setDescription(String.format(
+                    "Copy of the '%s' configuration that can be resolved by "
+                            + "com.palantir.consistent-versions without resolving the '%s' configuration itself.",
+                    targetConf.getName(), targetConf.getName()));
 
-                    // Update state about what we've seen
-                    copiedConfigurationsCache.put(targetConf, copiedConf.getName());
+            // Update state about what we've seen
+            copiedConfigurationsCache.put(targetConf, copiedConf.getName());
 
-                    if (log.isInfoEnabled()) {
-                        log.info(
-                                "Recursively copied {}'s '{}' configuration, which has\n"
-                                        + " - dependencies: {}\n"
-                                        + " - constraints: {}",
-                                projectDep,
-                                targetConfiguration,
-                                ImmutableList.copyOf(copiedConf.getAllDependencies()),
-                                ImmutableList.copyOf(copiedConf.getAllDependencyConstraints()));
-                    }
+            if (log.isInfoEnabled()) {
+                log.info(
+                        "Recursively copied {}'s '{}' configuration, which has\n"
+                                + " - dependencies: {}\n"
+                                + " - constraints: {}",
+                        projectDep,
+                        targetConfiguration,
+                        ImmutableList.copyOf(copiedConf.getAllDependencies()),
+                        ImmutableList.copyOf(copiedConf.getAllDependencyConstraints()));
+            }
 
-                    copiedConf.getAttributes().attribute(Usage.USAGE_ATTRIBUTE, internalUsage);
-                    // Must set this because we depend on this configuration when resolving unifiedClasspath.
-                    copiedConf.setCanBeConsumed(true);
-                    // But this should never be resolved! (it will most likely fail to given the usage above)
-                    copiedConf.setCanBeResolved(false);
-                    // Since we only depend on these from the same project (via CONSISTENT_VERSIONS_PRODUCTION or
-                    // CONSISTENT_VERSIONS_TEST), we shouldn't allow them to be visible outside this project.
-                    copiedConf.setVisible(false);
-                    // This is so we can get back the scope from the ResolutionResult.
-                    copiedConf
-                            .getDependencies()
-                            .withType(ExternalModuleDependency.class)
-                            .all(externalDep -> {
-                                GradleWorkarounds.fixAttributesOfModuleDependency(projectDep.getObjects(), externalDep);
-                                externalDep.attributes(attr -> attr.attribute(GCV_SCOPE_ATTRIBUTE, scope));
-                            });
+            copiedConf.getAttributes().attribute(Usage.USAGE_ATTRIBUTE, internalUsage);
+            // Must set this because we depend on this configuration when resolving unifiedClasspath.
+            copiedConf.setCanBeConsumed(true);
+            // But this should never be resolved! (it will most likely fail to given the usage above)
+            copiedConf.setCanBeResolved(false);
+            // Since we only depend on these from the same project (via CONSISTENT_VERSIONS_PRODUCTION or
+            // CONSISTENT_VERSIONS_TEST), we shouldn't allow them to be visible outside this project.
+            copiedConf.setVisible(false);
+            // This is so we can get back the scope from the ResolutionResult.
+            copiedConf.getDependencies().withType(ExternalModuleDependency.class).all(externalDep -> {
+                GradleWorkarounds.fixAttributesOfModuleDependency(projectDep.getObjects(), externalDep);
+                externalDep.attributes(attr -> attr.attribute(GCV_SCOPE_ATTRIBUTE, scope));
+            });
 
-                    projectDep.getConfigurations().add(copiedConf);
+            projectDep.getConfigurations().add(copiedConf);
 
-                    projectDependency.setTargetConfiguration(copiedConf.getName());
+            projectDependency.setTargetConfiguration(copiedConf.getName());
 
-                    recursivelyCopyProjectDependenciesWithScope(
-                            projectDep, copiedConf.getDependencies(), copiedConfigurationsCache, scope);
-                });
+            recursivelyCopyProjectDependenciesWithScope(
+                    projectDep, copiedConf.getDependencies(), copiedConfigurationsCache, scope);
+        });
     }
 
     /**
@@ -661,13 +644,13 @@ public class VersionsLockPlugin implements Plugin<Project> {
                     switch (scope) {
                         case PRODUCTION:
                             builder.putProductionDeps(
-                                    MyModuleVersionIdentifier.copyOf(component.getModuleVersion()), extractDependents(
-                                            component));
+                                    MyModuleVersionIdentifier.copyOf(component.getModuleVersion()),
+                                    extractDependents(component));
                             return;
                         case TEST:
                             builder.putTestDeps(
-                                    MyModuleVersionIdentifier.copyOf(component.getModuleVersion()), extractDependents(
-                                            component));
+                                    MyModuleVersionIdentifier.copyOf(component.getModuleVersion()),
+                                    extractDependents(component));
                             return;
                     }
                     throw new RuntimeException(String.format(
@@ -702,13 +685,11 @@ public class VersionsLockPlugin implements Plugin<Project> {
     }
 
     private static Dependents extractDependents(ResolvedComponentResult component) {
-        return Dependents.of(component.getDependents().stream()
-                .collect(Collectors.groupingBy(
-                        dep -> dep.getFrom().getId(),
-                        () -> new TreeMap<>(GradleComparators.COMPONENT_IDENTIFIER_COMPARATOR),
-                        Collectors.mapping(dep -> getRequestedVersionConstraint(dep.getRequested()), Collectors
-                                .toCollection(() -> new TreeSet<>(Comparator.comparing(
-                                VersionConstraint::toString)))))));
+        return Dependents.of(component.getDependents().stream().collect(Collectors.groupingBy(
+                dep -> dep.getFrom().getId(),
+                () -> new TreeMap<>(GradleComparators.COMPONENT_IDENTIFIER_COMPARATOR),
+                Collectors.mapping(dep -> getRequestedVersionConstraint(dep.getRequested()), Collectors.toCollection(
+                        () -> new TreeSet<>(Comparator.comparing(VersionConstraint::toString)))))));
     }
 
     private static VersionConstraint getRequestedVersionConstraint(ComponentSelector requested) {
@@ -759,9 +740,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
             List<DependencyConstraint> lockConstraints,
             List<DependencyConstraint> publishableConstraints,
             LockedConfigurations lockedConfigurations) {
-        Configuration locksConfiguration = subproject
-                .getConfigurations()
-                .create(LOCK_CONSTRAINTS_CONFIGURATION_NAME, locksConf -> {
+        Configuration locksConfiguration = subproject.getConfigurations().create(
+                LOCK_CONSTRAINTS_CONFIGURATION_NAME, locksConf -> {
                     locksConf.setVisible(false);
                     locksConf.setCanBeConsumed(false);
                     locksConf.setCanBeResolved(false);
@@ -776,20 +756,18 @@ public class VersionsLockPlugin implements Plugin<Project> {
         });
 
         // Ok, now configure the published configurations.
-        subproject
-                .getPluginManager()
-                .withPlugin("java", plugin -> {
-                    configurePublishConstraints(
-                            subproject,
-                            subproject.getConfigurations().named(JavaPlugin.COMPILE_CLASSPATH_CONFIGURATION_NAME),
-                            subproject.getConfigurations().named(JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME),
-                            publishableConstraints);
-                    configurePublishConstraints(
-                            subproject,
-                            subproject.getConfigurations().named(JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME),
-                            subproject.getConfigurations().named(JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME),
-                            publishableConstraints);
-                });
+        subproject.getPluginManager().withPlugin("java", plugin -> {
+            configurePublishConstraints(
+                    subproject,
+                    subproject.getConfigurations().named(JavaPlugin.COMPILE_CLASSPATH_CONFIGURATION_NAME),
+                    subproject.getConfigurations().named(JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME),
+                    publishableConstraints);
+            configurePublishConstraints(
+                    subproject,
+                    subproject.getConfigurations().named(JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME),
+                    subproject.getConfigurations().named(JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME),
+                    publishableConstraints);
+        });
     }
 
     /**
@@ -838,22 +816,18 @@ public class VersionsLockPlugin implements Plugin<Project> {
             // but I don't know how to do that without triggering a resolve of the configurationForFiltering,
             // which can transitively "lock" other publishable configurations by walking through its project
             // dependencies, thereby breaking the 'addAllLater' call above for other projects.
-            project.getPluginManager()
-                    .withPlugin("maven-publish", plugin -> project.getExtensions()
-                            .getByType(PublishingExtension.class)
-                            .getPublications()
-                            .withType(MavenPublication.class)
-                            .all(publication -> {
-                                log.info("Configuring publication {} of project {}", publication.getName(), project
-                                        .getPath());
-                                String publicationName = publication.getName();
-                                String publishTaskName =
-                                        GUtil.toLowerCamelCase("generatePomFileFor " + publicationName + "Publication");
-                                project.getTasks()
-                                        .withType(GenerateMavenPom.class)
-                                        .named(publishTaskName)
-                                        .configure(task -> task.dependsOn(configurationForFiltering));
-                            }));
+            project.getPluginManager().withPlugin("maven-publish", plugin -> project.getExtensions()
+                    .getByType(PublishingExtension.class)
+                    .getPublications()
+                    .withType(MavenPublication.class)
+                    .all(publication -> {
+                        log.info("Configuring publication {} of project {}", publication.getName(), project.getPath());
+                        String publicationName = publication.getName();
+                        String publishTaskName =
+                                GUtil.toLowerCamelCase("generatePomFileFor " + publicationName + "Publication");
+                        project.getTasks().withType(GenerateMavenPom.class).named(publishTaskName).configure(
+                                task -> task.dependsOn(configurationForFiltering));
+                    }));
         });
     }
 
@@ -874,14 +848,13 @@ public class VersionsLockPlugin implements Plugin<Project> {
             SourceSetContainer sourceSets =
                     project.getConvention().getPlugin(JavaPluginConvention.class).getSourceSets();
 
-            lockedConfigurations.addAllProductionConfigurations(getConfigurationsForSourceSet(project, sourceSets
-                    .getByName(SourceSet.MAIN_SOURCE_SET_NAME)));
+            lockedConfigurations.addAllProductionConfigurations(
+                    getConfigurationsForSourceSet(project, sourceSets.getByName(SourceSet.MAIN_SOURCE_SET_NAME)));
 
             // Use heuristic for test source sets.
-            sourceSets
-                    .matching(sourceSet -> sourceSet.getName().toLowerCase().endsWith("test"))
-                    .forEach(sourceSet -> lockedConfigurations.addAllTestConfigurations(getConfigurationsForSourceSet(
-                            project, sourceSet)));
+            sourceSets.matching(sourceSet -> sourceSet.getName().toLowerCase().endsWith("test")).forEach(
+                    sourceSet -> lockedConfigurations.addAllTestConfigurations(
+                            getConfigurationsForSourceSet(project, sourceSet)));
         }
         ImmutableLockedConfigurations result = lockedConfigurations.build();
         log.info("Computed locked configurations for {}: {}", project, result);
@@ -889,13 +862,12 @@ public class VersionsLockPlugin implements Plugin<Project> {
         // Prevent user trying to lock any configuration that could get published, such as runtimeElements,
         // apiElements etc. (Their constraints get published so we don't want to start publishing strictly locked
         // constraints)
-        result.allConfigurations()
-                .forEach(conf -> {
-                    Preconditions.checkArgument(
-                            !conf.isCanBeConsumed() && conf.isCanBeResolved(),
-                            "May only lock 'sink' configurations that are resolvable and not consumable: %s",
-                            conf);
-                });
+        result.allConfigurations().forEach(conf -> {
+            Preconditions.checkArgument(
+                    !conf.isCanBeConsumed() && conf.isCanBeResolved(),
+                    "May only lock 'sink' configurations that are resolvable and not consumable: %s",
+                    conf);
+        });
 
         return result;
     }
