@@ -1,3 +1,5 @@
+import com.google.googlejavaformat.java.*
+
 buildscript {
     repositories {
         jcenter()
@@ -50,7 +52,7 @@ sourceCompatibility = 1.8
 spotless {
     java {
         customLazyGroovy('google-java-format') {
-            com.google.googlejavaformat.java.Formatter formatter = new com.google.googlejavaformat.java.Formatter()
+            Formatter formatter = new Formatter(JavaFormatterOptions.builder().style(JavaFormatterOptions.Style.PALANTIR).build())
             return { source -> formatter.formatSource(source) }
         }
     }

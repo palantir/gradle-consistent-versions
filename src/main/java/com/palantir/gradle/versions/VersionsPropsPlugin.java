@@ -79,8 +79,8 @@ public class VersionsPropsPlugin implements Plugin<Project> {
         rootConfiguration.configure(conf -> addVersionsPropsConstraints(constraintHandler, conf, versionsProps));
 
         log.info("Configuring rules to assign *-constraints to platforms in {}", project);
-        project.getDependencies().getComponents().all(component -> tryAssignComponentToPlatform(
-                versionsProps, component));
+        project.getDependencies().getComponents().all(
+                component -> tryAssignComponentToPlatform(versionsProps, component));
 
         // This is to ensure that we're not producing broken POMs due to missing versions
         configureResolvedVersionsWithVersionMapping(project);
@@ -159,13 +159,12 @@ public class VersionsPropsPlugin implements Plugin<Project> {
             // Add fail-safe error reporting
             conf.getIncoming().beforeResolve(resolvableDependencies -> {
                 if (GradleWorkarounds.isConfiguring(subproject.getState())) {
-                    throw new GradleException(
-                            String.format(
-                                    "Not allowed to resolve %s at "
-                                            + "configuration time (https://guides.gradle.org/performance/"
-                                            + "#don_t_resolve_dependencies_at_configuration_time). Please upgrade your "
-                                            + "plugins and double-check your gradle scripts (see stacktrace)",
-                                    conf));
+                    throw new GradleException(String.format(
+                            "Not allowed to resolve %s at "
+                                    + "configuration time (https://guides.gradle.org/performance/"
+                                    + "#don_t_resolve_dependencies_at_configuration_time). Please upgrade your "
+                                    + "plugins and double-check your gradle scripts (see stacktrace)",
+                            conf));
                 }
             });
         });
@@ -208,15 +207,15 @@ public class VersionsPropsPlugin implements Plugin<Project> {
             if (moduleDependency.getVersion() != null) {
                 return;
             }
-            versionsProps.getStarVersion(moduleDependency.getModule()).ifPresent(version -> moduleDependency.version(
-                            constraint -> {
-                                log.debug(
-                                        "Found direct dependency without version: {} -> {}, requiring: {}",
-                                        deps,
-                                        moduleDependency,
-                                        version);
-                                constraint.require(version);
-                            }));
+            versionsProps.getStarVersion(moduleDependency.getModule()).ifPresent(
+                    version -> moduleDependency.version(constraint -> {
+                        log.debug(
+                                "Found direct dependency without version: {} -> {}, requiring: {}",
+                                deps,
+                                moduleDependency,
+                                version);
+                        constraint.require(version);
+                    }));
         });
     }
 
