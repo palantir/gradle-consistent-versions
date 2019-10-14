@@ -835,7 +835,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
                             locksConf.setVisible(false);
                             locksConf.setCanBeConsumed(false);
                             locksConf.setCanBeResolved(false);
-                            lockConstraints.stream().forEach(locksConf.getDependencyConstraints()::add);
+                            lockConstraints.forEach(locksConf.getDependencyConstraints()::add);
                         });
 
         Set<Configuration> configurationsToLock = lockedConfigurations.allConfigurations();
