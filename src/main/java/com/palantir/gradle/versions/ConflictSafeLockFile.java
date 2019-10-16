@@ -55,10 +55,9 @@ final class ConflictSafeLockFile {
             Stream<String> productionDeps;
             Stream<String> testDeps;
             if (testDependenciesPosition >= 0) {
-                productionDeps =
-                        lines
-                                .subList(0, testDependenciesPosition - 1) // skip blank line before marker
-                                .stream();
+                productionDeps = lines
+                        .subList(0, testDependenciesPosition - 1) // skip blank line before marker
+                        .stream();
                 testDeps = lines.subList(testDependenciesPosition + 1, lines.size()).stream();
             } else {
                 productionDeps = lines.stream().filter(line -> !line.trim().startsWith("#"));
