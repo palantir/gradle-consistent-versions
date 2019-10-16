@@ -36,5 +36,4 @@ public class ConsistentVersionsPlugin implements Plugin<Project> {
             });
         });
     }
-
 }

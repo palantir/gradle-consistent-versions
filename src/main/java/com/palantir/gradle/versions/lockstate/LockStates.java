@@ -45,18 +45,14 @@ public final class LockStates {
     private LockStates() {}
 
     /**
-     * Convert the richer {@link FullLockState} to a {@link LockState} that maps exactly to the contents of the
-     * file.
+     * Convert the richer {@link FullLockState} to a {@link LockState} that maps exactly to the contents of the file.
      */
     public static LockState toLockState(FullLockState fullLockState) {
         return LockState.from(computeLines(fullLockState.productionDeps()), computeLines(fullLockState.testDeps()));
     }
 
     public static Stream<Line> computeLines(Map<MyModuleVersionIdentifier, Dependents> deps) {
-        return deps
-                .entrySet()
-                .stream()
-                .map(entry -> componentWithDependentsToLine(entry.getKey(), entry.getValue()));
+        return deps.entrySet().stream().map(entry -> componentWithDependentsToLine(entry.getKey(), entry.getValue()));
     }
 
     private static Line componentWithDependentsToLine(ModuleVersionIdentifier component, Dependents dependents) {
@@ -67,11 +63,7 @@ public final class LockStates {
         HashCode hash = hasher.hash();
 
         Line line = ImmutableLine.of(
-                component.getGroup(),
-                component.getName(),
-                component.getVersion(),
-                all.size(),
-                hash.toString());
+                component.getGroup(), component.getName(), component.getVersion(), all.size(), hash.toString());
         log.info("{}: {}", line.stringRepresentation(), all);
         return line;
     }
@@ -82,15 +74,12 @@ public final class LockStates {
                 dependents.projectConstraints().isEmpty()
                         ? Stream.of()
                         : Stream.of(Maps.immutableEntry("projects", dependents.projectConstraints())),
-                dependents.nonProjectConstraints()
-                        .entrySet()
-                        .stream()
+                dependents.nonProjectConstraints().entrySet().stream()
                         .map(e -> Maps.immutableEntry(formatComponentIdentifier(e.getKey()), e.getValue())));
 
         return constraintEntries
                 .map(e -> {
-                    List<String> constraintsStr = e.getValue()
-                            .stream()
+                    List<String> constraintsStr = e.getValue().stream()
                             .map(VersionConstraint::toString)
                             .filter(string -> !string.isEmpty()) // toString is empty if the constraint is a no-op
                             .collect(toList());
@@ -100,9 +89,10 @@ public final class LockStates {
                     } else if (constraintsStr.size() == 1) {
                         return Optional.of(e.getKey() + " -> " + constraintsStr.get(0));
                     } else {
-                        return Optional.of(e.getKey() + " -> "
-                                + constraintsStr.stream()
-                                        .collect(Collectors.joining(", ", "{", "}")));
+                        return Optional.of(
+                                e.getKey()
+                                        + " -> "
+                                        + constraintsStr.stream().collect(Collectors.joining(", ", "{", "}")));
                     }
                 })
                 .filter(Optional::isPresent)

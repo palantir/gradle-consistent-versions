@@ -27,14 +27,15 @@ import org.immutables.value.Value;
 @Value.Immutable
 public interface FullLockState {
     /**
-     * Map of a {@link ResolvedComponentResult#getModuleVersion resolved component's module & version} -&gt;
-     * {@link ComponentIdentifier} of {@link ResolvedDependencyResult#getFrom component that requested it} -&gt;
-     * {@link ModuleComponentSelector#getVersionConstraint version constraint for that dependency}.
+     * Map of a {@link ResolvedComponentResult#getModuleVersion resolved component's module & version} -&gt; {@link
+     * ComponentIdentifier} of {@link ResolvedDependencyResult#getFrom component that requested it} -&gt; {@link
+     * ModuleComponentSelector#getVersionConstraint version constraint for that dependency}.
      */
     Map<MyModuleVersionIdentifier, Dependents> productionDeps();
 
     /**
      * Same as {@link #productionDeps()} but for test-only dependencies.
+     *
      * @see #productionDeps()
      */
     Map<MyModuleVersionIdentifier, Dependents> testDeps();
