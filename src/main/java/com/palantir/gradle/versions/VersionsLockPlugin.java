@@ -482,8 +482,12 @@ public class VersionsLockPlugin implements Plugin<Project> {
      * unifiedClasspath depends on the SUBPROJECT_UNIFIED_CONFIGURATION_NAME configuration of all subprojects (above),
      * that would resolve them when we resolve unifiedClasspath. We need this workaround to enable the workflow:
      *
-     * <p>1. when 'unifiedClasspath' is resolved with --write-locks, it writes the lock file and resolves its
-     * dependencies 2. read the lock file 3. enforce these versions on all subprojects, using constraints
+     * <ol>
+     *   <li>when 'unifiedClasspath' is resolved with --write-locks, it writes the lock file and resolves its
+     *       dependencies
+     *   <li>read the lock file
+     *   <li>enforce these versions on all subprojects, using constraints
+     * </ol>
      *
      * <p>Since we can't apply these constraints to the already resolved configurations, we need a workaround to ensure
      * that unifiedClasspath does not directly depend on subproject configurations that we intend to enforce constraints
