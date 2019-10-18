@@ -87,8 +87,9 @@ final class GradleWorkarounds {
                             == org.gradle.api.internal.provider.CollectionProviderInternal.class) {
                         if (method.getName().equals("getElementType")) {
                             // Proxy to `propertyInternalClass` which we know DefaultListProperty implements.
-                            return propertyInternalClass.getMethod(method.getName(), method.getParameterTypes()).invoke(
-                                    property, args);
+                            return propertyInternalClass
+                                    .getMethod(method.getName(), method.getParameterTypes())
+                                    .invoke(property, args);
                         } else if (method.getName().equals("size")) {
                             return property.get().size();
                         }

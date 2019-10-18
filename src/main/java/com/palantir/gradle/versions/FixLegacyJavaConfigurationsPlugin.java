@@ -44,8 +44,9 @@ public class FixLegacyJavaConfigurationsPlugin implements Plugin<Project> {
             return;
         }
 
-        Configuration unifiedClasspath = project.getRootProject().getConfigurations().findByName(
-                VersionsLockPlugin.UNIFIED_CLASSPATH_CONFIGURATION_NAME);
+        Configuration unifiedClasspath = project.getRootProject()
+                .getConfigurations()
+                .findByName(VersionsLockPlugin.UNIFIED_CLASSPATH_CONFIGURATION_NAME);
         Preconditions.checkNotNull(
                 unifiedClasspath, "FixLegacyJavaConfigurationsPlugin must be applied after VersionsLockPlugin");
 
@@ -59,8 +60,8 @@ public class FixLegacyJavaConfigurationsPlugin implements Plugin<Project> {
                         JavaPlugin.RUNTIME_CONFIGURATION_NAME)
                 .map(project.getConfigurations()::named)
                 .forEach(confProvider -> confProvider.configure(conf -> {
-                    injectVersions(conf, (group, name) -> GetVersionPlugin.getOptionalVersion(
-                            project, group, name, unifiedClasspath));
+                    injectVersions(conf, (group, name) ->
+                            GetVersionPlugin.getOptionalVersion(project, group, name, unifiedClasspath));
                 }));
     }
 
@@ -91,8 +92,9 @@ public class FixLegacyJavaConfigurationsPlugin implements Plugin<Project> {
                     }
                 }
 
-                getVersion.getVersion(details.getRequested().getGroup(), details.getRequested().getName()).ifPresent(
-                        ver -> {
+                getVersion
+                        .getVersion(details.getRequested().getGroup(), details.getRequested().getName())
+                        .ifPresent(ver -> {
                             details.useVersion(ver);
                             details.because("Forced by gradle-consistent-versions versions.lock");
                         });

@@ -80,27 +80,24 @@ public class VerifyLocksTask extends DefaultTask {
 
         Set<MyModuleIdentifier> missing = difference.entriesOnlyOnLeft().keySet();
         if (!missing.isEmpty()) {
-            throw new RuntimeException(
-                    "Locked dependencies missing from the resolution result: "
-                            + missing
-                            + ". Please run './gradlew --write-locks'.");
+            throw new RuntimeException("Locked dependencies missing from the resolution result: "
+                    + missing
+                    + ". Please run './gradlew --write-locks'.");
         }
 
         Set<MyModuleIdentifier> unknown = difference.entriesOnlyOnRight().keySet();
         if (!unknown.isEmpty()) {
-            throw new RuntimeException(
-                    "Found dependencies that were not in the lock state: "
-                            + unknown
-                            + ". Please run './gradlew --write-locks'.");
+            throw new RuntimeException("Found dependencies that were not in the lock state: "
+                    + unknown
+                    + ". Please run './gradlew --write-locks'.");
         }
 
         Map<MyModuleIdentifier, ValueDifference<Line>> differing = difference.entriesDiffering();
         if (!differing.isEmpty()) {
-            throw new RuntimeException(
-                    "Found dependencies whose dependents changed:\n"
-                            + formatDependencyDifferences(differing)
-                            + "\n\n"
-                            + "Please run './gradlew --write-locks'.");
+            throw new RuntimeException("Found dependencies whose dependents changed:\n"
+                    + formatDependencyDifferences(differing)
+                    + "\n\n"
+                    + "Please run './gradlew --write-locks'.");
         }
     }
 

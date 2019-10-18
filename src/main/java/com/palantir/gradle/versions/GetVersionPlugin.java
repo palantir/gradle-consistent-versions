@@ -42,8 +42,11 @@ public final class GetVersionPlugin implements Plugin<Project> {
              * preferred signature because it's shortest.
              */
             public String doCall(Object moduleVersion) {
-                return doCall(moduleVersion, project.getRootProject().getConfigurations().getByName(
-                                VersionsLockPlugin.UNIFIED_CLASSPATH_CONFIGURATION_NAME));
+                return doCall(
+                        moduleVersion,
+                        project.getRootProject()
+                                .getConfigurations()
+                                .getByName(VersionsLockPlugin.UNIFIED_CLASSPATH_CONFIGURATION_NAME));
             }
 
             /** Find a version from another configuration, e.g. from the gradle-docker plugin. */
@@ -57,8 +60,13 @@ public final class GetVersionPlugin implements Plugin<Project> {
 
             /** This matches the signature of nebula's dependencyRecommendations.getRecommendedVersion. */
             public String doCall(String group, String name) {
-                return getVersion(project, group, name, project.getRootProject().getConfigurations().getByName(
-                                VersionsLockPlugin.UNIFIED_CLASSPATH_CONFIGURATION_NAME));
+                return getVersion(
+                        project,
+                        group,
+                        name,
+                        project.getRootProject()
+                                .getConfigurations()
+                                .getByName(VersionsLockPlugin.UNIFIED_CLASSPATH_CONFIGURATION_NAME));
             }
 
             public String doCall(String group, String name, Configuration configuration) {
