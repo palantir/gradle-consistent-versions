@@ -79,8 +79,8 @@ public class VersionsPropsPlugin implements Plugin<Project> {
         rootConfiguration.configure(conf -> addVersionsPropsConstraints(constraintHandler, conf, versionsProps));
 
         log.info("Configuring rules to assign *-constraints to platforms in {}", project);
-        project.getDependencies().getComponents().all(
-                component -> tryAssignComponentToPlatform(versionsProps, component));
+        project.getDependencies().getComponents().all(component ->
+                tryAssignComponentToPlatform(versionsProps, component));
 
         // This is to ensure that we're not producing broken POMs due to missing versions
         configureResolvedVersionsWithVersionMapping(project);
@@ -190,8 +190,8 @@ public class VersionsPropsPlugin implements Plugin<Project> {
             Project project, Configuration rootConfiguration) {
         ListProperty<Dependency> proxiedDependencies = project.getObjects().listProperty(Dependency.class);
         proxiedDependencies.addAll(project.provider(
-                () -> rootConfiguration.getDependencies().withType(ModuleDependency.class).matching(
-                        dep -> GradleWorkarounds.isPlatform(dep.getAttributes()))));
+                () -> rootConfiguration.getDependencies().withType(ModuleDependency.class).matching(dep ->
+                        GradleWorkarounds.isPlatform(dep.getAttributes()))));
         return GradleWorkarounds.fixListProperty(proxiedDependencies);
     }
 
@@ -207,8 +207,8 @@ public class VersionsPropsPlugin implements Plugin<Project> {
             if (moduleDependency.getVersion() != null) {
                 return;
             }
-            versionsProps.getStarVersion(moduleDependency.getModule()).ifPresent(version -> moduleDependency.version(
-                    constraint -> {
+            versionsProps.getStarVersion(moduleDependency.getModule()).ifPresent(version ->
+                    moduleDependency.version(constraint -> {
                         log.debug(
                                 "Found direct dependency without version: {} -> {}, requiring: {}",
                                 deps,

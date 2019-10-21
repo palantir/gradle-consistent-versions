@@ -391,8 +391,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
     /** Create a dependency to {@code toConfiguration}, where the latter should exist in the given {@code project}. */
     private static ProjectDependency createConfigurationDependency(Project project, Configuration toConfiguration) {
-        return (ProjectDependency) project.getDependencies().project(
-                ImmutableMap.of("path", project.getPath(), "configuration", toConfiguration.getName()));
+        return (ProjectDependency) project.getDependencies().project(ImmutableMap.of(
+                "path", project.getPath(), "configuration", toConfiguration.getName()));
     }
 
     /** Create a dependency to {@code toConfiguration}, where the latter should exist in the given {@code project}. */
