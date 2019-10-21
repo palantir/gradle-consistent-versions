@@ -819,27 +819,20 @@ public class VersionsLockPlugin implements Plugin<Project> {
             List<DependencyConstraint> publishConstraints) {
         ListProperty<DependencyConstraint> constraintsProperty =
                 GradleWorkarounds.fixListProperty(project.getObjects().listProperty(DependencyConstraint.class));
-        constraintsProperty.addAll(project.provider(
-                Suppliers.memoize(() -> {
-                            log.debug(
-                                    "Computing publish constraints for {} by resolving {}",
-                                    configuration.get(),
-                                    configurationForFiltering.get());
-                            Set<ModuleIdentifier> modulesToInclude =
-                                    configurationForFiltering
-                                            .get()
-                                            .getIncoming()
-                                            .getResolutionResult()
-                                            .getAllComponents()
-                                            .stream()
-                                            .map(ResolvedComponentResult::getModuleVersion)
-                                            .filter(Objects::nonNull)
-                                            .map(ModuleVersionIdentifier::getModule)
-                                            .collect(Collectors.toSet());
-                            return Collections2.filter(publishConstraints, constraint ->
-                                    modulesToInclude.contains(constraint.getModule()));
-                        })
-                        ::get));
+        constraintsProperty.addAll(project.provider(Suppliers.memoize(() -> {
+            log.debug(
+                    "Computing publish constraints for {} by resolving {}",
+                    configuration.get(),
+                    configurationForFiltering.get());
+            Set<ModuleIdentifier> modulesToInclude =
+                    configurationForFiltering.get().getIncoming().getResolutionResult().getAllComponents().stream()
+                            .map(ResolvedComponentResult::getModuleVersion)
+                            .filter(Objects::nonNull)
+                            .map(ModuleVersionIdentifier::getModule)
+                            .collect(Collectors.toSet());
+            return Collections2.filter(
+                    publishConstraints, constraint -> modulesToInclude.contains(constraint.getModule()));
+        })::get));
         configuration.configure(conf -> {
             conf.getDependencyConstraints().addAllLater(constraintsProperty);
 
