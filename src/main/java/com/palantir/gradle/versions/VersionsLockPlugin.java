@@ -425,8 +425,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
             subproject.afterEvaluate(sub -> {
                 if (haveSameGroupAndName(project, sub)) {
                     throw new GradleException(String.format(
-                            "This plugin doesn't work if the root project shares both "
-                                    + "group and name with a subproject. Consider adding the following to settings.gradle:\n"
+                            "This plugin doesn't work if the root project shares both group and name with a"
+                                    + " subproject. Consider adding the following to settings.gradle:\n"
                                     + "rootProject.name = '%s-root'",
                             project.getName()));
                 }
