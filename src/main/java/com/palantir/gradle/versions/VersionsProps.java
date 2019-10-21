@@ -51,8 +51,8 @@ public final class VersionsProps {
             throw new RuntimeException("Couldn't read properties file from: " + path, e);
         }
         FuzzyPatternResolver.Builder builder = FuzzyPatternResolver.builder();
-        recommendations.stringPropertyNames().forEach(name ->
-                builder.putVersions(name.replaceAll("/", ":"), recommendations.getProperty(name).trim()));
+        recommendations.stringPropertyNames().forEach(
+                name -> builder.putVersions(name.replaceAll("/", ":"), recommendations.getProperty(name).trim()));
         return new VersionsProps(builder.build());
     }
 

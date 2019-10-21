@@ -89,9 +89,8 @@ public final class LockStates {
                     } else if (constraintsStr.size() == 1) {
                         return Optional.of(e.getKey() + " -> " + constraintsStr.get(0));
                     } else {
-                        return Optional.of(e.getKey()
-                                + " -> "
-                                + constraintsStr.stream().collect(Collectors.joining(", ", "{", "}")));
+                        return Optional.of(
+                        e.getKey() + " -> " + constraintsStr.stream().collect(Collectors.joining(", ", "{", "}")));
                     }
                 })
                 .filter(Optional::isPresent)
