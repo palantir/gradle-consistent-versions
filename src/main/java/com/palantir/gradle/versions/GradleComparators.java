@@ -27,19 +27,16 @@ import org.gradle.api.artifacts.component.ModuleComponentIdentifier;
 public final class GradleComparators {
     private GradleComparators() {}
 
-    public static final Comparator<ModuleIdentifier> MODULE_IDENTIFIER_COMPARATOR = Comparator
-            .comparing(ModuleIdentifier::getGroup)
-            .thenComparing(ModuleIdentifier::getName);
+    public static final Comparator<ModuleIdentifier> MODULE_IDENTIFIER_COMPARATOR =
+            Comparator.comparing(ModuleIdentifier::getGroup).thenComparing(ModuleIdentifier::getName);
 
     /**
-     * Compare {@link ModuleComponentIdentifier} using {@link #MODULE_IDENTIFIER_COMPARATOR}, but all other
-     * identifiers using {@link ComponentIdentifier#getDisplayName()}.
+     * Compare {@link ModuleComponentIdentifier} using {@link #MODULE_IDENTIFIER_COMPARATOR}, but all other identifiers
+     * using {@link ComponentIdentifier#getDisplayName()}.
      */
-    public static final Comparator<ComponentIdentifier> COMPONENT_IDENTIFIER_COMPARATOR = Comparator
-            .comparing(
+    public static final Comparator<ComponentIdentifier> COMPONENT_IDENTIFIER_COMPARATOR = Comparator.comparing(
                     (ComponentIdentifier id) -> tryCast(ModuleComponentIdentifier.class, id),
-                    Comparators.emptiesFirst(Ordering
-                            .from(MODULE_IDENTIFIER_COMPARATOR)
+                    Comparators.emptiesFirst(Ordering.from(MODULE_IDENTIFIER_COMPARATOR)
                             .onResultOf(ModuleComponentIdentifier::getModuleIdentifier)))
             .thenComparing(ComponentIdentifier::getDisplayName);
 

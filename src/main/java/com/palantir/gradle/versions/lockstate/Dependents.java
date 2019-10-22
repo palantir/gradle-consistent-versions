@@ -37,12 +37,9 @@ public interface Dependents {
 
     @Value.Derived
     default SortedSet<VersionConstraint> projectConstraints() {
-        return Maps.filterKeys(get(), k -> k instanceof ProjectComponentIdentifier)
-                .values()
-                .stream()
+        return Maps.filterKeys(get(), k -> k instanceof ProjectComponentIdentifier).values().stream()
                 .flatMap(Set::stream)
-                .collect(ImmutableSortedSet.toImmutableSortedSet(
-                        Comparator.comparing(VersionConstraint::toString)));
+                .collect(ImmutableSortedSet.toImmutableSortedSet(Comparator.comparing(VersionConstraint::toString)));
     }
 
     @Value.Derived

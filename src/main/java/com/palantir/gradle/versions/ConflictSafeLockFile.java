@@ -47,9 +47,7 @@ final class ConflictSafeLockFile {
         this.lockfile = lockfile;
     }
 
-    /**
-     * Reads and returns the {@link LockState}.
-     */
+    /** Reads and returns the {@link LockState}. */
     public LockState readLocks() {
         try (Stream<String> linesStream = Files.lines(lockfile)) {
             List<String> lines = linesStream.filter(line -> !line.trim().startsWith("#")).collect(Collectors.toList());
@@ -57,7 +55,8 @@ final class ConflictSafeLockFile {
             Stream<String> productionDeps;
             Stream<String> testDeps;
             if (testDependenciesPosition >= 0) {
-                productionDeps = lines.subList(0, testDependenciesPosition - 1) // skip blank line before marker
+                productionDeps = lines
+                        .subList(0, testDependenciesPosition - 1) // skip blank line before marker
                         .stream();
                 testDeps = lines.subList(testDependenciesPosition + 1, lines.size()).stream();
             } else {
@@ -68,8 +67,7 @@ final class ConflictSafeLockFile {
             return LockState.from(parseLines(productionDeps), parseLines(testDeps));
         } catch (IOException e) {
             throw new GradleException(
-                    String.format("Couldn't load versions from palantir dependency lock file: %s", lockfile),
-                    e);
+                    String.format("Couldn't load versions from palantir dependency lock file: %s", lockfile), e);
         }
     }
 
@@ -94,11 +92,8 @@ final class ConflictSafeLockFile {
 
     public void writeLocks(FullLockState fullLockState) {
         LockState lockState = LockStates.toLockState(fullLockState);
-        try (
-                BufferedWriter writer = Files.newBufferedWriter(
-                        lockfile,
-                        StandardOpenOption.CREATE,
-                        StandardOpenOption.TRUNCATE_EXISTING)) {
+        try (BufferedWriter writer =
+                Files.newBufferedWriter(lockfile, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)) {
             writer.append(HEADER_COMMENT);
             writer.newLine();
 

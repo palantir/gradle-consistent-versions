@@ -71,32 +71,30 @@ final class GradleWorkarounds {
 
     /**
      * Allow a {@link ListProperty} to be used with {@link DomainObjectCollection#addAllLater}.
-     * <p>
-     * Pending fix: https://github.com/gradle/gradle/pull/10288
+     *
+     * <p>Pending fix: https://github.com/gradle/gradle/pull/10288
      */
     @SuppressWarnings("unchecked")
     static <T> ListProperty<T> fixListProperty(ListProperty<T> property) {
         Class<?> propertyInternalClass = org.gradle.api.internal.provider.CollectionPropertyInternal.class;
-        return (ListProperty<T>) Proxy.newProxyInstance(GradleWorkarounds.class.getClassLoader(),
-                new Class<?>[] {
-                        org.gradle.api.internal.provider.CollectionProviderInternal.class,
-                        ListProperty.class},
+        return (ListProperty<T>) Proxy.newProxyInstance(
+                GradleWorkarounds.class.getClassLoader(),
+                new Class<?>[] {org.gradle.api.internal.provider.CollectionProviderInternal.class, ListProperty.class},
                 (proxy, method, args) -> {
                     // Find matching method on CollectionPropertyInternal
-                    //org.gradle.api.internal.provider.CollectionProviderInternal
-                    if (method
-                            .getDeclaringClass() == org.gradle.api.internal.provider.CollectionProviderInternal.class) {
+                    // org.gradle.api.internal.provider.CollectionProviderInternal
+                    if (method.getDeclaringClass()
+                            == org.gradle.api.internal.provider.CollectionProviderInternal.class) {
                         if (method.getName().equals("getElementType")) {
                             // Proxy to `propertyInternalClass` which we know DefaultListProperty implements.
-                            return propertyInternalClass.getMethod(method.getName(), method.getParameterTypes())
+                            return propertyInternalClass
+                                    .getMethod(method.getName(), method.getParameterTypes())
                                     .invoke(property, args);
                         } else if (method.getName().equals("size")) {
                             return property.get().size();
                         }
-                        throw new GradleException(String.format(
-                                "Could not proxy method '%s' to object %s",
-                                method,
-                                property));
+                        throw new GradleException(
+                                String.format("Could not proxy method '%s' to object %s", method, property));
                     } else {
                         return method.invoke(property, args);
                     }
@@ -105,18 +103,15 @@ final class GradleWorkarounds {
 
     /**
      * Work around the following issues with {@link ModuleDependency} attributes.
+     *
      * <ul>
-     *     <li>Gradle not adding an AttributeFactory to {@link ProjectDependency} with configuration, fixed in
-     *     5.3-rc-1</li>
-     *     <li>{@link ExternalDependency#copy()} not configuring an AttributeFactory and ALSO not immutably copying the
-     *      {@link AttributeContainer}, fixed in 5.6-rc-1.
-     *      <p>
-     *      See https://github.com/gradle/gradle/pull/9653</li>
+     *   <li>Gradle not adding an AttributeFactory to {@link ProjectDependency} with configuration, fixed in 5.3-rc-1
+     *   <li>{@link ExternalDependency#copy()} not configuring an AttributeFactory and ALSO not immutably copying the
+     *       {@link AttributeContainer}, fixed in 5.6-rc-1.
+     *       <p>See https://github.com/gradle/gradle/pull/9653
      * </ul>
      */
-    static <T extends ModuleDependency> T fixAttributesOfModuleDependency(
-            ObjectFactory objectFactory,
-            T dependency) {
+    static <T extends ModuleDependency> T fixAttributesOfModuleDependency(ObjectFactory objectFactory, T dependency) {
         if (GradleVersion.current().compareTo(GradleVersion.version("5.6")) >= 0
                 // Merged on 2019-06-12 so next nightly should be good
                 || GradleVersion.current().compareTo(GradleVersion.version("5.6-20190613000000+0000")) >= 0) {
@@ -133,10 +128,9 @@ final class GradleWorkarounds {
                 (org.gradle.api.internal.attributes.AttributeContainerInternal) dependency.getAttributes();
 
         try {
-            Method method = org.gradle.api.internal.artifacts.dependencies.AbstractModuleDependency.class
-                    .getDeclaredMethod(
-                            "setAttributes",
-                            org.gradle.api.internal.attributes.AttributeContainerInternal.class);
+            Method method =
+                    org.gradle.api.internal.artifacts.dependencies.AbstractModuleDependency.class.getDeclaredMethod(
+                            "setAttributes", org.gradle.api.internal.attributes.AttributeContainerInternal.class);
             method.setAccessible(true);
             method.invoke(dependency, factory.mutable(currentAttributes));
         } catch (NoSuchMethodException e) {
@@ -148,8 +142,8 @@ final class GradleWorkarounds {
     }
 
     /**
-     * Returns whether a dependency / component is a non-enforced platform, i.e. what you create with
-     * {@link DependencyHandler#platform} or {@link DependencyConstraintHandler#platform}.
+     * Returns whether a dependency / component is a non-enforced platform, i.e. what you create with {@link
+     * DependencyHandler#platform} or {@link DependencyConstraintHandler#platform}.
      */
     static boolean isPlatform(AttributeContainer attributes) {
         if (GradleVersion.current().compareTo(GRADLE_VERSION_CATEGORY_AVAILABLE) < 0) {
@@ -170,8 +164,9 @@ final class GradleWorkarounds {
 
     static boolean isFailOnVersionConflict(Configuration conf) {
         org.gradle.api.internal.artifacts.configurations.ConflictResolution conflictResolution =
-                ((org.gradle.api.internal.artifacts.configurations.ResolutionStrategyInternal) conf
-                        .getResolutionStrategy()).getConflictResolution();
+                ((org.gradle.api.internal.artifacts.configurations.ResolutionStrategyInternal)
+                                conf.getResolutionStrategy())
+                        .getConflictResolution();
         return conflictResolution == org.gradle.api.internal.artifacts.configurations.ConflictResolution.strict;
     }
 
