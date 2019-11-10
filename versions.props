@@ -3,7 +3,7 @@ com.netflix.nebula:nebula-test = 7.4.0
 com.google.guava:guava = 23.6.1-jre
 org.immutables:value = 2.8.1
 org.junit:junit-bom = 5.5.2
-com.fasterxml.jackson.*:jackson-* = 2.9.9
+com.fasterxml.jackson.*:jackson-* = 2.10.1
 
 # Unnecessary once we have lock files
 com.google.code.findbugs:jsr305 = 3.0.2
