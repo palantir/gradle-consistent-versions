@@ -72,7 +72,7 @@ public final class LockStates {
     public static List<String> prettyPrintConstraints(Dependents dependents) {
         Stream<Entry<String, Collection<VersionConstraint>>> constraintEntries = Streams.concat(
                 dependents.projectConstraints().isEmpty()
-                        ? Stream.of()
+                        ? Stream.empty()
                         : Stream.of(Maps.immutableEntry("projects", dependents.projectConstraints())),
                 dependents.nonProjectConstraints().entrySet().stream()
                         .map(e -> Maps.immutableEntry(formatComponentIdentifier(e.getKey()), e.getValue())));

@@ -881,8 +881,9 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 Collections2.transform(ext.getTestConfigurations(), project.getConfigurations()::getByName));
 
         if (ext.isUseJavaPluginDefaults() && project.getPluginManager().hasPlugin("java")) {
-            SourceSetContainer sourceSets =
-                    project.getConvention().getPlugin(JavaPluginConvention.class).getSourceSets();
+            SourceSetContainer sourceSets = project.getConvention()
+                    .getPlugin(JavaPluginConvention.class)
+                    .getSourceSets();
 
             lockedConfigurations.addAllProductionConfigurations(
                     getConfigurationsForSourceSet(project, sourceSets.getByName(SourceSet.MAIN_SOURCE_SET_NAME)));

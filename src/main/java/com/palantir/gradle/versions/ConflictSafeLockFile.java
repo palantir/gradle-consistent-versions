@@ -61,7 +61,7 @@ final class ConflictSafeLockFile {
                 testDeps = lines.subList(testDependenciesPosition + 1, lines.size()).stream();
             } else {
                 productionDeps = lines.stream().filter(line -> !line.trim().startsWith("#"));
-                testDeps = Stream.of();
+                testDeps = Stream.empty();
             }
 
             return LockState.from(parseLines(productionDeps), parseLines(testDeps));
