@@ -107,9 +107,12 @@ junit:junit = 4.12
 org.assertj:* = 3.10.0
 ```
 
-The * notation ensures that every matching jar will have the same version - they will be aligned using a [virtual platform][].
+The * notation ensures that every matching jar will have the same version - they will be aligned<sup>[1](#rule-specificity)</sup> using a [virtual platform][].
 
 Note that this does not force okhttp to exactly 3.12.0, it just declares that your project requires at least 3.12.0.  If something else in your transitive graph needs a newer version, Gradle will happily select this.  See below for how to downgrade something if you really know what you're doing.
+
+<a name="rule-specificity">[1]</a>: If multiple lines from `versions.props` match a particular jar, **the most specific one** will be chosen (the one with the most characters being different from `*`).
+This has the side effect that a line referring specifically to a jar is independent, and that jar's version never gets aligned to the versions of other jars, even if there are other lines containing `*` which would otherwise match that jar. 
 
 [virtual platform]: https://docs.gradle.org/current/userguide/managing_transitive_dependencies.html#sec:version_alignment
 
