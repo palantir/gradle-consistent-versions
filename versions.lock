@@ -1,6 +1,6 @@
 # Run ./gradlew --write-locks to regenerate this file
 com.google.code.findbugs:jsr305:3.0.2 (2 constraints: 250fb786)
-com.google.errorprone:error_prone_annotations:2.3.3 (2 constraints: 210f1287)
+com.google.errorprone:error_prone_annotations:2.3.4 (2 constraints: 220f3287)
 com.google.guava:guava:23.6.1-jre (3 constraints: fb27e741)
 com.google.j2objc:j2objc-annotations:1.1 (1 constraints: b609eba0)
 com.netflix.nebula:nebula-dependency-recommender:9.0.1 (1 constraints: 0c051936)
