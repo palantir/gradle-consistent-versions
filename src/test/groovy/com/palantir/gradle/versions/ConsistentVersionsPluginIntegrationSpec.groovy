@@ -19,6 +19,7 @@ package com.palantir.gradle.versions
 import static com.palantir.gradle.versions.GradleTestVersions.GRADLE_VERSIONS
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import org.gradle.util.GradleVersion
 import spock.lang.Unroll
 
 @Unroll
@@ -332,9 +333,11 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
             should:not-publish = 1.0
         """.stripIndent()
 
-        settingsFile << """
-            enableFeaturePreview('GRADLE_METADATA')
-        """.stripIndent()
+        if (GradleVersion.version(gradleVersionNumber) < GradleVersion.version("6.0")) {
+            settingsFile << """
+                enableFeaturePreview('GRADLE_METADATA')
+            """.stripIndent()
+        }
 
         when:
         runTasks('--write-locks', 'generateMetadataFileForMavenPublication')
