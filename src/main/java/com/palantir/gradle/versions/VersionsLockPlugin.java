@@ -350,7 +350,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
             conf.getAttributes().attribute(GCV_USAGE_ATTRIBUTE, GcvUsage.GCV_SOURCE);
         });
 
-        NamedDomainObjectProvider<Configuration> consistentVersionsProduction = project.getConfigurations()
+        project.getConfigurations()
                 .register(CONSISTENT_VERSIONS_PRODUCTION, conf -> {
                     conf.setDescription("Outgoing configuration for production dependencies meant to be used by "
                             + "consistent-versions");
@@ -358,9 +358,10 @@ public class VersionsLockPlugin implements Plugin<Project> {
                     conf.setCanBeConsumed(true);
                     conf.setCanBeResolved(false);
                     conf.getAttributes().attribute(Usage.USAGE_ATTRIBUTE, internalUsage);
+                    conf.getOutgoing().capability(capabilityFor(project, GcvScope.PRODUCTION));
                 });
 
-        NamedDomainObjectProvider<Configuration> consistentVersionsTest = project.getConfigurations()
+        project.getConfigurations()
                 .register(CONSISTENT_VERSIONS_TEST, conf -> {
                     conf.setDescription("Outgoing configuration for test dependencies meant to be used by "
                             + "consistent-versions");
@@ -368,16 +369,15 @@ public class VersionsLockPlugin implements Plugin<Project> {
                     conf.setCanBeConsumed(true);
                     conf.setCanBeResolved(false);
                     conf.getAttributes().attribute(Usage.USAGE_ATTRIBUTE, internalUsage);
+                    conf.getOutgoing().capability(capabilityFor(project, GcvScope.TEST));
                 });
 
-        unifiedClasspath
-                .getDependencies()
-                .add(
-                        createConfigurationDependencyWithScope(
-                                project, consistentVersionsProduction.get(), GcvScope.PRODUCTION));
-        unifiedClasspath
-                .getDependencies()
-                .add(createConfigurationDependencyWithScope(project, consistentVersionsTest.get(), GcvScope.TEST));
+        unifiedClasspath.getDependencies().add(createConfigurationDependencyWithScope(project, GcvScope.PRODUCTION));
+        unifiedClasspath.getDependencies().add(createConfigurationDependencyWithScope(project, GcvScope.TEST));
+    }
+
+    private static String capabilityFor(Project project, GcvScope scope) {
+        return String.format("gcv:%s-%s-%s:0", project.getGroup().toString(), project.getName(), scope.getName());
     }
 
     /**
@@ -396,10 +396,13 @@ public class VersionsLockPlugin implements Plugin<Project> {
     }
 
     /** Create a dependency to {@code toConfiguration}, where the latter should exist in the given {@code project}. */
-    private static Dependency createConfigurationDependencyWithScope(
-            Project project, Configuration toConfiguration, GcvScope scope) {
-        ModuleDependency dep = GradleWorkarounds.fixAttributesOfModuleDependency(
-                project.getObjects(), createConfigurationDependency(project, toConfiguration));
+    private static Dependency createConfigurationDependencyWithScope(Project project, GcvScope scope) {
+        ProjectDependency projectDependency = (ProjectDependency) project.getDependencies().create(project);
+        projectDependency.capabilities(moduleDependencyCapabilitiesHandler -> {
+            moduleDependencyCapabilitiesHandler.requireCapabilities(capabilityFor(project, scope));
+        });
+        ModuleDependency dep =
+                GradleWorkarounds.fixAttributesOfModuleDependency(project.getObjects(), projectDependency);
         dep.attributes(attr -> attr.attribute(GCV_SCOPE_ATTRIBUTE, scope));
         return dep;
     }
