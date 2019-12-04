@@ -52,6 +52,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.UUID;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -600,6 +601,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 GradleWorkarounds.fixAttributesOfModuleDependency(projectDep.getObjects(), externalDep);
                 externalDep.attributes(attr -> attr.attribute(GCV_SCOPE_ATTRIBUTE, scope));
             });
+            copiedConf.getOutgoing().capability(String.format("gcv:%s:0", UUID.randomUUID().toString()));
 
             projectDep.getConfigurations().add(copiedConf);
 
@@ -620,18 +622,31 @@ public class VersionsLockPlugin implements Plugin<Project> {
     }
 
     private static Configuration getTargetConfiguration(DependencySet depSet, ProjectDependency projectDependency) {
-        String targetConfiguration = Preconditions.checkNotNull(
-                projectDependency.getTargetConfiguration(),
-                "Expected dependency to have a targetConfiguration: %s",
-                formatProjectDependency(projectDependency));
-        Configuration targetConf =
-                projectDependency.getDependencyProject().getConfigurations().getByName(targetConfiguration);
-        Preconditions.checkNotNull(
-                targetConf,
-                "Target configuration of project dependency was null: %s -> %s",
-                depSet,
-                projectDependency.getDependencyProject());
-        return targetConf;
+        if (projectDependency.getTargetConfiguration() != null) {
+            Configuration targetConf = projectDependency
+                    .getDependencyProject()
+                    .getConfigurations()
+                    .getByName(projectDependency.getTargetConfiguration());
+            Preconditions.checkNotNull(
+                    targetConf,
+                    "Target configuration of project dependency was null: %s -> %s",
+                    depSet,
+                    projectDependency.getDependencyProject());
+            return targetConf;
+        }
+
+        Set<Configuration> confs = projectDependency.getDependencyProject().getConfigurations().stream()
+                .filter(conf ->
+                        conf.getOutgoing().getCapabilities().containsAll(projectDependency.getRequestedCapabilities()))
+                .collect(Collectors.toSet());
+
+        Preconditions.checkArgument(
+                confs.size() == 1,
+                "Expected to only find one target confiuration but found %s with names: %s",
+                confs.size(),
+                confs);
+
+        return confs.iterator().next();
     }
 
     private static String formatProjectDependency(ProjectDependency dep) {
