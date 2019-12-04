@@ -18,10 +18,13 @@ package com.palantir.gradle.versions
 
 import groovy.util.slurpersupport.GPathResult
 import groovy.util.slurpersupport.NodeChildren
+import spock.lang.Unroll
 
+@Unroll
 class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
-
     static def PLUGIN_NAME = "com.palantir.versions-props"
+
+    private static final List<String> GRADLE_VERSIONS = ['5.6.3', '6.0.1']
 
     void setup() {
         File mavenRepo = generateMavenRepo(
@@ -66,8 +69,10 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
         """.stripIndent()
     }
 
-    def 'star dependency constraint is injected for direct dependency'() {
+    def '#gradleVersionNumber: star dependency constraint is injected for direct dependency'() {
         setup:
+        gradleVersion = gradleVersionNumber
+
         file("versions.props") << """
             org.slf4j:* = 1.7.24
         """.stripIndent()
@@ -84,6 +89,9 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
 
         file("foo/gradle/dependency-locks/runtimeClasspath.lockfile").text
                 .contains("org.slf4j:slf4j-api:1.7.24")
+
+        where:
+        gradleVersionNumber = GRADLE_VERSIONS
     }
 
     def 'star dependency constraint is not forcefully downgraded for transitive dependency'() {
