@@ -20,7 +20,7 @@ import com.google.common.collect.ImmutableList;
 import java.util.List;
 
 public final class GradleTestVersions {
-    private GradleTestVersions() { }
+    private GradleTestVersions() {}
 
     public static final List<String> GRADLE_VERSIONS = ImmutableList.of("5.6.3", "6.0.1");
 }
