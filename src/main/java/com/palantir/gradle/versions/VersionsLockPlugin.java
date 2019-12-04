@@ -601,6 +601,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 GradleWorkarounds.fixAttributesOfModuleDependency(projectDep.getObjects(), externalDep);
                 externalDep.attributes(attr -> attr.attribute(GCV_SCOPE_ATTRIBUTE, scope));
             });
+            // To avoid capability based conflict detection between all these copied configurations, we give each
+            // of them a totally random capability
             copiedConf.getOutgoing().capability(String.format("gcv:%s:0", UUID.randomUUID().toString()));
 
             projectDep.getConfigurations().add(copiedConf);
