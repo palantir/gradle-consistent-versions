@@ -70,8 +70,9 @@ public class WhyDependencyTask extends DefaultTask {
                 .collect(Multimaps.toMultimap(Line::dependentsHash, Function.identity(), HashMultimap::create));
 
         if (!hashOption.isPresent()) {
-            Optional<String> example =
-                    lineByHash.keySet().stream().map(h -> ", e.g. './gradlew why --hash " + h + "'").findFirst();
+            Optional<String> example = lineByHash.keySet().stream()
+                    .map(h -> ", e.g. './gradlew why --hash " + h + "'")
+                    .findFirst();
             throw new RuntimeException(
                     "./gradlew why requires a '--hash <hash>' from versions.lock" + example.orElse(""));
         }

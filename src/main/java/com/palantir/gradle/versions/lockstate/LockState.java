@@ -41,7 +41,10 @@ public interface LockState extends Serializable {
 
     @Value.Lazy
     default List<Line> allLines() {
-        return ImmutableList.<Line>builder().addAll(productionLines()).addAll(testLines()).build();
+        return ImmutableList.<Line>builder()
+                .addAll(productionLines())
+                .addAll(testLines())
+                .build();
     }
 
     /** Mapping from {@code group:artifact} to the full line. */
