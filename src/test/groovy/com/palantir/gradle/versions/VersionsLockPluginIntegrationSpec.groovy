@@ -23,6 +23,7 @@ import nebula.test.dependencies.DependencyGraph
 import nebula.test.dependencies.GradleDependencyGenerator
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.TaskOutcome
+import org.gradle.util.GradleVersion
 import spock.lang.Unroll
 
 @Unroll
@@ -883,9 +884,11 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
             }
         """.stripIndent())
 
-        settingsFile << """
-            enableFeaturePreview('GRADLE_METADATA')
-        """.stripIndent()
+        if (GradleVersion.version(gradleVersionNumber) < GradleVersion.version("6.0")) {
+            settingsFile << """
+                enableFeaturePreview('GRADLE_METADATA')
+            """.stripIndent()
+        }
 
         runTasks('--write-locks')
 
