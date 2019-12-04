@@ -16,6 +16,8 @@
 
 package com.palantir.gradle.versions
 
+import static com.palantir.gradle.versions.GradleTestVersions.GRADLE_VERSIONS
+
 import groovy.util.slurpersupport.GPathResult
 import groovy.util.slurpersupport.NodeChildren
 import spock.lang.Unroll
@@ -24,9 +26,9 @@ import spock.lang.Unroll
 class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
     static def PLUGIN_NAME = "com.palantir.versions-props"
 
-    private static final List<String> GRADLE_VERSIONS = ['5.6.3', '6.0.1']
-
     void setup() {
+        System.setProperty("ignoreDeprecations", "true")
+
         File mavenRepo = generateMavenRepo(
                 "ch.qos.logback:logback-classic:1.2.3 -> org.slf4j:slf4j-api:1.7.25",
                 "ch.qos.logback:logback-classic:1.1.11 -> org.slf4j:slf4j-api:1.7.22",
@@ -94,8 +96,10 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
         gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    def 'star dependency constraint is not forcefully downgraded for transitive dependency'() {
+    def '#gradleVersionNumber: star dependency constraint is not forcefully downgraded for transitive dependency'() {
         setup:
+        gradleVersion = gradleVersionNumber
+
         file("versions.props") << """
             org.slf4j:* = 1.7.21
             ch.qos.logback:logback-classic = 1.1.11  # brings in slf4j-api 1.7.22
@@ -113,10 +117,15 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
 
         file("foo/gradle/dependency-locks/runtimeClasspath.lockfile").text
                 .contains("org.slf4j:slf4j-api:1.7.22")
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    def 'star dependency constraint upgrades transitive dependency'() {
+    def '#gradleVersionNumber: star dependency constraint upgrades transitive dependency'() {
         setup:
+        gradleVersion = gradleVersionNumber
+
         file("versions.props") << """
             org.slf4j:* = 1.7.25
             ch.qos.logback:logback-classic = 1.1.11  # brings in slf4j-api 1.7.22
@@ -134,9 +143,15 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
 
         file("foo/gradle/dependency-locks/runtimeClasspath.lockfile").text
                 .contains("org.slf4j:slf4j-api:1.7.25")
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    def 'imported platform generated correctly in pom'() {
+    def '#gradleVersionNumber: imported platform generated correctly in pom'() {
+        setup:
+        gradleVersion = gradleVersionNumber
+
         file("versions.props") << """
             org:platform = 1.0
             # This shouldn't end up in the POM
@@ -175,9 +190,15 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
                         type: 'pom'
                 ],
         ] as Set
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    def 'non-glob module forces do not get added to a matching platform too'() {
+    def '#gradleVersionNumber: non-glob module forces do not get added to a matching platform too'() {
+        setup:
+        gradleVersion = gradleVersionNumber
+
         buildFile << '''
             apply plugin: 'java'
             dependencies {
@@ -198,9 +219,15 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
                 'com.fasterxml.jackson.core:jackson-databind:2.9.0',
                 'com.fasterxml.jackson.core:jackson-annotations:2.9.7',
         ].each { lockLines.contains(it) }
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    def "throws if resolving configuration in afterEvaluate"() {
+    def "#gradleVersionNumber: throws if resolving configuration in afterEvaluate"() {
+        setup:
+        gradleVersion = gradleVersionNumber
+
         buildFile << '''
             configurations { foo }
             
@@ -213,9 +240,15 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
         expect:
         def e = runTasksAndFail()
         e.output.contains("Not allowed to resolve")
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    def "does not throw if excluded configuration is resolved early"() {
+    def "#gradleVersionNumber: does not throw if excluded configuration is resolved early"() {
+        setup:
+        gradleVersion = gradleVersionNumber
+
         buildFile << '''
             configurations { foo }
             
@@ -231,9 +264,15 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
 
         expect:
         runTasks()
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    def "creates rootConfiguration even if versions props file missing"() {
+    def "#gradleVersionNumber: creates rootConfiguration even if versions props file missing"() {
+        setup:
+        gradleVersion = gradleVersionNumber
+
         buildFile << """
             dependencies {
                 constraints {
@@ -245,6 +284,9 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
 
         expect:
         runTasks()
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
     }
 
     /**
