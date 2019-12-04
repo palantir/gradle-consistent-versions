@@ -520,7 +520,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 .filter(dep -> dep instanceof ProjectDependency)
                 .map(dependency -> {
                     ProjectDependency projectDependency = (ProjectDependency) dependency;
-                    return getTargetConfiguration(depSet, projectDependency);
+                    return findConfigurationUsingCapabilities(projectDependency);
                 })
                 .filter(conf -> conf.getName().equals(configurationName))
                 .collect(Collectors.toList());
@@ -624,19 +624,21 @@ public class VersionsLockPlugin implements Plugin<Project> {
     }
 
     private static Configuration getTargetConfiguration(DependencySet depSet, ProjectDependency projectDependency) {
-        if (projectDependency.getTargetConfiguration() != null) {
-            Configuration targetConf = projectDependency
-                    .getDependencyProject()
-                    .getConfigurations()
-                    .getByName(projectDependency.getTargetConfiguration());
-            Preconditions.checkNotNull(
-                    targetConf,
-                    "Target configuration of project dependency was null: %s -> %s",
-                    depSet,
-                    projectDependency.getDependencyProject());
-            return targetConf;
-        }
+        String targetConfiguration = Preconditions.checkNotNull(
+                projectDependency.getTargetConfiguration(),
+                "Expected dependency to have a targetConfiguration: %s",
+                formatProjectDependency(projectDependency));
+        Configuration targetConf =
+                projectDependency.getDependencyProject().getConfigurations().getByName(targetConfiguration);
+        Preconditions.checkNotNull(
+                targetConf,
+                "Target configuration of project dependency was null: %s -> %s",
+                depSet,
+                projectDependency.getDependencyProject());
+        return targetConf;
+    }
 
+    private static Configuration findConfigurationUsingCapabilities(ProjectDependency projectDependency) {
         Set<Configuration> confs = projectDependency.getDependencyProject().getConfigurations().stream()
                 .filter(conf ->
                         conf.getOutgoing().getCapabilities().containsAll(projectDependency.getRequestedCapabilities()))
@@ -644,11 +646,11 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
         Preconditions.checkArgument(
                 confs.size() == 1,
-                "Expected to only find one target confiuration but found %s with names: %s",
+                "Expected to only find one target configuration but found %s with names: %s",
                 confs.size(),
                 confs);
 
-        return confs.iterator().next();
+        return Iterables.getOnlyElement(confs);
     }
 
     private static String formatProjectDependency(ProjectDependency dep) {
