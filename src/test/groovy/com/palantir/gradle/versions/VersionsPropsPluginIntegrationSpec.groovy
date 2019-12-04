@@ -91,7 +91,7 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
                 .contains("org.slf4j:slf4j-api:1.7.24")
 
         where:
-        gradleVersionNumber = GRADLE_VERSIONS
+        gradleVersionNumber << GRADLE_VERSIONS
     }
 
     def 'star dependency constraint is not forcefully downgraded for transitive dependency'() {
