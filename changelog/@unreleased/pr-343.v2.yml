@@ -1,0 +1,6 @@
+type: fix
+fix:
+  description: '`gradle-consistent-versions` now supports Gradle 6.0. The minimum
+    required Gradle version has been raised to 5.3'
+  links:
+  - https://github.com/palantir/gradle-consistent-versions/pull/343
