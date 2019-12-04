@@ -351,27 +351,25 @@ public class VersionsLockPlugin implements Plugin<Project> {
             conf.getAttributes().attribute(GCV_USAGE_ATTRIBUTE, GcvUsage.GCV_SOURCE);
         });
 
-        project.getConfigurations()
-                .register(CONSISTENT_VERSIONS_PRODUCTION, conf -> {
-                    conf.setDescription("Outgoing configuration for production dependencies meant to be used by "
-                            + "consistent-versions");
-                    conf.setVisible(false); // needn't be visible from other projects
-                    conf.setCanBeConsumed(true);
-                    conf.setCanBeResolved(false);
-                    conf.getAttributes().attribute(Usage.USAGE_ATTRIBUTE, internalUsage);
-                    conf.getOutgoing().capability(capabilityFor(project, GcvScope.PRODUCTION));
-                });
+        project.getConfigurations().register(CONSISTENT_VERSIONS_PRODUCTION, conf -> {
+            conf.setDescription(
+                    "Outgoing configuration for production dependencies meant to be used by " + "consistent-versions");
+            conf.setVisible(false); // needn't be visible from other projects
+            conf.setCanBeConsumed(true);
+            conf.setCanBeResolved(false);
+            conf.getAttributes().attribute(Usage.USAGE_ATTRIBUTE, internalUsage);
+            conf.getOutgoing().capability(capabilityFor(project, GcvScope.PRODUCTION));
+        });
 
-        project.getConfigurations()
-                .register(CONSISTENT_VERSIONS_TEST, conf -> {
-                    conf.setDescription("Outgoing configuration for test dependencies meant to be used by "
-                            + "consistent-versions");
-                    conf.setVisible(false); // needn't be visible from other projects
-                    conf.setCanBeConsumed(true);
-                    conf.setCanBeResolved(false);
-                    conf.getAttributes().attribute(Usage.USAGE_ATTRIBUTE, internalUsage);
-                    conf.getOutgoing().capability(capabilityFor(project, GcvScope.TEST));
-                });
+        project.getConfigurations().register(CONSISTENT_VERSIONS_TEST, conf -> {
+            conf.setDescription(
+                    "Outgoing configuration for test dependencies meant to be used by " + "consistent-versions");
+            conf.setVisible(false); // needn't be visible from other projects
+            conf.setCanBeConsumed(true);
+            conf.setCanBeResolved(false);
+            conf.getAttributes().attribute(Usage.USAGE_ATTRIBUTE, internalUsage);
+            conf.getOutgoing().capability(capabilityFor(project, GcvScope.TEST));
+        });
 
         unifiedClasspath.getDependencies().add(createConfigurationDependencyWithScope(project, GcvScope.PRODUCTION));
         unifiedClasspath.getDependencies().add(createConfigurationDependencyWithScope(project, GcvScope.TEST));
