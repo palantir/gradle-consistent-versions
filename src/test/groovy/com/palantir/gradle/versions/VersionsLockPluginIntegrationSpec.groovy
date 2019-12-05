@@ -958,4 +958,27 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         where:
         gradleVersionNumber << GRADLE_VERSIONS
     }
+
+    def "#gradleVersionNumber: direct test dependency that is also a production transitive ends up in production"() {
+        gradleVersion = gradleVersionNumber
+
+        buildFile << """
+            apply plugin: 'java'
+            dependencies {
+                implementation 'ch.qos.logback:logback-classic:1.2.3'
+                testImplementation 'org.slf4j:slf4j-api:1.7.25'
+            }
+        """.stripIndent()
+
+        expect:
+        runTasks("--write-locks")
+        file('versions.lock').text == """\
+            # Run ./gradlew --write-locks to regenerate this file
+            ch.qos.logback:logback-classic:1.2.3 (1 constraints: 0805f935)
+            org.slf4j:slf4j-api:1.7.25 (2 constraints: 8012a437)
+        """.stripIndent()
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
+    }
 }
