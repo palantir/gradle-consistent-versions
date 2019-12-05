@@ -85,9 +85,10 @@ public class FixLegacyJavaConfigurationsPlugin implements Plugin<Project> {
                 // don't interfere with the way forces trump everything
                 for (ModuleVersionSelector force : conf.getResolutionStrategy().getForcedModules()) {
                     if (requested.getGroup().equals(force.getGroup()) && requested.getName().equals(force.getName())) {
-                        details.because(String.format(
-                                "Would have recommended a version for %s:%s, but a force is in place",
-                                requested.getGroup(), requested.getName()));
+                        details.because(
+                                String.format(
+                                        "Would have recommended a version for %s:%s, but a force is in place",
+                                        requested.getGroup(), requested.getName()));
                         return;
                     }
                 }

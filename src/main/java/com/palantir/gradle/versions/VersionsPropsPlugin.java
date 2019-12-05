@@ -159,12 +159,13 @@ public class VersionsPropsPlugin implements Plugin<Project> {
             // Add fail-safe error reporting
             conf.getIncoming().beforeResolve(resolvableDependencies -> {
                 if (GradleWorkarounds.isConfiguring(subproject.getState())) {
-                    throw new GradleException(String.format(
-                            "Not allowed to resolve %s at "
-                                    + "configuration time (https://guides.gradle.org/performance/"
-                                    + "#don_t_resolve_dependencies_at_configuration_time). Please upgrade your "
-                                    + "plugins and double-check your gradle scripts (see stacktrace)",
-                            conf));
+                    throw new GradleException(
+                            String.format(
+                                    "Not allowed to resolve %s at "
+                                            + "configuration time (https://guides.gradle.org/performance/"
+                                            + "#don_t_resolve_dependencies_at_configuration_time). Please upgrade your "
+                                            + "plugins and double-check your gradle scripts (see stacktrace)",
+                                    conf));
                 }
             });
         });
@@ -189,8 +190,8 @@ public class VersionsPropsPlugin implements Plugin<Project> {
     private static Provider<List<Dependency>> extractPlatformDependencies(
             Project project, Configuration rootConfiguration) {
         ListProperty<Dependency> proxiedDependencies = project.getObjects().listProperty(Dependency.class);
-        proxiedDependencies.addAll(project.provider(
-                () -> rootConfiguration.getDependencies().withType(ModuleDependency.class).matching(dep ->
+        proxiedDependencies.addAll(project.provider(() ->
+                rootConfiguration.getDependencies().withType(ModuleDependency.class).matching(dep ->
                         GradleWorkarounds.isPlatform(dep.getAttributes()))));
         return GradleWorkarounds.fixListProperty(proxiedDependencies);
     }
