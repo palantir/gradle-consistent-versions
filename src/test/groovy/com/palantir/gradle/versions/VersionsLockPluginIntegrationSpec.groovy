@@ -16,8 +16,6 @@
 
 package com.palantir.gradle.versions
 
-import static com.palantir.gradle.versions.GradleTestVersions.GRADLE_VERSIONS
-
 import com.fasterxml.jackson.databind.ObjectMapper
 import nebula.test.dependencies.DependencyGraph
 import nebula.test.dependencies.GradleDependencyGenerator
@@ -25,6 +23,8 @@ import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.TaskOutcome
 import org.gradle.util.GradleVersion
 import spock.lang.Unroll
+
+import static com.palantir.gradle.versions.GradleTestVersions.GRADLE_VERSIONS
 
 @Unroll
 class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
@@ -937,6 +937,23 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                         dependencies: [junitDep],
                         dependencyConstraints: [junitDep]),
         ] as Set
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
+    }
+
+    def "#gradleVersionNumber: can depend on artifact"() {
+        gradleVersion = gradleVersionNumber
+
+        buildFile << """
+            apply plugin: 'java'
+            dependencies {
+                implementation "junit:junit:4.10@zip"
+            }
+        """.stripIndent()
+
+        expect:
+        runTasks("--write-locks")
 
         where:
         gradleVersionNumber << GRADLE_VERSIONS
