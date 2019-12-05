@@ -76,6 +76,7 @@ import org.gradle.api.artifacts.VersionConstraint;
 import org.gradle.api.artifacts.component.ComponentSelector;
 import org.gradle.api.artifacts.component.ModuleComponentIdentifier;
 import org.gradle.api.artifacts.component.ModuleComponentSelector;
+import org.gradle.api.artifacts.component.ProjectComponentIdentifier;
 import org.gradle.api.artifacts.dsl.DependencyConstraintHandler;
 import org.gradle.api.artifacts.result.ResolutionResult;
 import org.gradle.api.artifacts.result.ResolvedComponentResult;
@@ -721,7 +722,10 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 .map(dependent -> {
                     ModuleIdentifier requestedModule =
                             ((ModuleComponentSelector) dependent.getRequested()).getModuleIdentifier();
-                    if (edgeScopes.containsKey(requestedModule)) {
+                    // If the dependency came from a project, then the requested ModuleIdentifier should be in the
+                    // edgeScopes. Otherwise, recurse until we find a project dependent.
+                    if (dependent.getFrom().getId() instanceof ProjectComponentIdentifier
+                            && edgeScopes.containsKey(requestedModule)) {
                         return edgeScopes.get(requestedModule);
                     }
                     return getScopeRecursively(dependent.getFrom(), scopeCache, edgeScopes);
