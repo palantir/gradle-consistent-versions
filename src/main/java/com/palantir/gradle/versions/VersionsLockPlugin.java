@@ -69,7 +69,6 @@ import org.gradle.api.artifacts.Dependency;
 import org.gradle.api.artifacts.DependencyConstraint;
 import org.gradle.api.artifacts.DependencySet;
 import org.gradle.api.artifacts.ExternalModuleDependency;
-import org.gradle.api.artifacts.ModuleDependency;
 import org.gradle.api.artifacts.ModuleIdentifier;
 import org.gradle.api.artifacts.ModuleVersionIdentifier;
 import org.gradle.api.artifacts.ProjectDependency;
@@ -362,8 +361,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
         });
 
         project.getConfigurations().register(CONSISTENT_VERSIONS_TEST, conf -> {
-            conf.setDescription(
-                    "Outgoing configuration for test dependencies meant to be used by consistent-versions");
+            conf.setDescription("Outgoing configuration for test dependencies meant to be used by consistent-versions");
             conf.setVisible(false); // needn't be visible from other projects
             conf.setCanBeConsumed(true);
             conf.setCanBeResolved(false);
@@ -371,8 +369,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
             conf.getOutgoing().capability(capabilityFor(project, GcvScope.TEST));
         });
 
-        unifiedClasspath.getDependencies().add(createConfigurationDependencyWithScope(project, GcvScope.PRODUCTION));
-        unifiedClasspath.getDependencies().add(createConfigurationDependencyWithScope(project, GcvScope.TEST));
+        unifiedClasspath.getDependencies().add(createDependencyOnProjectWithScope(project, GcvScope.PRODUCTION));
+        unifiedClasspath.getDependencies().add(createDependencyOnProjectWithScope(project, GcvScope.TEST));
     }
 
     private static String capabilityFor(Project project, GcvScope scope) {
@@ -395,15 +393,12 @@ public class VersionsLockPlugin implements Plugin<Project> {
     }
 
     /** Create a dependency to {@code toConfiguration}, where the latter should exist in the given {@code project}. */
-    private static Dependency createConfigurationDependencyWithScope(Project project, GcvScope scope) {
+    private static Dependency createDependencyOnProjectWithScope(Project project, GcvScope scope) {
         ProjectDependency projectDependency = (ProjectDependency) project.getDependencies().create(project);
-        projectDependency.capabilities(moduleDependencyCapabilitiesHandler -> {
-            moduleDependencyCapabilitiesHandler.requireCapabilities(capabilityFor(project, scope));
-        });
-        ModuleDependency dep =
-                GradleWorkarounds.fixAttributesOfModuleDependency(project.getObjects(), projectDependency);
-        dep.attributes(attr -> attr.attribute(GCV_SCOPE_ATTRIBUTE, scope));
-        return dep;
+        projectDependency.capabilities(moduleDependencyCapabilitiesHandler ->
+                moduleDependencyCapabilitiesHandler.requireCapabilities(capabilityFor(project, scope)));
+        projectDependency.attributes(attr -> attr.attribute(GCV_SCOPE_ATTRIBUTE, scope));
+        return projectDependency;
     }
 
     private static void checkPreconditions(Project project) {
