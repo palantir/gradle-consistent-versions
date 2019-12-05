@@ -353,7 +353,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
         project.getConfigurations().register(CONSISTENT_VERSIONS_PRODUCTION, conf -> {
             conf.setDescription(
-                    "Outgoing configuration for production dependencies meant to be used by " + "consistent-versions");
+                    "Outgoing configuration for production dependencies meant to be used by consistent-versions");
             conf.setVisible(false); // needn't be visible from other projects
             conf.setCanBeConsumed(true);
             conf.setCanBeResolved(false);
@@ -363,7 +363,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
         project.getConfigurations().register(CONSISTENT_VERSIONS_TEST, conf -> {
             conf.setDescription(
-                    "Outgoing configuration for test dependencies meant to be used by " + "consistent-versions");
+                    "Outgoing configuration for test dependencies meant to be used by consistent-versions");
             conf.setVisible(false); // needn't be visible from other projects
             conf.setCanBeConsumed(true);
             conf.setCanBeResolved(false);
