@@ -1,0 +1,6 @@
+type: fix
+fix:
+  description: Fix bug in 1.13.0 with Gradle 6 where it would crash if you had dependencies
+    with an explicit extension/classifier anywhere in your locked configurations.
+  links:
+  - https://github.com/palantir/gradle-consistent-versions/pull/347

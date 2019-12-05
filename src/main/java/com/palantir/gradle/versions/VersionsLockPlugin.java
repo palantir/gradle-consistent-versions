@@ -71,9 +71,7 @@ import org.gradle.api.artifacts.ExternalModuleDependency;
 import org.gradle.api.artifacts.ModuleIdentifier;
 import org.gradle.api.artifacts.ModuleVersionIdentifier;
 import org.gradle.api.artifacts.ProjectDependency;
-import org.gradle.api.artifacts.ResolvableDependencies;
 import org.gradle.api.artifacts.VersionConstraint;
-import org.gradle.api.artifacts.component.ComponentIdentifier;
 import org.gradle.api.artifacts.component.ComponentSelector;
 import org.gradle.api.artifacts.component.ModuleComponentIdentifier;
 import org.gradle.api.artifacts.component.ModuleComponentSelector;
@@ -94,6 +92,7 @@ import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.plugins.JavaPluginConvention;
 import org.gradle.api.provider.ListProperty;
+import org.gradle.api.provider.Property;
 import org.gradle.api.publish.PublishingExtension;
 import org.gradle.api.publish.maven.MavenPublication;
 import org.gradle.api.publish.maven.tasks.GenerateMavenPom;
@@ -156,7 +155,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
         }
     }
 
-    private static final Comparator<GcvScope> GCV_SCOPE_COMPARATOR = Comparator.comparing(scope -> {
+    static final Comparator<GcvScope> GCV_SCOPE_COMPARATOR = Comparator.comparing(scope -> {
         // Production takes priority over test when it comes to provenance.
         switch (scope) {
             case PRODUCTION:
@@ -166,9 +165,6 @@ public class VersionsLockPlugin implements Plugin<Project> {
         }
         throw new RuntimeException("Unexpected GcvScope: " + scope);
     });
-
-    private static final Attribute<String> GCV_SCOPE_RESOLUTION_ATTRIBUTE =
-            Attribute.of("com.palantir.consistent-versions.scope", String.class);
 
     private final ShowStacktrace showStacktrace;
 
@@ -225,54 +221,44 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
         Path rootLockfile = getRootLockFile(project);
 
-        Supplier<FullLockState> fullLockStateSupplier = Suppliers.memoize(() -> {
-            ResolutionResult resolutionResult = unifiedClasspath.getIncoming().getResolutionResult();
-            // Throw if there are dependencies that are not present in the lock state.
-            failIfAnyDependenciesUnresolved(resolutionResult);
-            return computeLockState(resolutionResult);
-        });
+        Property<FullLockState> fullLockStateProperty = project.getObjects().property(FullLockState.class);
 
         // We apply 'java-base' because we need the JavaEcosystemVariantDerivationStrategy for platforms to work
         // (but that's internal)
         project.getPluginManager().apply("java-base");
 
-        if (project.getGradle().getStartParameter().isWriteDependencyLocks()) {
-            // If you only run ':subproject:resolveConfigurations --write-locks', gradle wouldn't resolve the root
-            // unifiedClasspath configuration, which would behave differently than if we ran 'resolveConfigurations'.
-            // Workaround is we always force the 'unifiedClasspath' to be resolved.
+        // afterEvaluate is necessary to ensure all projects' dependencies have been configured, because we
+        // need to copy them eagerly before we add the constraints from the lock file.
+        //
+        // Note: we don't use project.getGradle().projectsEvaluated() as gradle warns us against resolving the
+        // configuration at that point. See
+        // https://docs.gradle.org/5.1/userguide/troubleshooting_dependency_resolution.html#sub:configuration_resolution_constraints
+        // Also, IntelliJ's [gradle import action][1] happens BEFORE that, and will thus resolve the locked
+        // configurations before we get a change to add constraints to them.
+        //
+        // [1]:https://github.com/JetBrains/intellij-community/commit/f394c51cff59c69bbaf63a8bf67cefbad9e357aa#diff-04b9936e4249a0f5727414555b76c4b9R123
+        project.afterEvaluate(p -> {
+            p.getSubprojects().forEach(subproject -> p.evaluationDependsOn(subproject.getPath()));
 
-            // Note: we don't use project.getGradle().projectsEvaluated() as gradle warns us against resolving the
-            // configuration at that point. See
-            // https://docs.gradle.org/5.1/userguide/troubleshooting_dependency_resolution.html#sub:configuration_resolution_constraints
-            project.afterEvaluate(p -> {
-                p.getSubprojects().forEach(subproject -> p.evaluationDependsOn(subproject.getPath()));
-                ResolvableDependencies incoming = unifiedClasspath.getIncoming();
+            // Recursively copy all project dependencies, so that the constraints we add below won't affect the
+            // resolution of unifiedClasspath.
+            Map<Project, LockedConfigurations> lockedConfigurations = wireUpLockedConfigurationsByProject(project);
+            DirectDependencyScopes directDependencyScopes =
+                    recursivelyCopyProjectDependencies(project, unifiedClasspath.getIncoming().getDependencies());
 
-                Map<Project, LockedConfigurations> lockedConfigurations = wireUpLockedConfigurationsByProject(project);
-                recursivelyCopyProjectDependencies(project, incoming.getDependencies());
+            Supplier<FullLockState> fullLockStateSupplier = Suppliers.memoize(() -> {
+                ResolutionResult resolutionResult = unifiedClasspath.getIncoming().getResolutionResult();
+                // Throw if there are dependencies that are not present in the lock state.
+                failIfAnyDependenciesUnresolved(resolutionResult);
+                return computeLockState(resolutionResult, directDependencyScopes);
+            });
+            fullLockStateProperty.set(project.provider(fullLockStateSupplier::get));
+
+            if (project.getGradle().getStartParameter().isWriteDependencyLocks()) {
                 // Triggers evaluation of unifiedClasspath
                 new ConflictSafeLockFile(rootLockfile).writeLocks(fullLockStateSupplier.get());
                 log.lifecycle("Finished writing lock state to {}", rootLockfile);
-                configureAllProjectsUsingConstraints(project, rootLockfile, lockedConfigurations);
-            });
-        } else {
-            // afterEvaluate is necessary to ensure all projects' dependencies have been configured, because we
-            // need to copy them eagerly before we add the constraints from the lock file.
-
-            // Note: do not use Gradle.projectsEvaluated here, as IntelliJ's [gradle import action][1] happens BEFORE
-            // that, and will thus resolve the locked configurations before we get a change to add constraints to them.
-            // [1]:
-            // https://github.com/JetBrains/intellij-community/commit/f394c51cff59c69bbaf63a8bf67cefbad9e357aa#diff-04b9936e4249a0f5727414555b76c4b9R123
-            project.afterEvaluate(g -> {
-                // Ensure all other projects have been resolved before.
-                // This is so that plugins that configure subprojects (gradle-conjure) continue to work.
-                project.getSubprojects().forEach(subproject -> project.evaluationDependsOn(subproject.getPath()));
-
-                // Recursively copy all project dependencies, so that the constraints we add below won't affect the
-                // resolution of unifiedClasspath.
-                Map<Project, LockedConfigurations> lockedConfigurations = wireUpLockedConfigurationsByProject(project);
-                recursivelyCopyProjectDependencies(project, unifiedClasspath.getIncoming().getDependencies());
-
+            } else {
                 if (isIgnoreLockFile(project)) {
                     log.lifecycle("Ignoring lock file for debugging, because the 'ignoreLockFile' property was set");
                     return;
@@ -285,13 +271,13 @@ public class VersionsLockPlugin implements Plugin<Project> {
                                             + "`./gradlew --write-locks` to initialise locks",
                                     rootLockfile));
                 }
+            }
 
-                configureAllProjectsUsingConstraints(project, rootLockfile, lockedConfigurations);
-            });
-        }
+            configureAllProjectsUsingConstraints(project, rootLockfile, lockedConfigurations);
+        });
 
         TaskProvider verifyLocks = project.getTasks().register("verifyLocks", VerifyLocksTask.class, task -> {
-            task.getCurrentLockState().set(project.provider(() -> LockStates.toLockState(fullLockStateSupplier.get())));
+            task.getCurrentLockState().set(fullLockStateProperty.map(LockStates::toLockState));
             task.getPersistedLockState()
                     .set(project.provider(() -> new ConflictSafeLockFile(rootLockfile).readLocks()));
         });
@@ -299,7 +285,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
         project.getTasks().register("why", WhyDependencyTask.class, t -> {
             t.lockfile(rootLockfile);
-            t.fullLockState(project.provider(fullLockStateSupplier::get));
+            t.fullLockState(fullLockStateProperty);
         });
     }
 
@@ -496,21 +482,27 @@ public class VersionsLockPlugin implements Plugin<Project> {
      * <p>Since we can't apply these constraints to the already resolved configurations, we need a workaround to ensure
      * that unifiedClasspath does not directly depend on subproject configurations that we intend to enforce constraints
      * on.
+     *
+     * @return a Map from each {@link ModuleIdentifier external module} that was being directly depend on (from some
+     *     locked configuration) to the {@link GcvScope} we attributed to it.
      */
-    private void recursivelyCopyProjectDependencies(Project project, DependencySet depSet) {
+    private DirectDependencyScopes recursivelyCopyProjectDependencies(Project project, DependencySet depSet) {
         Preconditions.checkState(
                 project.getState().getExecuted(),
                 "recursivelyCopyProjectDependenciesWithScope should be called in afterEvaluate");
 
         Map<Configuration, String> copiedConfigurationsCache = new HashMap<>();
+        DirectDependencyScopes.Builder scopes = new DirectDependencyScopes.Builder();
 
         findProjectDependencyWithTargetConfigurationName(depSet, CONSISTENT_VERSIONS_PRODUCTION).forEach(conf ->
                 recursivelyCopyProjectDependenciesWithScope(
-                        project, conf.getDependencies(), copiedConfigurationsCache, GcvScope.PRODUCTION));
+                        project, conf.getDependencies(), copiedConfigurationsCache, scopes, GcvScope.PRODUCTION));
 
         findProjectDependencyWithTargetConfigurationName(depSet, CONSISTENT_VERSIONS_TEST).forEach(conf ->
                 recursivelyCopyProjectDependenciesWithScope(
-                        project, conf.getDependencies(), copiedConfigurationsCache, GcvScope.TEST));
+                        project, conf.getDependencies(), copiedConfigurationsCache, scopes, GcvScope.TEST));
+
+        return scopes.build();
     }
 
     private static List<Configuration> findProjectDependencyWithTargetConfigurationName(
@@ -534,6 +526,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
             Project currentProject,
             DependencySet dependencySet,
             Map<Configuration, String> copiedConfigurationsCache,
+            DirectDependencyScopes.Builder dependencyScopes,
             GcvScope scope) {
         dependencySet.withType(ProjectDependency.class).all(projectDependency -> {
             Project projectDep = projectDependency.getDependencyProject();
@@ -597,10 +590,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
             // CONSISTENT_VERSIONS_TEST), we shouldn't allow them to be visible outside this project.
             copiedConf.setVisible(false);
             // This is so we can get back the scope from the ResolutionResult.
-            copiedConf.getDependencies().withType(ExternalModuleDependency.class).all(externalDep -> {
-                GradleWorkarounds.fixAttributesOfModuleDependency(projectDep.getObjects(), externalDep);
-                externalDep.attributes(attr -> attr.attribute(GCV_SCOPE_ATTRIBUTE, scope));
-            });
+            copiedConf.getDependencies().withType(ExternalModuleDependency.class).all(externalDep ->
+                    dependencyScopes.record(externalDep.getModule(), scope));
             // To avoid capability based conflict detection between all these copied configurations (where they
             // conflict as each has no capabilities), we give each of them a capability
             copiedConf
@@ -618,7 +609,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
             projectDependency.setTargetConfiguration(copiedConf.getName());
 
             recursivelyCopyProjectDependenciesWithScope(
-                    projectDep, copiedConf.getDependencies(), copiedConfigurationsCache, scope);
+                    projectDep, copiedConf.getDependencies(), copiedConfigurationsCache, dependencyScopes, scope);
         });
     }
 
@@ -699,15 +690,19 @@ public class VersionsLockPlugin implements Plugin<Project> {
     /**
      * Assumes the resolution result succeeded, that is, {@link #failIfAnyDependenciesUnresolved} was run and didn't
      * throw.
+     *
+     * @param directDependencyScopes the scope that we've attributed to each {@link ModuleIdentifier external module}
+     *     that was being directly depend on (from some locked configuration).
      */
-    private static FullLockState computeLockState(ResolutionResult resolutionResult) {
+    private static FullLockState computeLockState(
+            ResolutionResult resolutionResult, DirectDependencyScopes directDependencyScopes) {
         Map<ResolvedComponentResult, GcvScope> scopeCache = new HashMap<>();
 
         FullLockState.Builder builder = FullLockState.builder();
         resolutionResult.getAllComponents().stream()
                 .filter(component -> component.getId() instanceof ModuleComponentIdentifier)
                 .forEach(component -> {
-                    GcvScope scope = getScopeRecursively(component, scopeCache);
+                    GcvScope scope = getScopeRecursively(component, scopeCache, directDependencyScopes);
                     switch (scope) {
                         case PRODUCTION:
                             builder.putProductionDeps(
@@ -728,7 +723,9 @@ public class VersionsLockPlugin implements Plugin<Project> {
     }
 
     private static GcvScope getScopeRecursively(
-            ResolvedComponentResult component, Map<ResolvedComponentResult, GcvScope> scopeCache) {
+            ResolvedComponentResult component,
+            Map<ResolvedComponentResult, GcvScope> scopeCache,
+            DirectDependencyScopes directDependencyScopes) {
         Optional<GcvScope> cached = Optional.ofNullable(scopeCache.get(component));
         if (cached.isPresent()) {
             return cached.get();
@@ -736,14 +733,17 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
         GcvScope gcvScope = component.getDependents().stream()
                 .filter(dep -> !dep.isConstraint())
-                .flatMap(dependent -> {
-                    ComponentIdentifier id = dependent.getFrom().getId();
-                    if (id instanceof ProjectComponentIdentifier) {
-                        String maybeScope =
-                                dependent.getRequested().getAttributes().getAttribute(GCV_SCOPE_RESOLUTION_ATTRIBUTE);
-                        return Streams.stream(Optional.ofNullable(maybeScope).map(GcvScope::valueOf));
+                .filter(dep -> dep.getRequested() instanceof ModuleComponentSelector)
+                .map(dependent -> {
+                    ModuleIdentifier requestedModule =
+                            ((ModuleComponentSelector) dependent.getRequested()).getModuleIdentifier();
+                    // If the dependency came from a project, then the requested ModuleIdentifier should be in the
+                    // edgeScopes. Otherwise, recurse until we find a project dependent.
+                    Optional<GcvScope> maybeScope = directDependencyScopes.getScopeFor(requestedModule);
+                    if (dependent.getFrom().getId() instanceof ProjectComponentIdentifier && maybeScope.isPresent()) {
+                        return maybeScope.get();
                     }
-                    return Stream.of(getScopeRecursively(dependent.getFrom(), scopeCache));
+                    return getScopeRecursively(dependent.getFrom(), scopeCache, directDependencyScopes);
                 })
                 .min(GCV_SCOPE_COMPARATOR)
                 .orElseThrow(() -> new RuntimeException("Couldn't determine scope for dependency: " + component));

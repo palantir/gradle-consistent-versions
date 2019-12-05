@@ -16,8 +16,6 @@
 
 package com.palantir.gradle.versions
 
-import static com.palantir.gradle.versions.GradleTestVersions.GRADLE_VERSIONS
-
 import com.fasterxml.jackson.databind.ObjectMapper
 import nebula.test.dependencies.DependencyGraph
 import nebula.test.dependencies.GradleDependencyGenerator
@@ -25,6 +23,8 @@ import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.TaskOutcome
 import org.gradle.util.GradleVersion
 import spock.lang.Unroll
+
+import static com.palantir.gradle.versions.GradleTestVersions.GRADLE_VERSIONS
 
 @Unroll
 class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
@@ -937,6 +937,46 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                         dependencies: [junitDep],
                         dependencyConstraints: [junitDep]),
         ] as Set
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
+    }
+
+    def "#gradleVersionNumber: can depend on artifact"() {
+        gradleVersion = gradleVersionNumber
+
+        buildFile << """
+            apply plugin: 'java'
+            dependencies {
+                implementation "junit:junit:4.10@zip"
+            }
+        """.stripIndent()
+
+        expect:
+        runTasks("--write-locks")
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
+    }
+
+    def "#gradleVersionNumber: direct test dependency that is also a production transitive ends up in production"() {
+        gradleVersion = gradleVersionNumber
+
+        buildFile << """
+            apply plugin: 'java'
+            dependencies {
+                implementation 'ch.qos.logback:logback-classic:1.2.3'
+                testImplementation 'org.slf4j:slf4j-api:1.7.25'
+            }
+        """.stripIndent()
+
+        expect:
+        runTasks("--write-locks")
+        file('versions.lock').text == """\
+            # Run ./gradlew --write-locks to regenerate this file
+            ch.qos.logback:logback-classic:1.2.3 (1 constraints: 0805f935)
+            org.slf4j:slf4j-api:1.7.25 (2 constraints: 8012a437)
+        """.stripIndent()
 
         where:
         gradleVersionNumber << GRADLE_VERSIONS
