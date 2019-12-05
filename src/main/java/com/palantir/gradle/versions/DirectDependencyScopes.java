@@ -25,10 +25,10 @@ import java.util.stream.Stream;
 import org.gradle.api.artifacts.ModuleIdentifier;
 
 /** Keeps track of the {@link GcvScope} of direct dependencies. */
-public final class DirectDependencyScopeMap {
+public final class DirectDependencyScopes {
     private final ImmutableMap<ModuleIdentifier, GcvScope> map;
 
-    private DirectDependencyScopeMap(Map<ModuleIdentifier, GcvScope> map) {
+    private DirectDependencyScopes(Map<ModuleIdentifier, GcvScope> map) {
         this.map = ImmutableMap.copyOf(map);
     }
 
@@ -43,8 +43,8 @@ public final class DirectDependencyScopeMap {
     public static final class Builder {
         private final Map<ModuleIdentifier, GcvScope> map = new HashMap<>();
 
-        public DirectDependencyScopeMap build() {
-            return new DirectDependencyScopeMap(map);
+        public DirectDependencyScopes build() {
+            return new DirectDependencyScopes(map);
         }
 
         public void record(ModuleIdentifier module, GcvScope scope) {

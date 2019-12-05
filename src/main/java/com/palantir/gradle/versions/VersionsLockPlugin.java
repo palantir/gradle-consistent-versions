@@ -243,7 +243,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
             // Recursively copy all project dependencies, so that the constraints we add below won't affect the
             // resolution of unifiedClasspath.
             Map<Project, LockedConfigurations> lockedConfigurations = wireUpLockedConfigurationsByProject(project);
-            DirectDependencyScopeMap directDependencyScopes =
+            DirectDependencyScopes directDependencyScopes =
                     recursivelyCopyProjectDependencies(project, unifiedClasspath.getIncoming().getDependencies());
 
             Supplier<FullLockState> fullLockStateSupplier = Suppliers.memoize(() -> {
@@ -479,13 +479,13 @@ public class VersionsLockPlugin implements Plugin<Project> {
      * @return a Map from each {@link ModuleIdentifier external module} that was being directly depend on (from some
      *     locked configuration) to the {@link GcvScope} we attributed to it.
      */
-    private DirectDependencyScopeMap recursivelyCopyProjectDependencies(Project project, DependencySet depSet) {
+    private DirectDependencyScopes recursivelyCopyProjectDependencies(Project project, DependencySet depSet) {
         Preconditions.checkState(
                 project.getState().getExecuted(),
                 "recursivelyCopyProjectDependenciesWithScope should be called in afterEvaluate");
 
         Map<Configuration, String> copiedConfigurationsCache = new HashMap<>();
-        DirectDependencyScopeMap.Builder scopes = new DirectDependencyScopeMap.Builder();
+        DirectDependencyScopes.Builder scopes = new DirectDependencyScopes.Builder();
 
         findProjectDependencyWithTargetConfigurationName(depSet, CONSISTENT_VERSIONS_PRODUCTION).forEach(conf ->
                 recursivelyCopyProjectDependenciesWithScope(
@@ -519,7 +519,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
             Project currentProject,
             DependencySet dependencySet,
             Map<Configuration, String> copiedConfigurationsCache,
-            DirectDependencyScopeMap.Builder scopes,
+            DirectDependencyScopes.Builder dependencyScopes,
             GcvScope scope) {
         dependencySet.withType(ProjectDependency.class).all(projectDependency -> {
             Project projectDep = projectDependency.getDependencyProject();
@@ -583,7 +583,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
             copiedConf.setVisible(false);
             // This is so we can get back the scope from the ResolutionResult.
             copiedConf.getDependencies().withType(ExternalModuleDependency.class).all(externalDep ->
-                    scopes.record(externalDep.getModule(), scope));
+                    dependencyScopes.record(externalDep.getModule(), scope));
             // To avoid capability based conflict detection between all these copied configurations (where they
             // conflict as each has no capabilities), we give each of them a capability
             copiedConf.getOutgoing().capability(String.format(
@@ -595,7 +595,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
             projectDependency.setTargetConfiguration(copiedConf.getName());
 
             recursivelyCopyProjectDependenciesWithScope(
-                    projectDep, copiedConf.getDependencies(), copiedConfigurationsCache, scopes, scope);
+                    projectDep, copiedConf.getDependencies(), copiedConfigurationsCache, dependencyScopes, scope);
         });
     }
 
@@ -678,7 +678,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
      *     that was being directly depend on (from some locked configuration).
      */
     private static FullLockState computeLockState(
-            ResolutionResult resolutionResult, DirectDependencyScopeMap directDependencyScopes) {
+            ResolutionResult resolutionResult, DirectDependencyScopes directDependencyScopes) {
         Map<ResolvedComponentResult, GcvScope> scopeCache = new HashMap<>();
 
         FullLockState.Builder builder = FullLockState.builder();
@@ -707,7 +707,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
     private static GcvScope getScopeRecursively(
             ResolvedComponentResult component,
             Map<ResolvedComponentResult, GcvScope> scopeCache,
-            DirectDependencyScopeMap directDependencyScopes) {
+            DirectDependencyScopes directDependencyScopes) {
         Optional<GcvScope> cached = Optional.ofNullable(scopeCache.get(component));
         if (cached.isPresent()) {
             return cached.get();
