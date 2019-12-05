@@ -67,7 +67,7 @@ public final class VersionsProps {
                 fuzzyResolver.exactMatches().stream().map(key -> key + ":" + versions.get(key)).map(handler::create),
                 patternToPlatform.entrySet().stream()
                         .map(entry -> entry.getValue() + ":" + versions.get(entry.getKey()))
-                        .map(handler::platform));
+                        .map(handler::create));
     }
 
     /**

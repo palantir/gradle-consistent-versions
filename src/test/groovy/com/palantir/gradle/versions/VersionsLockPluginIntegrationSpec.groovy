@@ -16,12 +16,17 @@
 
 package com.palantir.gradle.versions
 
+import static com.palantir.gradle.versions.GradleTestVersions.GRADLE_VERSIONS
+
 import com.fasterxml.jackson.databind.ObjectMapper
 import nebula.test.dependencies.DependencyGraph
 import nebula.test.dependencies.GradleDependencyGenerator
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.TaskOutcome
+import org.gradle.util.GradleVersion
+import spock.lang.Unroll
 
+@Unroll
 class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
 
     static def PLUGIN_NAME = "com.palantir.versions-lock"
@@ -58,10 +63,16 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         """
     }
 
-    def 'can write locks'() {
+    def '#gradleVersionNumber: can write locks'() {
+        setup:
+        gradleVersion = gradleVersionNumber
+        
         expect:
         runTasks('--write-locks')
         new File(projectDir, "versions.lock").exists()
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
     }
 
     private def standardSetup() {
@@ -110,8 +121,9 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         '''.stripIndent())
     }
 
-    def 'cannot resolve without a root lock file'() {
+    def '#gradleVersionNumber: cannot resolve without a root lock file'() {
         setup:
+        gradleVersion = gradleVersionNumber
         standardSetup()
 
         expect:
@@ -119,18 +131,26 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         result.output.readLines().any {
             it.matches ".*Root lock file '([^']+)' doesn't exist, please run.*"
         }
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    def 'can resolve without a root lock file if lock file is ignored'() {
+    def '#gradleVersionNumber: can resolve without a root lock file if lock file is ignored'() {
         setup:
+        gradleVersion = gradleVersionNumber
         standardSetup()
 
         expect:
         runTasks('resolveConfigurations', '-PignoreLockFile')
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    def 'global nebula recommendations are superseded by transitive'() {
+    def '#gradleVersionNumber: global nebula recommendations are superseded by transitive'() {
         setup:
+        gradleVersion = gradleVersionNumber
         buildFile << """
             allprojects {
                 apply plugin: 'nebula.dependency-recommender'
@@ -178,11 +198,15 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
 
         and: "I can resolve"
         runTasks('resolveConfigurations')
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    def 'consolidates subproject dependencies'() {
+    def '#gradleVersionNumber: consolidates subproject dependencies'() {
         def expectedError = "Locked by versions.lock"
         setup:
+        gradleVersion = gradleVersionNumber
         standardSetup()
         buildFile << '''
             subprojects {
@@ -229,9 +253,15 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         then: "Resolution fails"
         def error = runTasksAndFail(':baz:resolveConfigurations')
         error.output.contains(expectedError)
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    def 'works on just root project'() {
+    def '#gradleVersionNumber: works on just root project'() {
+        setup:
+        gradleVersion = gradleVersionNumber
+
         buildFile << '''
             apply plugin: 'java'
             dependencies {
@@ -244,11 +274,15 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         def lines = file('versions.lock').readLines()
         lines.contains('ch.qos.logback:logback-classic:1.2.3 (1 constraints: 0805f935)')
         lines.contains('org.slf4j:slf4j-api:1.7.25 (1 constraints: 400d4d2a)')
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    def 'get a conflict even if no lock files applied'() {
+    def '#gradleVersionNumber: get a conflict even if no lock files applied'() {
         def expectedError = "Locked by versions.lock"
         setup:
+        gradleVersion = gradleVersionNumber
         standardSetup()
 
         when: "I write locks"
@@ -265,9 +299,15 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
 
         then: "Resolution fails"
         incompatible.output.contains(expectedError)
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    def 'fails fast when subproject that is depended on has same name as root project'() {
+    def '#gradleVersionNumber: fails fast when subproject that is depended on has same name as root project'() {
+        setup:
+        gradleVersion = gradleVersionNumber
+
         def expectedError = "This plugin doesn't work if the root project shares both group and name with a subproject"
         buildFile << """
             allprojects {
@@ -290,9 +330,15 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         expect:
         def error = runTasksAndFail()
         error.output.contains(expectedError)
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    def 'fails fast when multiple subprojects share the same coordinate'() {
+    def '#gradleVersionNumber: fails fast when multiple subprojects share the same coordinate'() {
+        setup:
+        gradleVersion = gradleVersionNumber
+
         def expectedError = "All subprojects must have unique \$group:\$name"
         buildFile << """
             allprojects {
@@ -308,9 +354,15 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         expect:
         def error = runTasksAndFail()
         error.output.contains(expectedError)
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    def "detects failOnVersionConflict on locked configuration"() {
+    def "#gradleVersionNumber: detects failOnVersionConflict on locked configuration"() {
+        setup:
+        gradleVersion = gradleVersionNumber
+
         buildFile << """
             apply plugin: 'java'    
             configurations.compileClasspath.resolutionStrategy.failOnVersionConflict()
@@ -320,9 +372,15 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         expect:
         def failure = runTasksAndFail()
         failure.output.contains('Must not use failOnVersionConflict')
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    def "ignores failOnVersionConflict on non-locked configuration"() {
+    def "#gradleVersionNumber: ignores failOnVersionConflict on non-locked configuration"() {
+        setup:
+        gradleVersion = gradleVersionNumber
+
         buildFile << """
             apply plugin: 'java'    
             configurations {
@@ -335,9 +393,15 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
 
         expect:
         runTasks()
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    def 'fails if new dependency added that was not in the lock file'() {
+    def '#gradleVersionNumber: fails if new dependency added that was not in the lock file'() {
+        setup:
+        gradleVersion = gradleVersionNumber
+
         def expectedError = "Found dependencies that were not in the lock state"
         DependencyGraph dependencyGraph = new DependencyGraph("org:a:1.0", "org:b:1.0")
         GradleDependencyGenerator generator = new GradleDependencyGenerator(dependencyGraph)
@@ -376,9 +440,15 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         and: 'Can finally write locks once again'
         runTasks('--write-locks')
         runTasks('verifyLocks')
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    def 'does not fail if unifiedClasspath is unresolvable'() {
+    def '#gradleVersionNumber: does not fail if unifiedClasspath is unresolvable'() {
+        setup:
+        gradleVersion = gradleVersionNumber
+
         file('versions.lock') << """\
             org.slf4j:slf4j-api:1.7.11 (0 constraints: 0000000)
         """.stripIndent()
@@ -393,9 +463,15 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         expect:
         runTasks('dependencies', '--configuration', 'unifiedClasspath')
         runTasks()
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    def 'fails if dependency was removed but still in the lock file'() {
+    def '#gradleVersionNumber: fails if dependency was removed but still in the lock file'() {
+        setup:
+        gradleVersion = gradleVersionNumber
+
         def expectedError = "Locked dependencies missing from the resolution result"
         DependencyGraph dependencyGraph = new DependencyGraph("org:a:1.0", "org:b:1.0")
         GradleDependencyGenerator generator = new GradleDependencyGenerator(dependencyGraph)
@@ -435,9 +511,15 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         and: 'Can finally write locks once again'
         runTasks('--write-locks')
         runTasks('verifyLocks')
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    def "why works"() {
+    def "#gradleVersionNumber: why works"() {
+        setup:
+        gradleVersion = gradleVersionNumber
+
         buildFile << '''
             apply plugin: 'java'
             dependencies {
@@ -452,9 +534,15 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         def result = runTasks('why', '--hash', '400d4d2a') // slf4j-api
         result.output.contains('org.slf4j:slf4j-api:1.7.25')
         result.output.contains('ch.qos.logback:logback-classic -> 1.7.25')
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    def 'does not fail if subproject evaluated later applies base plugin in own build file'() {
+    def '#gradleVersionNumber: does not fail if subproject evaluated later applies base plugin in own build file'() {
+        setup:
+        gradleVersion = gradleVersionNumber
+
         addSubproject('foo', """
             apply plugin: 'java-library'
             dependencies {
@@ -472,9 +560,15 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
 
         expect:
         runTasks('--write-locks')
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    def "locks platform"() {
+    def "#gradleVersionNumber: locks platform"() {
+        setup:
+        gradleVersion = gradleVersionNumber
+
         buildFile << """
             apply plugin: 'java'
             dependencies {
@@ -490,9 +584,15 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                 '# Run ./gradlew --write-locks to regenerate this file',
                 'org:platform:1.0 (1 constraints: a5041a2c)',
         ]
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    def "verifyLocks is cacheable"() {
+    def "#gradleVersionNumber: verifyLocks is cacheable"() {
+        setup:
+        gradleVersion = gradleVersionNumber
+
         buildFile << """
             apply plugin: 'java'
             dependencies {
@@ -508,10 +608,16 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         then: 'verifyLocks is up to date the second time'
         runTasks('verifyLocks').task(':verifyLocks').outcome == TaskOutcome.SUCCESS
         runTasks('verifyLocks').task(':verifyLocks').outcome == TaskOutcome.UP_TO_DATE
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
     }
 
 
-    def "verifyLocks current lock state does not get poisoned by existing lock file"() {
+    def "#gradleVersionNumber: verifyLocks current lock state does not get poisoned by existing lock file"() {
+        setup:
+        gradleVersion = gradleVersionNumber
+
         buildFile << """
             apply plugin: 'java'
             dependencies {
@@ -533,9 +639,15 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                  -org.slf4j:slf4j-api:1.7.20 (1 constraints: 3c05433b)
                  +org.slf4j:slf4j-api:1.7.11 (1 constraints: 3c05423b)
             """.stripIndent()
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    def "excludes from compileOnly do not obscure real dependency"() {
+    def "#gradleVersionNumber: excludes from compileOnly do not obscure real dependency"() {
+        setup:
+        gradleVersion = gradleVersionNumber
+
         buildFile << """
             apply plugin: 'java'
             dependencies {
@@ -556,9 +668,15 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                 'ch.qos.logback:logback-classic:1.2.3 (1 constraints: 0805f935)',
                 'org.slf4j:slf4j-api:1.7.25 (1 constraints: 400d4d2a)',
         ]
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    def "can resolve configuration dependency"() {
+    def "#gradleVersionNumber: can resolve configuration dependency"() {
+        setup:
+        gradleVersion = gradleVersionNumber
+
         addSubproject("foo", """
             apply plugin: 'java'
             dependencies {
@@ -591,9 +709,15 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
 
         expect:
         runTasks('--write-locks', 'classes')
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    def "inter-project normal dependency works"() {
+    def "#gradleVersionNumber: inter-project normal dependency works"() {
+        setup:
+        gradleVersion = gradleVersionNumber
+
         addSubproject("foo", """
             apply plugin: 'java'
             dependencies {
@@ -607,9 +731,15 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
 
         expect:
         runTasks('--write-locks', 'classes')
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    def "test dependencies appear in a separate block"() {
+    def "#gradleVersionNumber: test dependencies appear in a separate block"() {
+        setup:
+        gradleVersion = gradleVersionNumber
+
         buildFile << """
             apply plugin: 'java'           
             dependencies {
@@ -629,9 +759,15 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
             org:test-dep-that-logs:1.0 (1 constraints: a5041a2c)
         """.stripIndent()
         file('versions.lock').text == expected
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    def "locks dependencies from extra source sets that end in test"() {
+    def "#gradleVersionNumber: locks dependencies from extra source sets that end in test"() {
+        setup:
+        gradleVersion = gradleVersionNumber
+
         buildFile << """
             apply plugin: 'java'
             sourceSets {
@@ -656,9 +792,15 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
             org:test-dep-that-logs:1.0 (1 constraints: a5041a2c)
         """.stripIndent()
         file('versions.lock').text == expected
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    def "versionsLock.testProject() works"() {
+    def "#gradleVersionNumber: versionsLock.testProject() works"() {
+        setup:
+        gradleVersion = gradleVersionNumber
+
         buildFile << """
             apply plugin: 'java'
             dependencies {
@@ -677,9 +819,15 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
             junit:junit:4.10 (1 constraints: d904fd30)
         """.stripIndent()
         file('versions.lock').text == expected
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    def "constraints on production do not affect scope of test only dependencies"() {
+    def "#gradleVersionNumber: constraints on production do not affect scope of test only dependencies"() {
+        setup:
+        gradleVersion = gradleVersionNumber
+
         buildFile << """
             apply plugin: 'java'
             dependencies {
@@ -702,9 +850,15 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
             org.slf4j:slf4j-api:1.7.25 (1 constraints: 400d4d2a)
         """.stripIndent()
         file('versions.lock').text == expected
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    def "published constraints are derived from filtered lock file"() {
+    def "#gradleVersionNumber: published constraints are derived from filtered lock file"() {
+        setup:
+        gradleVersion = gradleVersionNumber
+
         buildFile << """
             allprojects {
                 apply plugin: 'java'
@@ -730,9 +884,11 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
             }
         """.stripIndent())
 
-        settingsFile << """
-            enableFeaturePreview('GRADLE_METADATA')
-        """.stripIndent()
+        if (GradleVersion.version(gradleVersionNumber) < GradleVersion.version("6.0")) {
+            settingsFile << """
+                enableFeaturePreview('GRADLE_METADATA')
+            """.stripIndent()
+        }
 
         runTasks('--write-locks')
 
@@ -782,5 +938,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                         dependencyConstraints: [junitDep]),
         ] as Set
 
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
     }
 }

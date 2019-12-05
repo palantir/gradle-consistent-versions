@@ -68,7 +68,6 @@ import org.gradle.api.artifacts.Dependency;
 import org.gradle.api.artifacts.DependencyConstraint;
 import org.gradle.api.artifacts.DependencySet;
 import org.gradle.api.artifacts.ExternalModuleDependency;
-import org.gradle.api.artifacts.ModuleDependency;
 import org.gradle.api.artifacts.ModuleIdentifier;
 import org.gradle.api.artifacts.ModuleVersionIdentifier;
 import org.gradle.api.artifacts.ProjectDependency;
@@ -108,7 +107,7 @@ import org.immutables.value.Value;
 
 public class VersionsLockPlugin implements Plugin<Project> {
     private static final Logger log = Logging.getLogger(VersionsLockPlugin.class);
-    private static final GradleVersion MINIMUM_GRADLE_VERSION = GradleVersion.version("5.1");
+    static final GradleVersion MINIMUM_GRADLE_VERSION = GradleVersion.version("5.3");
 
     /** Root project configuration that collects all the dependencies from each project. */
     static final String UNIFIED_CLASSPATH_CONFIGURATION_NAME = "unifiedClasspath";
@@ -350,34 +349,31 @@ public class VersionsLockPlugin implements Plugin<Project> {
             conf.getAttributes().attribute(GCV_USAGE_ATTRIBUTE, GcvUsage.GCV_SOURCE);
         });
 
-        NamedDomainObjectProvider<Configuration> consistentVersionsProduction = project.getConfigurations()
-                .register(CONSISTENT_VERSIONS_PRODUCTION, conf -> {
-                    conf.setDescription("Outgoing configuration for production dependencies meant to be used by "
-                            + "consistent-versions");
-                    conf.setVisible(false); // needn't be visible from other projects
-                    conf.setCanBeConsumed(true);
-                    conf.setCanBeResolved(false);
-                    conf.getAttributes().attribute(Usage.USAGE_ATTRIBUTE, internalUsage);
-                });
+        project.getConfigurations().register(CONSISTENT_VERSIONS_PRODUCTION, conf -> {
+            conf.setDescription(
+                    "Outgoing configuration for production dependencies meant to be used by consistent-versions");
+            conf.setVisible(false); // needn't be visible from other projects
+            conf.setCanBeConsumed(true);
+            conf.setCanBeResolved(false);
+            conf.getAttributes().attribute(Usage.USAGE_ATTRIBUTE, internalUsage);
+            conf.getOutgoing().capability(capabilityFor(project, GcvScope.PRODUCTION));
+        });
 
-        NamedDomainObjectProvider<Configuration> consistentVersionsTest = project.getConfigurations()
-                .register(CONSISTENT_VERSIONS_TEST, conf -> {
-                    conf.setDescription("Outgoing configuration for test dependencies meant to be used by "
-                            + "consistent-versions");
-                    conf.setVisible(false); // needn't be visible from other projects
-                    conf.setCanBeConsumed(true);
-                    conf.setCanBeResolved(false);
-                    conf.getAttributes().attribute(Usage.USAGE_ATTRIBUTE, internalUsage);
-                });
+        project.getConfigurations().register(CONSISTENT_VERSIONS_TEST, conf -> {
+            conf.setDescription("Outgoing configuration for test dependencies meant to be used by consistent-versions");
+            conf.setVisible(false); // needn't be visible from other projects
+            conf.setCanBeConsumed(true);
+            conf.setCanBeResolved(false);
+            conf.getAttributes().attribute(Usage.USAGE_ATTRIBUTE, internalUsage);
+            conf.getOutgoing().capability(capabilityFor(project, GcvScope.TEST));
+        });
 
-        unifiedClasspath
-                .getDependencies()
-                .add(
-                        createConfigurationDependencyWithScope(
-                                project, consistentVersionsProduction.get(), GcvScope.PRODUCTION));
-        unifiedClasspath
-                .getDependencies()
-                .add(createConfigurationDependencyWithScope(project, consistentVersionsTest.get(), GcvScope.TEST));
+        unifiedClasspath.getDependencies().add(createDependencyOnProjectWithScope(project, GcvScope.PRODUCTION));
+        unifiedClasspath.getDependencies().add(createDependencyOnProjectWithScope(project, GcvScope.TEST));
+    }
+
+    private static String capabilityFor(Project project, GcvScope scope) {
+        return String.format("gcv:%s-%s-%s:0", project.getGroup().toString(), project.getName(), scope.getName());
     }
 
     /**
@@ -395,13 +391,13 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 "path", project.getPath(), "configuration", toConfiguration.getName()));
     }
 
-    /** Create a dependency to {@code toConfiguration}, where the latter should exist in the given {@code project}. */
-    private static Dependency createConfigurationDependencyWithScope(
-            Project project, Configuration toConfiguration, GcvScope scope) {
-        ModuleDependency dep = GradleWorkarounds.fixAttributesOfModuleDependency(
-                project.getObjects(), createConfigurationDependency(project, toConfiguration));
-        dep.attributes(attr -> attr.attribute(GCV_SCOPE_ATTRIBUTE, scope));
-        return dep;
+    /** Create a dependency requiring capabilities for the listed scope. */
+    private static Dependency createDependencyOnProjectWithScope(Project project, GcvScope scope) {
+        ProjectDependency projectDependency = (ProjectDependency) project.getDependencies().create(project);
+        projectDependency.capabilities(moduleDependencyCapabilitiesHandler ->
+                moduleDependencyCapabilitiesHandler.requireCapabilities(capabilityFor(project, scope)));
+        projectDependency.attributes(attr -> attr.attribute(GCV_SCOPE_ATTRIBUTE, scope));
+        return projectDependency;
     }
 
     private static void checkPreconditions(Project project) {
@@ -516,7 +512,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 .filter(dep -> dep instanceof ProjectDependency)
                 .map(dependency -> {
                     ProjectDependency projectDependency = (ProjectDependency) dependency;
-                    return getTargetConfiguration(depSet, projectDependency);
+                    return findConfigurationUsingCapabilities(projectDependency);
                 })
                 .filter(conf -> conf.getName().equals(configurationName))
                 .collect(Collectors.toList());
@@ -597,6 +593,11 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 GradleWorkarounds.fixAttributesOfModuleDependency(projectDep.getObjects(), externalDep);
                 externalDep.attributes(attr -> attr.attribute(GCV_SCOPE_ATTRIBUTE, scope));
             });
+            // To avoid capability based conflict detection between all these copied configurations (where they
+            // conflict as each has no capabilities), we give each of them a capability
+            copiedConf.getOutgoing().capability(String.format(
+                    "gcv:%s-%s-%s-%s:extra",
+                    projectDep.getGroup(), projectDep.getName(), projectDep.getVersion(), copiedConf.getName()));
 
             projectDep.getConfigurations().add(copiedConf);
 
@@ -629,6 +630,21 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 depSet,
                 projectDependency.getDependencyProject());
         return targetConf;
+    }
+
+    private static Configuration findConfigurationUsingCapabilities(ProjectDependency projectDependency) {
+        Set<Configuration> confs = projectDependency.getDependencyProject().getConfigurations().stream()
+                .filter(conf ->
+                        conf.getOutgoing().getCapabilities().containsAll(projectDependency.getRequestedCapabilities()))
+                .collect(Collectors.toSet());
+
+        Preconditions.checkArgument(
+                confs.size() == 1,
+                "Expected to only find one target configuration but found %s with names: %s",
+                confs.size(),
+                confs);
+
+        return Iterables.getOnlyElement(confs);
     }
 
     private static String formatProjectDependency(ProjectDependency dep) {
