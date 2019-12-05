@@ -391,7 +391,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 "path", project.getPath(), "configuration", toConfiguration.getName()));
     }
 
-    /** Create a dependency to {@code toConfiguration}, where the latter should exist in the given {@code project}. */
+    /** Create a dependency requiring capabilities for the listed scope */
     private static Dependency createDependencyOnProjectWithScope(Project project, GcvScope scope) {
         ProjectDependency projectDependency = (ProjectDependency) project.getDependencies().create(project);
         projectDependency.capabilities(moduleDependencyCapabilitiesHandler ->
