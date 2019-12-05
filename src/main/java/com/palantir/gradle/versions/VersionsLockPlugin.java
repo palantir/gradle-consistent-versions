@@ -243,14 +243,14 @@ public class VersionsLockPlugin implements Plugin<Project> {
             // Recursively copy all project dependencies, so that the constraints we add below won't affect the
             // resolution of unifiedClasspath.
             Map<Project, LockedConfigurations> lockedConfigurations = wireUpLockedConfigurationsByProject(project);
-            Map<ModuleIdentifier, GcvScope> scopes =
+            Map<ModuleIdentifier, GcvScope> edgeScopes =
                     recursivelyCopyProjectDependencies(project, unifiedClasspath.getIncoming().getDependencies());
 
             Supplier<FullLockState> fullLockStateSupplier = Suppliers.memoize(() -> {
                 ResolutionResult resolutionResult = unifiedClasspath.getIncoming().getResolutionResult();
                 // Throw if there are dependencies that are not present in the lock state.
                 failIfAnyDependenciesUnresolved(resolutionResult);
-                return computeLockState(resolutionResult, scopes);
+                return computeLockState(resolutionResult, edgeScopes);
             });
             fullLockStateProperty.set(project.provider(fullLockStateSupplier::get));
 
@@ -475,7 +475,9 @@ public class VersionsLockPlugin implements Plugin<Project> {
      * <p>Since we can't apply these constraints to the already resolved configurations, we need a workaround to ensure
      * that unifiedClasspath does not directly depend on subproject configurations that we intend to enforce constraints
      * on.
-     * @return
+     *
+     * @return a Map from each {@link ModuleIdentifier external module} that was being directly depend on (from some
+     *     locked configuration) to the {@link GcvScope} we attributed to it.
      */
     private Map<ModuleIdentifier, GcvScope> recursivelyCopyProjectDependencies(Project project, DependencySet depSet) {
         Preconditions.checkState(
@@ -673,6 +675,9 @@ public class VersionsLockPlugin implements Plugin<Project> {
     /**
      * Assumes the resolution result succeeded, that is, {@link #failIfAnyDependenciesUnresolved} was run and didn't
      * throw.
+     *
+     * @param edgeScopes the scope that we've attributed to each {@link ModuleIdentifier external module} that was being
+     *     directly depend on (from some locked configuration).
      */
     private static FullLockState computeLockState(
             ResolutionResult resolutionResult, Map<ModuleIdentifier, GcvScope> edgeScopes) {
@@ -716,7 +721,6 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 .map(dependent -> {
                     ModuleIdentifier requestedModule =
                             ((ModuleComponentSelector) dependent.getRequested()).getModuleIdentifier();
-                    // TODO should this ever return empty?
                     if (edgeScopes.containsKey(requestedModule)) {
                         return edgeScopes.get(requestedModule);
                     }
