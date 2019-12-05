@@ -103,12 +103,13 @@ public class VerifyLocksTask extends DefaultTask {
 
     private static String formatDependencyDifferences(Map<MyModuleIdentifier, ValueDifference<Line>> differing) {
         return differing.entrySet().stream()
-                .map(diff -> String.format(
-                        "" // to align strings
-                                + "-%s\n"
-                                + "+%s",
-                        diff.getValue().leftValue().stringRepresentation(),
-                        diff.getValue().rightValue().stringRepresentation()))
+                .map(diff ->
+                        String.format(
+                                "" // to align strings
+                                        + "-%s\n"
+                                        + "+%s",
+                                diff.getValue().leftValue().stringRepresentation(),
+                                diff.getValue().rightValue().stringRepresentation()))
                 .collect(Collectors.joining("\n"));
     }
 }

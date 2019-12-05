@@ -36,8 +36,9 @@ public final class GradleComparators {
      */
     public static final Comparator<ComponentIdentifier> COMPONENT_IDENTIFIER_COMPARATOR = Comparator.comparing(
                     (ComponentIdentifier id) -> tryCast(ModuleComponentIdentifier.class, id),
-                    Comparators.emptiesFirst(Ordering.from(MODULE_IDENTIFIER_COMPARATOR)
-                            .onResultOf(ModuleComponentIdentifier::getModuleIdentifier)))
+                    Comparators.emptiesFirst(
+                            Ordering.from(MODULE_IDENTIFIER_COMPARATOR)
+                                    .onResultOf(ModuleComponentIdentifier::getModuleIdentifier)))
             .thenComparing(ComponentIdentifier::getDisplayName);
 
     static <A, T> Optional<T> tryCast(Class<T> to, A value) {

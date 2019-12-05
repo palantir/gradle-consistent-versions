@@ -279,10 +279,11 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 }
 
                 if (Files.notExists(rootLockfile)) {
-                    throw new GradleException(String.format(
-                            "Root lock file '%s' doesn't exist, please run "
-                                    + "`./gradlew --write-locks` to initialise locks",
-                            rootLockfile));
+                    throw new GradleException(
+                            String.format(
+                                    "Root lock file '%s' doesn't exist, please run "
+                                            + "`./gradlew --write-locks` to initialise locks",
+                                    rootLockfile));
                 }
 
                 configureAllProjectsUsingConstraints(project, rootLockfile, lockedConfigurations);
@@ -387,8 +388,10 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
     /** Create a dependency to {@code toConfiguration}, where the latter should exist in the given {@code project}. */
     private static ProjectDependency createConfigurationDependency(Project project, Configuration toConfiguration) {
-        return (ProjectDependency) project.getDependencies().project(ImmutableMap.of(
-                "path", project.getPath(), "configuration", toConfiguration.getName()));
+        return (ProjectDependency)
+                project.getDependencies()
+                        .project(
+                                ImmutableMap.of("path", project.getPath(), "configuration", toConfiguration.getName()));
     }
 
     /** Create a dependency requiring capabilities for the listed scope. */
@@ -420,11 +423,12 @@ public class VersionsLockPlugin implements Plugin<Project> {
         project.subprojects(subproject -> {
             subproject.afterEvaluate(sub -> {
                 if (haveSameGroupAndName(project, sub)) {
-                    throw new GradleException(String.format(
-                            "This plugin doesn't work if the root project shares both group and name with a"
-                                    + " subproject. Consider adding the following to settings.gradle:\n"
-                                    + "rootProject.name = '%s-root'",
-                            project.getName()));
+                    throw new GradleException(
+                            String.format(
+                                    "This plugin doesn't work if the root project shares both group and name with a"
+                                            + " subproject. Consider adding the following to settings.gradle:\n"
+                                            + "rootProject.name = '%s-root'",
+                                    project.getName()));
                 }
                 String coordinate = String.format("%s:%s", subproject.getGroup(), subproject.getName());
                 coordinateDuplicates.put(coordinate, subproject);
@@ -458,13 +462,16 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 ImmutableMap.copyOf(Maps.filterValues(coordinateDuplicates.asMap(), projects -> projects.size() > 1));
 
         if (!duplicates.isEmpty()) {
-            throw new GradleException(String.format(
-                    "All subprojects must have unique $group:$name coordinates, but found duplicates:\n%s",
-                    duplicates.entrySet().stream()
-                            .map(entry -> String.format(
-                                    "- '%s' -> %s",
-                                    entry.getKey(), Collections2.transform(entry.getValue(), Project::getPath)))
-                            .collect(Collectors.joining("\n"))));
+            throw new GradleException(
+                    String.format(
+                            "All subprojects must have unique $group:$name coordinates, but found duplicates:\n%s",
+                            duplicates.entrySet().stream()
+                                    .map(entry ->
+                                            String.format(
+                                                    "- '%s' -> %s",
+                                                    entry.getKey(),
+                                                    Collections2.transform(entry.getValue(), Project::getPath)))
+                                    .collect(Collectors.joining("\n"))));
         }
     }
 
@@ -561,10 +568,11 @@ public class VersionsLockPlugin implements Plugin<Project> {
             causeWithDependenciesActionsToRun(targetConf);
 
             Configuration copiedConf = targetConf.copyRecursive();
-            copiedConf.setDescription(String.format(
-                    "Copy of the '%s' configuration that can be resolved by "
-                            + "com.palantir.consistent-versions without resolving the '%s' configuration itself.",
-                    targetConf.getName(), targetConf.getName()));
+            copiedConf.setDescription(
+                    String.format(
+                            "Copy of the '%s' configuration that can be resolved by com.palantir.consistent-versions"
+                                    + " without resolving the '%s' configuration itself.",
+                            targetConf.getName(), targetConf.getName()));
 
             // Update state about what we've seen
             copiedConfigurationsCache.put(targetConf, copiedConf.getName());
@@ -595,9 +603,15 @@ public class VersionsLockPlugin implements Plugin<Project> {
             });
             // To avoid capability based conflict detection between all these copied configurations (where they
             // conflict as each has no capabilities), we give each of them a capability
-            copiedConf.getOutgoing().capability(String.format(
-                    "gcv:%s-%s-%s-%s:extra",
-                    projectDep.getGroup(), projectDep.getName(), projectDep.getVersion(), copiedConf.getName()));
+            copiedConf
+                    .getOutgoing()
+                    .capability(
+                            String.format(
+                                    "gcv:%s-%s-%s-%s:extra",
+                                    projectDep.getGroup(),
+                                    projectDep.getName(),
+                                    projectDep.getVersion(),
+                                    copiedConf.getName()));
 
             projectDep.getConfigurations().add(copiedConf);
 
@@ -672,10 +686,13 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 .map(a -> (UnresolvedDependencyResult) a)
                 .collect(Collectors.toList());
         if (!unresolved.isEmpty()) {
-            throw new GradleException(String.format(
-                    "Could not compute lock state from configuration '%s' due to unresolved dependencies:\n%s",
-                    UNIFIED_CLASSPATH_CONFIGURATION_NAME,
-                    unresolved.stream().map(this::formatUnresolvedDependencyResult).collect(Collectors.joining("\n"))));
+            throw new GradleException(
+                    String.format(
+                            "Could not compute lock state from configuration '%s' due to unresolved dependencies:\n%s",
+                            UNIFIED_CLASSPATH_CONFIGURATION_NAME,
+                            unresolved.stream()
+                                    .map(this::formatUnresolvedDependencyResult)
+                                    .collect(Collectors.joining("\n"))));
         }
     }
 
@@ -703,8 +720,9 @@ public class VersionsLockPlugin implements Plugin<Project> {
                                     extractDependents(component));
                             return;
                     }
-                    throw new RuntimeException(String.format(
-                            "Unexpected scope for component %s: %s", component.getModuleVersion(), scope));
+                    throw new RuntimeException(
+                            String.format(
+                                    "Unexpected scope for component %s: %s", component.getModuleVersion(), scope));
                 });
         return builder.build();
     }
@@ -735,19 +753,25 @@ public class VersionsLockPlugin implements Plugin<Project> {
     }
 
     private static Dependents extractDependents(ResolvedComponentResult component) {
-        return Dependents.of(component.getDependents().stream().collect(Collectors.groupingBy(
-                dep -> dep.getFrom().getId(),
-                () -> new TreeMap<>(GradleComparators.COMPONENT_IDENTIFIER_COMPARATOR),
-                Collectors.mapping(dep -> getRequestedVersionConstraint(dep.getRequested()), Collectors.toCollection(
-                        () -> new TreeSet<>(Comparator.comparing(VersionConstraint::toString)))))));
+        return Dependents.of(
+                component.getDependents().stream()
+                        .collect(
+                                Collectors.groupingBy(
+                                        dep -> dep.getFrom().getId(),
+                                        () -> new TreeMap<>(GradleComparators.COMPONENT_IDENTIFIER_COMPARATOR),
+                                        Collectors.mapping(
+                                                dep -> getRequestedVersionConstraint(dep.getRequested()),
+                                                Collectors.toCollection(() -> new TreeSet<>(
+                                                        Comparator.comparing(VersionConstraint::toString)))))));
     }
 
     private static VersionConstraint getRequestedVersionConstraint(ComponentSelector requested) {
         if (requested instanceof ModuleComponentSelector) {
             return ((ModuleComponentSelector) requested).getVersionConstraint();
         }
-        throw new RuntimeException(String.format(
-                "Expecting a ModuleComponentSelector but found a %s: %s", requested.getClass(), requested));
+        throw new RuntimeException(
+                String.format(
+                        "Expecting a ModuleComponentSelector but found a %s: %s", requested.getClass(), requested));
     }
 
     /**

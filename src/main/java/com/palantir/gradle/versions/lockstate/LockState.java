@@ -50,15 +50,19 @@ public interface LockState extends Serializable {
     /** Mapping from {@code group:artifact} to the full line. */
     @Value.Lazy
     default SortedMap<MyModuleIdentifier, Line> productionLinesByModuleIdentifier() {
-        return productionLines().stream().collect(ImmutableSortedMap.toImmutableSortedMap(
-                GradleComparators.MODULE_IDENTIFIER_COMPARATOR, Line::identifier, Function.identity()));
+        return productionLines().stream()
+                .collect(
+                        ImmutableSortedMap.toImmutableSortedMap(
+                                GradleComparators.MODULE_IDENTIFIER_COMPARATOR, Line::identifier, Function.identity()));
     }
 
     /** Mapping from {@code group:artifact} to the full line. */
     @Value.Lazy
     default SortedMap<MyModuleIdentifier, Line> testLinesByModuleIdentifier() {
-        return testLines().stream().collect(ImmutableSortedMap.toImmutableSortedMap(
-                GradleComparators.MODULE_IDENTIFIER_COMPARATOR, Line::identifier, Function.identity()));
+        return testLines().stream()
+                .collect(
+                        ImmutableSortedMap.toImmutableSortedMap(
+                                GradleComparators.MODULE_IDENTIFIER_COMPARATOR, Line::identifier, Function.identity()));
     }
 
     static LockState from(Stream<Line> productionLines, Stream<Line> testLines) {
