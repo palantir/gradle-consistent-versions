@@ -22,5 +22,6 @@ import java.util.List;
 public final class GradleTestVersions {
     private GradleTestVersions() {}
 
-    public static final List<String> GRADLE_VERSIONS = ImmutableList.of("5.6.3", "6.0.1");
+    public static final List<String> GRADLE_VERSIONS =
+            ImmutableList.of(VersionsLockPlugin.MINIMUM_GRADLE_VERSION.getVersion(), "6.0.1");
 }

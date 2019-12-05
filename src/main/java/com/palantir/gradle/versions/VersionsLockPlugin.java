@@ -109,7 +109,7 @@ import org.immutables.value.Value;
 
 public class VersionsLockPlugin implements Plugin<Project> {
     private static final Logger log = Logging.getLogger(VersionsLockPlugin.class);
-    private static final GradleVersion MINIMUM_GRADLE_VERSION = GradleVersion.version("5.1");
+    static final GradleVersion MINIMUM_GRADLE_VERSION = GradleVersion.version("5.3");
 
     /** Root project configuration that collects all the dependencies from each project. */
     static final String UNIFIED_CLASSPATH_CONFIGURATION_NAME = "unifiedClasspath";
