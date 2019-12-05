@@ -41,7 +41,6 @@ import java.io.StringWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -156,7 +155,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
         }
     }
 
-    private static final Comparator<GcvScope> GCV_SCOPE_COMPARATOR = Comparator.comparing(scope -> {
+    static final Comparator<GcvScope> GCV_SCOPE_COMPARATOR = Comparator.comparing(scope -> {
         // Production takes priority over test when it comes to provenance.
         switch (scope) {
             case PRODUCTION:
@@ -244,14 +243,14 @@ public class VersionsLockPlugin implements Plugin<Project> {
             // Recursively copy all project dependencies, so that the constraints we add below won't affect the
             // resolution of unifiedClasspath.
             Map<Project, LockedConfigurations> lockedConfigurations = wireUpLockedConfigurationsByProject(project);
-            Map<ModuleIdentifier, GcvScope> edgeScopes =
+            DirectDependencyScopeMap directDependencyScopes =
                     recursivelyCopyProjectDependencies(project, unifiedClasspath.getIncoming().getDependencies());
 
             Supplier<FullLockState> fullLockStateSupplier = Suppliers.memoize(() -> {
                 ResolutionResult resolutionResult = unifiedClasspath.getIncoming().getResolutionResult();
                 // Throw if there are dependencies that are not present in the lock state.
                 failIfAnyDependenciesUnresolved(resolutionResult);
-                return computeLockState(resolutionResult, edgeScopes);
+                return computeLockState(resolutionResult, directDependencyScopes);
             });
             fullLockStateProperty.set(project.provider(fullLockStateSupplier::get));
 
@@ -480,13 +479,13 @@ public class VersionsLockPlugin implements Plugin<Project> {
      * @return a Map from each {@link ModuleIdentifier external module} that was being directly depend on (from some
      *     locked configuration) to the {@link GcvScope} we attributed to it.
      */
-    private Map<ModuleIdentifier, GcvScope> recursivelyCopyProjectDependencies(Project project, DependencySet depSet) {
+    private DirectDependencyScopeMap recursivelyCopyProjectDependencies(Project project, DependencySet depSet) {
         Preconditions.checkState(
                 project.getState().getExecuted(),
                 "recursivelyCopyProjectDependenciesWithScope should be called in afterEvaluate");
 
         Map<Configuration, String> copiedConfigurationsCache = new HashMap<>();
-        Map<ModuleIdentifier, GcvScope> scopes = new HashMap<>();
+        DirectDependencyScopeMap.Builder scopes = new DirectDependencyScopeMap.Builder();
 
         findProjectDependencyWithTargetConfigurationName(depSet, CONSISTENT_VERSIONS_PRODUCTION).forEach(conf ->
                 recursivelyCopyProjectDependenciesWithScope(
@@ -496,7 +495,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 recursivelyCopyProjectDependenciesWithScope(
                         project, conf.getDependencies(), copiedConfigurationsCache, scopes, GcvScope.TEST));
 
-        return Collections.unmodifiableMap(scopes);
+        return scopes.build();
     }
 
     private static List<Configuration> findProjectDependencyWithTargetConfigurationName(
@@ -520,7 +519,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
             Project currentProject,
             DependencySet dependencySet,
             Map<Configuration, String> copiedConfigurationsCache,
-            Map<ModuleIdentifier, GcvScope> scopes,
+            DirectDependencyScopeMap.Builder scopes,
             GcvScope scope) {
         dependencySet.withType(ProjectDependency.class).all(projectDependency -> {
             Project projectDep = projectDependency.getDependencyProject();
@@ -583,10 +582,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
             // CONSISTENT_VERSIONS_TEST), we shouldn't allow them to be visible outside this project.
             copiedConf.setVisible(false);
             // This is so we can get back the scope from the ResolutionResult.
-            copiedConf.getDependencies().withType(ExternalModuleDependency.class).all(externalDep -> {
-                scopes.compute(externalDep.getModule(), (key, oldScope) ->
-                        oldScope != null ? Stream.of(oldScope, scope).min(GCV_SCOPE_COMPARATOR).get() : scope);
-            });
+            copiedConf.getDependencies().withType(ExternalModuleDependency.class).all(externalDep ->
+                    scopes.record(externalDep.getModule(), scope));
             // To avoid capability based conflict detection between all these copied configurations (where they
             // conflict as each has no capabilities), we give each of them a capability
             copiedConf.getOutgoing().capability(String.format(
@@ -677,18 +674,18 @@ public class VersionsLockPlugin implements Plugin<Project> {
      * Assumes the resolution result succeeded, that is, {@link #failIfAnyDependenciesUnresolved} was run and didn't
      * throw.
      *
-     * @param edgeScopes the scope that we've attributed to each {@link ModuleIdentifier external module} that was being
-     *     directly depend on (from some locked configuration).
+     * @param directDependencyScopes the scope that we've attributed to each {@link ModuleIdentifier external module}
+     *     that was being directly depend on (from some locked configuration).
      */
     private static FullLockState computeLockState(
-            ResolutionResult resolutionResult, Map<ModuleIdentifier, GcvScope> edgeScopes) {
+            ResolutionResult resolutionResult, DirectDependencyScopeMap directDependencyScopes) {
         Map<ResolvedComponentResult, GcvScope> scopeCache = new HashMap<>();
 
         FullLockState.Builder builder = FullLockState.builder();
         resolutionResult.getAllComponents().stream()
                 .filter(component -> component.getId() instanceof ModuleComponentIdentifier)
                 .forEach(component -> {
-                    GcvScope scope = getScopeRecursively(component, scopeCache, edgeScopes);
+                    GcvScope scope = getScopeRecursively(component, scopeCache, directDependencyScopes);
                     switch (scope) {
                         case PRODUCTION:
                             builder.putProductionDeps(
@@ -710,7 +707,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
     private static GcvScope getScopeRecursively(
             ResolvedComponentResult component,
             Map<ResolvedComponentResult, GcvScope> scopeCache,
-            Map<ModuleIdentifier, GcvScope> edgeScopes) {
+            DirectDependencyScopeMap directDependencyScopes) {
         Optional<GcvScope> cached = Optional.ofNullable(scopeCache.get(component));
         if (cached.isPresent()) {
             return cached.get();
@@ -724,11 +721,11 @@ public class VersionsLockPlugin implements Plugin<Project> {
                             ((ModuleComponentSelector) dependent.getRequested()).getModuleIdentifier();
                     // If the dependency came from a project, then the requested ModuleIdentifier should be in the
                     // edgeScopes. Otherwise, recurse until we find a project dependent.
-                    if (dependent.getFrom().getId() instanceof ProjectComponentIdentifier
-                            && edgeScopes.containsKey(requestedModule)) {
-                        return edgeScopes.get(requestedModule);
+                    Optional<GcvScope> maybeScope = directDependencyScopes.getScopeFor(requestedModule);
+                    if (dependent.getFrom().getId() instanceof ProjectComponentIdentifier && maybeScope.isPresent()) {
+                        return maybeScope.get();
                     }
-                    return getScopeRecursively(dependent.getFrom(), scopeCache, edgeScopes);
+                    return getScopeRecursively(dependent.getFrom(), scopeCache, directDependencyScopes);
                 })
                 .min(GCV_SCOPE_COMPARATOR)
                 .orElseThrow(() -> new RuntimeException("Couldn't determine scope for dependency: " + component));
