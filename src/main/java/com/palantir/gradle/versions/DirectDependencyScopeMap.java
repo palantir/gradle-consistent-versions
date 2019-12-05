@@ -24,9 +24,7 @@ import java.util.Optional;
 import java.util.stream.Stream;
 import org.gradle.api.artifacts.ModuleIdentifier;
 
-/**
- * Keeps track of the {@link GcvScope} of direct dependencies.
- */
+/** Keeps track of the {@link GcvScope} of direct dependencies. */
 public final class DirectDependencyScopeMap {
     private final ImmutableMap<ModuleIdentifier, GcvScope> map;
 
