@@ -71,7 +71,6 @@ import org.gradle.api.artifacts.ExternalModuleDependency;
 import org.gradle.api.artifacts.ModuleIdentifier;
 import org.gradle.api.artifacts.ModuleVersionIdentifier;
 import org.gradle.api.artifacts.ProjectDependency;
-import org.gradle.api.artifacts.ResolvableDependencies;
 import org.gradle.api.artifacts.VersionConstraint;
 import org.gradle.api.artifacts.component.ComponentIdentifier;
 import org.gradle.api.artifacts.component.ComponentSelector;
@@ -236,43 +235,29 @@ public class VersionsLockPlugin implements Plugin<Project> {
         // (but that's internal)
         project.getPluginManager().apply("java-base");
 
-        if (project.getGradle().getStartParameter().isWriteDependencyLocks()) {
-            // If you only run ':subproject:resolveConfigurations --write-locks', gradle wouldn't resolve the root
-            // unifiedClasspath configuration, which would behave differently than if we ran 'resolveConfigurations'.
-            // Workaround is we always force the 'unifiedClasspath' to be resolved.
+        // afterEvaluate is necessary to ensure all projects' dependencies have been configured, because we
+        // need to copy them eagerly before we add the constraints from the lock file.
+        //
+        // Note: we don't use project.getGradle().projectsEvaluated() as gradle warns us against resolving the
+        // configuration at that point. See
+        // https://docs.gradle.org/5.1/userguide/troubleshooting_dependency_resolution.html#sub:configuration_resolution_constraints
+        // Also, IntelliJ's [gradle import action][1] happens BEFORE that, and will thus resolve the locked
+        // configurations before we get a change to add constraints to them.
+        //
+        // [1]:https://github.com/JetBrains/intellij-community/commit/f394c51cff59c69bbaf63a8bf67cefbad9e357aa#diff-04b9936e4249a0f5727414555b76c4b9R123
+        project.afterEvaluate(p -> {
+            p.getSubprojects().forEach(subproject -> p.evaluationDependsOn(subproject.getPath()));
 
-            // Note: we don't use project.getGradle().projectsEvaluated() as gradle warns us against resolving the
-            // configuration at that point. See
-            // https://docs.gradle.org/5.1/userguide/troubleshooting_dependency_resolution.html#sub:configuration_resolution_constraints
-            project.afterEvaluate(p -> {
-                p.getSubprojects().forEach(subproject -> p.evaluationDependsOn(subproject.getPath()));
-                ResolvableDependencies incoming = unifiedClasspath.getIncoming();
+            // Recursively copy all project dependencies, so that the constraints we add below won't affect the
+            // resolution of unifiedClasspath.
+            Map<Project, LockedConfigurations> lockedConfigurations = wireUpLockedConfigurationsByProject(project);
+            recursivelyCopyProjectDependencies(project, unifiedClasspath.getIncoming().getDependencies());
 
-                Map<Project, LockedConfigurations> lockedConfigurations = wireUpLockedConfigurationsByProject(project);
-                recursivelyCopyProjectDependencies(project, incoming.getDependencies());
+            if (project.getGradle().getStartParameter().isWriteDependencyLocks()) {
                 // Triggers evaluation of unifiedClasspath
                 new ConflictSafeLockFile(rootLockfile).writeLocks(fullLockStateSupplier.get());
                 log.lifecycle("Finished writing lock state to {}", rootLockfile);
-                configureAllProjectsUsingConstraints(project, rootLockfile, lockedConfigurations);
-            });
-        } else {
-            // afterEvaluate is necessary to ensure all projects' dependencies have been configured, because we
-            // need to copy them eagerly before we add the constraints from the lock file.
-
-            // Note: do not use Gradle.projectsEvaluated here, as IntelliJ's [gradle import action][1] happens BEFORE
-            // that, and will thus resolve the locked configurations before we get a change to add constraints to them.
-            // [1]:
-            // https://github.com/JetBrains/intellij-community/commit/f394c51cff59c69bbaf63a8bf67cefbad9e357aa#diff-04b9936e4249a0f5727414555b76c4b9R123
-            project.afterEvaluate(g -> {
-                // Ensure all other projects have been resolved before.
-                // This is so that plugins that configure subprojects (gradle-conjure) continue to work.
-                project.getSubprojects().forEach(subproject -> project.evaluationDependsOn(subproject.getPath()));
-
-                // Recursively copy all project dependencies, so that the constraints we add below won't affect the
-                // resolution of unifiedClasspath.
-                Map<Project, LockedConfigurations> lockedConfigurations = wireUpLockedConfigurationsByProject(project);
-                recursivelyCopyProjectDependencies(project, unifiedClasspath.getIncoming().getDependencies());
-
+            } else {
                 if (isIgnoreLockFile(project)) {
                     log.lifecycle("Ignoring lock file for debugging, because the 'ignoreLockFile' property was set");
                     return;
@@ -284,10 +269,10 @@ public class VersionsLockPlugin implements Plugin<Project> {
                                     + "`./gradlew --write-locks` to initialise locks",
                             rootLockfile));
                 }
+            }
 
-                configureAllProjectsUsingConstraints(project, rootLockfile, lockedConfigurations);
-            });
-        }
+            configureAllProjectsUsingConstraints(project, rootLockfile, lockedConfigurations);
+        });
 
         TaskProvider verifyLocks = project.getTasks().register("verifyLocks", VerifyLocksTask.class, task -> {
             task.getCurrentLockState().set(project.provider(() -> LockStates.toLockState(fullLockStateSupplier.get())));
