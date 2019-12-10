@@ -77,31 +77,28 @@ final class GradleWorkarounds {
     @SuppressWarnings("unchecked")
     static <T> ListProperty<T> fixListProperty(ListProperty<T> property) {
         Class<?> propertyInternalClass = org.gradle.api.internal.provider.CollectionPropertyInternal.class;
-        return (ListProperty<T>)
-                Proxy.newProxyInstance(
-                        GradleWorkarounds.class.getClassLoader(),
-                        new Class<?>[] {
-                            org.gradle.api.internal.provider.CollectionProviderInternal.class, ListProperty.class
-                        },
-                        (proxy, method, args) -> {
-                            // Find matching method on CollectionPropertyInternal
-                            // org.gradle.api.internal.provider.CollectionProviderInternal
-                            if (method.getDeclaringClass()
-                                    == org.gradle.api.internal.provider.CollectionProviderInternal.class) {
-                                if (method.getName().equals("getElementType")) {
-                                    // Proxy to `propertyInternalClass` which we know DefaultListProperty implements.
-                                    return propertyInternalClass
-                                            .getMethod(method.getName(), method.getParameterTypes())
-                                            .invoke(property, args);
-                                } else if (method.getName().equals("size")) {
-                                    return property.get().size();
-                                }
-                                throw new GradleException(
-                                        String.format("Could not proxy method '%s' to object %s", method, property));
-                            } else {
-                                return method.invoke(property, args);
-                            }
-                        });
+        return (ListProperty<T>) Proxy.newProxyInstance(
+                GradleWorkarounds.class.getClassLoader(),
+                new Class<?>[] {org.gradle.api.internal.provider.CollectionProviderInternal.class, ListProperty.class},
+                (proxy, method, args) -> {
+                    // Find matching method on CollectionPropertyInternal
+                    // org.gradle.api.internal.provider.CollectionProviderInternal
+                    if (method.getDeclaringClass()
+                            == org.gradle.api.internal.provider.CollectionProviderInternal.class) {
+                        if (method.getName().equals("getElementType")) {
+                            // Proxy to `propertyInternalClass` which we know DefaultListProperty implements.
+                            return propertyInternalClass
+                                    .getMethod(method.getName(), method.getParameterTypes())
+                                    .invoke(property, args);
+                        } else if (method.getName().equals("size")) {
+                            return property.get().size();
+                        }
+                        throw new GradleException(
+                                String.format("Could not proxy method '%s' to object %s", method, property));
+                    } else {
+                        return method.invoke(property, args);
+                    }
+                });
     }
 
     /**

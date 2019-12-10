@@ -83,12 +83,11 @@ public final class GetVersionPlugin implements Plugin<Project> {
     static Optional<String> getOptionalVersion(
             Project project, String group, String name, Configuration configuration) {
         if (GradleWorkarounds.isConfiguring(project.getState())) {
-            throw new GradleException(
-                    String.format(
-                            "Not allowed to call gradle-consistent-versions's getVersion(\"%s\", \"%s\", "
-                                    + "configurations.%s) "
-                                    + "at configuration time",
-                            group, name, configuration.getName()));
+            throw new GradleException(String.format(
+                    "Not allowed to call gradle-consistent-versions's getVersion(\"%s\", \"%s\", "
+                            + "configurations.%s) "
+                            + "at configuration time",
+                    group, name, configuration.getName()));
         }
 
         List<ModuleVersionIdentifier> list =
@@ -114,11 +113,10 @@ public final class GetVersionPlugin implements Plugin<Project> {
                 .map(ResolvedComponentResult::getModuleVersion)
                 .map(mvi -> String.format("\t- %s:%s:%s", mvi.getGroup(), mvi.getName(), mvi.getVersion()))
                 .collect(Collectors.joining("\n"));
-        return new GradleException(
-                String.format(
-                        "Unable to find '%s:%s' in %s. This may happen if you specify the version in versions.props"
-                                + " but do not have a dependency in the configuration. The configuration contained:\n"
-                                + "%s",
-                        group, name, configuration, actual));
+        return new GradleException(String.format(
+                "Unable to find '%s:%s' in %s. This may happen if you specify the version in versions.props"
+                        + " but do not have a dependency in the configuration. The configuration contained:\n"
+                        + "%s",
+                group, name, configuration, actual));
     }
 }

@@ -82,13 +82,12 @@ final class ConflictSafeLockFile {
                             line);
                     return matcher;
                 })
-                .map(matcher ->
-                        ImmutableLine.of(
-                                matcher.group("group"),
-                                matcher.group("artifact"),
-                                matcher.group("version"),
-                                Integer.parseInt(matcher.group("num")),
-                                matcher.group("hash")));
+                .map(matcher -> ImmutableLine.of(
+                        matcher.group("group"),
+                        matcher.group("artifact"),
+                        matcher.group("version"),
+                        Integer.parseInt(matcher.group("num")),
+                        matcher.group("hash")));
     }
 
     public void writeLocks(FullLockState fullLockState) {
