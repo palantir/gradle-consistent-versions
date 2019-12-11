@@ -64,7 +64,9 @@ public final class VersionsProps {
     public Stream<DependencyConstraint> constructConstraints(DependencyConstraintHandler handler) {
         Map<String, String> versions = fuzzyResolver.versions();
         return Stream.concat(
-                fuzzyResolver.exactMatches().stream().map(key -> key + ":" + versions.get(key)).map(handler::create),
+                fuzzyResolver.exactMatches().stream()
+                        .map(key -> key + ":" + versions.get(key))
+                        .map(handler::create),
                 patternToPlatform.entrySet().stream()
                         .map(entry -> entry.getValue() + ":" + versions.get(entry.getKey()))
                         .map(handler::create));

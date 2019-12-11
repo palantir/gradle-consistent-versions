@@ -62,7 +62,10 @@ public class VersionsLockExtension {
                 project.getPluginManager().hasPlugin("java"),
                 "The java plugin must be applied to consider this a test project: %s",
                 project);
-        project.getConvention().getPlugin(JavaPluginConvention.class).getSourceSets().all(testConfigurer::from);
+        project.getConvention()
+                .getPlugin(JavaPluginConvention.class)
+                .getSourceSets()
+                .all(testConfigurer::from);
     }
 
     final boolean isUseJavaPluginDefaults() {
