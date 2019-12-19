@@ -45,6 +45,7 @@ import org.gradle.api.publish.PublishingExtension;
 import org.gradle.api.publish.VariantVersionMappingStrategy;
 import org.gradle.api.publish.maven.MavenPublication;
 import org.gradle.api.tasks.TaskProvider;
+import org.gradle.language.base.plugins.LifecycleBasePlugin;
 import org.gradle.util.GradleVersion;
 
 public class VersionsPropsPlugin implements Plugin<Project> {
@@ -99,6 +100,7 @@ public class VersionsPropsPlugin implements Plugin<Project> {
     }
 
     private static void applyToRootProject(Project project) {
+        project.getPluginManager().apply(LifecycleBasePlugin.class);
         project.getExtensions()
                 .create(VersionRecommendationsExtension.EXTENSION, VersionRecommendationsExtension.class, project);
         project.subprojects(subproject -> subproject.getPluginManager().apply(VersionsPropsPlugin.class));
