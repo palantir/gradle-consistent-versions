@@ -23,6 +23,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 import org.gradle.api.GradleException;
 import org.gradle.api.NamedDomainObjectProvider;
 import org.gradle.api.Plugin;
@@ -43,6 +44,7 @@ import org.gradle.api.provider.Provider;
 import org.gradle.api.publish.PublishingExtension;
 import org.gradle.api.publish.VariantVersionMappingStrategy;
 import org.gradle.api.publish.maven.MavenPublication;
+import org.gradle.api.tasks.TaskProvider;
 import org.gradle.util.GradleVersion;
 
 public class VersionsPropsPlugin implements Plugin<Project> {
@@ -57,6 +59,16 @@ public class VersionsPropsPlugin implements Plugin<Project> {
         checkPreconditions();
         if (project.getRootProject().equals(project)) {
             applyToRootProject(project);
+
+            TaskProvider<CheckUnusedConstraintsTask> checkNoUnusedConstraints = project.getTasks()
+                    .register("checkUnusedConstraints", CheckUnusedConstraintsTask.class, task -> {
+                        task.getClasspath().set(project.provider(() -> project.getAllprojects().stream()
+                                .flatMap(proj -> CheckUnusedConstraintsTask.getResolvedModuleIdentifiers(
+                                        proj, project.getExtensions().getByType(VersionRecommendationsExtension.class)))
+                                .collect(Collectors.toSet())));
+                        task.getPropsFile().set(project.getLayout().getProjectDirectory().file("versions.props"));
+                    });
+            project.getTasks().named("check").configure(task -> task.dependsOn(checkNoUnusedConstraints));
         }
 
         VersionRecommendationsExtension extension =
