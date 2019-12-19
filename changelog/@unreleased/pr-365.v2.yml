@@ -1,0 +1,7 @@
+type: improvement
+improvement:
+  description: Add `checkUnusedConstraints` task which will ensure that the set of
+    constraints in the versions.props file is minimal. Calling the task with `--fix`
+    will automatically remove any unnecessary constraints.
+  links:
+  - https://github.com/palantir/gradle-consistent-versions/pull/365
