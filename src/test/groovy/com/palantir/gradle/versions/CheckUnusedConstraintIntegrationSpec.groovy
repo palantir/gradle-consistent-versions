@@ -116,6 +116,25 @@ class CheckUnusedConstraintIntegrationSpec extends IntegrationSpec {
         file('versions.props').text.trim() == "org.slf4j:slf4j-api = 1.7.25"
     }
 
+    def 'Most specific glob should win'() {
+        when:
+        file('versions.props').text = """
+            org.slf4j:slf4j-* = 1.7.25
+            org.slf4j:* = 1.7.20
+        """.stripIndent()
+
+        buildFile << """
+        dependencies {
+            compile 'org.slf4j:slf4j-api'
+            compile 'org.slf4j:slf4j-jdk14'
+        }""".stripIndent()
+
+        then:
+        buildAndFailWith('There are unused pins in your versions.props: \n[org.slf4j:*]')
+        buildWithFixWorks()
+        file('versions.props').text.trim() == "org.slf4j:slf4j-* = 1.7.25"
+    }
+
     def 'Unused version should fail'() {
         when:
         file('versions.props').text = "notused:atall = 42.42"

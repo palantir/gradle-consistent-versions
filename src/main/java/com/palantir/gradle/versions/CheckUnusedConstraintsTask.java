@@ -92,10 +92,7 @@ public class CheckUnusedConstraintsTask extends DefaultTask {
 
         // assumes globs are sorted by specificity
         for (FuzzyPatternResolver.Glob glob : versionsProps.getFuzzyResolver().globs()) {
-            Optional<String> matchingArtifact = unmatchedArtifacts.stream().filter(glob::matches).findFirst();
-            if (matchingArtifact.isPresent()) {
-                unmatchedArtifacts.remove(matchingArtifact.get());
-            } else {
+            if (!unmatchedArtifacts.removeIf(glob::matches)) {
                 unusedConstraints.add(glob.getRawPattern());
             }
         }
