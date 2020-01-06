@@ -17,7 +17,6 @@
 package com.palantir.gradle.versions;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -25,7 +24,9 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -86,15 +87,18 @@ public class CheckUnusedConstraintsTask extends DefaultTask {
         VersionsProps versionsProps = VersionsProps.loadFromFile(getPropsFile().get().getAsFile().toPath());
 
         Set<String> exactConstraints = versionsProps.getFuzzyResolver().exactMatches();
-        Stream<String> unusedExactConstraints = Sets.difference(exactConstraints, artifacts).stream();
+        Set<String> unusedConstraints = new HashSet<>(Sets.difference(exactConstraints, artifacts));
+        Set<String> unmatchedArtifacts = new HashSet<>(Sets.difference(artifacts, exactConstraints));
 
-        Sets.SetView<String> unmatchedArtifacts = Sets.difference(artifacts, exactConstraints);
-        Stream<String> unusedGlobConstraints = versionsProps.getFuzzyResolver().globs().stream()
-                .filter(glob -> !unmatchedArtifacts.stream().anyMatch(glob::matches))
-                .map(FuzzyPatternResolver.Glob::getRawPattern);
-
-        ImmutableSet<String> unusedConstraints =
-                Stream.concat(unusedExactConstraints, unusedGlobConstraints).collect(ImmutableSet.toImmutableSet());
+        // assumes globs are sorted by specificity
+        for (FuzzyPatternResolver.Glob glob : versionsProps.getFuzzyResolver().globs()) {
+            Optional<String> matchingArtifact = unmatchedArtifacts.stream().filter(glob::matches).findFirst();
+            if (matchingArtifact.isPresent()) {
+                unmatchedArtifacts.remove(matchingArtifact.get());
+            } else {
+                unusedConstraints.add(glob.getRawPattern());
+            }
+        }
 
         if (unusedConstraints.isEmpty()) {
             return;
