@@ -21,9 +21,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
-import javax.annotation.Nullable;
 import org.immutables.value.Value;
 
 /** Adapted from {@code nebula.dependency-recommender}. */
@@ -53,20 +53,19 @@ public abstract class FuzzyPatternResolver {
         return cache;
     }
 
-    @Nullable
-    public final String patternFor(String key) {
+    public final Optional<String> patternFor(String key) {
         // Always prefer exact matches (which should be handled separately).
         if (exactMatches().contains(key)) {
-            return null;
+            return Optional.empty();
         }
 
         for (Glob glob : globs()) {
             if (glob.matches(key)) {
-                return glob.rawPattern;
+                return Optional.of(glob.rawPattern);
             }
         }
 
-        return null;
+        return Optional.empty();
     }
 
     public static class Builder extends ImmutableFuzzyPatternResolver.Builder {}
@@ -107,7 +106,11 @@ public abstract class FuzzyPatternResolver {
             return new Glob(pattern, glob, weight);
         }
 
-        private boolean matches(String key) {
+        String getRawPattern() {
+            return rawPattern;
+        }
+
+        boolean matches(String key) {
             return pattern.matcher(key).matches();
         }
 

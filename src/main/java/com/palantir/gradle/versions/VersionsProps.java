@@ -43,6 +43,10 @@ public final class VersionsProps {
                         .collect(Collectors.toMap(key -> key, this::constructPlatform));
     }
 
+    public FuzzyPatternResolver getFuzzyResolver() {
+        return fuzzyResolver;
+    }
+
     public static VersionsProps loadFromFile(Path path) {
         Properties recommendations = new Properties();
         try (BufferedReader reader = Files.newBufferedReader(path)) {
@@ -79,7 +83,7 @@ public final class VersionsProps {
      */
     public Optional<String> getStarVersion(ModuleIdentifier dependency) {
         String notation = dependency.getGroup() + ":" + dependency.getName();
-        return Optional.ofNullable(fuzzyResolver.patternFor(notation)).map(fuzzyResolver.versions()::get);
+        return fuzzyResolver.patternFor(notation).map(fuzzyResolver.versions()::get);
     }
 
     /**
@@ -91,7 +95,7 @@ public final class VersionsProps {
         if (fuzzyResolver.exactMatches().contains(notation)) {
             return Optional.empty();
         }
-        return Optional.ofNullable(fuzzyResolver.patternFor(notation)).map(patternToPlatform::get);
+        return fuzzyResolver.patternFor(notation).map(patternToPlatform::get);
     }
 
     private String constructPlatform(String glob) {

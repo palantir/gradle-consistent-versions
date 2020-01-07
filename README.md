@@ -49,6 +49,7 @@ Direct dependencies are specified in a top level `versions.props` file and then 
     1. versions.props: lower bounds for dependencies
     1. versions.lock: compact representation of your prod classpath
     1. ./gradlew why
+    1. ./gradlew checkUnusedConstraints
     1. getVersion
     1. BOMs
     1. Specifying exact versions
@@ -158,6 +159,10 @@ This is effectively just a more concise version of `dependencyInsight`:
 ```
 ./gradlew  dependencyInsight --configuration unifiedClasspath --dependency jackson-databind
 ```
+
+## ./gradlew checkUnusedConstraints
+`checkUnusedConstraints` prevents unnecessary constraints from accruing in your `versions.props` file. Run 
+`./gradlew checkUnusedConstraints --fix` to automatically remove any unused constraints from your props file.
 
 ### getVersion
 If you want to use the resolved version of some dependency elsewhere in your Gradle files, gradle-consistent-versions offers the `getVersion(group, name, [configuration])` convenience function. For example:
