@@ -37,7 +37,6 @@ import org.gradle.api.artifacts.result.ResolutionResult;
 import org.gradle.api.file.RegularFile;
 import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.provider.Property;
-import org.gradle.api.provider.Provider;
 import org.gradle.api.provider.SetProperty;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputFile;
@@ -73,10 +72,6 @@ public class CheckUnusedConstraintsTask extends DefaultTask {
 
     @Option(option = "fix", description = "Whether to apply the suggested fix to versions.props")
     public final void setShouldFix(boolean shouldFix) {
-        this.shouldFix.set(shouldFix);
-    }
-
-    final void setShouldFix(Provider<Boolean> shouldFix) {
         this.shouldFix.set(shouldFix);
     }
 
