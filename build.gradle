@@ -54,7 +54,7 @@ dependencies {
     testImplementation 'com.netflix.nebula:nebula-test'
     testImplementation 'com.fasterxml.jackson.core:jackson-databind'
     testImplementation "org.junit.jupiter:junit-jupiter-api"
-    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter'
     testImplementation 'org.assertj:assertj-core'
     testRuntimeOnly "org.junit.vintage:junit-vintage-engine"
 
