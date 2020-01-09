@@ -16,11 +16,11 @@
 
 package com.palantir.gradle.versions
 
-import static com.palantir.gradle.versions.GradleTestVersions.GRADLE_VERSIONS
-
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.gradle.util.GradleVersion
 import spock.lang.Unroll
+
+import static com.palantir.gradle.versions.GradleTestVersions.GRADLE_VERSIONS
 
 @Unroll
 class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
@@ -79,7 +79,7 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         gradleVersion = gradleVersionNumber
 
         file('versions.props') << """
-            org.slf4j:slf4j-api:1.7.22
+            org.slf4j:slf4j-api = 1.7.22
         """.stripIndent()
 
         buildFile << """
