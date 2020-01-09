@@ -41,6 +41,10 @@ apply plugin: 'com.palantir.git-version'
 apply plugin: 'org.inferred.processors'
 apply from: "$rootDir/gradle/publish-jar.gradle"
 
+allprojects {
+    apply plugin: 'com.palantir.java-format'
+}
+
 group 'com.palantir.gradle.consistentversions'
 version System.env.CIRCLE_TAG ?: gitVersion()
 
@@ -54,6 +58,8 @@ dependencies {
     testImplementation 'com.netflix.nebula:nebula-test'
     testImplementation 'com.fasterxml.jackson.core:jackson-databind'
     testImplementation "org.junit.jupiter:junit-jupiter-api"
+    testImplementation 'org.assertj:assertj-core'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter'
     testRuntimeOnly "org.junit.vintage:junit-vintage-engine"
 
     annotationProcessor "org.immutables:value"
@@ -109,9 +115,6 @@ pluginBundle {
             displayName = 'Compact, constraint-friendly lockfiles for your dependencies'
         }
     }
-allprojects {
-    apply plugin: 'com.palantir.java-format'
-}
 }
 
 tasks.publish.dependsOn tasks.publishPlugins

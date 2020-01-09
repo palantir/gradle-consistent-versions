@@ -16,6 +16,8 @@
 
 package com.palantir.gradle.versions;
 
+import com.google.common.base.CharMatcher;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -55,8 +57,15 @@ public final class VersionsProps {
             throw new RuntimeException("Couldn't read properties file from: " + path, e);
         }
         FuzzyPatternResolver.Builder builder = FuzzyPatternResolver.builder();
-        recommendations.stringPropertyNames().forEach(name ->
-                builder.putVersions(name.replaceAll("/", ":"), recommendations.getProperty(name).trim()));
+        recommendations.stringPropertyNames().forEach(name -> {
+            String key = name.replaceAll("/", ":");
+            String value = recommendations.getProperty(name).trim();
+            Preconditions.checkArgument(
+                    CharMatcher.is(':').countIn(key) == 1, "Encountered invalid artifact name '%s'", key);
+            Preconditions.checkArgument(!value.isEmpty(), "Encountered missing version for artifact '%s'", value);
+
+            builder.putVersions(key, value);
+        });
         return new VersionsProps(builder.build());
     }
 

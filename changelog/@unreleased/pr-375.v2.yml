@@ -1,0 +1,5 @@
+type: improvement
+improvement:
+  description: Validate that versions.props entries are well formed
+  links:
+  - https://github.com/palantir/gradle-consistent-versions/pull/375
