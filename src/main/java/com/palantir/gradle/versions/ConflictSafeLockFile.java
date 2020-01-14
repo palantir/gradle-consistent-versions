@@ -50,7 +50,9 @@ final class ConflictSafeLockFile {
     /** Reads and returns the {@link LockState}. */
     public LockState readLocks() {
         try (Stream<String> linesStream = Files.lines(lockfile)) {
-            List<String> lines = linesStream.filter(line -> !line.trim().startsWith("#")).collect(Collectors.toList());
+            List<String> lines = linesStream
+                    .filter(line -> !line.trim().startsWith("#"))
+                    .collect(Collectors.toList());
             int testDependenciesPosition = lines.indexOf(TEST_DEPENDENCIES_MARKER);
             Stream<String> productionDeps;
             Stream<String> testDeps;

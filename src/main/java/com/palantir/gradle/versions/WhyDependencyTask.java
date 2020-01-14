@@ -80,7 +80,9 @@ public class WhyDependencyTask extends DefaultTask {
         lineByHash.get(hashOption.get()).forEach(line -> {
             ModuleVersionIdentifier key = MyModuleVersionIdentifier.of(line.group(), line.name(), line.version());
 
-            Optional<Dependents> entry = Stream.of(fullLockState.get().productionDeps(), fullLockState.get().testDeps())
+            Optional<Dependents> entry = Stream.of(
+                            fullLockState.get().productionDeps(),
+                            fullLockState.get().testDeps())
                     .map(state -> state.get(key))
                     .filter(Objects::nonNull)
                     .findFirst();
