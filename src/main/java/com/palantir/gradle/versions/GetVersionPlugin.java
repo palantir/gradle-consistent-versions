@@ -93,7 +93,8 @@ public final class GetVersionPlugin implements Plugin<Project> {
         List<ModuleVersionIdentifier> list =
                 configuration.getIncoming().getResolutionResult().getAllComponents().stream()
                         .map(ResolvedComponentResult::getModuleVersion)
-                        .filter(item -> item.getGroup().equals(group) && item.getName().equals(name))
+                        .filter(item ->
+                                item.getGroup().equals(group) && item.getName().equals(name))
                         .collect(toList());
 
         if (list.isEmpty()) {

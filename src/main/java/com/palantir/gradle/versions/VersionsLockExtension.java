@@ -37,8 +37,10 @@ public class VersionsLockExtension {
     @Inject
     public VersionsLockExtension(Project project) {
         this.project = project;
-        this.useJavaPluginDefaults = project.getObjects().property(Boolean.class).convention(true);
-        this.productionConfigurations = project.getObjects().setProperty(String.class).empty();
+        this.useJavaPluginDefaults =
+                project.getObjects().property(Boolean.class).convention(true);
+        this.productionConfigurations =
+                project.getObjects().setProperty(String.class).empty();
         this.testConfigurations = project.getObjects().setProperty(String.class).empty();
         this.productionConfigurer = new ScopeConfigurer(productionConfigurations);
         this.testConfigurer = new ScopeConfigurer(testConfigurations);

@@ -28,9 +28,9 @@ import org.gradle.api.artifacts.ResolvableDependencies;
 import org.gradle.api.plugins.JavaPlugin;
 
 /**
- * This plugin exists in order to ensure versions in legacy java configurations (that are still {@link
- * Configuration#isCanBeResolved() resolvable} for compatibility reasons) can be resolved, and that they use the locked
- * versions.
+ * This plugin exists in order to ensure versions in legacy java configurations (that are still
+ * {@link Configuration#isCanBeResolved() resolvable} for compatibility reasons) can be resolved, and that they use the
+ * locked versions.
  */
 public class FixLegacyJavaConfigurationsPlugin implements Plugin<Project> {
     @Override
@@ -84,7 +84,8 @@ public class FixLegacyJavaConfigurationsPlugin implements Plugin<Project> {
 
                 // don't interfere with the way forces trump everything
                 for (ModuleVersionSelector force : conf.getResolutionStrategy().getForcedModules()) {
-                    if (requested.getGroup().equals(force.getGroup()) && requested.getName().equals(force.getName())) {
+                    if (requested.getGroup().equals(force.getGroup())
+                            && requested.getName().equals(force.getName())) {
                         details.because(String.format(
                                 "Would have recommended a version for %s:%s, but a force is in place",
                                 requested.getGroup(), requested.getName()));
@@ -93,7 +94,9 @@ public class FixLegacyJavaConfigurationsPlugin implements Plugin<Project> {
                 }
 
                 getVersion
-                        .getVersion(details.getRequested().getGroup(), details.getRequested().getName())
+                        .getVersion(
+                                details.getRequested().getGroup(),
+                                details.getRequested().getName())
                         .ifPresent(ver -> {
                             details.useVersion(ver);
                             details.because("Forced by gradle-consistent-versions versions.lock");

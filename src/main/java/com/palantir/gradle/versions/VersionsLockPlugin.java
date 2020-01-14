@@ -126,8 +126,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
     public enum GcvUsage implements Named {
         /**
-         * GCV is using configurations with this usage to source all dependencies from a given project. Only {@link
-         * #PLACEHOLDER_CONFIGURATION_NAME} should have this usage.
+         * GCV is using configurations with this usage to source all dependencies from a given project. Only
+         * {@link #PLACEHOLDER_CONFIGURATION_NAME} should have this usage.
          *
          * <p>This exists so that the build's normal inter-project dependencies will naturally resolve to that
          * configuration, without having to re-write
@@ -169,15 +169,15 @@ public class VersionsLockPlugin implements Plugin<Project> {
     private final ShowStacktrace showStacktrace;
 
     /**
-     * We don't want the consumable configurations we create ({@link #PLACEHOLDER_CONFIGURATION_NAME}, {@link
-     * #CONSISTENT_VERSIONS_PRODUCTION}, {@link #CONSISTENT_VERSIONS_TEST}) and downstream collected {@link
-     * #recursivelyCopyProjectDependencies(Project, DependencySet) configurations that we copy} to have any known usage,
-     * so we give them this usage. This is so that:
+     * We don't want the consumable configurations we create ({@link #PLACEHOLDER_CONFIGURATION_NAME},
+     * {@link #CONSISTENT_VERSIONS_PRODUCTION}, {@link #CONSISTENT_VERSIONS_TEST}) and downstream collected
+     * {@link #recursivelyCopyProjectDependencies(Project, DependencySet) configurations that we copy} to have any known
+     * usage, so we give them this usage. This is so that:
      *
      * <ul>
-     *   <li>they don't cause an ambiguity between the copied and the original {@code apiElements}, {@code
-     *       runtimeElements} etc., when a resolution with a required usage is performed (such as by resolving a {@code
-     *       compileClasspath} or {@code runtimeClasspath} configuration)
+     *   <li>they don't cause an ambiguity between the copied and the original {@code apiElements},
+     *       {@code runtimeElements} etc., when a resolution with a required usage is performed (such as by resolving a
+     *       {@code compileClasspath} or {@code runtimeClasspath} configuration)
      *   <li>to avoid {@link #PLACEHOLDER_CONFIGURATION_NAME} being resolved as an actual candidate in normal
      *       resolution, when all other candidates didn't match, simply because it had completely distinct attributes
      *       from the requested attributes.
@@ -243,11 +243,13 @@ public class VersionsLockPlugin implements Plugin<Project> {
             // Recursively copy all project dependencies, so that the constraints we add below won't affect the
             // resolution of unifiedClasspath.
             Map<Project, LockedConfigurations> lockedConfigurations = wireUpLockedConfigurationsByProject(project);
-            DirectDependencyScopes directDependencyScopes =
-                    recursivelyCopyProjectDependencies(project, unifiedClasspath.getIncoming().getDependencies());
+            DirectDependencyScopes directDependencyScopes = recursivelyCopyProjectDependencies(
+                    project, unifiedClasspath.getIncoming().getDependencies());
 
             Supplier<FullLockState> fullLockStateSupplier = Suppliers.memoize(() -> {
-                ResolutionResult resolutionResult = unifiedClasspath.getIncoming().getResolutionResult();
+                ResolutionResult resolutionResult = unifiedClasspath
+                        .getIncoming()
+                        .getResolutionResult();
                 // Throw if there are dependencies that are not present in the lock state.
                 failIfAnyDependenciesUnresolved(resolutionResult);
                 return computeLockState(resolutionResult, directDependencyScopes);
@@ -363,8 +365,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
     }
 
     /**
-     * {@code fromConf} must be eager, as adding a dependency here will trigger other code to run in {@link
-     * #recursivelyCopyProjectDependenciesWithScope}.
+     * {@code fromConf} must be eager, as adding a dependency here will trigger other code to run in
+     * {@link #recursivelyCopyProjectDependenciesWithScope}.
      */
     private static void addConfigurationDependencies(
             Project project, Configuration fromConf, Set<Configuration> toConfs) {
@@ -379,7 +381,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
     /** Create a dependency requiring capabilities for the listed scope. */
     private static Dependency createDependencyOnProjectWithScope(Project project, GcvScope scope) {
-        ProjectDependency projectDependency = (ProjectDependency) project.getDependencies().create(project);
+        ProjectDependency projectDependency = (ProjectDependency)
+                project.getDependencies().create(project);
         projectDependency.capabilities(moduleDependencyCapabilitiesHandler ->
                 moduleDependencyCapabilitiesHandler.requireCapabilities(capabilityFor(project, scope)));
         projectDependency.attributes(attr -> attr.attribute(GCV_SCOPE_ATTRIBUTE, scope));
@@ -511,9 +514,9 @@ public class VersionsLockPlugin implements Plugin<Project> {
     }
 
     /**
-     * Recursive method that copies unseen {@link ProjectDependency project dependencies} found in the given {@link
-     * DependencySet}, and then amends their {@link ProjectDependency#getTargetConfiguration()} to point to the copied
-     * configuration. It then eagerly configures any copied Configurations recursively.
+     * Recursive method that copies unseen {@link ProjectDependency project dependencies} found in the given
+     * {@link DependencySet}, and then amends their {@link ProjectDependency#getTargetConfiguration()} to point to the
+     * copied configuration. It then eagerly configures any copied Configurations recursively.
      */
     private void recursivelyCopyProjectDependenciesWithScope(
             Project currentProject,
@@ -661,7 +664,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
     }
 
     private static boolean haveSameGroupAndName(Project project, Project subproject) {
-        return project.getName().equals(subproject.getName()) && project.getGroup().equals(subproject.getGroup());
+        return project.getName().equals(subproject.getName())
+                && project.getGroup().equals(subproject.getGroup());
     }
 
     private void failIfAnyDependenciesUnresolved(ResolutionResult resolutionResult) {
@@ -749,9 +753,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
                         dep -> dep.getFrom().getId(),
                         () -> new TreeMap<>(GradleComparators.COMPONENT_IDENTIFIER_COMPARATOR),
                         Collectors.mapping(
-                                dep -> getRequestedVersionConstraint(dep.getRequested()),
-                                Collectors.toCollection(
-                                        () -> new TreeSet<>(Comparator.comparing(VersionConstraint::toString)))))));
+                                dep -> getRequestedVersionConstraint(dep.getRequested()), Collectors.toCollection(() ->
+                                        new TreeSet<>(Comparator.comparing(VersionConstraint::toString)))))));
     }
 
     private static VersionConstraint getRequestedVersionConstraint(ComponentSelector requested) {
@@ -763,9 +766,9 @@ public class VersionsLockPlugin implements Plugin<Project> {
     }
 
     /**
-     * Essentially replicates what {@link
-     * org.gradle.api.tasks.diagnostics.internal.insight.DependencyInsightReporter#collectErrorMessages} does, since
-     * that whole class is not public API.
+     * Essentially replicates what
+     * {@link org.gradle.api.tasks.diagnostics.internal.insight.DependencyInsightReporter#collectErrorMessages} does,
+     * since that whole class is not public API.
      */
     private String formatUnresolvedDependencyResult(UnresolvedDependencyResult result) {
         StringBuilder failures = new StringBuilder();
@@ -789,8 +792,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
     private static void configureAllProjectsUsingConstraints(
             Project rootProject, Path gradleLockfile, Map<Project, LockedConfigurations> lockedConfigurations) {
-        List<DependencyConstraint> strictConstraints =
-                constructConstraintsFromLockFile(gradleLockfile, rootProject.getDependencies().getConstraints());
+        List<DependencyConstraint> strictConstraints = constructConstraintsFromLockFile(
+                gradleLockfile, rootProject.getDependencies().getConstraints());
         List<DependencyConstraint> publishableConstraints = constructPublishableConstraintsFromLockFile(
                 gradleLockfile, rootProject.getDependencies().getConstraints());
         rootProject.allprojects(subproject -> configureUsingConstraints(

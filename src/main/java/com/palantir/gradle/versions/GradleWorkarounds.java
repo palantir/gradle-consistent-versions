@@ -142,8 +142,8 @@ final class GradleWorkarounds {
     }
 
     /**
-     * Returns whether a dependency / component is a non-enforced platform, i.e. what you create with {@link
-     * DependencyHandler#platform} or {@link DependencyConstraintHandler#platform}.
+     * Returns whether a dependency / component is a non-enforced platform, i.e. what you create with
+     * {@link DependencyHandler#platform} or {@link DependencyConstraintHandler#platform}.
      */
     static boolean isPlatform(AttributeContainer attributes) {
         if (GradleVersion.current().compareTo(GRADLE_VERSION_CATEGORY_AVAILABLE) < 0) {

@@ -67,7 +67,8 @@ public class VersionsPropsPlugin implements Plugin<Project> {
                                 .flatMap(proj -> CheckUnusedConstraintsTask.getResolvedModuleIdentifiers(
                                         proj, project.getExtensions().getByType(VersionRecommendationsExtension.class)))
                                 .collect(Collectors.toSet())));
-                        task.getPropsFile().set(project.getLayout().getProjectDirectory().file("versions.props"));
+                        task.getPropsFile()
+                                .set(project.getLayout().getProjectDirectory().file("versions.props"));
                     });
             project.getTasks().named("check").configure(task -> task.dependsOn(checkNoUnusedConstraints));
         }
@@ -75,7 +76,8 @@ public class VersionsPropsPlugin implements Plugin<Project> {
         VersionRecommendationsExtension extension =
                 project.getRootProject().getExtensions().getByType(VersionRecommendationsExtension.class);
 
-        VersionsProps versionsProps = loadVersionsProps(project.getRootProject().file("versions.props").toPath());
+        VersionsProps versionsProps = loadVersionsProps(
+                project.getRootProject().file("versions.props").toPath());
 
         NamedDomainObjectProvider<Configuration> rootConfiguration = project.getConfigurations()
                 .register(ROOT_CONFIGURATION_NAME, conf -> {
@@ -88,7 +90,8 @@ public class VersionsPropsPlugin implements Plugin<Project> {
         });
 
         // Note: don't add constraints to this, only call `create` / `platform` on it.
-        DependencyConstraintHandler constraintHandler = project.getDependencies().getConstraints();
+        DependencyConstraintHandler constraintHandler = project.getDependencies()
+                .getConstraints();
         rootConfiguration.configure(conf -> addVersionsPropsConstraints(constraintHandler, conf, versionsProps));
 
         log.info("Configuring rules to assign *-constraints to platforms in {}", project);
