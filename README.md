@@ -371,7 +371,7 @@ _You can also likely delete the 'conflict resolution' section of your versions.p
 
 
 ### How to make this work with Baseline
-Since baseline 3.0, GCV will just work out of the box with Baseline.
+GCV will just work out of the box with Baseline 3.0.0 and newer.
 
 _If still using Baseline 2.x, then you'll need to disable its own versions plugin which conflicts with GCV:_
 
