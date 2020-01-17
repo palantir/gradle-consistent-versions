@@ -371,15 +371,16 @@ _You can also likely delete the 'conflict resolution' section of your versions.p
 
 
 ### How to make this work with Baseline
+GCV will just work out of the box with Baseline 3.0.0 and newer.
+
+_If still using Baseline 2.x, then you'll need to disable its own versions plugin which conflicts with GCV:_
+
 Add the following to your `gradle.properties` fully turn off nebula.dependency-recommender (only necessary if you use [`com.palantir.baseline`](https://github.com/palantir/gradle-baseline/#usage)):
 
 ```diff
  org.gradle.parallel=true
 +com.palantir.baseline-versions.disable=true
 ```
-
-_This should become unnecessary in a future version of Baseline._
-
 
 ### `dependencyRecommendations.getRecommendedVersion` -> `getVersion`
 If you rely on this Nebula function, then gradle-consistent-versions has a similar alternative:
