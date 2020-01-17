@@ -638,9 +638,13 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
         Preconditions.checkArgument(
                 confs.size() == 1,
-                "Expected to only find one target configuration but found %s with names: %s",
+                "Expected to only find one target configuration with capability %s but found %s with names: %s%\nn%s",
+                projectDependency.getRequestedCapabilities(),
                 confs.size(),
-                confs);
+                confs,
+                projectDependency.getDependencyProject().getConfigurations().stream()
+                        .map(conf -> String.format("- %s -> %s", conf, conf.getOutgoing().getCapabilities()))
+                        .collect(Collectors.joining("\n")));
 
         return Iterables.getOnlyElement(confs);
     }
