@@ -1,0 +1,6 @@
+type: fix
+fix:
+  description: 'Fix a potential exception `Expected to only find one target configuration
+    but found 0 with names: []` in GCV 1.13.0+.'
+  links:
+  - https://github.com/palantir/gradle-consistent-versions/pull/386
