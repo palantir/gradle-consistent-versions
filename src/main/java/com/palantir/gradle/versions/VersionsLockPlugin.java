@@ -365,7 +365,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
      */
     private static Map<String, Object> capabilityFor(Project project, GcvScope scope) {
         LazyString name = new LazyString(
-                () -> String.format("gcv:%s-%s-%s", project.getGroup().toString(), project.getName(), scope.getName()));
+                () -> String.format("%s-%s-%s", project.getGroup().toString(), project.getName(), scope.getName()));
         return ImmutableMap.of(
                 "group", "gcv",
                 "name", name,
@@ -648,7 +648,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
         Preconditions.checkArgument(
                 confs.size() == 1,
-                "Expected to only find one target configuration with capability %s but found %s with names: %s%\nn%s",
+                "Expected to only find one target configuration with capability %s but found %s with names: %s\n%s",
                 projectDependency.getRequestedCapabilities(),
                 confs.size(),
                 confs,
