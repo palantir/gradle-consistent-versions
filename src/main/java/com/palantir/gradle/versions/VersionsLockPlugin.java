@@ -359,6 +359,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
     }
 
     private static Map<String, String> capabilityFor(Project project, GcvScope scope) {
+        // Note: don't reference project.group() here as it is mutable so could change throughout the build evaluation.
         return ImmutableMap.of(
                 "group", "gcv",
                 "name", String.format("path=%s scope=%s", project.getPath(), scope.getName()),
