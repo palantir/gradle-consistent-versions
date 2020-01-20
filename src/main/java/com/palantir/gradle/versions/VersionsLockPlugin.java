@@ -358,8 +358,18 @@ public class VersionsLockPlugin implements Plugin<Project> {
         unifiedClasspath.getDependencies().add(createDependencyOnProjectWithScope(project, GcvScope.TEST));
     }
 
-    private static String capabilityFor(Project project, GcvScope scope) {
-        return String.format("gcv:%s-%s-%s:0", project.getGroup().toString(), project.getName(), scope.getName());
+    /**
+     * Produce a capability that will be lazily evaluated when given to a {@link
+     * org.gradle.internal.typeconversion.MapNotationConverter map notation converters} configured in {@link
+     * org.gradle.api.internal.artifacts.dsl.CapabilityNotationParserFactory}.
+     */
+    private static Map<String, Object> capabilityFor(Project project, GcvScope scope) {
+        LazyString name = new LazyString(
+                () -> String.format("gcv:%s-%s-%s", project.getGroup().toString(), project.getName(), scope.getName()));
+        return ImmutableMap.of(
+                "group", "gcv",
+                "name", name,
+                "version", "0");
     }
 
     /**
