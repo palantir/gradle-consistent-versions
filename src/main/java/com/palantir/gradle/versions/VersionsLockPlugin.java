@@ -360,8 +360,12 @@ public class VersionsLockPlugin implements Plugin<Project> {
         unifiedClasspath.getDependencies().add(createDependencyOnProjectWithScope(project, GcvScope.TEST));
     }
 
-    private static String capabilityFor(Project project, GcvScope scope) {
-        return String.format("gcv:%s-%s-%s:0", project.getGroup().toString(), project.getName(), scope.getName());
+    private static Map<String, String> capabilityFor(Project project, GcvScope scope) {
+        // Note: don't reference project.group() here as it is mutable so could change throughout the build evaluation.
+        return ImmutableMap.of(
+                "group", "gcv",
+                "name", String.format("path=%s scope=%s", project.getPath(), scope.getName()),
+                "version", "0");
     }
 
     /**
@@ -641,9 +645,13 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
         Preconditions.checkArgument(
                 confs.size() == 1,
-                "Expected to only find one target configuration but found %s with names: %s",
+                "Expected to only find one target configuration with capability %s but found %s with names: %s\n%s",
+                projectDependency.getRequestedCapabilities(),
                 confs.size(),
-                confs);
+                confs,
+                projectDependency.getDependencyProject().getConfigurations().stream()
+                        .map(conf -> String.format("- %s -> %s", conf, conf.getOutgoing().getCapabilities()))
+                        .collect(Collectors.joining("\n")));
 
         return Iterables.getOnlyElement(confs);
     }
