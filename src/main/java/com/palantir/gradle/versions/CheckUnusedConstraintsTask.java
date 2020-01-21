@@ -47,9 +47,8 @@ import org.gradle.language.base.plugins.LifecycleBasePlugin;
 public class CheckUnusedConstraintsTask extends DefaultTask {
 
     private final Property<Boolean> shouldFix = getProject().getObjects().property(Boolean.class);
-    private final RegularFileProperty propsFileProperty = getProject()
-            .getObjects()
-            .fileProperty();
+    private final RegularFileProperty propsFileProperty =
+            getProject().getObjects().fileProperty();
     private final SetProperty<String> classpath = getProject().getObjects().setProperty(String.class);
 
     public CheckUnusedConstraintsTask() {
@@ -80,8 +79,8 @@ public class CheckUnusedConstraintsTask extends DefaultTask {
     @TaskAction
     public final void checkNoUnusedPin() {
         Set<String> artifacts = getClasspath().get();
-        VersionsProps versionsProps = VersionsProps.loadFromFile(
-                getPropsFile().get().getAsFile().toPath());
+        VersionsProps versionsProps =
+                VersionsProps.loadFromFile(getPropsFile().get().getAsFile().toPath());
 
         Set<String> exactConstraints = versionsProps.getFuzzyResolver().exactMatches();
         Set<String> unusedConstraints = new HashSet<>(Sets.difference(exactConstraints, artifacts));
@@ -142,9 +141,8 @@ public class CheckUnusedConstraintsTask extends DefaultTask {
                 .filter(configuration -> !extension.shouldExcludeConfiguration(configuration.getName()))
                 .flatMap(configuration -> {
                     try {
-                        ResolutionResult resolutionResult = configuration
-                                .getIncoming()
-                                .getResolutionResult();
+                        ResolutionResult resolutionResult =
+                                configuration.getIncoming().getResolutionResult();
                         return resolutionResult.getAllComponents().stream()
                                 .map(result -> result.getId())
                                 .filter(cid ->
