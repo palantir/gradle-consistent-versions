@@ -247,9 +247,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
                     project, unifiedClasspath.getIncoming().getDependencies());
 
             Supplier<FullLockState> fullLockStateSupplier = Suppliers.memoize(() -> {
-                ResolutionResult resolutionResult = unifiedClasspath
-                        .getIncoming()
-                        .getResolutionResult();
+                ResolutionResult resolutionResult =
+                        unifiedClasspath.getIncoming().getResolutionResult();
                 // Throw if there are dependencies that are not present in the lock state.
                 failIfAnyDependenciesUnresolved(resolutionResult);
                 return computeLockState(resolutionResult, directDependencyScopes);
@@ -385,8 +384,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
     /** Create a dependency requiring capabilities for the listed scope. */
     private static Dependency createDependencyOnProjectWithScope(Project project, GcvScope scope) {
-        ProjectDependency projectDependency = (ProjectDependency)
-                project.getDependencies().create(project);
+        ProjectDependency projectDependency =
+                (ProjectDependency) project.getDependencies().create(project);
         projectDependency.capabilities(moduleDependencyCapabilitiesHandler ->
                 moduleDependencyCapabilitiesHandler.requireCapabilities(capabilityFor(project, scope)));
         projectDependency.attributes(attr -> attr.attribute(GCV_SCOPE_ATTRIBUTE, scope));
@@ -650,7 +649,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 confs.size(),
                 confs,
                 projectDependency.getDependencyProject().getConfigurations().stream()
-                        .map(conf -> String.format("- %s -> %s", conf, conf.getOutgoing().getCapabilities()))
+                        .map(conf -> String.format(
+                                "- %s -> %s", conf, conf.getOutgoing().getCapabilities()))
                         .collect(Collectors.joining("\n")));
 
         return Iterables.getOnlyElement(confs);

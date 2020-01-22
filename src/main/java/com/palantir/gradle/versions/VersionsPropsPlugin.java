@@ -90,8 +90,8 @@ public class VersionsPropsPlugin implements Plugin<Project> {
         });
 
         // Note: don't add constraints to this, only call `create` / `platform` on it.
-        DependencyConstraintHandler constraintHandler = project.getDependencies()
-                .getConstraints();
+        DependencyConstraintHandler constraintHandler =
+                project.getDependencies().getConstraints();
         rootConfiguration.configure(conf -> addVersionsPropsConstraints(constraintHandler, conf, versionsProps));
 
         log.info("Configuring rules to assign *-constraints to platforms in {}", project);
