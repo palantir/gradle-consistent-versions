@@ -19,14 +19,15 @@ package com.palantir.gradle.versions;
 import com.google.common.base.CharMatcher;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Properties;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.gradle.api.artifacts.DependencyConstraint;
@@ -35,6 +36,8 @@ import org.gradle.api.artifacts.dsl.DependencyConstraintHandler;
 
 /** A {@code versions.props} file. */
 public final class VersionsProps {
+    private static final Pattern CONSTRAINT = Pattern.compile("^([^# :]+:[^# ]+)\\s*=\\s*([^# ]+)#?.*$");
+
     private final FuzzyPatternResolver fuzzyResolver;
     private final Map<String, String> patternToPlatform;
 
@@ -50,23 +53,33 @@ public final class VersionsProps {
     }
 
     public static VersionsProps loadFromFile(Path path) {
-        Properties recommendations = new Properties();
-        try (BufferedReader reader = Files.newBufferedReader(path)) {
-            recommendations.load(new EolCommentFilteringReader(new ColonFilteringReader(reader)));
-        } catch (IOException e) {
-            throw new RuntimeException("Couldn't read properties file from: " + path, e);
-        }
         FuzzyPatternResolver.Builder builder = FuzzyPatternResolver.builder();
-        recommendations.stringPropertyNames().forEach(name -> {
-            String key = name.replaceAll("/", ":");
-            String value = recommendations.getProperty(name).trim();
-            Preconditions.checkArgument(
-                    CharMatcher.is(':').countIn(key) == 1, "Encountered invalid artifact name '%s'", key);
-            Preconditions.checkArgument(!value.isEmpty(), "Encountered missing version for artifact '%s'", value);
-
-            builder.putVersions(key, value);
-        });
+        Map<String, String> versions = new HashMap<>();
+        for (String line : safeReadLines(path)) {
+            Matcher constraint = CONSTRAINT.matcher(line);
+            if (constraint.matches()) {
+                String key = constraint.group(1);
+                String value = constraint.group(2);
+                Preconditions.checkArgument(
+                        CharMatcher.is(':').countIn(key) == 1, "Encountered invalid artifact name '%s'", key);
+                Preconditions.checkArgument(!value.isEmpty(), "Encountered missing version for artifact '%s'", value);
+                if (versions.containsKey(key)) {
+                    throw new RuntimeException(
+                            "Encountered duplicate constraint '" + key + "'. Please remove one of the entries");
+                }
+                versions.put(key, value);
+            }
+        }
+        builder.putAllVersions(versions);
         return new VersionsProps(builder.build());
+    }
+
+    private static List<String> safeReadLines(Path file) {
+        try {
+            return Files.readAllLines(file);
+        } catch (IOException e) {
+            throw new RuntimeException("Error reading " + file);
+        }
     }
 
     /** Construct a trivial {@link VersionsProps} that has no version recommendations. */
@@ -124,70 +137,5 @@ public final class VersionsProps {
             throw new IllegalArgumentException("Encountered a glob constraint with more than one ':' in it: " + glob);
         }
         return sanitized;
-    }
-
-    /** Because unfortunately {@link Properties#load} treats colons as an assignment operator. */
-    private static class ColonFilteringReader extends Reader {
-        private final Reader reader;
-
-        ColonFilteringReader(Reader reader) {
-            this.reader = reader;
-        }
-
-        @SuppressWarnings("NullableProblems")
-        @Override
-        public int read(char[] cbuf, int off, int len) throws IOException {
-            int pos = reader.read(cbuf, off, len);
-            for (int i = 0; i < cbuf.length; i++) {
-                if (cbuf[i] == ':') {
-                    cbuf[i] = '/';
-                }
-            }
-            return pos;
-        }
-
-        @Override
-        public void close() throws IOException {
-            reader.close();
-        }
-    }
-
-    private static class EolCommentFilteringReader extends Reader {
-        private final Reader reader;
-        private boolean inComment;
-
-        EolCommentFilteringReader(Reader reader) {
-            this.reader = reader;
-            this.inComment = false;
-        }
-
-        @SuppressWarnings("CheckStyle")
-        @Override
-        public int read(char[] cbuf, int off, int len) throws IOException {
-            int val;
-            int read = 0;
-            for (val = reader.read(); read < len && val != -1; val = reader.read()) {
-                if (val == '#') {
-                    inComment = true;
-                    continue;
-                }
-                if (val == '\n') {
-                    inComment = false;
-                }
-
-                if (inComment) {
-                    continue;
-                }
-
-                cbuf[off + read] = (char) val;
-                read++;
-            }
-            return read;
-        }
-
-        @Override
-        public void close() throws IOException {
-            reader.close();
-        }
     }
 }
