@@ -68,7 +68,7 @@ public final class VersionsProps {
                             "Encountered duplicate constraint '" + key + "'. Please remove one of the entries");
                 }
                 versions.put(key, value);
-            } else if (!line.startsWith("#")) {
+            } else if (!line.trim().isEmpty() && !line.startsWith("#")) {
                 throw new IllegalArgumentException("Encountered invalid constraint " + line);
             }
         }
