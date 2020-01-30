@@ -45,7 +45,7 @@ public class VersionsPropsTest {
 
         assertThatThrownBy(() -> VersionsProps.loadFromFile(propsFile))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("invalid artifact");
+                .hasMessageContaining("invalid constraint");
     }
 
     @Test
@@ -55,6 +55,6 @@ public class VersionsPropsTest {
 
         assertThatThrownBy(() -> VersionsProps.loadFromFile(propsFile))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("missing version");
+                .hasMessageContaining("invalid constraint");
     }
 }

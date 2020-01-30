@@ -1,0 +1,5 @@
+type: improvement
+improvement:
+  description: Fail to parse a versions.props file if there are duplicate constraints
+  links:
+  - https://github.com/palantir/gradle-consistent-versions/pull/396
