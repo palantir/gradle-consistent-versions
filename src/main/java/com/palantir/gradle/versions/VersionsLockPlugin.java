@@ -761,8 +761,9 @@ public class VersionsLockPlugin implements Plugin<Project> {
                         dep -> dep.getFrom().getId(),
                         () -> new TreeMap<>(GradleComparators.COMPONENT_IDENTIFIER_COMPARATOR),
                         Collectors.mapping(
-                                dep -> getRequestedVersionConstraint(dep.getRequested()), Collectors.toCollection(() ->
-                                        new TreeSet<>(Comparator.comparing(VersionConstraint::toString)))))));
+                                dep -> getRequestedVersionConstraint(dep.getRequested()),
+                                Collectors.toCollection(
+                                        () -> new TreeSet<>(Comparator.comparing(VersionConstraint::toString)))))));
     }
 
     private static VersionConstraint getRequestedVersionConstraint(ComponentSelector requested) {
