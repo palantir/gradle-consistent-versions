@@ -24,7 +24,7 @@ import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.plugins.JavaPluginConvention;
 
-class GradleConfigurations {
+final class GradleConfigurations {
     /**
      * Filters out both the unresolvable configurations but also the legacy java configurations that should not be
      * resolved.
