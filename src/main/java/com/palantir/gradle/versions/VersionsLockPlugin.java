@@ -276,7 +276,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
             configureAllProjectsUsingConstraints(project, rootLockfile, lockedConfigurations);
         });
 
-        TaskProvider verifyLocks = project.getTasks().register("verifyLocks", VerifyLocksTask.class, task -> {
+        TaskProvider<?> verifyLocks = project.getTasks().register("verifyLocks", VerifyLocksTask.class, task -> {
             task.getCurrentLockState().set(fullLockStateProperty.map(LockStates::toLockState));
             task.getPersistedLockState()
                     .set(project.provider(() -> new ConflictSafeLockFile(rootLockfile).readLocks()));
