@@ -19,6 +19,7 @@ package com.palantir.gradle.versions
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.gradle.util.GradleVersion
 import spock.lang.Unroll
+import spock.util.environment.RestoreSystemProperties
 
 import static com.palantir.gradle.versions.GradleTestVersions.GRADLE_VERSIONS
 
@@ -74,8 +75,11 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         gradleVersionNumber << GRADLE_VERSIONS
     }
 
+    @RestoreSystemProperties
     def '#gradleVersionNumber: can resolve all configurations like compile with version coming only from versions props'() {
         setup:
+        // It's now deprecated to resolve 'compile' in Gradle 6, this is to get around that
+        System.setProperty("ignoreDeprecations", "true")
         gradleVersion = gradleVersionNumber
 
         file('versions.props') << """
@@ -107,8 +111,8 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         buildFile << '''
             apply plugin: 'java'
             dependencies {
-                compile 'org.slf4j:slf4j-api'
-                compile 'ch.qos.logback:logback-classic:1.1.11' // brings in slf4j-api 1.7.22
+                implementation 'org.slf4j:slf4j-api'
+                implementation 'ch.qos.logback:logback-classic:1.1.11' // brings in slf4j-api 1.7.22
             }
         '''.stripIndent()
 
@@ -129,7 +133,7 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         buildFile << '''
             apply plugin: 'java'
             dependencies {
-                compile 'org.slf4j:slf4j-api'
+                implementation 'org.slf4j:slf4j-api'
             }
 
             task demo {
@@ -156,7 +160,7 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         buildFile << '''
             apply plugin: 'java'
             dependencies {
-                compile 'org.slf4j:slf4j-api'
+                implementation 'org.slf4j:slf4j-api'
             }
 
             task demo {
@@ -180,14 +184,14 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         addSubproject('foo', """
             apply plugin: 'java'
             dependencies {
-                compile 'test-alignment:module-that-should-be-aligned-up:1.0'
+                implementation 'test-alignment:module-that-should-be-aligned-up:1.0'
             }
         """.stripIndent())
 
         addSubproject('bar', """
             apply plugin: 'java'
             dependencies {
-                compile 'test-alignment:module-with-higher-version:1.1'
+                implementation 'test-alignment:module-with-higher-version:1.1'
             }
         """.stripIndent())
 
@@ -218,7 +222,7 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         addSubproject('foo', """
             apply plugin: 'java'
             dependencies {
-                compile 'org.slf4j:slf4j-api'
+                implementation 'org.slf4j:slf4j-api'
             }
         """.stripIndent())
 
@@ -259,7 +263,7 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
             }
             
             dependencies {
-                compile 'org.slf4j:slf4j-api'
+                implementation 'org.slf4j:slf4j-api'
                 
                 rootConfiguration platform('org1:platform')
                 rootConfiguration platform('org2:platform')
@@ -323,7 +327,7 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         addSubproject('foo', """
             apply plugin: 'java'
             dependencies {
-                compile 'ch.qos.logback:logback-classic'
+                implementation 'ch.qos.logback:logback-classic'
             }
         """.stripIndent())
 

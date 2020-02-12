@@ -67,7 +67,7 @@ class SlsPackagingCompatibilityIntegrationSpec extends IntegrationSpec {
             apply plugin: 'com.palantir.sls-recommended-dependencies'
             
             dependencies {
-                compile 'org.slf4j:slf4j-api'
+                implementation 'org.slf4j:slf4j-api'
             }
             
             recommendedProductDependencies {
@@ -93,7 +93,7 @@ class SlsPackagingCompatibilityIntegrationSpec extends IntegrationSpec {
             
             dependencies {
                 // Gets picked up by the productDependenciesConfig which is runtimeClasspath
-                compile project(':api')
+                implementation project(':api')
             }
         """.stripIndent())
 

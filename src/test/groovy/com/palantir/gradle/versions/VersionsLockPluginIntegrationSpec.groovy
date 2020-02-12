@@ -86,14 +86,14 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         addSubproject('foo', '''
             apply plugin: 'java'
             dependencies {
-                compile 'org.slf4j:slf4j-api:1.7.24'
+                implementation 'org.slf4j:slf4j-api:1.7.24'
             }
         '''.stripIndent())
 
         addSubproject('bar', '''
             apply plugin: 'java'
             dependencies {
-                compile "org.slf4j:slf4j-api:${project.bar_version}"
+                implementation "org.slf4j:slf4j-api:${project.bar_version}"
             }
         '''.stripIndent())
         file("gradle.properties") << "bar_version=1.7.11"
@@ -101,7 +101,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         addSubproject('baz', '''
             apply plugin: 'java'
             dependencies {
-                compile "org.slf4j:slf4j-api"
+                implementation "org.slf4j:slf4j-api"
             }
             dependencyRecommendations {
                 map recommendations: ['org.slf4j:slf4j-api': '1.7.20']
@@ -111,7 +111,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         addSubproject('forced', '''
             apply plugin: 'java'
             dependencies {
-                compile "org.slf4j:slf4j-api"
+                implementation "org.slf4j:slf4j-api"
             }
             configurations.all {
                 resolutionStrategy {
@@ -168,14 +168,14 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         addSubproject('foo', '''
             apply plugin: 'java'
             dependencies {
-                compile 'org.slf4j:slf4j-api'
+                implementation 'org.slf4j:slf4j-api'
             }
         '''.stripIndent())
 
         addSubproject('bar', '''
             apply plugin: 'java'
             dependencies {
-                compile 'ch.qos.logback:logback-classic:1.2.3' // brings in slf4j-api 1.7.25
+                implementation 'ch.qos.logback:logback-classic:1.2.3' // brings in slf4j-api 1.7.25
             }
         '''.stripIndent())
 
@@ -265,7 +265,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         buildFile << '''
             apply plugin: 'java'
             dependencies {
-                compile 'ch.qos.logback:logback-classic:1.2.3' // brings in slf4j-api 1.7.25
+                implementation 'ch.qos.logback:logback-classic:1.2.3' // brings in slf4j-api 1.7.25
             }
         '''.stripIndent()
 
@@ -419,7 +419,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
 
         addSubproject('foo', '''
             dependencies {
-                compile 'org:a:1.0'
+                implementation 'org:a:1.0'
             }
         '''.stripIndent())
 
@@ -428,7 +428,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         when:
         file('foo/build.gradle') << """
             dependencies {
-                compile 'org:b:1.0'
+                implementation 'org:b:1.0'
             }
         """.stripIndent()
 
@@ -456,7 +456,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         addSubproject('foo', '''
             apply plugin: 'java'
             dependencies {
-                compile 'org.slf4j:slf4j-api:1.7.20'
+                implementation 'org.slf4j:slf4j-api:1.7.20'
             }
         '''.stripIndent())
 
@@ -489,8 +489,8 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
 
         addSubproject('foo', '''
             dependencies {
-                compile 'org:a:1.0'
-                compile 'org:b:1.0'
+                implementation 'org:a:1.0'
+                implementation 'org:b:1.0'
             }
         '''.stripIndent())
 
@@ -499,7 +499,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         when:
         file('foo/build.gradle').text = """
             dependencies {
-                compile 'org:a:1.0'
+                implementation 'org:a:1.0'
             }
         """.stripIndent()
 
@@ -523,7 +523,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         buildFile << '''
             apply plugin: 'java'
             dependencies {
-                compile 'ch.qos.logback:logback-classic:1.2.3' // brings in slf4j-api 1.7.25
+                implementation 'ch.qos.logback:logback-classic:1.2.3' // brings in slf4j-api 1.7.25
             }
         '''.stripIndent()
 
@@ -596,7 +596,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         buildFile << """
             apply plugin: 'java'
             dependencies {
-                compile "org.slf4j:slf4j-api:\$depVersion"
+                implementation "org.slf4j:slf4j-api:\$depVersion"
             }
         """
 
@@ -621,7 +621,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         buildFile << """
             apply plugin: 'java'
             dependencies {
-                compile "org.slf4j:slf4j-api:\$depVersion"
+                implementation "org.slf4j:slf4j-api:\$depVersion"
             }
         """
 
@@ -651,7 +651,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         buildFile << """
             apply plugin: 'java'
             dependencies {
-                compile 'ch.qos.logback:logback-classic:1.2.3'
+                implementation 'ch.qos.logback:logback-classic:1.2.3'
             }
             configurations.compileOnly {
                 // convoluted, but the idea is to exclude a transitive
@@ -743,7 +743,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         buildFile << """
             apply plugin: 'java'           
             dependencies {
-                compile 'ch.qos.logback:logback-classic:1.2.3'
+                implementation 'ch.qos.logback:logback-classic:1.2.3'
                 testCompile 'org:test-dep-that-logs:1.0'
             }
         """.stripIndent()
@@ -774,7 +774,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                 eteTest
             }           
             dependencies {
-                compile 'ch.qos.logback:logback-classic:1.2.3'
+                implementation 'ch.qos.logback:logback-classic:1.2.3'
                 testCompile 'junit:junit:4.10'
                 eteTestCompile 'org:test-dep-that-logs:1.0'
             }
@@ -804,7 +804,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         buildFile << """
             apply plugin: 'java'
             dependencies {
-                compile 'junit:junit:4.10'
+                implementation 'junit:junit:4.10'
             }
             
             versionsLock.testProject()
@@ -832,7 +832,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
             apply plugin: 'java'
             dependencies {
                 constraints {
-                    compile 'ch.qos.logback:logback-classic:1.2.3'
+                    implementation 'ch.qos.logback:logback-classic:1.2.3'
                 }
                 dependencies {
                     testCompile 'ch.qos.logback:logback-classic'
@@ -874,13 +874,13 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
 
         addSubproject('foo', """
             dependencies {
-                compile 'ch.qos.logback:logback-classic:1.2.3'
+                implementation 'ch.qos.logback:logback-classic:1.2.3'
             }
         """.stripIndent())
 
         addSubproject('bar', """
             dependencies {
-                compile 'junit:junit:4.10'
+                implementation 'junit:junit:4.10'
             }
         """.stripIndent())
 

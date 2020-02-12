@@ -16,11 +16,11 @@
 
 package com.palantir.gradle.versions
 
-import static com.palantir.gradle.versions.GradleTestVersions.GRADLE_VERSIONS
-
 import groovy.util.slurpersupport.GPathResult
 import groovy.util.slurpersupport.NodeChildren
 import spock.lang.Unroll
+
+import static com.palantir.gradle.versions.GradleTestVersions.GRADLE_VERSIONS
 
 @Unroll
 class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
@@ -82,7 +82,7 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
         addSubproject('foo', """
             apply plugin: 'java'
             dependencies {
-                compile 'org.slf4j:slf4j-api'
+                implementation 'org.slf4j:slf4j-api'
             }
         """.stripIndent())
 
