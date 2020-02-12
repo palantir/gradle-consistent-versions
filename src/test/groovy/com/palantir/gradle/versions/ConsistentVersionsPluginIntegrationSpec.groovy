@@ -247,10 +247,10 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         setup:
         gradleVersion = gradleVersionNumber
 
-        generateMavenRepo(
-                "org1:platform:1.0",
-                "org2:platform:1.0",
-        )
+        def repo = new File(projectDir, "build/testrepogen/mavenrepo")
+        makePlatformPom(repo, "org1", "platform", "1.0")
+        makePlatformPom(repo, "org2", "platform", "1.0")
+
         addSubproject('foo', """
             apply plugin: 'java'
             
@@ -431,5 +431,26 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
 
         where:
         gradleVersionNumber << GRADLE_VERSIONS
+    }
+
+    private static void makePlatformPom(File repo, String group, String name, String version) {
+        def dir = new File(repo, "${group}/${name}/${version}")
+        dir.mkdirs()
+        new File(dir, "platform-1.0.pom") << """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0
+.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+              <modelVersion>4.0.0</modelVersion>
+              <packaging>pom</packaging>
+              <groupId>${group}</groupId>
+              <artifactId>${name}</artifactId>
+              <version>${version}</version>
+              <dependencyManagement>
+                <dependencies>
+                </dependencies>
+              </dependencyManagement>
+            </project>
+        """.stripIndent()
     }
 }
