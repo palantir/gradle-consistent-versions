@@ -16,12 +16,21 @@
 
 package com.palantir.gradle.versions
 
+
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.TaskOutcome
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.parallel.Execution
+import org.junit.jupiter.api.parallel.ExecutionMode
 
+import static org.assertj.core.api.Assertions.assertThat
+
+@Execution(ExecutionMode.CONCURRENT)
 class CheckUnusedConstraintIntegrationSpec extends IntegrationSpec {
 
-    def setup() {
+    @BeforeEach
+    void before() {
         buildFile << """
             plugins {
                 id 'java'
@@ -42,13 +51,14 @@ class CheckUnusedConstraintIntegrationSpec extends IntegrationSpec {
 
     def buildSucceed() {
         BuildResult result = runTasks( 'checkUnusedConstraints')
-        result.task(':checkUnusedConstraints').outcome == TaskOutcome.SUCCESS
-        result
+        assertThat(result.task(':checkUnusedConstraints')).
+                extracting { it.outcome }.
+                isEqualTo(TaskOutcome.SUCCESS)
     }
 
     void buildAndFailWith(String error) {
         BuildResult result = runTasksAndFail('checkUnusedConstraints')
-        assert result.output.contains(error)
+        assertThat(result.output).contains(error)
     }
 
     def buildWithFixWorks() {
@@ -61,7 +71,8 @@ class CheckUnusedConstraintIntegrationSpec extends IntegrationSpec {
         runTasks('checkUnusedConstraints')
     }
 
-    def 'checkVersionsProps does not resolve artifacts'() {
+    @Test
+    void 'checkVersionsProps does not resolve artifacts'() {
         buildFile << """
             dependencies {
                 compile 'com.palantir.product:foo:1.0.0'
@@ -73,17 +84,17 @@ class CheckUnusedConstraintIntegrationSpec extends IntegrationSpec {
         file('maven/com/palantir/product/foo/1.0.0/foo-1.0.0.pom') <<
                 pomWithJarPackaging("com.palantir.product", "foo", "1.0.0")
 
-        expect:
         buildSucceed()
     }
 
-    def 'Task should run as part of :check'() {
-        expect:
+    @Test
+    void 'Task should run as part of check'() {
         def result = runTasks('check', '-m')
         result.output.contains(':checkUnusedConstraints')
     }
 
-    def 'Version props conflict should succeed'() {
+    @Test
+    void 'Version props conflict should succeed'() {
         when:
         file('versions.props').text = """
             com.fasterxml.jackson.*:* = 2.9.3
@@ -98,7 +109,8 @@ class CheckUnusedConstraintIntegrationSpec extends IntegrationSpec {
         buildSucceed()
     }
 
-    def 'Most specific matching version should win'() {
+    @Test
+    void 'Most specific matching version should win'() {
         when:
         file('versions.props').text = """
             org.slf4j:slf4j-api = 1.7.25
@@ -113,10 +125,11 @@ class CheckUnusedConstraintIntegrationSpec extends IntegrationSpec {
         then:
         buildAndFailWith('There are unused pins in your versions.props: \n[org.slf4j:*]')
         buildWithFixWorks()
-        file('versions.props').text.trim() == "org.slf4j:slf4j-api = 1.7.25"
+        assert file('versions.props').text.trim() == "org.slf4j:slf4j-api = 1.7.25"
     }
 
-    def 'Most specific glob should win'() {
+    @Test
+    void 'Most specific glob should win'() {
         when:
         file('versions.props').text = """
             org.slf4j:slf4j-* = 1.7.25
@@ -132,10 +145,11 @@ class CheckUnusedConstraintIntegrationSpec extends IntegrationSpec {
         then:
         buildAndFailWith('There are unused pins in your versions.props: \n[org.slf4j:*]')
         buildWithFixWorks()
-        file('versions.props').text.trim() == "org.slf4j:slf4j-* = 1.7.25"
+        assert file('versions.props').text.trim() == "org.slf4j:slf4j-* = 1.7.25"
     }
 
-    def 'Unused version should fail'() {
+    @Test
+    void 'Unused version should fail'() {
         when:
         file('versions.props').text = "notused:atall = 42.42"
 
@@ -144,7 +158,8 @@ class CheckUnusedConstraintIntegrationSpec extends IntegrationSpec {
         buildWithFixWorks()
     }
 
-    def 'Unused check should use exact matching'() {
+    @Test
+    void 'Unused check should use exact matching'() {
         when:
         file('versions.props').text = """
             com.google.guava:guava-testlib = 23.0
