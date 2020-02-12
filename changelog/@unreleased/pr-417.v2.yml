@@ -1,0 +1,5 @@
+type: fix
+fix:
+  description: versions.props validation errors mention versions.props
+  links:
+  - https://github.com/palantir/gradle-consistent-versions/pull/417
