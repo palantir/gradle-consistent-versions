@@ -61,11 +61,17 @@ public final class VersionsProps {
                 String key = constraint.group(1);
                 String value = constraint.group(2);
                 Preconditions.checkArgument(
-                        CharMatcher.is(':').countIn(key) == 1, "Encountered invalid artifact name '%s'", key);
-                Preconditions.checkArgument(!value.isEmpty(), "Encountered missing version for artifact '%s'", value);
+                        CharMatcher.is(':').countIn(key) == 1,
+                        "Encountered invalid artifact name '%s' in versions.props",
+                        key);
+                Preconditions.checkArgument(
+                        !value.isEmpty(), "Encountered missing version for artifact '%s' in versions.props", value);
                 if (versions.containsKey(key)) {
-                    throw new RuntimeException(
-                            "Encountered duplicate constraint '" + key + "'. Please remove one of the entries");
+                    throw new RuntimeException("Encountered duplicate constraint for '"
+                            + key
+                            + "' in versions.props. Please remove one of the entries:\n"
+                            + String.format("    %s = %s\n", key, versions.get(key))
+                            + String.format("    %s = %s\n", key, value));
                 }
                 versions.put(key, value);
             } else if (!line.trim().isEmpty() && !line.startsWith("#")) {
