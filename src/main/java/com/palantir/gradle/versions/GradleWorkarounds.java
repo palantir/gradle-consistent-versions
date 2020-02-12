@@ -17,16 +17,11 @@
 package com.palantir.gradle.versions;
 
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
-import javax.inject.Inject;
 import org.gradle.api.DomainObjectCollection;
 import org.gradle.api.GradleException;
 import org.gradle.api.ProjectState;
 import org.gradle.api.artifacts.Configuration;
-import org.gradle.api.artifacts.ExternalDependency;
-import org.gradle.api.artifacts.ModuleDependency;
-import org.gradle.api.artifacts.ProjectDependency;
 import org.gradle.api.artifacts.dsl.DependencyConstraintHandler;
 import org.gradle.api.artifacts.dsl.DependencyHandler;
 import org.gradle.api.attributes.Attribute;
@@ -34,7 +29,6 @@ import org.gradle.api.attributes.AttributeContainer;
 import org.gradle.api.attributes.Category;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
-import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.provider.ListProperty;
 import org.gradle.util.GradleVersion;
 
@@ -102,46 +96,6 @@ final class GradleWorkarounds {
     }
 
     /**
-     * Work around the following issues with {@link ModuleDependency} attributes.
-     *
-     * <ul>
-     *   <li>Gradle not adding an AttributeFactory to {@link ProjectDependency} with configuration, fixed in 5.3-rc-1
-     *   <li>{@link ExternalDependency#copy()} not configuring an AttributeFactory and ALSO not immutably copying the
-     *       {@link AttributeContainer}, fixed in 5.6-rc-1.
-     *       <p>See https://github.com/gradle/gradle/pull/9653
-     * </ul>
-     */
-    static <T extends ModuleDependency> T fixAttributesOfModuleDependency(ObjectFactory objectFactory, T dependency) {
-        if (GradleVersion.current().compareTo(GradleVersion.version("5.6")) >= 0
-                // Merged on 2019-06-12 so next nightly should be good
-                || GradleVersion.current().compareTo(GradleVersion.version("5.6-20190613000000+0000")) >= 0) {
-            return dependency;
-        }
-        log.debug("Fixing attributes of module dependency to work around gradle#9653: {}", dependency.toString());
-        org.gradle.api.internal.artifacts.dependencies.AbstractModuleDependency abstractModuleDependency =
-                (org.gradle.api.internal.artifacts.dependencies.AbstractModuleDependency) dependency;
-        org.gradle.api.internal.attributes.ImmutableAttributesFactory factory =
-                objectFactory.newInstance(Extractors.class).attributesFactory;
-        abstractModuleDependency.setAttributesFactory(factory);
-        // We might have a copied AttributeContainer, so get it immutably, then create a new mutable one.
-        org.gradle.api.internal.attributes.AttributeContainerInternal currentAttributes =
-                (org.gradle.api.internal.attributes.AttributeContainerInternal) dependency.getAttributes();
-
-        try {
-            Method method =
-                    org.gradle.api.internal.artifacts.dependencies.AbstractModuleDependency.class.getDeclaredMethod(
-                            "setAttributes", org.gradle.api.internal.attributes.AttributeContainerInternal.class);
-            method.setAccessible(true);
-            method.invoke(dependency, factory.mutable(currentAttributes));
-        } catch (NoSuchMethodException e) {
-            throw new RuntimeException("Failed to get AttributeContainerInternal#setAttributes", e);
-        } catch (IllegalAccessException | InvocationTargetException e) {
-            throw new RuntimeException("Failed to invoke AttributeContainerInternal#setAttributes", e);
-        }
-        return dependency;
-    }
-
-    /**
      * Returns whether a dependency / component is a non-enforced platform, i.e. what you create with
      * {@link DependencyHandler#platform} or {@link DependencyConstraintHandler#platform}.
      */
@@ -168,16 +122,6 @@ final class GradleWorkarounds {
                                 conf.getResolutionStrategy())
                         .getConflictResolution();
         return conflictResolution == org.gradle.api.internal.artifacts.configurations.ConflictResolution.strict;
-    }
-
-    static class Extractors {
-        private final org.gradle.api.internal.attributes.ImmutableAttributesFactory attributesFactory;
-
-        @Inject
-        @SuppressWarnings("RedundantModifier")
-        public Extractors(org.gradle.api.internal.attributes.ImmutableAttributesFactory attributesFactory) {
-            this.attributesFactory = attributesFactory;
-        }
     }
 
     private GradleWorkarounds() {}

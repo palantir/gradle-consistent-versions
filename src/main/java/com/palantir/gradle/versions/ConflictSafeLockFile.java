@@ -36,8 +36,8 @@ import org.gradle.api.GradleException;
 
 final class ConflictSafeLockFile {
     private static final String HEADER_COMMENT = "# Run ./gradlew --write-locks to regenerate this file";
-    private static final Pattern LINE_PATTERN = Pattern.compile(
-            "(?<group>[^(:]+):(?<artifact>[^(:]+):(?<version>[^(:\\s]+)"
+    private static final Pattern LINE_PATTERN =
+            Pattern.compile("(?<group>[^(:]+):(?<artifact>[^(:]+):(?<version>[^(:\\s]+)"
                     + "\\s+\\((?<num>\\d+) constraints: (?<hash>\\w+)\\)");
     private static final String TEST_DEPENDENCIES_MARKER = "[Test dependencies]";
 

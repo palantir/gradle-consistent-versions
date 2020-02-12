@@ -48,8 +48,9 @@ public final class DirectDependencyScopes {
         }
 
         public void record(ModuleIdentifier module, GcvScope scope) {
-            map.compute(module, (key, oldScope) ->
-                    oldScope != null
+            map.compute(
+                    module,
+                    (key, oldScope) -> oldScope != null
                             ? Stream.of(oldScope, scope)
                                     .min(VersionsLockPlugin.GCV_SCOPE_COMPARATOR)
                                     .get()
