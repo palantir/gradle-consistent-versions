@@ -227,6 +227,21 @@ public class VersionsLockPlugin implements Plugin<Project> {
         // (but that's internal)
         project.getPluginManager().apply("java-base");
 
+        // This is helpful to short-circuit bad interactions with other plugins and pinpoint which code path caused
+        // the error. The goal is to hook up guard rails against the same configurations that are lazily configured by
+        // configurePublishConstraints (which usually happens too late to produce a good stack-trace: in the root
+        // project's afterEvaluate).
+        // Ideally, this code would go happen together with that function, and be wired up to compute the locked
+        // configurations lazily, rather than eagerly but inside rootProject.afterEvaluate which happens very late.
+        project.allprojects(subproject -> {
+            subproject.getPluginManager().withPlugin("java", plugin -> {
+                guardConfigurationFromEarlyResolution(
+                        project, subproject.getConfigurations().named(JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME));
+                guardConfigurationFromEarlyResolution(
+                        project, subproject.getConfigurations().named(JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME));
+            });
+        });
+
         // afterEvaluate is necessary to ensure all projects' dependencies have been configured, because we
         // need to copy them eagerly before we add the constraints from the lock file.
         //
@@ -237,16 +252,6 @@ public class VersionsLockPlugin implements Plugin<Project> {
         // configurations before we get a change to add constraints to them.
         //
         // [1]:https://github.com/JetBrains/intellij-community/commit/f394c51cff59c69bbaf63a8bf67cefbad9e357aa#diff-04b9936e4249a0f5727414555b76c4b9R123
-
-        project.allprojects(subproject -> {
-            subproject.getPluginManager().withPlugin("java", plugin -> {
-                guardConfigurationFromEarlyResolution(
-                        project, subproject.getConfigurations().named(JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME));
-                guardConfigurationFromEarlyResolution(
-                        project, subproject.getConfigurations().named(JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME));
-            });
-        });
-
         project.afterEvaluate(p -> {
             p.getSubprojects().forEach(subproject -> p.evaluationDependsOn(subproject.getPath()));
 
