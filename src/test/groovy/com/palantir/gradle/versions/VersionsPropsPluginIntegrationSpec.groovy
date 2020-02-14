@@ -16,8 +16,6 @@
 
 package com.palantir.gradle.versions
 
-import static com.palantir.gradle.versions.GradleTestVersions.GRADLE_VERSIONS
-
 import groovy.util.slurpersupport.GPathResult
 import groovy.util.slurpersupport.NodeChildren
 import spock.lang.Unroll
@@ -90,11 +88,7 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
         runTasks('resolveConfigurations', '--write-locks')
 
         file("foo/gradle/dependency-locks/runtimeClasspath.lockfile").text
-                .contains("org.slf4j:slf4j-api:1.7.24")
-
-        where:
-        gradleVersionNumber << GRADLE_VERSIONS
-    }
+                .contains("org.slf4j:slf4j-api:1.7.24")}
 
     def '#gradleVersionNumber: star dependency constraint is not forcefully downgraded for transitive dependency'() {
         setup:
@@ -116,11 +110,7 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
         runTasks('resolveConfigurations', '--write-locks')
 
         file("foo/gradle/dependency-locks/runtimeClasspath.lockfile").text
-                .contains("org.slf4j:slf4j-api:1.7.22")
-
-        where:
-        gradleVersionNumber << GRADLE_VERSIONS
-    }
+                .contains("org.slf4j:slf4j-api:1.7.22")}
 
     def '#gradleVersionNumber: star dependency constraint upgrades transitive dependency'() {
         setup:
@@ -142,11 +132,7 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
         runTasks('resolveConfigurations', '--write-locks')
 
         file("foo/gradle/dependency-locks/runtimeClasspath.lockfile").text
-                .contains("org.slf4j:slf4j-api:1.7.25")
-
-        where:
-        gradleVersionNumber << GRADLE_VERSIONS
-    }
+                .contains("org.slf4j:slf4j-api:1.7.25")}
 
     def '#gradleVersionNumber: imported platform generated correctly in pom'() {
         setup:
@@ -189,11 +175,7 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
                         scope: 'import',
                         type: 'pom'
                 ],
-        ] as Set
-
-        where:
-        gradleVersionNumber << GRADLE_VERSIONS
-    }
+        ] as Set}
 
     def '#gradleVersionNumber: non-glob module forces do not get added to a matching platform too'() {
         setup:
@@ -218,11 +200,7 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
         [
                 'com.fasterxml.jackson.core:jackson-databind:2.9.0',
                 'com.fasterxml.jackson.core:jackson-annotations:2.9.7',
-        ].each { lockLines.contains(it) }
-
-        where:
-        gradleVersionNumber << GRADLE_VERSIONS
-    }
+        ].each { lockLines.contains(it) }}
 
     def "#gradleVersionNumber: throws if resolving configuration in afterEvaluate"() {
         setup:
@@ -239,11 +217,7 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
 
         expect:
         def e = runTasksAndFail()
-        e.output.contains("Not allowed to resolve")
-
-        where:
-        gradleVersionNumber << GRADLE_VERSIONS
-    }
+        e.output.contains("Not allowed to resolve")}
 
     def "#gradleVersionNumber: does not throw if excluded configuration is resolved early"() {
         setup:
@@ -263,11 +237,7 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
         file('versions.props') << ''
 
         expect:
-        runTasks()
-
-        where:
-        gradleVersionNumber << GRADLE_VERSIONS
-    }
+        runTasks()}
 
     def "#gradleVersionNumber: creates rootConfiguration even if versions props file missing"() {
         setup:
@@ -283,11 +253,7 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
         file('versions.props').delete()
 
         expect:
-        runTasks()
-
-        where:
-        gradleVersionNumber << GRADLE_VERSIONS
-    }
+        runTasks()}
 
     /**
      * Recursively converts a node's children to a map of <tt>(tag name): (value inside tag)</tt>.

@@ -25,10 +25,12 @@ import org.gradle.testkit.runner.GradleRunner
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.TestInfo
+import org.junit.jupiter.api.extension.ExtendWith
 import org.junit.jupiter.api.io.TempDir
 import spock.lang.Specification
 
 @CompileStatic
+@ExtendWith(ParameterizedClass)
 class IntegrationSpec {
     public static final String testKitDirProperty = "org.gradle.testkit.dir"
     @Delegate(excludeTypes = [ Specification ], interfaces = true, allNames = true)
@@ -37,8 +39,17 @@ class IntegrationSpec {
     @TempDir
     public File gradleTestKitDir
 
+    @ParameterizedClass.Parameter(0)
+    public String gradleVersion
+
+    @ParameterizedClass.Parameters(name = "Gradle {0}")
+    static Object[][] data() {
+        return GradleTestVersions.GRADLE_VERSIONS.stream().map { [it] as Object[] }.toArray() as Object[][]
+    }
+
     @BeforeEach
     final void beforeEachMain(TestInfo testInfo) {
+        testKit.gradleVersion = gradleVersion
         testKit.testInfo = testInfo
 
         // Need to unwind spock's order of 'setup' methods
@@ -96,9 +107,10 @@ class IntegrationSpec {
             // Currently it sets it to a static location via org.gradle.testkit.runner.internal.DefaultGradleRunner.calculateTestKitDirProvider
             return super.createRunner(tasks).withTestKitDir(gradleTestKitDir)
         }
-/** Supersedes {@link BaseIntegrationSpec#setup} to use testInfo directly. */
+
+        /** Supersedes {@link BaseIntegrationSpec#setup} to use testInfo directly. */
         def baseSetup() {
-            def sanitizedTestName = testInfo.displayName
+            def sanitizedTestName = (testInfo.displayName + " " + testInfo.testMethod.get().name)
                     .replace('()', "")
                     .replaceAll(/\W+/, '-')
             projectDir = new File("build/nebulatest/${testInfo.testClass.get().canonicalName}/${sanitizedTestName}").absoluteFile

@@ -17,11 +17,34 @@
 package com.palantir.gradle.versions;
 
 import com.google.common.collect.ImmutableList;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 import java.util.List;
+import java.util.stream.Stream;
+import org.junit.jupiter.api.extension.ExtensionContext;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.ArgumentsProvider;
+import org.junit.jupiter.params.provider.ArgumentsSource;
 
 public final class GradleTestVersions {
     private GradleTestVersions() {}
 
     public static final List<String> GRADLE_VERSIONS =
             ImmutableList.of(VersionsLockPlugin.MINIMUM_GRADLE_VERSION.getVersion(), "6.0.1", "6.2-rc-1");
+
+    public static final class GradleVersions implements ArgumentsProvider {
+        @Override
+        public Stream<? extends Arguments> provideArguments(ExtensionContext context) throws Exception {
+            return GRADLE_VERSIONS.stream().map(Arguments::of);
+        }
+    }
+
+    @ArgumentsSource(GradleVersions.class)
+    @ParameterizedTest
+    @Target({ElementType.ANNOTATION_TYPE, ElementType.METHOD})
+    @Retention(RetentionPolicy.RUNTIME)
+    @interface TestAllGradles {}
 }
