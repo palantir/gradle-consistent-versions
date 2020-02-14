@@ -237,6 +237,16 @@ public class VersionsLockPlugin implements Plugin<Project> {
         // configurations before we get a change to add constraints to them.
         //
         // [1]:https://github.com/JetBrains/intellij-community/commit/f394c51cff59c69bbaf63a8bf67cefbad9e357aa#diff-04b9936e4249a0f5727414555b76c4b9R123
+
+        project.allprojects(subproject -> {
+            subproject.getPluginManager().withPlugin("java", plugin -> {
+                guardConfigurationFromEarlyResolution(
+                        project, subproject.getConfigurations().named(JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME));
+                guardConfigurationFromEarlyResolution(
+                        project, subproject.getConfigurations().named(JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME));
+            });
+        });
+
         project.afterEvaluate(p -> {
             p.getSubprojects().forEach(subproject -> p.evaluationDependsOn(subproject.getPath()));
 
@@ -287,6 +297,23 @@ public class VersionsLockPlugin implements Plugin<Project> {
             t.lockfile(rootLockfile);
             t.fullLockState(fullLockStateProperty);
         });
+    }
+
+    private static void guardConfigurationFromEarlyResolution(
+            Project project, NamedDomainObjectProvider<Configuration> configuration) {
+        ListProperty<DependencyConstraint> constraintsProperty =
+                GradleWorkarounds.fixListProperty(project.getObjects().listProperty(DependencyConstraint.class));
+        // Guard against bad plugins.
+        constraintsProperty.addAll(project.provider(() -> {
+            if (GradleWorkarounds.isConfiguring(project.getRootProject().getState())) {
+                throw new RuntimeException(String.format(
+                        "A plugin has realized the dependencies of %s while the project is still configuring. "
+                                + "This is not allowed when using GCV.",
+                        configuration.get()));
+            }
+            return ImmutableList.of();
+        }));
+        configuration.configure(conf -> conf.getDependencyConstraints().addAllLater(constraintsProperty));
     }
 
     static boolean isIgnoreLockFile(Project project) {
