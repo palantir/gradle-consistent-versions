@@ -31,7 +31,7 @@ import org.junit.jupiter.api.Test;
 
 class LockStatesTest {
     @Test
-    void grpc_should_have_its_square_bracket_version_stripped_but_nothing_else_should() {
+    void modules_like_grpc_should_have_its_square_bracket_version_stripped() {
         ComponentIdentifier grpcApi = componentIdentifier("io.grpc:grpc-api");
         ComponentIdentifier grpcCore = componentIdentifier("io.grpc:grpc-core");
         ComponentIdentifier grpcNetty = componentIdentifier("io.grpc:grpc-netty");
@@ -53,7 +53,7 @@ class LockStatesTest {
                         "io.grpc:grpc-api -> 1.27.1",
                         "io.grpc:grpc-core -> 1.27.1",
                         "io.grpc:grpc-netty -> {1.27.1, 1.27.1}",
-                        "something:else -> [1.27.1]");
+                        "something:else -> 1.27.1");
     }
 
     private ComponentIdentifier componentIdentifier(String componentIdentifier) {

@@ -43,7 +43,6 @@ import org.slf4j.LoggerFactory;
 public final class LockStates {
     private static final Logger log = LoggerFactory.getLogger(LockStates.class);
 
-    private static final String GRPC_PREFIX = "io.grpc:";
     private static final Pattern SINGLE_VERSION_RANGE = Pattern.compile("\\[[^,]+\\]");
 
     private LockStates() {}
@@ -106,8 +105,7 @@ public final class LockStates {
     private static String versionConstraintToString(String moduleString, VersionConstraint versionConstraint) {
         String constraintString = versionConstraint.toString();
 
-        if (moduleString.startsWith(GRPC_PREFIX)
-                && SINGLE_VERSION_RANGE.matcher(constraintString).matches()) {
+        if (SINGLE_VERSION_RANGE.matcher(constraintString).matches()) {
             return constraintString.substring(1, constraintString.length() - 1);
         }
 
