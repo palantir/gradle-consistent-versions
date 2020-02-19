@@ -40,8 +40,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                 "org.slf4j:slf4j-api:1.7.25",
                 "org:platform:1.0",
                 "junit:junit:4.10",
-                "org:test-dep-that-logs:1.0 -> org.slf4j:slf4j-api:1.7.11",
-                "some-dep:that-depends-on-grpc:1.0 -> io.grpc:grpc-core:1.27.1"
+                "org:test-dep-that-logs:1.0 -> org.slf4j:slf4j-api:1.7.11"
         )
         buildFile << """
             buildscript {
@@ -981,31 +980,5 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
 
         where:
         gradleVersionNumber << GRADLE_VERSIONS
-    }
-
-    def '#gradleVersionNumber: ensure grpc square brackets constraints are rewritten'() {
-//        gradleVersion = gradleVersionNumber
-        gradleVersion = '6.2'
-
-        System.setProperty('ignoreDeprecations', 'true')
-
-        buildFile << '''
-            apply plugin: 'java'
-            
-            repositories {
-                mavenCentral()
-            }
-            
-            dependencies {
-                implementation 'some-dep:that-depends-on-grpc:1.0'
-            }
-        '''
-
-        expect:
-        runTasks('--write-locks')
-        println file('versions.lock').text
-
-//        where:
-//        gradleVersionNumber << GRADLE_VERSIONS
     }
 }
