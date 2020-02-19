@@ -106,7 +106,8 @@ public final class LockStates {
     private static String versionConstraintToString(String moduleString, VersionConstraint versionConstraint) {
         String constraintString = versionConstraint.toString();
 
-        if (moduleString.startsWith(GRPC_PREFIX) && SINGLE_VERSION_RANGE.matcher(constraintString).matches()) {
+        if (moduleString.startsWith(GRPC_PREFIX)
+                && SINGLE_VERSION_RANGE.matcher(constraintString).matches()) {
             return constraintString.substring(1, constraintString.length() - 1);
         }
 
