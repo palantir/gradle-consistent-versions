@@ -5,6 +5,8 @@ org.immutables:value = 2.8.3
 org.junit:junit-bom = 5.6.0
 com.fasterxml.jackson.*:jackson-* = 2.10.2
 org.assertj:* = 3.15.0
+org.mockito:mockito-core = 3.2.4
+
 
 # Unnecessary once we have lock files
 com.google.code.findbugs:jsr305 = 3.0.2

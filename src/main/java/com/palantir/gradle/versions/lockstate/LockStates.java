@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.gradle.api.artifacts.ModuleVersionIdentifier;
@@ -41,6 +42,8 @@ import org.slf4j.LoggerFactory;
 
 public final class LockStates {
     private static final Logger log = LoggerFactory.getLogger(LockStates.class);
+
+    private static final Pattern SINGLE_VERSION_RANGE = Pattern.compile("\\[[^,]+\\]");
 
     private LockStates() {}
 
@@ -80,7 +83,7 @@ public final class LockStates {
         return constraintEntries
                 .map(e -> {
                     List<String> constraintsStr = e.getValue().stream()
-                            .map(VersionConstraint::toString)
+                            .map(LockStates::versionConstraintToString)
                             .filter(string -> !string.isEmpty()) // toString is empty if the constraint is a no-op
                             .collect(toList());
 
@@ -97,6 +100,16 @@ public final class LockStates {
                 .filter(Optional::isPresent)
                 .map(Optional::get)
                 .collect(toList());
+    }
+
+    private static String versionConstraintToString(VersionConstraint versionConstraint) {
+        String constraintString = versionConstraint.toString();
+
+        if (SINGLE_VERSION_RANGE.matcher(constraintString).matches()) {
+            return constraintString.substring(1, constraintString.length() - 1);
+        }
+
+        return constraintString;
     }
 
     private static String formatComponentIdentifier(ComponentIdentifier id) {
