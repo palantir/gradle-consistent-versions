@@ -31,10 +31,11 @@ import org.junit.jupiter.api.Test;
 
 class LockStatesTest {
     @Test
-    void grpc_should_have_its_square_bracket_version_stripped() {
-        ComponentIdentifier grpcApi = componentIdentifier("io.grpc:grpc-api:1.27.1");
-        ComponentIdentifier grpcCore = componentIdentifier("io.grpc:grpc-core:1.27.1");
-        ComponentIdentifier grpcNetty = componentIdentifier("io.grpc:grpc-netty:1.27.1");
+    void grpc_should_have_its_square_bracket_version_stripped_but_nothing_else_should() {
+        ComponentIdentifier grpcApi = componentIdentifier("io.grpc:grpc-api");
+        ComponentIdentifier grpcCore = componentIdentifier("io.grpc:grpc-core");
+        ComponentIdentifier grpcNetty = componentIdentifier("io.grpc:grpc-netty");
+        ComponentIdentifier somethingElse = componentIdentifier("something:else");
 
         VersionConstraint squareBracketConstraint = versionConstraint("[1.27.1]");
         VersionConstraint normalConstraint = versionConstraint("1.27.1");
@@ -45,12 +46,14 @@ class LockStatesTest {
         dependents.put(grpcApi, ImmutableSet.of(squareBracketConstraint));
         dependents.put(grpcCore, ImmutableSet.of(normalConstraint));
         dependents.put(grpcNetty, ImmutableSet.of(squareBracketConstraint, normalConstraint));
+        dependents.put(somethingElse, ImmutableSet.of(squareBracketConstraint));
 
         assertThat(LockStates.prettyPrintConstraints(Dependents.of(dependents)))
                 .containsExactly(
-                        "io.grpc:grpc-api:1.27.1 -> 1.27.1",
-                        "io.grpc:grpc-core:1.27.1 -> 1.27.1",
-                        "io.grpc:grpc-netty:1.27.1 -> {1.27.1, 1.27.1}");
+                        "io.grpc:grpc-api -> 1.27.1",
+                        "io.grpc:grpc-core -> 1.27.1",
+                        "io.grpc:grpc-netty -> {1.27.1, 1.27.1}",
+                        "something:else -> [1.27.1]");
     }
 
     private ComponentIdentifier componentIdentifier(String componentIdentifier) {

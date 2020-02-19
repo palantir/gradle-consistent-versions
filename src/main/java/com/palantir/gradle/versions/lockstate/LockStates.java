@@ -43,6 +43,7 @@ import org.slf4j.LoggerFactory;
 public final class LockStates {
     private static final Logger log = LoggerFactory.getLogger(LockStates.class);
 
+    private static final String GRPC_PREFIX = "io.grpc:";
     private static final Pattern SINGLE_VERSION_RANGE = Pattern.compile("\\[[^,]+\\]");
 
     private LockStates() {}
@@ -83,7 +84,7 @@ public final class LockStates {
         return constraintEntries
                 .map(e -> {
                     List<String> constraintsStr = e.getValue().stream()
-                            .map(LockStates::versionConstraintToString)
+                            .map(versionConstraint -> versionConstraintToString(e.getKey(), versionConstraint))
                             .filter(string -> !string.isEmpty()) // toString is empty if the constraint is a no-op
                             .collect(toList());
 
@@ -102,10 +103,10 @@ public final class LockStates {
                 .collect(toList());
     }
 
-    private static String versionConstraintToString(VersionConstraint versionConstraint) {
+    private static String versionConstraintToString(String moduleString, VersionConstraint versionConstraint) {
         String constraintString = versionConstraint.toString();
 
-        if (SINGLE_VERSION_RANGE.matcher(constraintString).matches()) {
+        if (moduleString.startsWith(GRPC_PREFIX) && SINGLE_VERSION_RANGE.matcher(constraintString).matches()) {
             return constraintString.substring(1, constraintString.length() - 1);
         }
 
