@@ -83,7 +83,7 @@ public final class LockStates {
         return constraintEntries
                 .map(e -> {
                     List<String> constraintsStr = e.getValue().stream()
-                            .map(versionConstraint -> versionConstraintToString(e.getKey(), versionConstraint))
+                            .map(LockStates::versionConstraintToString)
                             .filter(string -> !string.isEmpty()) // toString is empty if the constraint is a no-op
                             .collect(toList());
 
@@ -102,7 +102,7 @@ public final class LockStates {
                 .collect(toList());
     }
 
-    private static String versionConstraintToString(String moduleString, VersionConstraint versionConstraint) {
+    private static String versionConstraintToString(VersionConstraint versionConstraint) {
         String constraintString = versionConstraint.toString();
 
         if (SINGLE_VERSION_RANGE.matcher(constraintString).matches()) {
