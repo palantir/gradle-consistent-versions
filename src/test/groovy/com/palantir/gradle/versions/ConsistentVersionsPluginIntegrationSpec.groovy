@@ -18,14 +18,18 @@ package com.palantir.gradle.versions
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.gradle.util.GradleVersion
-import spock.lang.Unroll
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.TestTemplate
+import org.junit.jupiter.api.parallel.Execution
+import org.junit.jupiter.api.parallel.ExecutionMode
 
-@Unroll
+@Execution(ExecutionMode.CONCURRENT)
 class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
 
     static def PLUGIN_NAME = "com.palantir.consistent-versions"
 
-    void setup() {
+    @BeforeEach
+    void before() {
         File mavenRepo = generateMavenRepo(
                 "ch.qos.logback:logback-classic:1.1.11 -> org.slf4j:slf4j-api:1.7.22",
                 "org.slf4j:slf4j-api:1.7.22",
@@ -33,8 +37,8 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
                 "test-alignment:module-that-should-be-aligned-up:1.0",
                 "test-alignment:module-that-should-be-aligned-up:1.1",
                 "test-alignment:module-with-higher-version:1.1",
-                "org:platform:1.0",
-        )
+                "org:platform:1.0",)
+
         buildFile << """
             buildscript {
                 repositories {
@@ -57,21 +61,18 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         """.stripIndent()
     }
 
-    def '#gradleVersionNumber: can write locks'() {
-        setup:
-        gradleVersion = gradleVersionNumber
-
+    @TestTemplate
+    void 'can write locks'() {
         when:
         runTasks('--write-locks')
 
         then:
-        new File(projectDir, "versions.lock").exists()
-        runTasks('resolveConfigurations')}
+        assert new File(projectDir, "versions.lock").exists()
+        runTasks('resolveConfigurations')
+    }
 
-    def '#gradleVersionNumber: can resolve all configurations like compile with version coming only from versions props'() {
-        setup:
-        gradleVersion = gradleVersionNumber
-
+    @TestTemplate
+    void 'can resolve all configurations like compile with version coming only from versions props'() {
         file('versions.props') << """
             org.slf4j:slf4j-api = 1.7.22
         """.stripIndent()
@@ -88,12 +89,11 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
 
         then:
         // Ensures that configurations like 'compile' are resolved and their dependencies have versions
-        runTasks('resolveConfigurations')}
+        runTasks('resolveConfigurations')
+    }
 
-    def "#gradleVersionNumber: locks are consistent whether or not we do --write-locks for glob-forced direct dependency"() {
-        setup:
-        gradleVersion = gradleVersionNumber
-
+    @TestTemplate
+    void "locks are consistent whether or not we do --write-locks for glob-forced direct dependency"() {
         buildFile << '''
             apply plugin: 'java'
             dependencies {
@@ -106,12 +106,11 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
 
         expect:
         runTasks('resolveConfigurations', '--write-locks')
-        runTasks('resolveConfigurations')}
+        runTasks('resolveConfigurations')
+    }
 
-    def "#gradleVersionNumber: getVersion function works"() {
-        setup:
-        gradleVersion = gradleVersionNumber
-
+    @TestTemplate
+    void "getVersion function works"() {
         buildFile << '''
             apply plugin: 'java'
             dependencies {
@@ -129,12 +128,11 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         file('versions.props') << 'org.slf4j:* = 1.7.25'
 
         expect:
-        runTasks('demo').output.contains("demo=1.7.25")}
+        assert runTasks('demo').output.contains("demo=1.7.25")
+    }
 
-    def "#gradleVersionNumber: getVersion function works even when writing locks"() {
-        setup:
-        gradleVersion = gradleVersionNumber
-
+    @TestTemplate
+    void "getVersion function works even when writing locks"() {
         buildFile << '''
             apply plugin: 'java'
             dependencies {
@@ -149,12 +147,11 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         file('versions.props') << 'org.slf4j:* = 1.7.25'
 
         expect:
-        runTasks('demo', '--write-locks').output.contains("demo=1.7.25")}
+        assert runTasks('demo', '--write-locks').output.contains("demo=1.7.25")
+    }
 
-    def "#gradleVersionNumber: virtual platform is respected across projects"() {
-        setup:
-        gradleVersion = gradleVersionNumber
-
+    @TestTemplate
+    void "virtual platform is respected across projects"() {
         addSubproject('foo', """
             apply plugin: 'java'
             dependencies {
@@ -183,12 +180,11 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
             test-alignment:module-that-should-be-aligned-up:1.1 (1 constraints: a5041a2c)
             test-alignment:module-with-higher-version:1.1 (1 constraints: a6041b2c)
         """.stripIndent()
-        file('versions.lock').text == expectedLock}
+        assert file('versions.lock').text == expectedLock
+    }
 
-    def "#gradleVersionNumber: star dependencies in the absence of dependency versions"() {
-        setup:
-        gradleVersion = gradleVersionNumber
-
+    @TestTemplate
+    void "star dependencies in the absence of dependency versions"() {
         addSubproject('foo', """
             apply plugin: 'java'
             dependencies {
@@ -208,15 +204,14 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
             # Run ./gradlew --write-locks to regenerate this file
             org.slf4j:slf4j-api:1.7.25 (1 constraints: 4105483b)
         """.stripIndent()
-        file('versions.lock').text == expectedLock
+        assert file('versions.lock').text == expectedLock
 
         // Ensure that this is a required constraint
-        runTasks('why', '--hash', '4105483b').output.contains "projects -> 1.7.25"}
+        runTasks('why', '--hash', '4105483b').output.contains "projects -> 1.7.25"
+    }
 
-    def "#gradleVersionNumber: writeLocks and verifyLocks work in the presence of versions props constraints"() {
-        setup:
-        gradleVersion = gradleVersionNumber
-
+    @TestTemplate
+    void "writeLocks and verifyLocks work in the presence of versions props constraints"() {
         generateMavenRepo(
                 "org1:platform:1.0",
                 "org2:platform:1.0",
@@ -259,7 +254,7 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         expect:
         runTasks('--write-locks')
 
-        file('versions.lock').text == """\
+        assert file('versions.lock').text == """\
             # Run ./gradlew --write-locks to regenerate this file
             org.slf4j:slf4j-api:1.7.25 (1 constraints: 4105483b)
             org1:platform:1.0 (1 constraints: a5041a2c)
@@ -267,12 +262,11 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         """.stripIndent()
 
         and: 'Ensure you can verify locks and resolve the actual locked configurations'
-        runTasks('verifyLocks', 'resolveLockedConfigurations', 'resolveNonLockedConfiguration')}
+        runTasks('verifyLocks', 'resolveLockedConfigurations', 'resolveNonLockedConfiguration')
+    }
 
-    def "#gradleVersionNumber: versions props contents do not get published as constraints"() {
-        setup:
-        gradleVersion = gradleVersionNumber
-
+    @TestTemplate
+    void "versions props contents do not get published as constraints"() {
         buildFile << """
             allprojects {
                 apply plugin: 'java'
@@ -299,7 +293,7 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
             should:not-publish = 1.0
         """.stripIndent()
 
-        if (GradleVersion.version(gradleVersionNumber) < GradleVersion.version("6.0")) {
+        if (GradleVersion.version(gradleVersion) < GradleVersion.version("6.0")) {
             settingsFile << """
                 enableFeaturePreview('GRADLE_METADATA')
             """.stripIndent()
@@ -321,7 +315,7 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         def fooMetadataFilename = new File(projectDir, "foo/build/publications/maven/module.json")
         def fooMetadata = new ObjectMapper().readValue(fooMetadataFilename, MetadataFile)
 
-        fooMetadata.variants == [
+        assert fooMetadata.variants == [
                 new MetadataFile.Variant(
                         name: 'apiElements',
                         dependencies: [logbackDep],
@@ -330,12 +324,11 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
                         name: 'runtimeElements',
                         dependencies: [logbackDep],
                         dependencyConstraints: [logbackDep, slf4jDep]),
-        ] as Set}
+        ] as Set
+    }
 
-    def "#gradleVersionNumber: intransitive dependency on published configuration should not break realizing it later"() {
-        setup:
-        gradleVersion = gradleVersionNumber
-
+    @TestTemplate
+    void "intransitive dependency on published configuration should not break realizing it later"() {
         addSubproject('source', """
             configurations {
                 transitive
@@ -389,5 +382,6 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         runTasks('--write-locks')
 
         expect:
-        runTasks('resolveIntransitively', 'resolveTransitively')}
+        runTasks('resolveIntransitively', 'resolveTransitively')
+    }
 }

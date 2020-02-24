@@ -123,7 +123,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
 
         expect:
         def result = runTasksAndFail('resolveConfigurations')
-        result.output.readLines().any {
+        assert result.output.readLines().any {
             it.matches ".*Root lock file '([^']+)' doesn't exist, please run.*"
         }
     }
@@ -180,7 +180,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         runTasks('resolveConfigurations', '--write-locks')
 
         and: "foo now picks up a higher version than nebula suggested"
-        file("foo/gradle/dependency-locks/runtimeClasspath.lockfile").text
+        assert file("foo/gradle/dependency-locks/runtimeClasspath.lockfile").text
                 .contains("org.slf4j:slf4j-api:1.7.25")
 
         and: "I can resolve"
@@ -204,7 +204,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         runTasks('resolveConfigurations', '--write-locks')
 
         then: "Lock files are consistent with version resolved at root"
-        file("versions.lock").text.readLines().any { it.startsWith('org.slf4j:slf4j-api:1.7.24') }
+        assert file("versions.lock").text.readLines().any { it.startsWith('org.slf4j:slf4j-api:1.7.24') }
         [
                 "foo/gradle/dependency-locks/runtimeClasspath.lockfile",
                 "bar/gradle/dependency-locks/runtimeClasspath.lockfile",
@@ -214,7 +214,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         }
 
         then: "Manually forced version overrides unified dependency"
-        file("forced/gradle/dependency-locks/runtimeClasspath.lockfile").text
+        assert file("forced/gradle/dependency-locks/runtimeClasspath.lockfile").text
                 .contains('org.slf4j:slf4j-api:1.7.20')
 
         then: "I can resolve configurations"
@@ -224,7 +224,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         BuildResult incompatible = runTasksAndFail("-Pbar_version=1.7.25", 'resolveConfigurations')
 
         then: "Resolution fails"
-        incompatible.output.contains(expectedError)
+        assert incompatible.output.contains(expectedError)
 
         when: "I change the version in baz/"
         file("baz/build.gradle") << '''
@@ -235,7 +235,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
 
         then: "Resolution fails"
         def error = runTasksAndFail(':baz:resolveConfigurations')
-        error.output.contains(expectedError)
+        assert error.output.contains(expectedError)
     }
 
     @TestTemplate
@@ -250,8 +250,8 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         expect:
         runTasks('--write-locks')
         def lines = file('versions.lock').readLines()
-        lines.contains('ch.qos.logback:logback-classic:1.2.3 (1 constraints: 0805f935)')
-        lines.contains('org.slf4j:slf4j-api:1.7.25 (1 constraints: 400d4d2a)')
+        assert lines.contains('ch.qos.logback:logback-classic:1.2.3 (1 constraints: 0805f935)')
+        assert lines.contains('org.slf4j:slf4j-api:1.7.25 (1 constraints: 400d4d2a)')
     }
 
     @TestTemplate
@@ -263,7 +263,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         runTasks('--write-locks')
 
         then: "Root lock file has expected resolution result"
-        file("versions.lock").text.readLines().any { it.contains('org.slf4j:slf4j-api:1.7.24') }
+        assert file("versions.lock").text.readLines().any { it.contains('org.slf4j:slf4j-api:1.7.24') }
 
         then: "I can resolve configurations"
         runTasks('resolveConfigurations')
@@ -272,7 +272,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         def incompatible = runTasksAndFail("-Pbar_version=1.7.25", 'resolveConfigurations')
 
         then: "Resolution fails"
-        incompatible.output.contains(expectedError)
+        assert incompatible.output.contains(expectedError)
     }
 
     @TestTemplate
@@ -298,7 +298,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
 
         expect:
         def error = runTasksAndFail()
-        error.output.contains(expectedError)
+        assert error.output.contains(expectedError)
     }
 
     @TestTemplate
@@ -317,7 +317,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
 
         expect:
         def error = runTasksAndFail()
-        error.output.contains(expectedError)
+        assert error.output.contains(expectedError)
     }
 
     @TestTemplate
@@ -330,7 +330,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
 
         expect:
         def failure = runTasksAndFail()
-        failure.output.contains('Must not use failOnVersionConflict')
+        assert failure.output.contains('Must not use failOnVersionConflict')
     }
 
     @TestTemplate
@@ -381,8 +381,8 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
 
         then: 'Check fails because locks are not up to date'
         def failure = runTasksAndFail(':check')
-        failure.task(':verifyLocks').outcome == TaskOutcome.FAILED
-        failure.output.contains(expectedError)
+        assert failure.task(':verifyLocks').outcome == TaskOutcome.FAILED
+        assert failure.output.contains(expectedError)
 
         and: 'Can finally write locks once again'
         runTasks('--write-locks')
@@ -440,8 +440,8 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
 
         then: 'Check fails because locks are not up to date'
         def failure = runTasksAndFail(':check')
-        failure.task(':verifyLocks').outcome == TaskOutcome.FAILED
-        failure.output.contains(expectedError)
+        assert failure.task(':verifyLocks').outcome == TaskOutcome.FAILED
+        assert failure.output.contains(expectedError)
 
         and: 'Can finally write locks once again'
         runTasks('--write-locks')
@@ -462,8 +462,8 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
 
         then:
         def result = runTasks('why', '--hash', '400d4d2a') // slf4j-api
-        result.output.contains('org.slf4j:slf4j-api:1.7.25')
-        result.output.contains('ch.qos.logback:logback-classic -> 1.7.25')
+        assert result.output.contains('org.slf4j:slf4j-api:1.7.25')
+        assert result.output.contains('ch.qos.logback:logback-classic -> 1.7.25')
     }
 
     @TestTemplate
@@ -500,7 +500,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         runTasks('--write-locks')
 
         then:
-        file('versions.lock').readLines() == [
+        assert file('versions.lock').readLines() == [
                 '# Run ./gradlew --write-locks to regenerate this file',
                 'org:platform:1.0 (1 constraints: a5041a2c)',
         ]
@@ -521,8 +521,8 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         runTasks('--write-locks')
 
         then: 'verifyLocks is up to date the second time'
-        runTasks('verifyLocks').task(':verifyLocks').outcome == TaskOutcome.SUCCESS
-        runTasks('verifyLocks').task(':verifyLocks').outcome == TaskOutcome.UP_TO_DATE
+        assert runTasks('verifyLocks').task(':verifyLocks').outcome == TaskOutcome.SUCCESS
+        assert runTasks('verifyLocks').task(':verifyLocks').outcome == TaskOutcome.UP_TO_DATE
     }
 
 
@@ -544,11 +544,11 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         def fail = runTasksAndFail('verifyLocks', '-PdepVersion=1.7.11')
 
         and: 'it expects the correct version to be 1.7.11'
-        fail.output.contains """\
+        assert fail.output.contains("""\
                > Found dependencies whose dependents changed:
                  -org.slf4j:slf4j-api:1.7.20 (1 constraints: 3c05433b)
                  +org.slf4j:slf4j-api:1.7.11 (1 constraints: 3c05423b)
-            """.stripIndent()
+            """.stripIndent())
     }
 
     @TestTemplate
@@ -568,7 +568,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         runTasks('--write-locks')
 
         then: 'slf4j-api still appears in the lock file'
-        file('versions.lock').readLines() == [
+        assert file('versions.lock').readLines() == [
                 '# Run ./gradlew --write-locks to regenerate this file',
                 'ch.qos.logback:logback-classic:1.2.3 (1 constraints: 0805f935)',
                 'org.slf4j:slf4j-api:1.7.25 (1 constraints: 400d4d2a)',
@@ -648,7 +648,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
             [Test dependencies]
             org:test-dep-that-logs:1.0 (1 constraints: a5041a2c)
         """.stripIndent()
-        file('versions.lock').text == expected
+        assert file('versions.lock').text == expected
     }
 
     @TestTemplate
@@ -676,7 +676,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
             junit:junit:4.10 (1 constraints: d904fd30)
             org:test-dep-that-logs:1.0 (1 constraints: a5041a2c)
         """.stripIndent()
-        file('versions.lock').text == expected
+        assert file('versions.lock').text == expected
     }
 
     @TestTemplate
@@ -698,7 +698,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
             [Test dependencies]
             junit:junit:4.10 (1 constraints: d904fd30)
         """.stripIndent()
-        file('versions.lock').text == expected
+        assert file('versions.lock').text == expected
     }
 
     @TestTemplate
@@ -724,7 +724,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
             ch.qos.logback:logback-classic:1.2.3 (1 constraints: 0805f935)
             org.slf4j:slf4j-api:1.7.25 (1 constraints: 400d4d2a)
         """.stripIndent()
-        file('versions.lock').text == expected
+        assert file('versions.lock').text == expected
     }
 
     @TestTemplate
@@ -754,7 +754,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
             }
         """.stripIndent())
 
-        if (GradleVersion.version(gradleVersionNumber) < GradleVersion.version("6.0")) {
+        if (GradleVersion.version(gradleVersion) < GradleVersion.version("6.0")) {
             settingsFile << """
                 enableFeaturePreview('GRADLE_METADATA')
             """.stripIndent()
@@ -782,7 +782,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         def fooMetadataFilename = new File(projectDir, "foo/build/publications/maven/module.json")
         def fooMetadata = new ObjectMapper().readValue(fooMetadataFilename, MetadataFile)
 
-        fooMetadata.variants == [
+        assert fooMetadata.variants == [
                 new MetadataFile.Variant(
                         name: 'apiElements',
                         dependencies: [logbackDep],
@@ -797,7 +797,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         def barMetadataFilename = new File(projectDir, "bar/build/publications/maven/module.json")
         def barMetadata = new ObjectMapper().readValue(barMetadataFilename, MetadataFile)
 
-        barMetadata.variants == [
+        assert barMetadata.variants == [
                 new MetadataFile.Variant(
                         name: 'apiElements',
                         dependencies: [junitDep],
@@ -834,7 +834,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
 
         expect:
         runTasks("--write-locks")
-        file('versions.lock').text == """\
+        assert file('versions.lock').text == """\
             # Run ./gradlew --write-locks to regenerate this file
             ch.qos.logback:logback-classic:1.2.3 (1 constraints: 0805f935)
             org.slf4j:slf4j-api:1.7.25 (2 constraints: 8012a437)
