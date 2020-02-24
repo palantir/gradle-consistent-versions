@@ -1,0 +1,6 @@
+type: fix
+fix:
+  description: '`io.grpc` dependencies should no longer cause `versions.lock` generation
+    inconsistencies between different machines.'
+  links:
+  - https://github.com/palantir/gradle-consistent-versions/pull/428

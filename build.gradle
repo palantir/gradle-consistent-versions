@@ -10,11 +10,11 @@ buildscript {
     }
 
     dependencies {
-        classpath 'com.palantir.javaformat:gradle-palantir-java-format:0.3.23'
+        classpath 'com.palantir.javaformat:gradle-palantir-java-format:0.3.26'
         classpath 'com.netflix.nebula:nebula-publishing-plugin:16.0.0'
         classpath 'com.netflix.nebula:gradle-info-plugin:6.0.0'
         classpath 'com.palantir.gradle.consistentversions:gradle-consistent-versions:1.17.0'
-        classpath 'com.palantir.baseline:gradle-baseline-java:3.4.2'
+        classpath 'com.palantir.baseline:gradle-baseline-java:3.4.3'
         classpath 'com.palantir.gradle.gitversion:gradle-git-version:0.12.2'
         classpath 'gradle.plugin.org.inferred:gradle-processors:3.3.0'
         classpath "com.jfrog.bintray.gradle:gradle-bintray-plugin:1.8.4"
@@ -56,6 +56,7 @@ dependencies {
 
     testCompile platform('org.junit:junit-bom')
     testImplementation 'com.netflix.nebula:nebula-test'
+    testImplementation 'org.mockito:mockito-core'
     testImplementation 'com.fasterxml.jackson.core:jackson-databind'
     testImplementation "org.junit.jupiter:junit-jupiter-api"
     testImplementation 'org.assertj:assertj-core'

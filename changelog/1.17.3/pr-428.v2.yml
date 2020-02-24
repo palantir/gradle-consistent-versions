@@ -1,0 +1,7 @@
+type: fix
+fix:
+  description: Dependencies depended on with single version range constraints (like
+    `[1.27.1]`, used extensively by `io.grpc` dependencies) should no longer cause
+    `versions.lock` generation inconsistencies between different machines.
+  links:
+  - https://github.com/palantir/gradle-consistent-versions/pull/428

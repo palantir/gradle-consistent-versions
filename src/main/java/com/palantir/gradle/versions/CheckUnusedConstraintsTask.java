@@ -31,7 +31,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.Project;
-import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.component.ModuleComponentIdentifier;
 import org.gradle.api.artifacts.result.ResolutionResult;
 import org.gradle.api.file.RegularFile;
@@ -136,8 +135,7 @@ public class CheckUnusedConstraintsTask extends DefaultTask {
     }
 
     static Stream<String> getResolvedModuleIdentifiers(Project project, VersionRecommendationsExtension extension) {
-        return project.getConfigurations().stream()
-                .filter(Configuration::isCanBeResolved)
+        return GradleConfigurations.getResolvableConfigurations(project)
                 .filter(configuration -> !extension.shouldExcludeConfiguration(configuration.getName()))
                 .flatMap(configuration -> {
                     try {
