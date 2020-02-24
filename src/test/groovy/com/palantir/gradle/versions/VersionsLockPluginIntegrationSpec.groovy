@@ -17,8 +17,6 @@
 package com.palantir.gradle.versions
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import nebula.test.dependencies.DependencyGraph
-import nebula.test.dependencies.GradleDependencyGenerator
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.TaskOutcome
 import org.gradle.util.GradleVersion
@@ -354,9 +352,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
     @TestTemplate
     void 'fails if new dependency added that was not in the lock file'() {
         def expectedError = "Found dependencies that were not in the lock state"
-        DependencyGraph dependencyGraph = new DependencyGraph("org:a:1.0", "org:b:1.0")
-        GradleDependencyGenerator generator = new GradleDependencyGenerator(dependencyGraph)
-        def mavenRepo = generator.generateTestMavenRepo()
+        def mavenRepo = generateMavenRepo("org:a:1.0", "org:b:1.0")
 
         buildFile << """
             repositories {
@@ -414,9 +410,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
     @TestTemplate
     void 'fails if dependency was removed but still in the lock file'() {
         def expectedError = "Locked dependencies missing from the resolution result"
-        DependencyGraph dependencyGraph = new DependencyGraph("org:a:1.0", "org:b:1.0")
-        GradleDependencyGenerator generator = new GradleDependencyGenerator(dependencyGraph)
-        def mavenRepo = generator.generateTestMavenRepo()
+        def mavenRepo = generateMavenRepo("org:a:1.0", "org:b:1.0")
 
         buildFile << """
             repositories {

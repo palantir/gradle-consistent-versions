@@ -72,6 +72,13 @@ class IntegrationSpec implements IntegrationTestKitBase {
         DependencyGraph dependencyGraph = new DependencyGraph(graph)
         GradleDependencyGenerator generator = new GradleDependencyGenerator(
                 dependencyGraph, new File(projectDir, "build/testrepogen").toString())
-        return generator.generateTestMavenRepo()
+        // TODO this does not work in parallel.
+        // return generator.generateTestMavenRepo()
+        GradleRunner.create()
+                .withProjectDir(generator.gradleRoot)
+                .withTestKitDir(gradleTestKitDir)
+                .withArguments("publishMavenPublicationToMavenRepository")
+                .build()
+        return generator.mavenRepoDir
     }
 }
