@@ -492,7 +492,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         buildFile << """
             apply plugin: 'java'
             dependencies {
-                compile platform('org:platform:1.0')
+                implementation platform('org:platform:1.0')
             }
         """.stripIndent()
 
