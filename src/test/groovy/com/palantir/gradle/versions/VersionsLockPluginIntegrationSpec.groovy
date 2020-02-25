@@ -680,7 +680,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
     }
 
     @TestTemplate
-    void "versionsLock.testProject() works"() {
+    void "versionsLock testProject works"() {
         buildFile << """
             apply plugin: 'java'
             dependencies {
