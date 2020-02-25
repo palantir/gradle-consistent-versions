@@ -31,6 +31,14 @@ import org.junit.jupiter.api.io.TempDir
 @ExtendWith(ParameterizedClass)
 class IntegrationSpec extends AbstractIntegrationTestKit {
 
+    /** For generating maven repos in a beforeAll. */
+    @TempDir
+    public static File globalGradleTestKitDir
+
+    /** For generating maven repos in a beforeAll. */
+    @TempDir
+    public static File globalMavenRepoDir
+
     @TempDir
     public File gradleTestKitDir
 
@@ -84,14 +92,24 @@ class IntegrationSpec extends AbstractIntegrationTestKit {
 
     @CompileStatic
     protected File generateMavenRepo(String... graph) {
+        return generateMavenRepoAt(projectDir, gradleTestKitDir, graph)
+    }
+
+    @CompileStatic
+    protected static File generateGlobalMavenRepo(String... graph) {
+        return generateMavenRepoAt(globalMavenRepoDir, globalGradleTestKitDir, graph)
+    }
+
+    @CompileStatic
+    private static File generateMavenRepoAt(File root, File testKitDir, String... graph) {
         DependencyGraph dependencyGraph = new DependencyGraph(graph)
         GradleDependencyGenerator generator = new GradleDependencyGenerator(
-                dependencyGraph, new File(projectDir, "build/testrepogen").toString())
+                dependencyGraph, new File(root, "build/testrepogen").toString())
         // TODO this does not work in parallel.
         // return generator.generateTestMavenRepo()
         GradleRunner.create()
                 .withProjectDir(generator.gradleRoot)
-                .withTestKitDir(gradleTestKitDir)
+                .withTestKitDir(testKitDir)
                 .withArguments("publishMavenPublicationToMavenRepository")
                 .build()
         return generator.mavenRepoDir

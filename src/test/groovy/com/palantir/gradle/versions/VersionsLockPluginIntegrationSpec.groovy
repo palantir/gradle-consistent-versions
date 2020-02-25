@@ -20,6 +20,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.TaskOutcome
 import org.gradle.util.GradleVersion
+import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.TestTemplate
 import org.junit.jupiter.api.parallel.Execution
@@ -29,10 +30,11 @@ import org.junit.jupiter.api.parallel.ExecutionMode
 class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
 
     static def PLUGIN_NAME = "com.palantir.versions-lock"
+    private static File mavenRepo
 
-    @BeforeEach
-    void before() {
-        File mavenRepo = generateMavenRepo(
+    @BeforeAll
+    static void beforeAll() {
+        mavenRepo = generateGlobalMavenRepo(
                 "ch.qos.logback:logback-classic:1.2.3 -> org.slf4j:slf4j-api:1.7.25",
                 "org.slf4j:slf4j-api:1.7.11",
                 "org.slf4j:slf4j-api:1.7.20",
@@ -42,6 +44,10 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                 "junit:junit:4.10",
                 "org:test-dep-that-logs:1.0 -> org.slf4j:slf4j-api:1.7.11"
         )
+    }
+
+    @BeforeEach
+    void before() {
         buildFile << """
             buildscript {
                 repositories {
