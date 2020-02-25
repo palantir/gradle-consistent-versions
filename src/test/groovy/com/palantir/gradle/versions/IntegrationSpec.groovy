@@ -37,6 +37,8 @@ class IntegrationSpec extends AbstractIntegrationTestKit {
     @ParameterizedClass.Parameter(0)
     public String gradleVersion
 
+    boolean ignoreDeprecations
+
     @ParameterizedClass.Parameters(name = "Gradle {0}")
     static Object[][] data() {
         return GradleTestVersions.GRADLE_VERSIONS.stream().map { [it] as Object[] }.toArray() as Object[][]
@@ -71,7 +73,12 @@ class IntegrationSpec extends AbstractIntegrationTestKit {
     List<String> calculateArguments(String... args) {
         // Groovy doesn't let me pass varargs directly
         def list = GroovySucksHelper.callVarags({ super.calculateArguments(it) }, args)
-        list.push("--warning-mode=all")
+        // This way we can control this value even with parallelism
+        if (ignoreDeprecations) {
+            list.push("--warning-mode=none")
+        } else {
+            list.push("--warning-mode=all")
+        }
         return list
     }
 
