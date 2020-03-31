@@ -981,4 +981,41 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         where:
         gradleVersionNumber << GRADLE_VERSIONS
     }
+
+    def "#gradleVersionNumber can use java features"() {
+        gradleVersion = gradleVersionNumber
+
+        addSubproject('foo', """
+            apply plugin: 'java-library'
+            dependencies {
+                implementation project(':bar')
+                implementation project(':bar'), {
+                    capabilities {
+                        requireCapability("\${group}:\${name}-extra-feature")
+                    }
+                }
+            }
+        """.stripIndent())
+
+        addSubproject('bar', """
+            apply plugin: 'java-library'
+            
+            sourceSets {
+                extra
+            }
+            
+            java.registerFeature('extraFeature') {
+                usingSourceSet(sourceSets.extra)
+            }
+        """.stripIndent())
+
+        expect:
+        runTasks("--write-locks")
+        file('versions.lock').text == """\
+            # Run ./gradlew --write-locks to regenerate this file
+        """.stripIndent()
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
+    }
 }
