@@ -52,7 +52,7 @@ sourceCompatibility = 1.8
 
 dependencies {
     implementation 'com.google.guava:guava'
-    implementation 'com.netflix.nebula:nebula-dependency-recommender'
+    compileOnly 'com.netflix.nebula:nebula-dependency-recommender'
 
     testCompile platform('org.junit:junit-bom')
     testImplementation 'com.netflix.nebula:nebula-test'
