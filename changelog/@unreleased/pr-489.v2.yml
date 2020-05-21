@@ -1,0 +1,11 @@
+type: improvement
+improvement:
+  description: This change relaxes the precondition constraint that checks that
+    configure-on-demand is disabled. We now only require it to be disabled
+    when running the "verifyLocks" task, or when invoked with
+    "--write-locks".
+
+    This gives projects more flexibility to flag on configure-on-demand in certain 
+    scenarios where it might make sense.
+  links:
+  - https://github.com/palantir/gradle-consistent-versions/pull/489

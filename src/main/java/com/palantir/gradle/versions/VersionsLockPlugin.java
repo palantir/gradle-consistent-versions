@@ -434,10 +434,13 @@ public class VersionsLockPlugin implements Plugin<Project> {
             throw new GradleException("Must be applied only to root project");
         }
 
-        Preconditions.checkState(
-                !project.getGradle().getStartParameter().isConfigureOnDemand(),
-                "Gradle Consistent Versions doesn't currently work with configure-on-demand, please remove"
-                        + " 'org.gradle.configureondemand' from your gradle.properties");
+        // check that configure-on-demand is false when running with --write-locks
+        if (project.getGradle().getStartParameter().isWriteDependencyLocks()) {
+            Preconditions.checkState(
+                    !project.getGradle().getStartParameter().isConfigureOnDemand(),
+                    "configure-on-demand cannot be enabled when gradle is invoked with --write-locks;"
+                            + " please remove 'org.gradle.configureondemand' from your gradle.properties");
+        }
 
         Multimap<String, Project> coordinateDuplicates = LinkedHashMultimap.create();
         Set<Project> subprojectsLeft = new HashSet<>(project.getSubprojects());

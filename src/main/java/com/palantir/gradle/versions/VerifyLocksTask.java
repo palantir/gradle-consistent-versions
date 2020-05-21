@@ -16,6 +16,7 @@
 
 package com.palantir.gradle.versions;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.MapDifference;
 import com.google.common.collect.MapDifference.ValueDifference;
 import com.google.common.collect.Maps;
@@ -69,6 +70,11 @@ public class VerifyLocksTask extends DefaultTask {
 
     @TaskAction
     public final void taskAction() throws IOException {
+        Preconditions.checkState(
+                !getProject().getGradle().getStartParameter().isConfigureOnDemand(),
+                "configure-on-demand cannot be enabled when running the 'verifyLocks' task;"
+                        + " please remove 'org.gradle.configureondemand' from your gradle.properties");
+
         verifyLocksForScope(LockState::productionLinesByModuleIdentifier);
         verifyLocksForScope(LockState::testLinesByModuleIdentifier);
         Files.touch(outputFile);
