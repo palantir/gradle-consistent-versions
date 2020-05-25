@@ -40,8 +40,10 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayDeque;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -79,6 +81,7 @@ import org.gradle.api.artifacts.component.ProjectComponentIdentifier;
 import org.gradle.api.artifacts.dsl.DependencyConstraintHandler;
 import org.gradle.api.artifacts.result.ResolutionResult;
 import org.gradle.api.artifacts.result.ResolvedComponentResult;
+import org.gradle.api.artifacts.result.ResolvedDependencyResult;
 import org.gradle.api.artifacts.result.UnresolvedDependencyResult;
 import org.gradle.api.attributes.Attribute;
 import org.gradle.api.attributes.AttributesSchema;
@@ -741,7 +744,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
         resolutionResult.getAllComponents().stream()
                 .filter(component -> component.getId() instanceof ModuleComponentIdentifier)
                 .forEach(component -> {
-                    GcvScope scope = getScopeRecursively(component, scopeCache, directDependencyScopes);
+                    GcvScope scope = getScope(component, scopeCache, directDependencyScopes);
                     switch (scope) {
                         case PRODUCTION:
                             builder.putProductionDeps(
@@ -760,7 +763,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
         return builder.build();
     }
 
-    private static GcvScope getScopeRecursively(
+    private static GcvScope getScope(
             ResolvedComponentResult component,
             Map<ResolvedComponentResult, GcvScope> scopeCache,
             DirectDependencyScopes directDependencyScopes) {
@@ -769,25 +772,49 @@ public class VersionsLockPlugin implements Plugin<Project> {
             return cached.get();
         }
 
-        GcvScope gcvScope = component.getDependents().stream()
-                .filter(dep -> !dep.isConstraint())
-                .filter(dep -> dep.getRequested() instanceof ModuleComponentSelector)
-                .map(dependent -> {
-                    ModuleIdentifier requestedModule =
-                            ((ModuleComponentSelector) dependent.getRequested()).getModuleIdentifier();
-                    // If the dependency came from a project, then the requested ModuleIdentifier should be in the
-                    // edgeScopes. Otherwise, recurse until we find a project dependent.
-                    Optional<GcvScope> maybeScope = directDependencyScopes.getScopeFor(requestedModule);
-                    if (dependent.getFrom().getId() instanceof ProjectComponentIdentifier && maybeScope.isPresent()) {
-                        return maybeScope.get();
-                    }
-                    return getScopeRecursively(dependent.getFrom(), scopeCache, directDependencyScopes);
-                })
+        Set<ResolvedDependencyResult> traversedComponents = new HashSet<>();
+        Deque<ResolvedDependencyResult> stack =
+                new ArrayDeque<>(component.getDependents().size());
+        stack.addAll(component.getDependents());
+
+        Set<GcvScope> discoveredScopes = new HashSet<>(2);
+        while (!stack.isEmpty()) {
+            ResolvedDependencyResult dependent = stack.removeFirst();
+            if (dependent.isConstraint()
+                    || !(dependent.getRequested() instanceof ModuleComponentSelector)
+                    || traversedComponents.contains(dependent)) {
+                continue;
+            }
+
+            Optional<GcvScope> cachedValue = Optional.ofNullable(scopeCache.get(dependent.getFrom()));
+            if (cachedValue.isPresent()) {
+                discoveredScopes.add(cachedValue.get());
+                continue;
+            }
+
+            ModuleIdentifier requestedModule =
+                    ((ModuleComponentSelector) dependent.getRequested()).getModuleIdentifier();
+            // If the dependency came from a project, then the requested ModuleIdentifier should be in the
+            // edgeScopes. Otherwise, recurse until we find a project dependent.
+            Optional<GcvScope> maybeScope = directDependencyScopes.getScopeFor(requestedModule);
+            if (dependent.getFrom().getId() instanceof ProjectComponentIdentifier && maybeScope.isPresent()) {
+                discoveredScopes.add(maybeScope.get());
+                continue;
+            }
+
+            traversedComponents.add(dependent);
+            stack.addAll(dependent.getFrom().getDependents());
+        }
+
+        GcvScope scope = discoveredScopes.stream()
                 .min(GCV_SCOPE_COMPARATOR)
                 .orElseThrow(() -> new RuntimeException("Couldn't determine scope for dependency: " + component));
+        for (ResolvedDependencyResult traversedComponent : traversedComponents) {
+            log.warn("updating transitive {} {}", component, traversedComponent);
+            scopeCache.put(traversedComponent.getFrom(), scope);
+        }
 
-        scopeCache.put(component, gcvScope);
-        return gcvScope;
+        return scope;
     }
 
     private static Dependents extractDependents(ResolvedComponentResult component) {
