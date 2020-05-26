@@ -797,7 +797,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
             // If the dependency came from a project, then the requested ModuleIdentifier should be in the
             // edgeScopes. Otherwise, recurse until we find a project dependent.
             Optional<GcvScope> maybeScope = directDependencyScopes.getScopeFor(requestedModule);
-            if (dependent.getFrom().getId() instanceof ProjectComponentIdentifier && maybeScope.isPresent()) {
+            if (dependent.getSelected().getId() instanceof ProjectComponentIdentifier && maybeScope.isPresent()) {
                 discoveredScopes.add(maybeScope.get());
                 continue;
             }
@@ -809,6 +809,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
         GcvScope scope = discoveredScopes.stream()
                 .min(GCV_SCOPE_COMPARATOR)
                 .orElseThrow(() -> new RuntimeException("Couldn't determine scope for dependency: " + component));
+
+        scopeCache.put(component, scope);
         for (ResolvedDependencyResult traversedComponent : traversedComponents) {
             log.warn("updating transitive {} {}", component, traversedComponent);
             scopeCache.put(traversedComponent.getFrom(), scope);
