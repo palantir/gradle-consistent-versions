@@ -234,7 +234,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
         // Ideally, this code would go happen together with that function, and be wired up to compute the locked
         // configurations lazily, rather than eagerly but inside rootProject.afterEvaluate which happens very late.
         project.allprojects(subproject -> {
-            subproject.getPluginManager().withPlugin("java", plugin -> {
+            subproject.getPluginManager().withPlugin("java", _plugin -> {
                 guardConfigurationFromEarlyResolution(
                         project, subproject.getConfigurations().named(JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME));
                 guardConfigurationFromEarlyResolution(
@@ -349,7 +349,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
     private void setupDependenciesToProject(Project rootProject, Configuration unifiedClasspath, Project project) {
         // Parallel 'resolveConfigurations' sometimes breaks unless we force the root one to run first.
         if (rootProject != project) {
-            project.getPluginManager().withPlugin("com.palantir.configuration-resolver", plugin -> {
+            project.getPluginManager().withPlugin("com.palantir.configuration-resolver", _plugin -> {
                 project.getTasks().named("resolveConfigurations", task -> task.mustRunAfter(":resolveConfigurations"));
             });
         }
@@ -466,7 +466,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
         project.subprojects(subproject -> {
             subproject.afterEvaluate(sub -> {
-                sub.getPluginManager().withPlugin("nebula.dependency-recommender", plugin -> {
+                sub.getPluginManager().withPlugin("nebula.dependency-recommender", _plugin -> {
                     RecommendationProviderContainer container =
                             sub.getExtensions().findByType(RecommendationProviderContainer.class);
                     if (container.getStrategy() == RecommendationStrategies.OverrideTransitives) {
@@ -866,7 +866,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
         });
 
         // Ok, now configure the published configurations.
-        subproject.getPluginManager().withPlugin("java", plugin -> {
+        subproject.getPluginManager().withPlugin("java", _plugin -> {
             configurePublishConstraints(
                     subproject,
                     subproject.getConfigurations().named(JavaPlugin.COMPILE_CLASSPATH_CONFIGURATION_NAME),
@@ -920,7 +920,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
             // but I don't know how to do that without triggering a resolve of the configurationForFiltering,
             // which can transitively "lock" other publishable configurations by walking through its project
             // dependencies, thereby breaking the 'addAllLater' call above for other projects.
-            project.getPluginManager().withPlugin("maven-publish", plugin -> project.getExtensions()
+            project.getPluginManager().withPlugin("maven-publish", _plugin -> project.getExtensions()
                     .getByType(PublishingExtension.class)
                     .getPublications()
                     .withType(MavenPublication.class)

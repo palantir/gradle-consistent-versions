@@ -74,7 +74,7 @@ final class GradleWorkarounds {
         return (ListProperty<T>) Proxy.newProxyInstance(
                 GradleWorkarounds.class.getClassLoader(),
                 new Class<?>[] {org.gradle.api.internal.provider.CollectionProviderInternal.class, ListProperty.class},
-                (proxy, method, args) -> {
+                (_proxy, method, args) -> {
                     // Find matching method on CollectionPropertyInternal
                     // org.gradle.api.internal.provider.CollectionProviderInternal
                     if (method.getDeclaringClass()

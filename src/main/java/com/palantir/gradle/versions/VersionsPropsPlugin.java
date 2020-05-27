@@ -175,7 +175,7 @@ public class VersionsPropsPlugin implements Plugin<Project> {
             }
 
             // Add fail-safe error reporting
-            conf.getIncoming().beforeResolve(resolvableDependencies -> {
+            conf.getIncoming().beforeResolve(_resolvableDependencies -> {
                 if (GradleWorkarounds.isConfiguring(subproject.getState())) {
                     throw new GradleException(String.format(
                             "Not allowed to resolve %s at "
@@ -276,7 +276,7 @@ public class VersionsPropsPlugin implements Plugin<Project> {
     }
 
     private static void configureResolvedVersionsWithVersionMapping(Project project) {
-        project.getPluginManager().withPlugin("maven-publish", plugin -> {
+        project.getPluginManager().withPlugin("maven-publish", _plugin -> {
             project.getExtensions()
                     .getByType(PublishingExtension.class)
                     .getPublications()
