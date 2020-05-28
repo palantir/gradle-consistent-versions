@@ -1,0 +1,5 @@
+type: fix
+fix:
+  description: Properly handle cycles in the dependency graph when determining scope
+  links:
+  - https://github.com/palantir/gradle-consistent-versions/pull/491
