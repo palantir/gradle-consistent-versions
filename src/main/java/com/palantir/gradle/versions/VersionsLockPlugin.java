@@ -812,7 +812,6 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
         scopeCache.put(component, scope);
         for (ResolvedDependencyResult traversedComponent : traversedComponents) {
-            log.warn("updating transitive {} {}", component, traversedComponent);
             scopeCache.put(traversedComponent.getSelected(), scope);
         }
 
