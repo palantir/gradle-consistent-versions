@@ -33,6 +33,7 @@ import org.gradle.api.DefaultTask;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.component.ModuleComponentIdentifier;
 import org.gradle.api.artifacts.result.ResolutionResult;
+import org.gradle.api.artifacts.result.ResolvedComponentResult;
 import org.gradle.api.file.RegularFile;
 import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.provider.Property;
@@ -142,7 +143,7 @@ public class CheckUnusedConstraintsTask extends DefaultTask {
                         ResolutionResult resolutionResult =
                                 configuration.getIncoming().getResolutionResult();
                         return resolutionResult.getAllComponents().stream()
-                                .map(result -> result.getId())
+                                .map(ResolvedComponentResult::getId)
                                 .filter(cid ->
                                         !cid.equals(resolutionResult.getRoot().getId())) // remove the project
                                 .filter(cid -> cid instanceof ModuleComponentIdentifier)
