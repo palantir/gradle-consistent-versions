@@ -87,8 +87,8 @@ final class GradleWorkarounds {
                         } else if (method.getName().equals("size")) {
                             return property.get().size();
                         }
-                        throw new GradleException(
-                                String.format("Could not proxy method '%s' to object %s", method, property));
+                        throw new GradleException(String.format(
+                                "Could not proxy method '%s' to object %s", method, property.getOrNull()));
                     } else {
                         return method.invoke(property, args);
                     }
