@@ -28,11 +28,6 @@ class IntegrationSpec extends IntegrationTestKitSpec {
         settingsFile.createNewFile()
     }
 
-    @Override
-    List<String> calculateArguments(String... args) {
-        return super.calculateArguments((["--warning-mode=none"] + args.toList()) as String[])
-    }
-
     @CompileStatic
     protected File generateMavenRepo(String... graph) {
         DependencyGraph dependencyGraph = new DependencyGraph(graph)

@@ -75,6 +75,8 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         gradleVersionNumber << GRADLE_VERSIONS
     }
 
+    // TODO(dsanduleac): should remove this since this functionality doesn't fully work anyway, and we are
+    //   actively encouraging people to stop resolving the deprecated configurations `compile` and `runtime`.
     def '#gradleVersionNumber: can resolve all configurations like compile with version coming only from versions props'() {
         setup:
         gradleVersion = gradleVersionNumber
@@ -95,7 +97,7 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
 
         then:
         // Ensures that configurations like 'compile' are resolved and their dependencies have versions
-        runTasks('resolveConfigurations')
+        runTasks('--warning-mode=none', 'resolveConfigurations')
 
         where:
         gradleVersionNumber << GRADLE_VERSIONS
@@ -111,13 +113,15 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
                 implementation 'org.slf4j:slf4j-api'
                 runtimeOnly 'ch.qos.logback:logback-classic:1.1.11' // brings in slf4j-api 1.7.22
             }
+            
+            task resolve { doLast { configurations.runtimeClasspath.resolve() } }
         '''.stripIndent()
 
         file('versions.props') << 'org.slf4j:* = 1.7.25'
 
         expect:
-        runTasks('resolveConfigurations', '--write-locks')
-        runTasks('resolveConfigurations')
+        runTasks('resolve', '--write-locks')
+        runTasks('resolve')
 
         where:
         gradleVersionNumber << GRADLE_VERSIONS
