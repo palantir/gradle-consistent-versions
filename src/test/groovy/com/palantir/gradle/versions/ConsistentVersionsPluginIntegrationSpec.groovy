@@ -85,7 +85,7 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         buildFile << """
             apply plugin: 'java'
             dependencies {
-                compile "org.slf4j:slf4j-api"
+                implementation "org.slf4j:slf4j-api"
             }
         """.stripIndent()
 
@@ -107,8 +107,8 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         buildFile << '''
             apply plugin: 'java'
             dependencies {
-                compile 'org.slf4j:slf4j-api'
-                compile 'ch.qos.logback:logback-classic:1.1.11' // brings in slf4j-api 1.7.22
+                implementation 'org.slf4j:slf4j-api'
+                runtimeOnly 'ch.qos.logback:logback-classic:1.1.11' // brings in slf4j-api 1.7.22
             }
         '''.stripIndent()
 
@@ -129,7 +129,7 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         buildFile << '''
             apply plugin: 'java'
             dependencies {
-                compile 'org.slf4j:slf4j-api'
+                implementation 'org.slf4j:slf4j-api'
             }
 
             task demo {
@@ -156,7 +156,7 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         buildFile << '''
             apply plugin: 'java'
             dependencies {
-                compile 'org.slf4j:slf4j-api'
+                implementation 'org.slf4j:slf4j-api'
             }
 
             task demo {
@@ -180,14 +180,14 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         addSubproject('foo', """
             apply plugin: 'java'
             dependencies {
-                compile 'test-alignment:module-that-should-be-aligned-up:1.0'
+                implementation 'test-alignment:module-that-should-be-aligned-up:1.0'
             }
         """.stripIndent())
 
         addSubproject('bar', """
             apply plugin: 'java'
             dependencies {
-                compile 'test-alignment:module-with-higher-version:1.1'
+                implementation 'test-alignment:module-with-higher-version:1.1'
             }
         """.stripIndent())
 
@@ -218,7 +218,7 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         addSubproject('foo', """
             apply plugin: 'java'
             dependencies {
-                compile 'org.slf4j:slf4j-api'
+                implementation 'org.slf4j:slf4j-api'
             }
         """.stripIndent())
 
@@ -259,7 +259,7 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
             }
             
             dependencies {
-                compile 'org.slf4j:slf4j-api'
+                implementation 'org.slf4j:slf4j-api'
                 
                 rootConfiguration platform('org1:platform')
                 rootConfiguration platform('org2:platform')
@@ -323,7 +323,7 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         addSubproject('foo', """
             apply plugin: 'java'
             dependencies {
-                compile 'ch.qos.logback:logback-classic'
+                implementation 'ch.qos.logback:logback-classic'
             }
         """.stripIndent())
 
@@ -358,7 +358,7 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         fooMetadata.variants == [
                 new MetadataFile.Variant(
                         name: 'apiElements',
-                        dependencies: [logbackDep],
+                        dependencies: null,
                         dependencyConstraints: [logbackDep, slf4jDep]),
                 new MetadataFile.Variant(
                         name: 'runtimeElements',
