@@ -358,7 +358,7 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         fooMetadata.variants == [
                 new MetadataFile.Variant(
                         name: 'apiElements',
-                        dependencies: [logbackDep],
+                        dependencies: null,
                         dependencyConstraints: [logbackDep, slf4jDep]),
                 new MetadataFile.Variant(
                         name: 'runtimeElements',
