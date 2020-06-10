@@ -47,15 +47,11 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
                 repositories {
                     maven { url 'https://dl.bintray.com/palantir/releases' }
                 }
-                dependencies {
-                    classpath 'com.palantir.configurationresolver:gradle-configuration-resolver-plugin:0.3.0'
-                }
             }            
             plugins {
                 id '${PLUGIN_NAME}'
             }
             allprojects {
-                apply plugin: 'com.palantir.configuration-resolver'
                 repositories {
                     maven { url "file:///${mavenRepo.getAbsolutePath()}" }
                 }
@@ -63,9 +59,14 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
 
             // Make it easy to verify what versions of dependencies you got.
             allprojects {
-                apply plugin: 'com.palantir.configuration-resolver'
                 configurations.matching { it.name == 'runtimeClasspath' }.all {
                     resolutionStrategy.activateDependencyLocking()
+                }
+                task resolveConfigurations {
+                    doLast {
+                        configurations.compileClasspath.resolve()
+                        configurations.runtimeClasspath.resolve()
+                    }
                 }
             }
         """.stripIndent()
