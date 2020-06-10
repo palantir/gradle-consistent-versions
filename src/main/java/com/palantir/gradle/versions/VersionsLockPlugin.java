@@ -69,7 +69,6 @@ import org.gradle.api.artifacts.DependencyConstraint;
 import org.gradle.api.artifacts.DependencySet;
 import org.gradle.api.artifacts.ExternalModuleDependency;
 import org.gradle.api.artifacts.ModuleIdentifier;
-import org.gradle.api.artifacts.ModuleVersionIdentifier;
 import org.gradle.api.artifacts.ProjectDependency;
 import org.gradle.api.artifacts.VersionConstraint;
 import org.gradle.api.artifacts.component.ComponentSelector;
@@ -83,7 +82,6 @@ import org.gradle.api.artifacts.result.UnresolvedDependencyResult;
 import org.gradle.api.attributes.Attribute;
 import org.gradle.api.attributes.AttributesSchema;
 import org.gradle.api.attributes.Usage;
-import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.invocation.Gradle;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
@@ -93,14 +91,10 @@ import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.plugins.JavaPluginConvention;
 import org.gradle.api.provider.ListProperty;
 import org.gradle.api.provider.Property;
-import org.gradle.api.publish.PublishingExtension;
-import org.gradle.api.publish.maven.MavenPublication;
-import org.gradle.api.publish.maven.tasks.GenerateMavenPom;
 import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.SourceSetContainer;
 import org.gradle.api.tasks.TaskProvider;
 import org.gradle.language.base.plugins.LifecycleBasePlugin;
-import org.gradle.util.GUtil;
 import org.gradle.util.GradleVersion;
 import org.immutables.value.Value;
 
@@ -865,75 +859,26 @@ public class VersionsLockPlugin implements Plugin<Project> {
             VersionsLockPlugin.ensureNoFailOnVersionConflict(conf);
         });
 
-        // Ok, now configure the published configurations.
+        NamedDomainObjectProvider<Configuration> publishConstraints = subproject
+                .getConfigurations()
+                .register("gcvPublishConstraints", conf -> {
+                    conf.setDescription("Publishable constraints from the GCV versions.lock file");
+                    conf.setCanBeResolved(false);
+                    conf.setCanBeConsumed(false);
+                    conf.getDependencyConstraints().addAll(publishableConstraints);
+                });
+
+        // Enrich the configurations being published as part of the java component (components.java)
+        // with constraints generated from the lock file.
         subproject.getPluginManager().withPlugin("java", _plugin -> {
-            configurePublishConstraints(
-                    subproject,
-                    subproject.getConfigurations().named(JavaPlugin.COMPILE_CLASSPATH_CONFIGURATION_NAME),
-                    subproject.getConfigurations().named(JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME),
-                    publishableConstraints);
-            configurePublishConstraints(
-                    subproject,
-                    subproject.getConfigurations().named(JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME),
-                    subproject.getConfigurations().named(JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME),
-                    publishableConstraints);
-        });
-    }
-
-    /**
-     * Configures constraints on the given {@code configuration}, but only on the dependencies that show up in the
-     * resolution result of {@code configurationForFiltering}.
-     *
-     * <p>We can assume that the {@code java} plugin has been applied on the project.
-     */
-    private static void configurePublishConstraints(
-            Project project,
-            NamedDomainObjectProvider<Configuration> configurationForFiltering,
-            NamedDomainObjectProvider<Configuration> configuration,
-            List<DependencyConstraint> publishConstraints) {
-        ListProperty<DependencyConstraint> constraintsProperty =
-                GradleWorkarounds.fixListProperty(project.getObjects().listProperty(DependencyConstraint.class));
-        constraintsProperty.addAll(project.provider(Suppliers.memoize(() -> {
-            log.debug(
-                    "Computing publish constraints for {} by resolving {}",
-                    configuration.get(),
-                    configurationForFiltering.get());
-            Set<ModuleIdentifier> modulesToInclude =
-                    configurationForFiltering.get().getIncoming().getResolutionResult().getAllComponents().stream()
-                            .map(ResolvedComponentResult::getModuleVersion)
-                            .filter(Objects::nonNull)
-                            .map(ModuleVersionIdentifier::getModule)
-                            .collect(Collectors.toSet());
-            return Collections2.filter(
-                    publishConstraints, constraint -> modulesToInclude.contains(constraint.getModule()));
-        })::get));
-        configuration.configure(conf -> {
-            conf.getDependencyConstraints().addAllLater(constraintsProperty);
-
-            // Make it obvious to gradle that "building" this configuration depends on configurationForFiltering
-            ConfigurableFileCollection fileCollection = project.files().builtBy(configurationForFiltering);
-            conf.getDependencies().add(project.getDependencies().create(fileCollection));
-
-            // Make it obvious to gradle that generating a pom file for java publications requires resolving the
-            // configurationForFiltering.
-            // We'd like to figure out which publications depend on the `jar` task, and configure just those,
-            // but I don't know how to do that without triggering a resolve of the configurationForFiltering,
-            // which can transitively "lock" other publishable configurations by walking through its project
-            // dependencies, thereby breaking the 'addAllLater' call above for other projects.
-            project.getPluginManager().withPlugin("maven-publish", _plugin -> project.getExtensions()
-                    .getByType(PublishingExtension.class)
-                    .getPublications()
-                    .withType(MavenPublication.class)
-                    .all(publication -> {
-                        log.info("Configuring publication {} of project {}", publication.getName(), project.getPath());
-                        String publicationName = publication.getName();
-                        String publishTaskName =
-                                GUtil.toLowerCamelCase("generatePomFileFor " + publicationName + "Publication");
-                        project.getTasks()
-                                .withType(GenerateMavenPom.class)
-                                .named(publishTaskName)
-                                .configure(task -> task.dependsOn(configurationForFiltering));
-                    }));
+            subproject
+                    .getConfigurations()
+                    .named(JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME)
+                    .configure(conf -> conf.extendsFrom(publishConstraints.get()));
+            subproject
+                    .getConfigurations()
+                    .named(JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME)
+                    .configure(conf -> conf.extendsFrom(publishConstraints.get()));
         });
     }
 
