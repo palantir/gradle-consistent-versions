@@ -855,7 +855,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    def "#gradleVersionNumber: published constraints are derived from filtered lock file"() {
+    def "#gradleVersionNumber: published constraints are derived from lock file"() {
         setup:
         gradleVersion = gradleVersionNumber
 
@@ -916,11 +916,11 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                 new MetadataFile.Variant(
                         name: 'apiElements',
                         dependencies: [logbackDep],
-                        dependencyConstraints: [logbackDep, slf4jDep]),
+                        dependencyConstraints: [junitDep, logbackDep, slf4jDep]),
                 new MetadataFile.Variant(
                         name: 'runtimeElements',
                         dependencies: [logbackDep],
-                        dependencyConstraints: [logbackDep, slf4jDep]),
+                        dependencyConstraints: [junitDep, logbackDep, slf4jDep]),
         ] as Set
 
         and: "bar's metadata file has the right dependency constraints"
@@ -931,11 +931,11 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                 new MetadataFile.Variant(
                         name: 'apiElements',
                         dependencies: [junitDep],
-                        dependencyConstraints: [junitDep]),
+                        dependencyConstraints: [junitDep, logbackDep, slf4jDep]),
                 new MetadataFile.Variant(
                         name: 'runtimeElements',
                         dependencies: [junitDep],
-                        dependencyConstraints: [junitDep]),
+                        dependencyConstraints: [junitDep, logbackDep, slf4jDep]),
         ] as Set
 
         where:
