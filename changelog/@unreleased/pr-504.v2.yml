@@ -1,0 +1,9 @@
+type: improvement
+improvement:
+  description: Expose all lock file constraints as derived from `versions.lock` in
+    all publications derived from `components.java`. This will most likely produce
+    surprising behaviour when publishing module metadata! However, we are not using
+    it internally for now, and we are planning a better solution that addresses the
+    problems with the current implementation.
+  links:
+  - https://github.com/palantir/gradle-consistent-versions/pull/504

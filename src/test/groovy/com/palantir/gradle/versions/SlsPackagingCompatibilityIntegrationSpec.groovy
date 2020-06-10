@@ -78,13 +78,6 @@ class SlsPackagingCompatibilityIntegrationSpec extends IntegrationSpec {
                     maximumVersion = '1.x.x'
                 }
             }
-            
-            configurations.runtimeClasspath.incoming.beforeResolve {
-                // Signal that this configuration was resolved, which we expect, because this project is expected to be
-                // consumed as part of createManifest, and `runtimeElements` triggers resolution of `runtimeClasspath`
-                buildDir.mkdirs()
-                file("\$buildDir/resolved-runtime").text = 'done'
-            }
         """.stripIndent())
 
         addSubproject('service', """
@@ -106,7 +99,6 @@ class SlsPackagingCompatibilityIntegrationSpec extends IntegrationSpec {
         ] as Set
         // Ensure that 'jar' was not run on the API project
         wroteLocks.task(':api:jar') == null
-        new File(projectDir, 'api/build/resolved-runtime').exists()
 
         runTasks('createManifest', 'verifyLocks')
     }
