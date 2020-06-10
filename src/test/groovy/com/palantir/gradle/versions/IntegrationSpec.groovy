@@ -30,7 +30,7 @@ class IntegrationSpec extends IntegrationTestKitSpec {
 
     @Override
     List<String> calculateArguments(String... args) {
-        return super.calculateArguments((["--warning-mode=all"] + args.toList()) as String[])
+        return super.calculateArguments((["--warning-mode=none"] + args.toList()) as String[])
     }
 
     @CompileStatic
