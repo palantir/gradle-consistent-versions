@@ -21,6 +21,7 @@ import org.gradle.util.GradleVersion
 import spock.lang.Unroll
 
 import static com.palantir.gradle.versions.GradleTestVersions.GRADLE_VERSIONS
+import static com.palantir.gradle.versions.PomUtils.makePlatformPom
 
 @Unroll
 class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
@@ -436,25 +437,5 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
 
         where:
         gradleVersionNumber << GRADLE_VERSIONS
-    }
-
-    private static void makePlatformPom(File repo, String group, String name, String version) {
-        def dir = new File(repo, "${group}/${name}/${version}")
-        dir.mkdirs()
-        new File(dir, "platform-1.0.pom") << """\
-            <?xml version="1.0" encoding="UTF-8"?>
-            <project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
-                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-              <modelVersion>4.0.0</modelVersion>
-              <packaging>pom</packaging>
-              <groupId>${group}</groupId>
-              <artifactId>${name}</artifactId>
-              <version>${version}</version>
-              <dependencyManagement>
-                <dependencies>
-                </dependencies>
-              </dependencyManagement>
-            </project>
-        """.stripIndent()
     }
 }

@@ -16,19 +16,18 @@
 
 package com.palantir.gradle.versions
 
-import static com.palantir.gradle.versions.GradleTestVersions.GRADLE_VERSIONS
-
 import groovy.util.slurpersupport.GPathResult
 import groovy.util.slurpersupport.NodeChildren
 import spock.lang.Unroll
+
+import static com.palantir.gradle.versions.GradleTestVersions.GRADLE_VERSIONS
+import static com.palantir.gradle.versions.PomUtils.makePlatformPom
 
 @Unroll
 class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
     static def PLUGIN_NAME = "com.palantir.versions-props"
 
     void setup() {
-        System.setProperty("ignoreDeprecations", "true")
-
         File mavenRepo = generateMavenRepo(
                 "ch.qos.logback:logback-classic:1.2.3 -> org.slf4j:slf4j-api:1.7.25",
                 "ch.qos.logback:logback-classic:1.1.11 -> org.slf4j:slf4j-api:1.7.22",
@@ -39,9 +38,10 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
                 "com.fasterxml.jackson.core:jackson-databind:2.9.0 -> com.fasterxml.jackson.core:jackson-annotations:2.9.0",
                 "com.fasterxml.jackson.core:jackson-annotations:2.9.0",
                 "com.fasterxml.jackson.core:jackson-annotations:2.9.7",
-                "com.fasterxml.jackson.core:jackson-databind:2.9.7",
-                "org:platform:1.0",
+                "com.fasterxml.jackson.core:jackson-databind:2.9.7"
         )
+        makePlatformPom(mavenRepo, "org", "platform", "1.0")
+
         buildFile << """
             buildscript {
                 repositories {
