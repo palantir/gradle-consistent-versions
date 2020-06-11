@@ -25,6 +25,7 @@ import org.gradle.util.GradleVersion
 import spock.lang.Unroll
 
 import static com.palantir.gradle.versions.GradleTestVersions.GRADLE_VERSIONS
+import static com.palantir.gradle.versions.PomUtils.makePlatformPom
 
 @Unroll
 class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
@@ -38,26 +39,32 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                 "org.slf4j:slf4j-api:1.7.20",
                 "org.slf4j:slf4j-api:1.7.24",
                 "org.slf4j:slf4j-api:1.7.25",
-                "org:platform:1.0",
                 "junit:junit:4.10",
                 "org:test-dep-that-logs:1.0 -> org.slf4j:slf4j-api:1.7.11"
         )
+        makePlatformPom(mavenRepo, "org", "platform", "1.0")
+        
         buildFile << """
             buildscript {
                 repositories {
                     maven { url 'https://dl.bintray.com/palantir/releases' }
-                }
-                dependencies {
-                    classpath 'com.palantir.configurationresolver:gradle-configuration-resolver-plugin:0.3.0'
                 }
             }
             plugins {
                 id '${PLUGIN_NAME}'
             }
             allprojects {
-                apply plugin: 'com.palantir.configuration-resolver'
                 repositories {
                     maven { url "file:///${mavenRepo.getAbsolutePath()}" }
+                }
+                
+                task resolveConfigurations {
+                    doLast {
+                        if (pluginManager.hasPlugin('java')) {
+                            configurations.compileClasspath.resolve()
+                            configurations.runtimeClasspath.resolve()
+                        }
+                    }
                 }
             }
         """
@@ -86,14 +93,14 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         addSubproject('foo', '''
             apply plugin: 'java'
             dependencies {
-                compile 'org.slf4j:slf4j-api:1.7.24'
+                implementation 'org.slf4j:slf4j-api:1.7.24'
             }
         '''.stripIndent())
 
         addSubproject('bar', '''
             apply plugin: 'java'
             dependencies {
-                compile "org.slf4j:slf4j-api:${project.bar_version}"
+                implementation "org.slf4j:slf4j-api:${project.bar_version}"
             }
         '''.stripIndent())
         file("gradle.properties") << "bar_version=1.7.11"
@@ -101,7 +108,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         addSubproject('baz', '''
             apply plugin: 'java'
             dependencies {
-                compile "org.slf4j:slf4j-api"
+                implementation "org.slf4j:slf4j-api"
             }
             dependencyRecommendations {
                 map recommendations: ['org.slf4j:slf4j-api': '1.7.20']
@@ -111,7 +118,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         addSubproject('forced', '''
             apply plugin: 'java'
             dependencies {
-                compile "org.slf4j:slf4j-api"
+                implementation "org.slf4j:slf4j-api"
             }
             configurations.all {
                 resolutionStrategy {
@@ -159,23 +166,19 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                     propertiesFile file: rootProject.file('versions.props')
                 }
             }
-            
-            subprojects {
-                apply plugin: 'com.palantir.configuration-resolver'
-            }
         """.stripIndent()
 
         addSubproject('foo', '''
             apply plugin: 'java'
             dependencies {
-                compile 'org.slf4j:slf4j-api'
+                implementation 'org.slf4j:slf4j-api'
             }
         '''.stripIndent())
 
         addSubproject('bar', '''
             apply plugin: 'java'
             dependencies {
-                compile 'ch.qos.logback:logback-classic:1.2.3' // brings in slf4j-api 1.7.25
+                implementation 'ch.qos.logback:logback-classic:1.2.3' // brings in slf4j-api 1.7.25
             }
         '''.stripIndent())
 
@@ -213,7 +216,6 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                 configurations.matching { it.name == 'runtimeClasspath' }.all {
                     resolutionStrategy.activateDependencyLocking()
                 }
-                apply plugin: 'com.palantir.configuration-resolver'
             }
         '''.stripIndent()
 
@@ -265,7 +267,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         buildFile << '''
             apply plugin: 'java'
             dependencies {
-                compile 'ch.qos.logback:logback-classic:1.2.3' // brings in slf4j-api 1.7.25
+                implementation 'ch.qos.logback:logback-classic:1.2.3' // brings in slf4j-api 1.7.25
             }
         '''.stripIndent()
 
@@ -419,7 +421,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
 
         addSubproject('foo', '''
             dependencies {
-                compile 'org:a:1.0'
+                implementation 'org:a:1.0'
             }
         '''.stripIndent())
 
@@ -428,7 +430,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         when:
         file('foo/build.gradle') << """
             dependencies {
-                compile 'org:b:1.0'
+                implementation 'org:b:1.0'
             }
         """.stripIndent()
 
@@ -456,7 +458,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         addSubproject('foo', '''
             apply plugin: 'java'
             dependencies {
-                compile 'org.slf4j:slf4j-api:1.7.20'
+                implementation 'org.slf4j:slf4j-api:1.7.20'
             }
         '''.stripIndent())
 
@@ -489,8 +491,8 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
 
         addSubproject('foo', '''
             dependencies {
-                compile 'org:a:1.0'
-                compile 'org:b:1.0'
+                implementation 'org:a:1.0'
+                implementation 'org:b:1.0'
             }
         '''.stripIndent())
 
@@ -499,7 +501,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         when:
         file('foo/build.gradle').text = """
             dependencies {
-                compile 'org:a:1.0'
+                implementation 'org:a:1.0'
             }
         """.stripIndent()
 
@@ -523,7 +525,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         buildFile << '''
             apply plugin: 'java'
             dependencies {
-                compile 'ch.qos.logback:logback-classic:1.2.3' // brings in slf4j-api 1.7.25
+                implementation 'ch.qos.logback:logback-classic:1.2.3' // brings in slf4j-api 1.7.25
             }
         '''.stripIndent()
 
@@ -572,7 +574,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         buildFile << """
             apply plugin: 'java'
             dependencies {
-                compile platform('org:platform:1.0')
+                implementation platform('org:platform:1.0')
             }
         """.stripIndent()
 
@@ -596,7 +598,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         buildFile << """
             apply plugin: 'java'
             dependencies {
-                compile "org.slf4j:slf4j-api:\$depVersion"
+                implementation "org.slf4j:slf4j-api:\$depVersion"
             }
         """
 
@@ -621,7 +623,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         buildFile << """
             apply plugin: 'java'
             dependencies {
-                compile "org.slf4j:slf4j-api:\$depVersion"
+                implementation "org.slf4j:slf4j-api:\$depVersion"
             }
         """
 
@@ -651,7 +653,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         buildFile << """
             apply plugin: 'java'
             dependencies {
-                compile 'ch.qos.logback:logback-classic:1.2.3'
+                implementation 'ch.qos.logback:logback-classic:1.2.3'
             }
             configurations.compileOnly {
                 // convoluted, but the idea is to exclude a transitive
@@ -680,7 +682,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         addSubproject("foo", """
             apply plugin: 'java'
             dependencies {
-                compile project(path: ":bar", configuration: "fun") 
+                implementation project(path: ":bar", configuration: "fun") 
             }
         """.stripIndent())
 
@@ -721,7 +723,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         addSubproject("foo", """
             apply plugin: 'java'
             dependencies {
-                compile project(":bar") 
+                implementation project(":bar") 
             }
         """.stripIndent())
 
@@ -743,8 +745,8 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         buildFile << """
             apply plugin: 'java'           
             dependencies {
-                compile 'ch.qos.logback:logback-classic:1.2.3'
-                testCompile 'org:test-dep-that-logs:1.0'
+                implementation 'ch.qos.logback:logback-classic:1.2.3'
+                testImplementation 'org:test-dep-that-logs:1.0'
             }
         """.stripIndent()
 
@@ -774,9 +776,9 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                 eteTest
             }           
             dependencies {
-                compile 'ch.qos.logback:logback-classic:1.2.3'
-                testCompile 'junit:junit:4.10'
-                eteTestCompile 'org:test-dep-that-logs:1.0'
+                implementation 'ch.qos.logback:logback-classic:1.2.3'
+                testImplementation 'junit:junit:4.10'
+                eteTestImplementation 'org:test-dep-that-logs:1.0'
             }
         """.stripIndent()
 
@@ -804,7 +806,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         buildFile << """
             apply plugin: 'java'
             dependencies {
-                compile 'junit:junit:4.10'
+                implementation 'junit:junit:4.10'
             }
             
             versionsLock.testProject()
@@ -832,10 +834,10 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
             apply plugin: 'java'
             dependencies {
                 constraints {
-                    compile 'ch.qos.logback:logback-classic:1.2.3'
+                    implementation 'ch.qos.logback:logback-classic:1.2.3'
                 }
                 dependencies {
-                    testCompile 'ch.qos.logback:logback-classic'
+                    testImplementation 'ch.qos.logback:logback-classic'
                 }
             }
         """.stripIndent()
@@ -874,13 +876,13 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
 
         addSubproject('foo', """
             dependencies {
-                compile 'ch.qos.logback:logback-classic:1.2.3'
+                implementation 'ch.qos.logback:logback-classic:1.2.3'
             }
         """.stripIndent())
 
         addSubproject('bar', """
             dependencies {
-                compile 'junit:junit:4.10'
+                implementation 'junit:junit:4.10'
             }
         """.stripIndent())
 
@@ -915,7 +917,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         fooMetadata.variants == [
                 new MetadataFile.Variant(
                         name: 'apiElements',
-                        dependencies: [logbackDep],
+                        dependencies: null,
                         dependencyConstraints: [junitDep, logbackDep, slf4jDep]),
                 new MetadataFile.Variant(
                         name: 'runtimeElements',
@@ -930,7 +932,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         barMetadata.variants == [
                 new MetadataFile.Variant(
                         name: 'apiElements',
-                        dependencies: [junitDep],
+                        dependencies: null,
                         dependencyConstraints: [junitDep, logbackDep, slf4jDep]),
                 new MetadataFile.Variant(
                         name: 'runtimeElements',

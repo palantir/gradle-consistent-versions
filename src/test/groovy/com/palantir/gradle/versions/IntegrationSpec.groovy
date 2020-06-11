@@ -26,8 +26,6 @@ class IntegrationSpec extends IntegrationTestKitSpec {
         keepFiles = true
         debug = true
         settingsFile.createNewFile()
-        // TODO(#0): Remove once we drop gradle 5 support
-        System.setProperty("ignoreDeprecations", "true")
     }
 
     @CompileStatic

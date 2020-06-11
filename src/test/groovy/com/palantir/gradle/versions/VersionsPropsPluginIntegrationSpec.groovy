@@ -16,19 +16,18 @@
 
 package com.palantir.gradle.versions
 
-import static com.palantir.gradle.versions.GradleTestVersions.GRADLE_VERSIONS
-
 import groovy.util.slurpersupport.GPathResult
 import groovy.util.slurpersupport.NodeChildren
 import spock.lang.Unroll
+
+import static com.palantir.gradle.versions.GradleTestVersions.GRADLE_VERSIONS
+import static com.palantir.gradle.versions.PomUtils.makePlatformPom
 
 @Unroll
 class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
     static def PLUGIN_NAME = "com.palantir.versions-props"
 
     void setup() {
-        System.setProperty("ignoreDeprecations", "true")
-
         File mavenRepo = generateMavenRepo(
                 "ch.qos.logback:logback-classic:1.2.3 -> org.slf4j:slf4j-api:1.7.25",
                 "ch.qos.logback:logback-classic:1.1.11 -> org.slf4j:slf4j-api:1.7.22",
@@ -39,23 +38,20 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
                 "com.fasterxml.jackson.core:jackson-databind:2.9.0 -> com.fasterxml.jackson.core:jackson-annotations:2.9.0",
                 "com.fasterxml.jackson.core:jackson-annotations:2.9.0",
                 "com.fasterxml.jackson.core:jackson-annotations:2.9.7",
-                "com.fasterxml.jackson.core:jackson-databind:2.9.7",
-                "org:platform:1.0",
+                "com.fasterxml.jackson.core:jackson-databind:2.9.7"
         )
+        makePlatformPom(mavenRepo, "org", "platform", "1.0")
+
         buildFile << """
             buildscript {
                 repositories {
                     maven { url 'https://dl.bintray.com/palantir/releases' }
-                }
-                dependencies {
-                    classpath 'com.palantir.configurationresolver:gradle-configuration-resolver-plugin:0.3.0'
                 }
             }            
             plugins {
                 id '${PLUGIN_NAME}'
             }
             allprojects {
-                apply plugin: 'com.palantir.configuration-resolver'
                 repositories {
                     maven { url "file:///${mavenRepo.getAbsolutePath()}" }
                 }
@@ -63,9 +59,16 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
 
             // Make it easy to verify what versions of dependencies you got.
             allprojects {
-                apply plugin: 'com.palantir.configuration-resolver'
                 configurations.matching { it.name == 'runtimeClasspath' }.all {
                     resolutionStrategy.activateDependencyLocking()
+                }
+                task resolveConfigurations {
+                    doLast {
+                        if (pluginManager.hasPlugin('java')) {
+                            configurations.compileClasspath.resolve()
+                            configurations.runtimeClasspath.resolve()
+                        }
+                    }
                 }
             }
         """.stripIndent()
@@ -82,7 +85,7 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
         addSubproject('foo', """
             apply plugin: 'java'
             dependencies {
-                compile 'org.slf4j:slf4j-api'
+                implementation 'org.slf4j:slf4j-api'
             }
         """.stripIndent())
 

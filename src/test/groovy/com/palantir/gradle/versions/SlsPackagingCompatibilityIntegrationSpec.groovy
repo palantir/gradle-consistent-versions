@@ -40,7 +40,7 @@ class SlsPackagingCompatibilityIntegrationSpec extends IntegrationSpec {
             }            
             plugins {
                 id '${PLUGIN_NAME}'
-                id 'com.palantir.sls-java-service-distribution' version '3.8.1' apply false
+                id 'com.palantir.sls-java-service-distribution' version '4.15.1' apply false
             }
             allprojects {
                 repositories {
@@ -67,7 +67,7 @@ class SlsPackagingCompatibilityIntegrationSpec extends IntegrationSpec {
             apply plugin: 'com.palantir.sls-recommended-dependencies'
             
             dependencies {
-                compile 'org.slf4j:slf4j-api'
+                implementation 'org.slf4j:slf4j-api'
             }
             
             recommendedProductDependencies {
@@ -86,7 +86,7 @@ class SlsPackagingCompatibilityIntegrationSpec extends IntegrationSpec {
             
             dependencies {
                 // Gets picked up by the productDependenciesConfig which is runtimeClasspath
-                compile project(':api')
+                implementation project(':api')
             }
         """.stripIndent())
 
