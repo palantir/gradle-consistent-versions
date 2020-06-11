@@ -46,7 +46,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -914,7 +913,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
     private static List<DependencyConstraint> constructConstraintsFromLockFile(
             Path gradleLockfile, DependencyConstraintHandler constraintHandler) {
         LockState lockState = new ConflictSafeLockFile(gradleLockfile).readLocks();
-        Stream<Entry<MyModuleIdentifier, Line>> locks = Stream.concat(
+        Stream<Map.Entry<MyModuleIdentifier, Line>> locks = Stream.concat(
                 lockState.productionLinesByModuleIdentifier().entrySet().stream(),
                 lockState.testLinesByModuleIdentifier().entrySet().stream());
         return locks.map(e -> e.getKey() + ":" + e.getValue().version())
