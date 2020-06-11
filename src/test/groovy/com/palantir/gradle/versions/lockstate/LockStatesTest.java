@@ -22,8 +22,8 @@ import static org.mockito.Mockito.when;
 
 import com.google.common.collect.ImmutableSet;
 import com.palantir.gradle.versions.GradleComparators;
+import java.util.NavigableMap;
 import java.util.Set;
-import java.util.SortedMap;
 import java.util.TreeMap;
 import org.gradle.api.artifacts.VersionConstraint;
 import org.gradle.api.artifacts.component.ComponentIdentifier;
@@ -40,7 +40,7 @@ class LockStatesTest {
         VersionConstraint squareBracketConstraint = versionConstraint("[1.27.1]");
         VersionConstraint normalConstraint = versionConstraint("1.27.1");
 
-        SortedMap<ComponentIdentifier, Set<VersionConstraint>> dependents =
+        NavigableMap<ComponentIdentifier, Set<VersionConstraint>> dependents =
                 new TreeMap<>(GradleComparators.COMPONENT_IDENTIFIER_COMPARATOR);
 
         dependents.put(grpcApi, ImmutableSet.of(squareBracketConstraint));

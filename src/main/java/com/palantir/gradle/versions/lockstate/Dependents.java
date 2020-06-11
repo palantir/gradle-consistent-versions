@@ -21,8 +21,8 @@ import com.google.common.collect.Maps;
 import java.util.Comparator;
 import java.util.Map;
 import java.util.NavigableMap;
+import java.util.NavigableSet;
 import java.util.Set;
-import java.util.SortedSet;
 import org.gradle.api.artifacts.VersionConstraint;
 import org.gradle.api.artifacts.component.ComponentIdentifier;
 import org.gradle.api.artifacts.component.ProjectComponentIdentifier;
@@ -36,7 +36,7 @@ public interface Dependents {
     NavigableMap<ComponentIdentifier, Set<VersionConstraint>> get();
 
     @Value.Derived
-    default SortedSet<VersionConstraint> projectConstraints() {
+    default NavigableSet<VersionConstraint> projectConstraints() {
         return Maps.filterKeys(get(), k -> k instanceof ProjectComponentIdentifier).values().stream()
                 .flatMap(Set::stream)
                 .collect(ImmutableSortedSet.toImmutableSortedSet(Comparator.comparing(VersionConstraint::toString)));
