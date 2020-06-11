@@ -60,8 +60,10 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                 
                 task resolveConfigurations {
                     doLast {
-                        configurations.compileClasspath.resolve()
-                        configurations.runtimeClasspath.resolve()
+                        if (pluginManager.hasPlugin('java')) {
+                            configurations.compileClasspath.resolve()
+                            configurations.runtimeClasspath.resolve()
+                        }
                     }
                 }
             }
