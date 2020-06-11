@@ -20,8 +20,8 @@ import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Maps;
 import java.util.Comparator;
 import java.util.Map;
+import java.util.NavigableMap;
 import java.util.Set;
-import java.util.SortedMap;
 import java.util.SortedSet;
 import org.gradle.api.artifacts.VersionConstraint;
 import org.gradle.api.artifacts.component.ComponentIdentifier;
@@ -33,7 +33,7 @@ import org.immutables.value.Value.Parameter;
 public interface Dependents {
 
     @Parameter
-    SortedMap<ComponentIdentifier, Set<VersionConstraint>> get();
+    NavigableMap<ComponentIdentifier, Set<VersionConstraint>> get();
 
     @Value.Derived
     default SortedSet<VersionConstraint> projectConstraints() {
@@ -47,7 +47,7 @@ public interface Dependents {
         return Maps.filterKeys(get(), k -> !(k instanceof ProjectComponentIdentifier));
     }
 
-    static Dependents of(SortedMap<ComponentIdentifier, Set<VersionConstraint>> dependents) {
+    static Dependents of(NavigableMap<ComponentIdentifier, Set<VersionConstraint>> dependents) {
         return ImmutableDependents.of(dependents);
     }
 }
