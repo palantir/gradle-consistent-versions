@@ -64,8 +64,10 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
                 }
                 task resolveConfigurations {
                     doLast {
-                        configurations.compileClasspath.resolve()
-                        configurations.runtimeClasspath.resolve()
+                        if (pluginManager.hasPlugin('java')) {
+                            configurations.compileClasspath.resolve()
+                            configurations.runtimeClasspath.resolve()
+                        }
                     }
                 }
             }
@@ -83,7 +85,7 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
         addSubproject('foo', """
             apply plugin: 'java'
             dependencies {
-                compile 'org.slf4j:slf4j-api'
+                implementation 'org.slf4j:slf4j-api'
             }
         """.stripIndent())
 
