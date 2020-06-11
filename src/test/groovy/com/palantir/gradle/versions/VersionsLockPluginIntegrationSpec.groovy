@@ -744,7 +744,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
             apply plugin: 'java'           
             dependencies {
                 implementation 'ch.qos.logback:logback-classic:1.2.3'
-                testCompile 'org:test-dep-that-logs:1.0'
+                testImplementation 'org:test-dep-that-logs:1.0'
             }
         """.stripIndent()
 
@@ -775,8 +775,8 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
             }           
             dependencies {
                 implementation 'ch.qos.logback:logback-classic:1.2.3'
-                testCompile 'junit:junit:4.10'
-                eteTestCompile 'org:test-dep-that-logs:1.0'
+                testImplementation 'junit:junit:4.10'
+                eteTestImplementation 'org:test-dep-that-logs:1.0'
             }
         """.stripIndent()
 
@@ -835,7 +835,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                     implementation 'ch.qos.logback:logback-classic:1.2.3'
                 }
                 dependencies {
-                    testCompile 'ch.qos.logback:logback-classic'
+                    testImplementation 'ch.qos.logback:logback-classic'
                 }
             }
         """.stripIndent()
