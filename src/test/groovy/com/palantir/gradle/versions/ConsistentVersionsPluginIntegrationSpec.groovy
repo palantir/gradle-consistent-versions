@@ -27,9 +27,10 @@ import static com.palantir.gradle.versions.PomUtils.makePlatformPom
 class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
 
     static def PLUGIN_NAME = "com.palantir.consistent-versions"
+    private File mavenRepo
 
     void setup() {
-        File mavenRepo = generateMavenRepo(
+        mavenRepo = generateMavenRepo(
                 "ch.qos.logback:logback-classic:1.1.11 -> org.slf4j:slf4j-api:1.7.22",
                 "org.slf4j:slf4j-api:1.7.22",
                 "org.slf4j:slf4j-api:1.7.25",
@@ -253,9 +254,8 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         setup:
         gradleVersion = gradleVersionNumber
 
-        def repo = new File(projectDir, "build/testrepogen/mavenrepo")
-        makePlatformPom(repo, "org1", "platform", "1.0")
-        makePlatformPom(repo, "org2", "platform", "1.0")
+        makePlatformPom(mavenRepo, "org1", "platform", "1.0")
+        makePlatformPom(mavenRepo, "org2", "platform", "1.0")
 
         addSubproject('foo', """
             apply plugin: 'java'
