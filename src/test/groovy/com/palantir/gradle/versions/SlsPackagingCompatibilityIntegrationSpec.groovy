@@ -40,7 +40,7 @@ class SlsPackagingCompatibilityIntegrationSpec extends IntegrationSpec {
             }            
             plugins {
                 id '${PLUGIN_NAME}'
-                id 'com.palantir.sls-java-service-distribution' version '3.8.1' apply false
+                id 'com.palantir.sls-java-service-distribution' version '4.15.1' apply false
             }
             allprojects {
                 repositories {
