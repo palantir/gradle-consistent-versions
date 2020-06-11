@@ -18,7 +18,6 @@ package com.palantir.gradle.versions;
 
 import com.google.common.collect.ImmutableSet;
 import java.util.Set;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
@@ -30,9 +29,10 @@ final class GradleConfigurations {
      * resolved.
      */
     public static Stream<Configuration> getResolvableConfigurations(Project project) {
+        Set<String> legacyJavaConfigurations = getLegacyJavaConfigurations(project);
         return project.getConfigurations().stream()
                 .filter(Configuration::isCanBeResolved)
-                .filter(conf -> !getLegacyJavaConfigurations(project).contains(conf.getName()));
+                .filter(conf -> !legacyJavaConfigurations.contains(conf.getName()));
     }
 
     /**
@@ -44,12 +44,15 @@ final class GradleConfigurations {
         if (javaConvention == null) {
             return ImmutableSet.of();
         }
-        return javaConvention.getSourceSets().stream()
-                .flatMap(ss -> Stream.of(
-                        ss.getCompileConfigurationName(),
-                        ss.getRuntimeConfigurationName(),
-                        ss.getCompileOnlyConfigurationName()))
-                .collect(Collectors.toSet());
+        return ImmutableSet.<String>builder()
+                .add("default")
+                .addAll(javaConvention.getSourceSets().stream()
+                        .flatMap(ss -> Stream.of(
+                                ss.getCompileConfigurationName(),
+                                ss.getRuntimeConfigurationName(),
+                                ss.getCompileOnlyConfigurationName()))
+                        .iterator())
+                .build();
     }
 
     private GradleConfigurations() {}
