@@ -917,7 +917,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         fooMetadata.variants == [
                 new MetadataFile.Variant(
                         name: 'apiElements',
-                        dependencies: [logbackDep],
+                        dependencies: null,
                         dependencyConstraints: [junitDep, logbackDep, slf4jDep]),
                 new MetadataFile.Variant(
                         name: 'runtimeElements',
@@ -932,7 +932,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         barMetadata.variants == [
                 new MetadataFile.Variant(
                         name: 'apiElements',
-                        dependencies: [junitDep],
+                        dependencies: null,
                         dependencyConstraints: [junitDep, logbackDep, slf4jDep]),
                 new MetadataFile.Variant(
                         name: 'runtimeElements',
