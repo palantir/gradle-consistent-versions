@@ -64,7 +64,7 @@ class CheckUnusedConstraintIntegrationSpec extends IntegrationSpec {
     def 'checkVersionsProps does not resolve artifacts'() {
         buildFile << """
             dependencies {
-                compile 'com.palantir.product:foo:1.0.0'
+                implementation 'com.palantir.product:foo:1.0.0'
             }
         """.stripIndent()
         file("versions.props").text = ""
@@ -91,7 +91,7 @@ class CheckUnusedConstraintIntegrationSpec extends IntegrationSpec {
         """.stripIndent()
         buildFile << """
         dependencies {
-            compile 'com.fasterxml.jackson.core:jackson-databind'
+            implementation 'com.fasterxml.jackson.core:jackson-databind'
         }""".stripIndent()
 
         then:
@@ -107,7 +107,7 @@ class CheckUnusedConstraintIntegrationSpec extends IntegrationSpec {
 
         buildFile << """
         dependencies {
-            compile 'org.slf4j:slf4j-api'
+            implementation 'org.slf4j:slf4j-api'
         }""".stripIndent()
 
         then:
@@ -125,8 +125,8 @@ class CheckUnusedConstraintIntegrationSpec extends IntegrationSpec {
 
         buildFile << """
         dependencies {
-            compile 'org.slf4j:slf4j-api'
-            compile 'org.slf4j:slf4j-jdk14'
+            implementation 'org.slf4j:slf4j-api'
+            implementation 'org.slf4j:slf4j-jdk14'
         }""".stripIndent()
 
         then:
@@ -152,8 +152,8 @@ class CheckUnusedConstraintIntegrationSpec extends IntegrationSpec {
         """.stripIndent()
         buildFile << """
         dependencies {
-            compile 'com.google.guava:guava'
-            compile 'com.google.guava:guava-testlib'
+            implementation 'com.google.guava:guava'
+            implementation 'com.google.guava:guava-testlib'
         }""".stripIndent()
 
         then:
