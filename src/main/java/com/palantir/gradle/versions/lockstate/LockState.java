@@ -22,7 +22,7 @@ import com.palantir.gradle.versions.GradleComparators;
 import com.palantir.gradle.versions.internal.MyModuleIdentifier;
 import java.io.Serializable;
 import java.util.List;
-import java.util.SortedMap;
+import java.util.NavigableMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -49,7 +49,7 @@ public interface LockState extends Serializable {
 
     /** Mapping from {@code group:artifact} to the full line. */
     @Value.Lazy
-    default SortedMap<MyModuleIdentifier, Line> productionLinesByModuleIdentifier() {
+    default NavigableMap<MyModuleIdentifier, Line> productionLinesByModuleIdentifier() {
         return productionLines().stream()
                 .collect(ImmutableSortedMap.toImmutableSortedMap(
                         GradleComparators.MODULE_IDENTIFIER_COMPARATOR, Line::identifier, Function.identity()));
@@ -57,7 +57,7 @@ public interface LockState extends Serializable {
 
     /** Mapping from {@code group:artifact} to the full line. */
     @Value.Lazy
-    default SortedMap<MyModuleIdentifier, Line> testLinesByModuleIdentifier() {
+    default NavigableMap<MyModuleIdentifier, Line> testLinesByModuleIdentifier() {
         return testLines().stream()
                 .collect(ImmutableSortedMap.toImmutableSortedMap(
                         GradleComparators.MODULE_IDENTIFIER_COMPARATOR, Line::identifier, Function.identity()));

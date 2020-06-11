@@ -14,7 +14,7 @@ buildscript {
         classpath 'com.netflix.nebula:nebula-publishing-plugin:17.2.1'
         classpath 'com.netflix.nebula:gradle-info-plugin:8.1.0'
         classpath 'com.palantir.gradle.consistentversions:gradle-consistent-versions:1.22.0'
-        classpath 'com.palantir.baseline:gradle-baseline-java:3.18.0'
+        classpath 'com.palantir.baseline:gradle-baseline-java:3.23.0'
         classpath 'com.palantir.gradle.gitversion:gradle-git-version:0.12.3'
         classpath 'gradle.plugin.org.inferred:gradle-processors:3.3.0'
         classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:1.8.5'
@@ -81,8 +81,8 @@ tasks.withType(Test) {
 
 tasks.withType(JavaCompile) {
     // necessary until https://github.com/palantir/gradle-baseline/issues/389
-    options.errorprone.errorproneArgs += ['-Xep:Slf4jLogsafeArgs:OFF', '-Xep:PreferSafeLoggableExceptions:OFF']
     options.compilerArgs += ['-Werror']
+    options.errorprone.disable 'Slf4jLogsafeArgs', 'PreferSafeLoggableExceptions'
 }
 
 gradlePlugin {

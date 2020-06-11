@@ -28,7 +28,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -73,7 +72,7 @@ public final class LockStates {
 
     // turns a collections of VersionConstraints into a nice string like: "group:name -> {0.9, 0.8+}"
     public static List<String> prettyPrintConstraints(Dependents dependents) {
-        Stream<Entry<String, Collection<VersionConstraint>>> constraintEntries = Streams.concat(
+        Stream<Map.Entry<String, Collection<VersionConstraint>>> constraintEntries = Streams.concat(
                 dependents.projectConstraints().isEmpty()
                         ? Stream.empty()
                         : Stream.of(Maps.immutableEntry("projects", dependents.projectConstraints())),
