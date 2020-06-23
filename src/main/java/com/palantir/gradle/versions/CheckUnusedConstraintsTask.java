@@ -55,6 +55,7 @@ public class CheckUnusedConstraintsTask extends DefaultTask {
         shouldFix.set(false);
         setGroup(LifecycleBasePlugin.VERIFICATION_GROUP);
         setDescription("Ensures all versions in your versions.props correspond to an actual gradle dependency");
+        getOutputs().upToDateWhen(_task -> true); // task has no outputs, this is need for it to be up to date
     }
 
     final void setPropsFile(File propsFile) {
@@ -69,6 +70,11 @@ public class CheckUnusedConstraintsTask extends DefaultTask {
     @InputFile
     public final Property<RegularFile> getPropsFile() {
         return propsFileProperty;
+    }
+
+    @Input
+    public final Property<Boolean> getShouldFix() {
+        return shouldFix;
     }
 
     @Option(option = "fix", description = "Whether to apply the suggested fix to versions.props")
