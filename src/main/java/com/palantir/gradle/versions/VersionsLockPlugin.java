@@ -740,17 +740,13 @@ public class VersionsLockPlugin implements Plugin<Project> {
         Set<GcvScope> discoveredScopes = new HashSet<>(2);
         while (!stack.isEmpty()) {
             ResolvedDependencyResult dependent = stack.removeFirst();
-            if (dependent.isConstraint()
-                    || !(dependent.getRequested() instanceof ModuleComponentSelector)
-                    || traversedComponents.contains(dependent)) {
+            if (dependent.isConstraint() || !(dependent.getRequested() instanceof ModuleComponentSelector)) {
+                continue;
+            } else if (traversedComponents.contains(dependent)) {
                 continue;
             }
 
-            Optional<GcvScope> cachedValue = Optional.ofNullable(scopeCache.get(dependent.getFrom()));
-            if (cachedValue.isPresent()) {
-                discoveredScopes.add(cachedValue.get());
-                continue;
-            }
+            traversedComponents.add(dependent);
 
             ModuleIdentifier requestedModule =
                     ((ModuleComponentSelector) dependent.getRequested()).getModuleIdentifier();
@@ -762,8 +758,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 continue;
             }
 
-            traversedComponents.add(dependent);
-            stack.addAll(dependent.getSelected().getDependents());
+            stack.addAll(dependent.getFrom().getDependents());
         }
 
         GcvScope scope = discoveredScopes.stream()
@@ -771,9 +766,6 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 .orElseThrow(() -> new RuntimeException("Couldn't determine scope for dependency: " + component));
 
         scopeCache.put(component, scope);
-        for (ResolvedDependencyResult traversedComponent : traversedComponents) {
-            scopeCache.put(traversedComponent.getSelected(), scope);
-        }
 
         return scope;
     }
