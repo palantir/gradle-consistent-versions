@@ -219,6 +219,26 @@ public class VersionsLockPlugin implements Plugin<Project> {
         // (but that's internal)
         project.getPluginManager().apply("java-base");
 
+        // Create "platform" configuration in root project, which will hold the strictConstraints
+        ObjectFactory objectFactory = project.getObjects();
+        Usage gcvLocksUsage = objectFactory.named(Usage.class, "gcv-locks");
+        String gcvLocksCapability = "gcv:locks:0";
+
+        NamedDomainObjectProvider<Configuration> gcvLocksConfiguration = project.getConfigurations()
+                .register("gcvLocks", conf -> {
+                    conf.getAttributes().attribute(Usage.USAGE_ATTRIBUTE, gcvLocksUsage);
+                    conf.getOutgoing().capability(gcvLocksCapability);
+                    conf.setCanBeResolved(false);
+                });
+
+        ProjectDependency locksDependency =
+                (ProjectDependency) project.getDependencies().create(project);
+        locksDependency.capabilities(moduleDependencyCapabilitiesHandler ->
+                moduleDependencyCapabilitiesHandler.requireCapabilities(gcvLocksCapability));
+        locksDependency.attributes(attrs -> {
+            attrs.attribute(Usage.USAGE_ATTRIBUTE, gcvLocksUsage);
+        });
+
         // afterEvaluate is necessary to ensure all projects' dependencies have been configured, because we
         // need to copy them eagerly before we add the constraints from the lock file.
         //
@@ -265,7 +285,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 }
             }
 
-            configureAllProjectsUsingConstraints(project, rootLockfile, lockedConfigurations);
+            configureAllProjectsUsingConstraints(
+                    project, rootLockfile, lockedConfigurations, gcvLocksConfiguration, locksDependency);
         });
 
         TaskProvider<?> verifyLocks = project.getTasks().register("verifyLocks", VerifyLocksTask.class, task -> {
@@ -795,36 +816,18 @@ public class VersionsLockPlugin implements Plugin<Project> {
     }
 
     private static void configureAllProjectsUsingConstraints(
-            Project rootProject, Path gradleLockfile, Map<Project, LockedConfigurations> lockedConfigurations) {
+            Project rootProject,
+            Path gradleLockfile,
+            Map<Project, LockedConfigurations> lockedConfigurations,
+            NamedDomainObjectProvider<Configuration> gcvLocksConfiguration,
+            ProjectDependency locksDependency) {
         List<DependencyConstraint> strictConstraints = constructConstraintsFromLockFile(
                 gradleLockfile, rootProject.getDependencies().getConstraints());
         List<DependencyConstraint> publishableConstraints = constructPublishableConstraintsFromLockFile(
                 gradleLockfile, rootProject.getDependencies().getConstraints());
 
-        // Create platform in root project, holding the strictConstraints
-        ObjectFactory objectFactory = rootProject.getObjects();
-        Usage gcvLocksUsage = objectFactory.named(Usage.class, "gcv-locks");
-        String gcvLocksCapability = "gcv:locks:0";
-
-        rootProject.getConfigurations().create("gcvLocks", conf -> {
-            conf.getAttributes().attribute(Usage.USAGE_ATTRIBUTE, gcvLocksUsage);
-            // conf.getAttributes()
-            //         .attribute(
-            //                 Category.CATEGORY_ATTRIBUTE,
-            //                 objectFactory.named(Category.class, Category.REGULAR_PLATFORM));
-            conf.getOutgoing().capability(gcvLocksCapability);
-            conf.setCanBeResolved(false);
+        gcvLocksConfiguration.configure(conf -> {
             conf.getDependencyConstraints().addAll(strictConstraints);
-        });
-
-        ProjectDependency locksDependency =
-                (ProjectDependency) rootProject.getDependencies().create(rootProject);
-        locksDependency.capabilities(moduleDependencyCapabilitiesHandler ->
-                moduleDependencyCapabilitiesHandler.requireCapabilities(gcvLocksCapability));
-        locksDependency.attributes(attrs -> {
-            // attrs.attribute(
-            //         Category.CATEGORY_ATTRIBUTE, objectFactory.named(Category.class, Category.REGULAR_PLATFORM));
-            attrs.attribute(Usage.USAGE_ATTRIBUTE, gcvLocksUsage);
         });
 
         rootProject.allprojects(subproject -> configureUsingConstraints(
