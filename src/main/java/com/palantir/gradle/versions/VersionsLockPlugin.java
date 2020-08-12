@@ -800,13 +800,40 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 gradleLockfile, rootProject.getDependencies().getConstraints());
         List<DependencyConstraint> publishableConstraints = constructPublishableConstraintsFromLockFile(
                 gradleLockfile, rootProject.getDependencies().getConstraints());
+
+        // Create platform in root project, holding the strictConstraints
+        ObjectFactory objectFactory = rootProject.getObjects();
+        Usage gcvLocksUsage = objectFactory.named(Usage.class, "gcv-locks");
+        String gcvLocksCapability = "gcv:locks:0";
+
+        rootProject.getConfigurations().create("gcvLocks", conf -> {
+            conf.getAttributes().attribute(Usage.USAGE_ATTRIBUTE, gcvLocksUsage);
+            // conf.getAttributes()
+            //         .attribute(
+            //                 Category.CATEGORY_ATTRIBUTE,
+            //                 objectFactory.named(Category.class, Category.REGULAR_PLATFORM));
+            conf.getOutgoing().capability(gcvLocksCapability);
+            conf.setCanBeResolved(false);
+            conf.getDependencyConstraints().addAll(strictConstraints);
+        });
+
+        ProjectDependency locksDependency =
+                (ProjectDependency) rootProject.getDependencies().create(rootProject);
+        locksDependency.capabilities(moduleDependencyCapabilitiesHandler ->
+                moduleDependencyCapabilitiesHandler.requireCapabilities(gcvLocksCapability));
+        locksDependency.attributes(attrs -> {
+            // attrs.attribute(
+            //         Category.CATEGORY_ATTRIBUTE, objectFactory.named(Category.class, Category.REGULAR_PLATFORM));
+            attrs.attribute(Usage.USAGE_ATTRIBUTE, gcvLocksUsage);
+        });
+
         rootProject.allprojects(subproject -> configureUsingConstraints(
-                subproject, strictConstraints, publishableConstraints, lockedConfigurations.get(subproject)));
+                subproject, locksDependency, publishableConstraints, lockedConfigurations.get(subproject)));
     }
 
     private static void configureUsingConstraints(
             Project subproject,
-            List<DependencyConstraint> lockConstraints,
+            ProjectDependency locksDependency,
             List<DependencyConstraint> publishableConstraints,
             LockedConfigurations lockedConfigurations) {
         Configuration locksConfiguration = subproject
@@ -815,7 +842,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
                     locksConf.setVisible(false);
                     locksConf.setCanBeConsumed(false);
                     locksConf.setCanBeResolved(false);
-                    lockConstraints.forEach(locksConf.getDependencyConstraints()::add);
+                    locksConf.getDependencies().add(locksDependency);
                 });
 
         Set<Configuration> configurationsToLock = lockedConfigurations.allConfigurations();
