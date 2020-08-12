@@ -1,0 +1,6 @@
+type: improvement
+improvement:
+  description: Manage lock file constraints using a single gradle "platform", reducing
+    the number of constraints that have to be created.
+  links:
+  - https://github.com/palantir/gradle-consistent-versions/pull/557
