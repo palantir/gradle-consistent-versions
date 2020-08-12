@@ -747,6 +747,11 @@ public class VersionsLockPlugin implements Plugin<Project> {
             }
 
             traversedComponents.add(dependent);
+            Optional<GcvScope> cachedValue = Optional.ofNullable(scopeCache.get(dependent.getFrom()));
+            if (cachedValue.isPresent()) {
+                discoveredScopes.add(cachedValue.get());
+                continue;
+            }
 
             ModuleIdentifier requestedModule =
                     ((ModuleComponentSelector) dependent.getRequested()).getModuleIdentifier();
