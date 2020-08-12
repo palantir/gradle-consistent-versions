@@ -79,7 +79,9 @@ import org.gradle.api.artifacts.result.ResolutionResult;
 import org.gradle.api.artifacts.result.ResolvedComponentResult;
 import org.gradle.api.artifacts.result.UnresolvedDependencyResult;
 import org.gradle.api.attributes.Attribute;
+import org.gradle.api.attributes.AttributeCompatibilityRule;
 import org.gradle.api.attributes.AttributesSchema;
+import org.gradle.api.attributes.CompatibilityCheckDetails;
 import org.gradle.api.attributes.Usage;
 import org.gradle.api.invocation.Gradle;
 import org.gradle.api.logging.Logger;
@@ -197,6 +199,9 @@ public class VersionsLockPlugin implements Plugin<Project> {
             AttributesSchema attributesSchema = p.getDependencies().getAttributesSchema();
             attributesSchema.attribute(GCV_SCOPE_ATTRIBUTE);
             attributesSchema.attribute(GCV_USAGE_ATTRIBUTE);
+            attributesSchema.attribute(Usage.USAGE_ATTRIBUTE, strategy -> {
+                strategy.getCompatibilityRules().add(EverythingIsCompatibleWithConsistentVersionsUsage.class);
+            });
         });
 
         Configuration unifiedClasspath = project.getConfigurations()
@@ -304,6 +309,20 @@ public class VersionsLockPlugin implements Plugin<Project> {
             t.lockfile(rootLockfile);
             t.fullLockState(fullLockStateProperty);
         });
+    }
+
+    static class EverythingIsCompatibleWithConsistentVersionsUsage implements AttributeCompatibilityRule<Usage> {
+        @Override
+        public void execute(CompatibilityCheckDetails<Usage> details) {
+            if (ConsistentVersionsPlugin.CONSISTENT_VERSIONS_USAGE.equals(
+                            details.getProducerValue().getName())
+                    // This shouldn't be necessary, because we never resolve configurations with this usage.
+                    // However, 5.3 tests fail without it
+                    || ConsistentVersionsPlugin.CONSISTENT_VERSIONS_USAGE.equals(
+                            details.getConsumerValue().getName())) {
+                details.compatible();
+            }
+        }
     }
 
     static boolean isIgnoreLockFile(Project project) {
