@@ -115,6 +115,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
     private static final Attribute<GcvUsage> GCV_USAGE_ATTRIBUTE =
             Attribute.of("com.palantir.consistent-versions.usage", GcvUsage.class);
+    private static final String GCV_LOCKS_CAPABILITY = "gcv:locks:0";
 
     public enum GcvUsage implements Named {
         /**
@@ -180,7 +181,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
     @Inject
     public VersionsLockPlugin(Gradle gradle, ObjectFactory objectFactory) {
         showStacktrace = gradle.getStartParameter().getShowStacktrace();
-        internalUsage = objectFactory.named(Usage.class, "consistent-versions-usage");
+        internalUsage = objectFactory.named(Usage.class, ConsistentVersionsPlugin.CONSISTENT_VERSIONS_USAGE);
     }
 
     static Path getRootLockFile(Project project) {
@@ -220,14 +221,10 @@ public class VersionsLockPlugin implements Plugin<Project> {
         project.getPluginManager().apply("java-base");
 
         // Create "platform" configuration in root project, which will hold the strictConstraints
-        ObjectFactory objectFactory = project.getObjects();
-        Usage gcvLocksUsage = objectFactory.named(Usage.class, "gcv-locks");
-        String gcvLocksCapability = "gcv:locks:0";
-
         NamedDomainObjectProvider<Configuration> gcvLocksConfiguration = project.getConfigurations()
                 .register("gcvLocks", conf -> {
-                    conf.getAttributes().attribute(Usage.USAGE_ATTRIBUTE, gcvLocksUsage);
-                    conf.getOutgoing().capability(gcvLocksCapability);
+                    conf.getAttributes().attribute(Usage.USAGE_ATTRIBUTE, internalUsage);
+                    conf.getOutgoing().capability(GCV_LOCKS_CAPABILITY);
                     conf.setCanBeResolved(false);
                     conf.setVisible(false);
                 });
@@ -235,9 +232,9 @@ public class VersionsLockPlugin implements Plugin<Project> {
         ProjectDependency locksDependency =
                 (ProjectDependency) project.getDependencies().create(project);
         locksDependency.capabilities(moduleDependencyCapabilitiesHandler ->
-                moduleDependencyCapabilitiesHandler.requireCapabilities(gcvLocksCapability));
+                moduleDependencyCapabilitiesHandler.requireCapabilities(GCV_LOCKS_CAPABILITY));
         locksDependency.attributes(attrs -> {
-            attrs.attribute(Usage.USAGE_ATTRIBUTE, gcvLocksUsage);
+            attrs.attribute(Usage.USAGE_ATTRIBUTE, internalUsage);
         });
 
         // afterEvaluate is necessary to ensure all projects' dependencies have been configured, because we

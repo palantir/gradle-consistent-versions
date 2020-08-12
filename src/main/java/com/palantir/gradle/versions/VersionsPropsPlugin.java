@@ -40,7 +40,6 @@ import org.gradle.api.artifacts.dsl.DependencyConstraintHandler;
 import org.gradle.api.attributes.Usage;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
-import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.provider.ListProperty;
 import org.gradle.api.provider.Provider;
@@ -63,8 +62,10 @@ public class VersionsPropsPlugin implements Plugin<Project> {
         checkPreconditions();
 
         // Shared across root project / other project
-        ObjectFactory objectFactory = project.getObjects();
-        Usage gcvVersionsPropsUsage = objectFactory.named(Usage.class, "gcv-versions-props");
+        // This must be usable during VersionsLockPlugin's resolution of unifiedClasspath, so the usage
+        // must be 'compatible with' (or the same as) the one for the VersionsLockPlugin's own configurations.
+        Usage gcvVersionsPropsUsage =
+                project.getObjects().named(Usage.class, ConsistentVersionsPlugin.CONSISTENT_VERSIONS_USAGE);
         String gcvVersionsPropsCapability = "gcv:versions-props:0";
 
         VersionsProps versionsProps = loadVersionsProps(
