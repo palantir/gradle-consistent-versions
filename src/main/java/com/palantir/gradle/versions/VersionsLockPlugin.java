@@ -229,6 +229,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
                     conf.getAttributes().attribute(Usage.USAGE_ATTRIBUTE, gcvLocksUsage);
                     conf.getOutgoing().capability(gcvLocksCapability);
                     conf.setCanBeResolved(false);
+                    conf.setVisible(false);
                 });
 
         ProjectDependency locksDependency =
@@ -285,8 +286,14 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 }
             }
 
-            configureAllProjectsUsingConstraints(
-                    project, rootLockfile, lockedConfigurations, gcvLocksConfiguration, locksDependency);
+            // Wire up the locks from the lock file into the strict locks platform.
+            gcvLocksConfiguration.configure(conf -> {
+                conf.getDependencyConstraints()
+                        .addAll(constructConstraintsFromLockFile(
+                                rootLockfile, project.getDependencies().getConstraints()));
+            });
+
+            configureAllProjectsUsingConstraints(project, rootLockfile, lockedConfigurations, locksDependency);
         });
 
         TaskProvider<?> verifyLocks = project.getTasks().register("verifyLocks", VerifyLocksTask.class, task -> {
@@ -819,16 +826,10 @@ public class VersionsLockPlugin implements Plugin<Project> {
             Project rootProject,
             Path gradleLockfile,
             Map<Project, LockedConfigurations> lockedConfigurations,
-            NamedDomainObjectProvider<Configuration> gcvLocksConfiguration,
             ProjectDependency locksDependency) {
-        List<DependencyConstraint> strictConstraints = constructConstraintsFromLockFile(
-                gradleLockfile, rootProject.getDependencies().getConstraints());
+
         List<DependencyConstraint> publishableConstraints = constructPublishableConstraintsFromLockFile(
                 gradleLockfile, rootProject.getDependencies().getConstraints());
-
-        gcvLocksConfiguration.configure(conf -> {
-            conf.getDependencyConstraints().addAll(strictConstraints);
-        });
 
         rootProject.allprojects(subproject -> configureUsingConstraints(
                 subproject, locksDependency, publishableConstraints, lockedConfigurations.get(subproject)));
