@@ -35,9 +35,12 @@ import org.gradle.api.artifacts.DependencyConstraint;
 import org.gradle.api.artifacts.DependencySet;
 import org.gradle.api.artifacts.ExternalDependency;
 import org.gradle.api.artifacts.ModuleDependency;
+import org.gradle.api.artifacts.ProjectDependency;
 import org.gradle.api.artifacts.dsl.DependencyConstraintHandler;
+import org.gradle.api.attributes.Usage;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
+import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.provider.ListProperty;
 import org.gradle.api.provider.Provider;
@@ -58,6 +61,15 @@ public class VersionsPropsPlugin implements Plugin<Project> {
     @Override
     public final void apply(Project project) {
         checkPreconditions();
+
+        // Shared across root project / other project
+        ObjectFactory objectFactory = project.getObjects();
+        Usage gcvVersionsPropsUsage = objectFactory.named(Usage.class, "gcv-versions-props");
+        String gcvVersionsPropsCapability = "gcv:versions-props:0";
+
+        VersionsProps versionsProps = loadVersionsProps(
+                project.getRootProject().file("versions.props").toPath());
+
         if (project.getRootProject().equals(project)) {
             applyToRootProject(project);
 
@@ -71,28 +83,38 @@ public class VersionsPropsPlugin implements Plugin<Project> {
                                 .set(project.getLayout().getProjectDirectory().file("versions.props"));
                     });
             project.getTasks().named("check").configure(task -> task.dependsOn(checkNoUnusedConstraints));
+
+            // Create "platform" configuration in root project, which will hold the versions props constraints
+            project.getConfigurations().register("gcvVersionsPropsConstraints", conf -> {
+                conf.getAttributes().attribute(Usage.USAGE_ATTRIBUTE, gcvVersionsPropsUsage);
+                conf.getOutgoing().capability(gcvVersionsPropsCapability);
+                conf.setCanBeResolved(false);
+                conf.setCanBeConsumed(true);
+                conf.setVisible(false);
+
+                // Note: don't add constraints to the ConstraintHandler, only call `create` / `platform` on it.
+                addVersionsPropsConstraints(project.getDependencies().getConstraints(), conf, versionsProps);
+            });
         }
 
         VersionRecommendationsExtension extension =
                 project.getRootProject().getExtensions().getByType(VersionRecommendationsExtension.class);
 
-        VersionsProps versionsProps = loadVersionsProps(
-                project.getRootProject().file("versions.props").toPath());
-
         NamedDomainObjectProvider<Configuration> rootConfiguration = project.getConfigurations()
                 .register(ROOT_CONFIGURATION_NAME, conf -> {
                     conf.setCanBeResolved(false);
+                    conf.setCanBeConsumed(false);
                     conf.setVisible(false);
+
+                    // Wire in the constraints from the main configuration.
+                    conf.getDependencies()
+                            .add(createDepOnRootConstraintsConfiguration(
+                                    project, gcvVersionsPropsUsage, gcvVersionsPropsCapability));
                 });
 
         project.getConfigurations().configureEach(conf -> {
             setupConfiguration(project, extension, rootConfiguration.get(), versionsProps, conf);
         });
-
-        // Note: don't add constraints to this, only call `create` / `platform` on it.
-        DependencyConstraintHandler constraintHandler =
-                project.getDependencies().getConstraints();
-        rootConfiguration.configure(conf -> addVersionsPropsConstraints(constraintHandler, conf, versionsProps));
 
         log.info("Configuring rules to assign *-constraints to platforms in {}", project);
         project.getDependencies()
@@ -103,10 +125,20 @@ public class VersionsPropsPlugin implements Plugin<Project> {
         configureResolvedVersionsWithVersionMapping(project);
     }
 
+    private static ProjectDependency createDepOnRootConstraintsConfiguration(
+            Project project, Usage usage, String capability) {
+        ProjectDependency projectDep =
+                ((ProjectDependency) project.getDependencies().create(project.getRootProject()));
+        projectDep.capabilities(capabilities -> capabilities.requireCapability(capability));
+        projectDep.attributes(attrs -> attrs.attribute(Usage.USAGE_ATTRIBUTE, usage));
+        return projectDep;
+    }
+
     private static void applyToRootProject(Project project) {
         project.getPluginManager().apply(LifecycleBasePlugin.class);
         project.getExtensions()
                 .create(VersionRecommendationsExtension.EXTENSION, VersionRecommendationsExtension.class, project);
+
         project.subprojects(subproject -> subproject.getPluginManager().apply(VersionsPropsPlugin.class));
     }
 
