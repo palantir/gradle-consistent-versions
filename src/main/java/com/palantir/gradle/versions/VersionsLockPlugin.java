@@ -839,16 +839,22 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
     private static void configureAllProjectsUsingConstraints(
             Project rootProject,
-            Path _gradleLockfile,
+            Path gradleLockfile,
             Map<Project, LockedConfigurations> lockedConfigurations,
             ProjectDependency locksDependency) {
 
-        rootProject.allprojects(subproject ->
-                configureUsingConstraints(subproject, locksDependency, lockedConfigurations.get(subproject)));
+        List<DependencyConstraint> publishableConstraints = constructPublishableConstraintsFromLockFile(
+                gradleLockfile, rootProject.getDependencies().getConstraints());
+
+        rootProject.allprojects(subproject -> configureUsingConstraints(
+                subproject, locksDependency, publishableConstraints, lockedConfigurations.get(subproject)));
     }
 
     private static void configureUsingConstraints(
-            Project subproject, ProjectDependency locksDependency, LockedConfigurations lockedConfigurations) {
+            Project subproject,
+            ProjectDependency locksDependency,
+            List<DependencyConstraint> publishableConstraints,
+            LockedConfigurations lockedConfigurations) {
         Configuration locksConfiguration = subproject
                 .getConfigurations()
                 .create(LOCK_CONSTRAINTS_CONFIGURATION_NAME, locksConf -> {
@@ -943,6 +949,22 @@ public class VersionsLockPlugin implements Plugin<Project> {
                         v.strictly(version);
                     });
                     constraint.because("Locked by versions.lock");
+                }))
+                .collect(Collectors.toList());
+    }
+
+    private static List<DependencyConstraint> constructPublishableConstraintsFromLockFile(
+            Path gradleLockfile, DependencyConstraintHandler constraintHandler) {
+        LockState lockState = new ConflictSafeLockFile(gradleLockfile).readLocks();
+        // We only publish the production locks.
+        return lockState.productionLinesByModuleIdentifier().entrySet().stream()
+                .map(e -> e.getKey() + ":" + e.getValue().version())
+                .map(notation -> constraintHandler.create(notation, constraint -> {
+                    constraint.version(v -> {
+                        String version = Objects.requireNonNull(constraint.getVersion());
+                        v.require(version);
+                    });
+                    constraint.because("Computed from com.palantir.consistent-versions' versions.lock");
                 }))
                 .collect(Collectors.toList());
     }
