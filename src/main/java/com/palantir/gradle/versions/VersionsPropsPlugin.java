@@ -36,7 +36,6 @@ import org.gradle.api.artifacts.DependencySet;
 import org.gradle.api.artifacts.ExternalDependency;
 import org.gradle.api.artifacts.ModuleDependency;
 import org.gradle.api.artifacts.ProjectDependency;
-import org.gradle.api.artifacts.dsl.DependencyConstraintHandler;
 import org.gradle.api.attributes.Usage;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
@@ -93,8 +92,7 @@ public class VersionsPropsPlugin implements Plugin<Project> {
                 conf.setCanBeConsumed(true);
                 conf.setVisible(false);
 
-                // Note: don't add constraints to the ConstraintHandler, only call `create` / `platform` on it.
-                addVersionsPropsConstraints(project.getDependencies().getConstraints(), conf, versionsProps);
+                addVersionsPropsConstraints(project.getDependencies().getConstraints()::create, conf, versionsProps);
             });
         }
 
@@ -286,9 +284,9 @@ public class VersionsPropsPlugin implements Plugin<Project> {
     }
 
     private static void addVersionsPropsConstraints(
-            DependencyConstraintHandler constraintHandler, Configuration conf, VersionsProps versionsProps) {
+            DependencyConstraintCreator constraintCreator, Configuration conf, VersionsProps versionsProps) {
         ImmutableList<DependencyConstraint> constraints =
-                versionsProps.constructConstraints(constraintHandler).collect(ImmutableList.toImmutableList());
+                versionsProps.constructConstraints(constraintCreator).collect(ImmutableList.toImmutableList());
         log.info("Adding constraints to {}: {}", conf, constraints);
         constraints.forEach(conf.getDependencyConstraints()::add);
     }
