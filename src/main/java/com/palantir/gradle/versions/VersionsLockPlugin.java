@@ -74,7 +74,6 @@ import org.gradle.api.artifacts.component.ComponentSelector;
 import org.gradle.api.artifacts.component.ModuleComponentIdentifier;
 import org.gradle.api.artifacts.component.ModuleComponentSelector;
 import org.gradle.api.artifacts.component.ProjectComponentIdentifier;
-import org.gradle.api.artifacts.dsl.DependencyConstraintHandler;
 import org.gradle.api.artifacts.result.ResolutionResult;
 import org.gradle.api.artifacts.result.ResolvedComponentResult;
 import org.gradle.api.artifacts.result.UnresolvedDependencyResult;
@@ -292,7 +291,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
             gcvLocksConfiguration.configure(conf -> {
                 conf.getDependencyConstraints()
                         .addAll(constructConstraintsFromLockFile(
-                                rootLockfile, project.getDependencies().getConstraints()));
+                                rootLockfile, project.getDependencies().getConstraints()::create));
             });
 
             configureAllProjectsUsingConstraints(project, rootLockfile, lockedConfigurations, locksDependency);
@@ -845,7 +844,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
             ProjectDependency locksDependency) {
 
         List<DependencyConstraint> publishableConstraints = constructPublishableConstraintsFromLockFile(
-                gradleLockfile, rootProject.getDependencies().getConstraints());
+                gradleLockfile, rootProject.getDependencies().getConstraints()::create);
 
         rootProject.allprojects(subproject -> configureUsingConstraints(
                 subproject, locksDependency, publishableConstraints, lockedConfigurations.get(subproject)));
@@ -958,7 +957,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
     }
 
     private static List<DependencyConstraint> constructConstraintsFromLockFile(
-            Path gradleLockfile, DependencyConstraintHandler constraintHandler) {
+            Path gradleLockfile, DependencyConstraintCreator constraintCreator) {
         LockState lockState = new ConflictSafeLockFile(gradleLockfile).readLocks();
         Stream<Map.Entry<MyModuleIdentifier, Line>> locks = Stream.concat(
                 lockState.productionLinesByModuleIdentifier().entrySet().stream(),
@@ -966,7 +965,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
         return locks.map(e -> e.getKey() + ":" + e.getValue().version())
                 // Note: constraints.create sets the version as preferred + required, we want 'strictly' just like
                 // gradle does when verifying a lock file.
-                .map(notation -> constraintHandler.create(notation, constraint -> {
+                .map(notation -> constraintCreator.create(notation, constraint -> {
                     constraint.version(v -> {
                         String version = Objects.requireNonNull(constraint.getVersion());
                         v.strictly(version);
@@ -977,12 +976,12 @@ public class VersionsLockPlugin implements Plugin<Project> {
     }
 
     private static List<DependencyConstraint> constructPublishableConstraintsFromLockFile(
-            Path gradleLockfile, DependencyConstraintHandler constraintHandler) {
+            Path gradleLockfile, DependencyConstraintCreator constraintCreator) {
         LockState lockState = new ConflictSafeLockFile(gradleLockfile).readLocks();
         // We only publish the production locks.
         return lockState.productionLinesByModuleIdentifier().entrySet().stream()
                 .map(e -> e.getKey() + ":" + e.getValue().version())
-                .map(notation -> constraintHandler.create(notation, constraint -> {
+                .map(notation -> constraintCreator.create(notation, constraint -> {
                     constraint.version(v -> {
                         String version = Objects.requireNonNull(constraint.getVersion());
                         v.require(version);

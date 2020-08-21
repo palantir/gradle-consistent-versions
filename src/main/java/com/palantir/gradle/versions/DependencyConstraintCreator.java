@@ -16,9 +16,14 @@
 
 package com.palantir.gradle.versions;
 
+import org.gradle.api.Action;
 import org.gradle.api.artifacts.DependencyConstraint;
 
 @FunctionalInterface
 public interface DependencyConstraintCreator {
-    DependencyConstraint create(Object var1);
+    default DependencyConstraint create(Object notation) {
+        return create(notation, _constraint -> {});
+    }
+
+    DependencyConstraint create(Object notation, Action<? super DependencyConstraint> action);
 }
