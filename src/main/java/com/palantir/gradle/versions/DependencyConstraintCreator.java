@@ -20,7 +20,7 @@ import org.gradle.api.Action;
 import org.gradle.api.artifacts.DependencyConstraint;
 
 @FunctionalInterface
-public interface DependencyConstraintCreator {
+interface DependencyConstraintCreator {
     default DependencyConstraint create(Object notation) {
         return create(notation, _constraint -> {});
     }
