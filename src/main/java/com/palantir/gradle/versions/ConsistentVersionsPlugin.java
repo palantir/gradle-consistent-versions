@@ -21,6 +21,8 @@ import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 
 public class ConsistentVersionsPlugin implements Plugin<Project> {
+    static final String CONSISTENT_VERSIONS_USAGE = "consistent-versions-usage";
+
     @Override
     public final void apply(Project project) {
         if (!project.getRootProject().equals(project)) {

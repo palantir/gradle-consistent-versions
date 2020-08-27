@@ -32,7 +32,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.gradle.api.artifacts.DependencyConstraint;
 import org.gradle.api.artifacts.ModuleIdentifier;
-import org.gradle.api.artifacts.dsl.DependencyConstraintHandler;
 
 /** A {@code versions.props} file. */
 public final class VersionsProps {
@@ -95,15 +94,15 @@ public final class VersionsProps {
         return new VersionsProps(FuzzyPatternResolver.builder().build());
     }
 
-    public Stream<DependencyConstraint> constructConstraints(DependencyConstraintHandler handler) {
+    public Stream<DependencyConstraint> constructConstraints(DependencyConstraintCreator constraintCreator) {
         Map<String, String> versions = fuzzyResolver.versions();
         return Stream.concat(
                 fuzzyResolver.exactMatches().stream()
                         .map(key -> key + ":" + versions.get(key))
-                        .map(handler::create),
+                        .map(constraintCreator::create),
                 patternToPlatform.entrySet().stream()
                         .map(entry -> entry.getValue() + ":" + versions.get(entry.getKey()))
-                        .map(handler::create));
+                        .map(constraintCreator::create));
     }
 
     /**
