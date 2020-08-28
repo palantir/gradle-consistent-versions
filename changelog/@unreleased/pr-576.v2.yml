@@ -1,0 +1,5 @@
+type: fix
+fix:
+  description: 'Fix versions-props plugin regression from #557 (1.26.0) in some circumstances'
+  links:
+  - https://github.com/palantir/gradle-consistent-versions/pull/576

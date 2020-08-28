@@ -55,6 +55,7 @@ public class VersionsPropsPlugin implements Plugin<Project> {
     private static final GradleVersion MINIMUM_GRADLE_VERSION = GradleVersion.version("5.2");
     private static final ImmutableSet<String> JAVA_PUBLISHED_CONFIGURATION_NAMES =
             ImmutableSet.of(JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME, JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME);
+    private static final String GCV_VERSIONS_PROPS_CONSTRAINTS_CONFIGURATION_NAME = "gcvVersionsPropsConstraints";
 
     @Override
     public final void apply(Project project) {
@@ -85,7 +86,7 @@ public class VersionsPropsPlugin implements Plugin<Project> {
             project.getTasks().named("check").configure(task -> task.dependsOn(checkNoUnusedConstraints));
 
             // Create "platform" configuration in root project, which will hold the versions props constraints
-            project.getConfigurations().register("gcvVersionsPropsConstraints", conf -> {
+            project.getConfigurations().register(GCV_VERSIONS_PROPS_CONSTRAINTS_CONFIGURATION_NAME, conf -> {
                 conf.getAttributes().attribute(Usage.USAGE_ATTRIBUTE, gcvVersionsPropsUsage);
                 conf.getOutgoing().capability(gcvVersionsPropsCapability);
                 conf.setCanBeResolved(false);
@@ -152,6 +153,10 @@ public class VersionsPropsPlugin implements Plugin<Project> {
         // For rootConfiguration, unlike other configurations, this is the only customization necessary.
         if (conf.getName().equals(ROOT_CONFIGURATION_NAME)) {
             conf.withDependencies(deps -> provideVersionsFromStarDependencies(versionsProps, deps));
+            return;
+        }
+
+        if (conf.getName().equals(GCV_VERSIONS_PROPS_CONSTRAINTS_CONFIGURATION_NAME)) {
             return;
         }
 
