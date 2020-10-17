@@ -1,6 +1,6 @@
 com.netflix.nebula:nebula-dependency-recommender = 9.1.1
 com.netflix.nebula:nebula-test = 7.9.3
-com.google.guava:guava = 29.0-jre
+com.google.guava:guava = 30.0-jre
 org.immutables:value = 2.8.8
 org.junit:junit-bom = 5.7.0
 com.fasterxml.jackson.*:jackson-* = 2.11.3
