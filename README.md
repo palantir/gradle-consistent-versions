@@ -115,7 +115,7 @@ Note that this does not force okhttp to exactly 3.12.0, it just declares that yo
 <a name="rule-specificity">[1]</a>: If multiple lines from `versions.props` match a particular jar, **the most specific one** will be chosen (the one with the most characters being different from `*`).
 This has the side effect that a line referring specifically to a jar is independent, and that jar's version never gets aligned to the versions of other jars, even if there are other lines containing `*` which would otherwise match that jar. 
 
-[virtual platform]: https://docs.gradle.org/current/userguide/managing_transitive_dependencies.html#sec:version_alignment
+[virtual platform]: https://docs.gradle.org/current/userguide/dependency_version_alignment.html
 
 
 ### versions.lock: compact representation of your prod classpath
