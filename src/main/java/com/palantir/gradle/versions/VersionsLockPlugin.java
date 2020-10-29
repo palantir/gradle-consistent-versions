@@ -273,12 +273,18 @@ public class VersionsLockPlugin implements Plugin<Project> {
             fullLockStateProperty.set(project.provider(fullLockStateSupplier::get));
 
             if (project.getGradle().getStartParameter().isWriteDependencyLocks()) {
-                // Triggers evaluation of unifiedClasspath
-                new ConflictSafeLockFile(rootLockfile).writeLocks(fullLockStateSupplier.get());
-                log.lifecycle("Finished writing lock state to {}", rootLockfile);
+                if (isSkipWriteLocks(project)) {
+                    log.lifecycle(
+                            "Skipped writing lock state to {} because the 'gcvSkipWriteLocks' property was set",
+                            rootLockfile);
+                } else {
+                    // Triggers evaluation of unifiedClasspath
+                    new ConflictSafeLockFile(rootLockfile).writeLocks(fullLockStateSupplier.get());
+                    log.lifecycle("Finished writing lock state to {}", rootLockfile);
+                }
             } else {
                 if (isIgnoreLockFile(project)) {
-                    log.lifecycle("Ignoring lock file for debugging, because the 'ignoreLockFile' property was set");
+                    log.lifecycle("Ignoring lock file for debugging because the 'ignoreLockFile' property was set");
                     return;
                 }
 
@@ -329,6 +335,10 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
     static boolean isIgnoreLockFile(Project project) {
         return project.hasProperty("ignoreLockFile");
+    }
+
+    private static boolean isSkipWriteLocks(Project project) {
+        return project.hasProperty("gcvSkipWriteLocks");
     }
 
     private static Map<Project, LockedConfigurations> wireUpLockedConfigurationsByProject(Project rootProject) {

@@ -983,4 +983,31 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         where:
         gradleVersionNumber << GRADLE_VERSIONS
     }
+
+    def "#gradleVersionNumber: does not write lock file when property 'gcvSkipWriteLocks' is set"() {
+        gradleVersion = gradleVersionNumber
+
+        buildFile << """
+            apply plugin: 'java'
+            dependencies {
+                testImplementation 'org.slf4j:slf4j-api:1.7.25'
+            }
+        """.stripIndent()
+
+        def lockFileContent = """\
+            # Run ./gradlew --write-locks to regenerate this file
+        """.stripIndent()
+
+        file('versions.lock').text = lockFileContent
+
+        expect:
+        def result = runTasks("--write-locks", "-PgcvSkipWriteLocks")
+
+        file('versions.lock').text == lockFileContent
+        assert result.getOutput().contains("Skipped writing lock state")
+        assert !result.getOutput().contains("Finished writing lock state")
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
+    }
 }
