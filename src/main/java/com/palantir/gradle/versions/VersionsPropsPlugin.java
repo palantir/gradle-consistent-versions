@@ -147,10 +147,13 @@ public class VersionsPropsPlugin implements Plugin<Project> {
             Configuration rootConfiguration,
             VersionsProps versionsProps,
             Configuration conf) {
+        log.info("ABCDEF: {}", conf);
+
         // We only expect 'platform' dependencies to be declared in rootConfiguration.
         // This injects missing versions, in case the version comes from a *-dependency in versions.props.
         // For rootConfiguration, unlike other configurations, this is the only customization necessary.
         if (conf.getName().equals(ROOT_CONFIGURATION_NAME)) {
+            log.info("ABCDEF 1: {}", conf);
             conf.withDependencies(deps -> provideVersionsFromStarDependencies(versionsProps, deps));
             return;
         }
@@ -160,6 +163,7 @@ public class VersionsPropsPlugin implements Plugin<Project> {
         // This can happen if some other configuration depends on 'conf' *intransitively*.
         // These configurations can never be excluded anyway so we don't need the laziness.
         if (JAVA_PUBLISHED_CONFIGURATION_NAMES.contains(conf.getName())) {
+            log.info("ABCDEF 2: {}", conf);
             log.debug("Only configuring BOM dependencies on published java configuration: {}", conf);
             conf.getDependencies().addAllLater(extractPlatformDependencies(subproject, rootConfiguration));
             return;
@@ -175,13 +179,20 @@ public class VersionsPropsPlugin implements Plugin<Project> {
         // This way however, we guarantee that this is evaluated exactly once and right at the moment when
         // conf.getDependencies() is called.
         AtomicBoolean wasConfigured = new AtomicBoolean();
+
+        log.info("ABCDEF WITH: {}", conf);
+
         conf.withDependencies(deps -> {
+            log.info("ABCDEF DEPS: {} {}", conf, deps);
+
             if (!wasConfigured.compareAndSet(false, true)) {
+                log.info("ABCDEF 3: {}", conf);
                 // We are configuring a copy of the original dependency, as they inherit the withDependenciesActions.
                 log.debug("Not configuring {} because it's a copy of an already configured configuration.", conf);
                 return;
             }
             if (extension.shouldExcludeConfiguration(conf.getName())) {
+                log.info("ABCDEF 4: {}", conf);
                 log.debug("Not configuring {} because it's excluded", conf);
                 return;
             }
@@ -194,10 +205,12 @@ public class VersionsPropsPlugin implements Plugin<Project> {
             // But don't configure any _ancestors_ of our published configurations to extend rootConfiguration, as we
             // explicitly DO NOT WANT to republish the constraints that come from it (that come from versions.props).
             if (configurationWillAffectPublishedConstraints(subproject, conf)) {
+                log.info("ABCDEF 5: {}", conf);
                 log.debug("Not configuring published java configuration or its ancestor: {}", conf);
                 return;
             }
 
+            log.info("ABCDEF DONE: {}, {}", conf, rootConfiguration);
             conf.extendsFrom(rootConfiguration);
 
             // We must allow unifiedClasspath to be resolved at configuration-time.
