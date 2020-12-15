@@ -91,7 +91,7 @@ nebula.dependency-recommender *forces* all your dependencies, which overrides al
 Unfortunately, failOnVersionConflict means developers often pick conflict resolution versions out of thin air, without knowledge of the actual requested ranges. This is dangerous because users may unwittingly pick versions that actually violate dependency constraints and may break at runtime, resulting in runtime errors suchs as `ClassNotFoundException`, `NoSuchMethodException` etc
 
 [nebula.dependency-recommender]: https://github.com/nebula-plugins/nebula-dependency-recommender-plugin
-[dependency constraints]: https://docs.gradle.org/current/userguide/managing_transitive_dependencies.html#sec:dependency_constraints
+[dependency constraints]: https://docs.gradle.org/current/userguide/dependency_constraints.html
 [gradle BOM import]: https://docs.gradle.org/5.1/userguide/managing_transitive_dependencies.html#sec:bom_import
 
 
@@ -113,7 +113,7 @@ The * notation ensures that every matching jar will have the same version - they
 Note that this does not force okhttp to exactly 3.12.0, it just declares that your project requires at least 3.12.0.  If something else in your transitive graph needs a newer version, Gradle will happily select this.  See below for how to downgrade something if you really know what you're doing.
 
 <a name="rule-specificity">[1]</a>: If multiple lines from `versions.props` match a particular jar, **the most specific one** will be chosen (the one with the most characters being different from `*`).
-This has the side effect that a line referring specifically to a jar is independent, and that jar's version never gets aligned to the versions of other jars, even if there are other lines containing `*` which would otherwise match that jar. 
+This has the side effect that a line referring specifically to a jar is independent, and that jar's version never gets aligned to the versions of other jars, even if there are other lines containing `*` which would otherwise match that jar.
 
 [virtual platform]: https://docs.gradle.org/current/userguide/dependency_version_alignment.html
 
@@ -161,7 +161,7 @@ This is effectively just a more concise version of `dependencyInsight`:
 ```
 
 ## ./gradlew checkUnusedConstraints
-`checkUnusedConstraints` prevents unnecessary constraints from accruing in your `versions.props` file. Run 
+`checkUnusedConstraints` prevents unnecessary constraints from accruing in your `versions.props` file. Run
 `./gradlew checkUnusedConstraints --fix` to automatically remove any unused constraints from your props file.
 
 ### getVersion
@@ -303,7 +303,7 @@ apply plugin: 'java'
 versionsLock {
     testProject()
 }
-``` 
+```
 
 ### Resolving dependencies at configuration time is banned
 In order for this plugin to function, we must be able to guarantee that no dependencies are resolved at configuration time.  Gradle already [recommends this](https://guides.gradle.org/performance/#don_t_resolve_dependencies_at_configuration_time) but gradle-consistent-versions enforces it.
