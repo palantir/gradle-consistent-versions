@@ -56,7 +56,7 @@ public abstract class FuzzyPatternResolver {
     public final Optional<String> patternFor(String key) {
         // Always prefer exact matches (which should be handled separately).
         if (exactMatches().contains(key)) {
-            return Optional.empty();
+            return Optional.of(key);
         }
 
         for (Glob glob : globs()) {

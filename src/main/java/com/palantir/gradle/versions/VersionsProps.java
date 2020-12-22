@@ -18,7 +18,6 @@ package com.palantir.gradle.versions;
 
 import com.google.common.base.CharMatcher;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -29,8 +28,6 @@ import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
-import org.gradle.api.artifacts.DependencyConstraint;
 import org.gradle.api.artifacts.ModuleIdentifier;
 
 /** A {@code versions.props} file. */
@@ -42,9 +39,8 @@ public final class VersionsProps {
 
     private VersionsProps(FuzzyPatternResolver fuzzyResolver) {
         this.fuzzyResolver = fuzzyResolver;
-        this.patternToPlatform =
-                Sets.difference(fuzzyResolver.versions().keySet(), fuzzyResolver.exactMatches()).stream()
-                        .collect(Collectors.toMap(key -> key, this::constructPlatform));
+        this.patternToPlatform = fuzzyResolver.versions().keySet().stream()
+                .collect(Collectors.toMap(key -> key, this::constructPlatform));
     }
 
     public FuzzyPatternResolver getFuzzyResolver() {
@@ -94,17 +90,6 @@ public final class VersionsProps {
         return new VersionsProps(FuzzyPatternResolver.builder().build());
     }
 
-    public Stream<DependencyConstraint> constructConstraints(DependencyConstraintCreator constraintCreator) {
-        Map<String, String> versions = fuzzyResolver.versions();
-        return Stream.concat(
-                fuzzyResolver.exactMatches().stream()
-                        .map(key -> key + ":" + versions.get(key))
-                        .map(constraintCreator::create),
-                patternToPlatform.entrySet().stream()
-                        .map(entry -> entry.getValue() + ":" + versions.get(entry.getKey()))
-                        .map(constraintCreator::create));
-    }
-
     /**
      * Get a recommended version for a module if it matches one of the non-exact platforms. This is necessary for direct
      * dependency injection, which is not supported by virtual platforms. See <a
@@ -121,9 +106,6 @@ public final class VersionsProps {
      */
     public Optional<String> getPlatform(ModuleIdentifier dependency) {
         String notation = dependency.getGroup() + ":" + dependency.getName();
-        if (fuzzyResolver.exactMatches().contains(notation)) {
-            return Optional.empty();
-        }
         return fuzzyResolver.patternFor(notation).map(patternToPlatform::get);
     }
 

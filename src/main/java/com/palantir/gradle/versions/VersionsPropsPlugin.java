@@ -17,7 +17,6 @@
 package com.palantir.gradle.versions;
 
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -31,7 +30,6 @@ import org.gradle.api.Project;
 import org.gradle.api.artifacts.ComponentMetadataDetails;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.Dependency;
-import org.gradle.api.artifacts.DependencyConstraint;
 import org.gradle.api.artifacts.DependencySet;
 import org.gradle.api.artifacts.ExternalDependency;
 import org.gradle.api.artifacts.ModuleDependency;
@@ -55,7 +53,6 @@ public class VersionsPropsPlugin implements Plugin<Project> {
     private static final GradleVersion MINIMUM_GRADLE_VERSION = GradleVersion.version("5.2");
     private static final ImmutableSet<String> JAVA_PUBLISHED_CONFIGURATION_NAMES =
             ImmutableSet.of(JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME, JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME);
-    private static final String GCV_VERSIONS_PROPS_CONSTRAINTS_CONFIGURATION_NAME = "gcvVersionsPropsConstraints";
 
     @Override
     public final void apply(Project project) {
@@ -84,17 +81,6 @@ public class VersionsPropsPlugin implements Plugin<Project> {
                                 .set(project.getLayout().getProjectDirectory().file("versions.props"));
                     });
             project.getTasks().named("check").configure(task -> task.dependsOn(checkNoUnusedConstraints));
-
-            // Create "platform" configuration in root project, which will hold the versions props constraints
-            project.getConfigurations().register(GCV_VERSIONS_PROPS_CONSTRAINTS_CONFIGURATION_NAME, conf -> {
-                conf.getAttributes().attribute(Usage.USAGE_ATTRIBUTE, gcvVersionsPropsUsage);
-                conf.getOutgoing().capability(gcvVersionsPropsCapability);
-                conf.setCanBeResolved(false);
-                conf.setCanBeConsumed(true);
-                conf.setVisible(false);
-
-                addVersionsPropsConstraints(project.getDependencies().getConstraints()::create, conf, versionsProps);
-            });
         }
 
         VersionRecommendationsExtension extension =
@@ -153,10 +139,6 @@ public class VersionsPropsPlugin implements Plugin<Project> {
         // For rootConfiguration, unlike other configurations, this is the only customization necessary.
         if (conf.getName().equals(ROOT_CONFIGURATION_NAME)) {
             conf.withDependencies(deps -> provideVersionsFromStarDependencies(versionsProps, deps));
-            return;
-        }
-
-        if (conf.getName().equals(GCV_VERSIONS_PROPS_CONSTRAINTS_CONFIGURATION_NAME)) {
             return;
         }
 
@@ -286,14 +268,6 @@ public class VersionsPropsPlugin implements Plugin<Project> {
             log.info("Assigning component {} to virtual platform {}", component, platformNotation);
             component.belongsTo(platformNotation);
         });
-    }
-
-    private static void addVersionsPropsConstraints(
-            DependencyConstraintCreator constraintCreator, Configuration conf, VersionsProps versionsProps) {
-        ImmutableList<DependencyConstraint> constraints =
-                versionsProps.constructConstraints(constraintCreator).collect(ImmutableList.toImmutableList());
-        log.info("Adding constraints to {}: {}", conf, constraints);
-        constraints.forEach(conf.getDependencyConstraints()::add);
     }
 
     private static VersionsProps loadVersionsProps(Path versionsPropsFile) {
