@@ -10,4 +10,4 @@ org.mockito:mockito-core = 3.7.0
 
 # Unnecessary once we have lock files
 com.google.code.findbugs:jsr305 = 3.0.2
-com.google.errorprone:error_prone_annotations = 2.4.0
+com.google.errorprone:error_prone_annotations = 2.5.0
