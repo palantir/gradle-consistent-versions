@@ -1,0 +1,5 @@
+type: improvement
+improvement:
+  description: Add compatibility with Gradle configuration-on-demand
+  links:
+  - https://github.com/palantir/gradle-consistent-versions/pull/657
