@@ -255,7 +255,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
         //
         // [1]:https://github.com/JetBrains/intellij-community/commit/f394c51cff59c69bbaf63a8bf67cefbad9e357aa#diff-04b9936e4249a0f5727414555b76c4b9R123
         project.afterEvaluate(p -> {
-            p.getSubprojects().forEach(subproject -> p.evaluationDependsOn(subproject.getPath()));
+            GradleWorkarounds.makeEvaluationDependOnSubprojectsToBeEvaluated(p);
 
             // Recursively copy all project dependencies, so that the constraints we add below won't affect the
             // resolution of unifiedClasspath.
@@ -267,6 +267,14 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 ResolutionResult resolutionResult =
                         unifiedClasspath.getIncoming().getResolutionResult();
                 // Throw if there are dependencies that are not present in the lock state.
+                if (project.getGradle().getStartParameter().isConfigureOnDemand()
+                        && project.getAllprojects().stream()
+                                .anyMatch(subproject -> !subproject.getState().getExecuted())) {
+                    throw new GradleException("All projects must have been configured for this task to work "
+                            + "correctly, but due to Gradle configuration-on-demand, not all projects were configured. "
+                            + "Make your command work by including a task with no project name (such as "
+                            + "`./gradlew build` vs. `./gradlew :build`) or use --no-configure-on-demand.");
+                }
                 failIfAnyDependenciesUnresolved(resolutionResult);
                 return computeLockState(resolutionResult, directDependencyScopes);
             });
@@ -343,6 +351,11 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
     private static Map<Project, LockedConfigurations> wireUpLockedConfigurationsByProject(Project rootProject) {
         return rootProject.getAllprojects().stream().collect(Collectors.toMap(Functions.identity(), subproject -> {
+            if (rootProject.getGradle().getStartParameter().isConfigureOnDemand()
+                    && !subproject.getState().getExecuted()) {
+                return ImmutableLockedConfigurations.builder().build();
+            }
+
             VersionsLockExtension ext = subproject.getExtensions().getByType(VersionsLockExtension.class);
             LockedConfigurations lockedConfigurations = computeConfigurationsToLock(subproject, ext);
             addConfigurationDependencies(
@@ -448,14 +461,6 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
         if (!project.getRootProject().equals(project)) {
             throw new GradleException("Must be applied only to root project");
-        }
-
-        // check that configure-on-demand is false when running with --write-locks
-        if (project.getGradle().getStartParameter().isWriteDependencyLocks()) {
-            Preconditions.checkState(
-                    !project.getGradle().getStartParameter().isConfigureOnDemand(),
-                    "configure-on-demand cannot be enabled when gradle is invoked with --write-locks;"
-                            + " please remove 'org.gradle.configureondemand' from your gradle.properties");
         }
 
         Multimap<String, Project> coordinateDuplicates = LinkedHashMultimap.create();
