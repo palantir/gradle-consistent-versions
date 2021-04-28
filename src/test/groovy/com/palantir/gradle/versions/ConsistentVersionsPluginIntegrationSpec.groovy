@@ -43,7 +43,7 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         buildFile << """
             buildscript {
                 repositories {
-                    maven { url 'https://dl.bintray.com/palantir/releases' }
+                    mavenCentral()
                 }
                 dependencies {
                     classpath 'com.palantir.configurationresolver:gradle-configuration-resolver-plugin:0.3.0'

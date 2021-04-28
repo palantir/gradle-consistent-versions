@@ -35,7 +35,7 @@ class SlsPackagingCompatibilityIntegrationSpec extends IntegrationSpec {
         buildFile << """
             buildscript {
                 repositories {
-                    maven { url 'https://dl.bintray.com/palantir/releases' }
+                    mavenCentral()
                 }
             }            
             plugins {
