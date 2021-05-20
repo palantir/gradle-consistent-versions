@@ -1,0 +1,5 @@
+type: fix
+fix:
+  description: Handle gradle 7 removing default configurations
+  links:
+  - https://github.com/palantir/gradle-consistent-versions/pull/721
