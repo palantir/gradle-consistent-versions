@@ -17,6 +17,7 @@
 package com.palantir.gradle.versions;
 
 import com.google.common.base.Preconditions;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Stream;
 import org.gradle.api.GradleException;
@@ -58,13 +59,14 @@ public class FixLegacyJavaConfigurationsPlugin implements Plugin<Project> {
                         JavaPlugin.COMPILE_CONFIGURATION_NAME,
                         JavaPlugin.COMPILE_ONLY_CONFIGURATION_NAME,
                         JavaPlugin.RUNTIME_CONFIGURATION_NAME)
-                .map(project.getConfigurations()::named)
-                .forEach(confProvider -> confProvider.configure(conf -> {
+                .map(project.getConfigurations()::findByName)
+                .filter(Objects::nonNull)
+                .forEach(conf -> {
                     injectVersions(
                             conf,
                             (group, name) ->
                                     GetVersionPlugin.getOptionalVersion(project, group, name, unifiedClasspath));
-                }));
+                });
     }
 
     private interface GetVersion {
