@@ -120,6 +120,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
     private static final Attribute<GcvUsage> GCV_USAGE_ATTRIBUTE =
             Attribute.of("com.palantir.consistent-versions.usage", GcvUsage.class);
     private static final String GCV_LOCKS_CAPABILITY = "gcv:locks:0";
+    public static final String WRITE_VERSIONS_LOCK = "writeVersionsLock";
 
     public enum GcvUsage implements Named {
         /**
@@ -244,6 +245,12 @@ public class VersionsLockPlugin implements Plugin<Project> {
             attrs.attribute(Usage.USAGE_ATTRIBUTE, internalUsage);
         });
 
+        project.getTasks().register(WRITE_VERSIONS_LOCK, WriteVersionsLockTask.class, writeVersionsLock -> {
+            writeVersionsLock.getOutputs().upToDateWhen(_ignored -> false);
+            writeVersionsLock.getLockRootLockFile().set(rootLockfile.toFile());
+            writeVersionsLock.getFullLockState().set(fullLockStateProperty);
+        });
+
         // afterEvaluate is necessary to ensure all projects' dependencies have been configured, because we
         // need to copy them eagerly before we add the constraints from the lock file.
         //
@@ -281,14 +288,22 @@ public class VersionsLockPlugin implements Plugin<Project> {
             fullLockStateProperty.set(project.provider(fullLockStateSupplier::get));
 
             if (project.getGradle().getStartParameter().isWriteDependencyLocks()) {
+                project.getGradle().getStartParameter().getTaskNames();
                 if (isSkipWriteLocks(project)) {
                     log.lifecycle(
                             "Skipped writing lock state to {} because the 'gcvSkipWriteLocks' property was set",
                             rootLockfile);
                 } else {
-                    // Triggers evaluation of unifiedClasspath
-                    new ConflictSafeLockFile(rootLockfile).writeLocks(fullLockStateSupplier.get());
-                    log.lifecycle("Finished writing lock state to {}", rootLockfile);
+                    List<String> originalTaskNames =
+                            project.getGradle().getStartParameter().getTaskNames();
+                    if (!originalTaskNames.contains(WRITE_VERSIONS_LOCK)) {
+                        project.getGradle()
+                                .getStartParameter()
+                                .setTaskNames(ImmutableList.<String>builder()
+                                        .addAll(originalTaskNames)
+                                        .add(WRITE_VERSIONS_LOCK)
+                                        .build());
+                    }
                 }
             } else {
                 if (isIgnoreLockFile(project)) {
