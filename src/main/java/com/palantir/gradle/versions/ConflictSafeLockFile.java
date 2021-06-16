@@ -28,13 +28,17 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.List;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.gradle.api.GradleException;
+import org.gradle.api.logging.Logger;
+import org.gradle.api.logging.Logging;
 
 final class ConflictSafeLockFile {
+    private static final Logger log = Logging.getLogger(ConflictSafeLockFile.class);
     private static final String HEADER_COMMENT = "# Run ./gradlew --write-locks to regenerate this file";
     private static final Pattern LINE_PATTERN =
             Pattern.compile("(?<group>[^(:]+):(?<artifact>[^(:]+):(?<version>[^(:\\s]+)"
@@ -42,9 +46,30 @@ final class ConflictSafeLockFile {
     private static final String TEST_DEPENDENCIES_MARKER = "[Test dependencies]";
 
     private final Path lockfile;
+    private final Path listfile;
+    private final boolean writeList;
 
-    ConflictSafeLockFile(Path lockfile) {
+    public Path getLockfile() {
+        return lockfile;
+    }
+
+    public Path getListfile() {
+        return listfile;
+    }
+
+    public boolean isWriteList() {
+        return writeList;
+    }
+
+    ConflictSafeLockFile(Path lockfile, Path listfile, boolean writeList) {
         this.lockfile = lockfile;
+        this.listfile = listfile;
+        this.writeList = writeList;
+    }
+
+    /** Reads and returns the {@link LockState} from the specified lock file. */
+    public static LockState readLocks(Path lockfile) {
+        return new ConflictSafeLockFile(lockfile, null, false).readLocks();
     }
 
     /** Reads and returns the {@link LockState}. */
@@ -93,27 +118,55 @@ final class ConflictSafeLockFile {
 
     public void writeLocks(FullLockState fullLockState) {
         LockState lockState = LockStates.toLockState(fullLockState);
+        writeFile(lockState, lockfile, "lock", Line::stringRepresentation);
+        if (writeList) {
+            writeFile(lockState, listfile, "list", Line::stringRepresentationWithoutHash);
+        } else {
+            log.lifecycle(
+                    "Skipped writing version list to {} because the '"
+                            + VersionsLockPlugin.SKIP_WRITE_LIST_PROPERTY
+                            + "' was set",
+                    listfile);
+
+            if (listfile.toFile().exists()) {
+                log.warn(
+                        "The lock file {} was updated, but an existing list file {} was not. The files may be"
+                                + " inconsistent. Unset the '" + VersionsLockPlugin.SKIP_WRITE_LIST_PROPERTY
+                                + "' property to ensure the lock file and list file match.",
+                        lockfile,
+                        listfile);
+            }
+        }
+    }
+
+    private void writeFile(LockState lockState, Path file, String label, Function<Line, String> formatter) {
         try (BufferedWriter writer =
-                Files.newBufferedWriter(lockfile, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)) {
+                Files.newBufferedWriter(file, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)) {
             writer.append(HEADER_COMMENT);
             writer.newLine();
 
-            lockState.productionLinesByModuleIdentifier().values().forEach(line -> writeLine(line, writer));
+            lockState
+                    .productionLinesByModuleIdentifier()
+                    .values()
+                    .forEach(line -> writeLine(formatter.apply(line), writer));
 
             if (!lockState.testLinesByModuleIdentifier().isEmpty()) {
                 writer.newLine();
                 writer.write(TEST_DEPENDENCIES_MARKER);
                 writer.newLine();
-                lockState.testLinesByModuleIdentifier().values().forEach(line -> writeLine(line, writer));
+                lockState
+                        .testLinesByModuleIdentifier()
+                        .values()
+                        .forEach(line -> writeLine(formatter.apply(line), writer));
             }
         } catch (IOException e) {
-            throw new RuntimeException("Failed to write lock file: " + lockfile, e);
+            throw new RuntimeException(String.format("Failed to write %s file: %s", label, file), e);
         }
     }
 
-    private static void writeLine(Line line, BufferedWriter writer) {
+    private static void writeLine(String line, BufferedWriter writer) {
         try {
-            writer.append(line.stringRepresentation());
+            writer.append(line);
             writer.newLine();
         } catch (IOException e) {
             throw new RuntimeException("Failed writing line", e);

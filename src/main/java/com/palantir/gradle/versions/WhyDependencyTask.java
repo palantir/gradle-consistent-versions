@@ -66,9 +66,8 @@ public class WhyDependencyTask extends DefaultTask {
     @TaskAction
     public final void taskAction() {
         // read the lockfile from disk so that we can fail fast without resolving anything if the hash isn't found
-        Multimap<String, Line> lineByHash = new ConflictSafeLockFile(lockfile)
-                .readLocks().allLines().stream()
-                        .collect(Multimaps.toMultimap(Line::dependentsHash, Function.identity(), HashMultimap::create));
+        Multimap<String, Line> lineByHash = ConflictSafeLockFile.readLocks(lockfile).allLines().stream()
+                .collect(Multimaps.toMultimap(Line::dependentsHash, Function.identity(), HashMultimap::create));
 
         if (!hashOption.isPresent()) {
             Optional<String> example = lineByHash.keySet().stream()

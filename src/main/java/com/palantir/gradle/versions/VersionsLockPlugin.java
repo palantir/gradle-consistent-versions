@@ -107,6 +107,9 @@ public class VersionsLockPlugin implements Plugin<Project> {
     /** Root project configuration that collects all the dependencies from each project. */
     static final String UNIFIED_CLASSPATH_CONFIGURATION_NAME = "unifiedClasspath";
 
+    static final String SKIP_WRITE_LOCKS_PROPERTY = "gcvSkipWriteLocks";
+    static final String SKIP_WRITE_LIST_PROPERTY = "gcvSkipWriteList";
+
     /** Per-project configuration that gets resolved when resolving the user's inter-project dependencies. */
     private static final String PLACEHOLDER_CONFIGURATION_NAME = "consistentVersionsPlaceholder";
 
@@ -192,6 +195,10 @@ public class VersionsLockPlugin implements Plugin<Project> {
         return project.file("versions.lock").toPath();
     }
 
+    static Path getRootListFile(Project project) {
+        return project.file("versions.list").toPath();
+    }
+
     @Override
     public final void apply(Project project) {
         checkPreconditions(project);
@@ -219,7 +226,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
             setupDependenciesToProject(project, unifiedClasspath, subproject);
         });
 
-        Path rootLockfile = getRootLockFile(project);
+        ConflictSafeLockFile lockFile =
+                new ConflictSafeLockFile(getRootLockFile(project), getRootListFile(project), !isSkipWriteList(project));
 
         Property<FullLockState> fullLockStateProperty = project.getObjects().property(FullLockState.class);
 
@@ -283,12 +291,12 @@ public class VersionsLockPlugin implements Plugin<Project> {
             if (project.getGradle().getStartParameter().isWriteDependencyLocks()) {
                 if (isSkipWriteLocks(project)) {
                     log.lifecycle(
-                            "Skipped writing lock state to {} because the 'gcvSkipWriteLocks' property was set",
-                            rootLockfile);
+                            "Skipped writing lock state to {} because the '" + SKIP_WRITE_LOCKS_PROPERTY + "' was set",
+                            lockFile.getLockfile());
                 } else {
                     // Triggers evaluation of unifiedClasspath
-                    new ConflictSafeLockFile(rootLockfile).writeLocks(fullLockStateSupplier.get());
-                    log.lifecycle("Finished writing lock state to {}", rootLockfile);
+                    lockFile.writeLocks(fullLockStateSupplier.get());
+                    log.lifecycle("Finished writing lock state to {}", lockFile.getLockfile());
                 }
             } else {
                 if (isIgnoreLockFile(project)) {
@@ -296,11 +304,11 @@ public class VersionsLockPlugin implements Plugin<Project> {
                     return;
                 }
 
-                if (Files.notExists(rootLockfile)) {
+                if (Files.notExists(lockFile.getLockfile())) {
                     throw new GradleException(String.format(
                             "Root lock file '%s' doesn't exist, please run "
                                     + "`./gradlew --write-locks` to initialise locks",
-                            rootLockfile));
+                            lockFile.getLockfile()));
                 }
             }
 
@@ -308,21 +316,20 @@ public class VersionsLockPlugin implements Plugin<Project> {
             gcvLocksConfiguration.configure(conf -> {
                 conf.getDependencyConstraints()
                         .addAll(constructConstraintsFromLockFile(
-                                rootLockfile, project.getDependencies().getConstraints()::create));
+                                lockFile, project.getDependencies().getConstraints()::create));
             });
 
-            configureAllProjectsUsingConstraints(project, rootLockfile, lockedConfigurations, locksDependency);
+            configureAllProjectsUsingConstraints(project, lockFile, lockedConfigurations, locksDependency);
         });
 
         TaskProvider<?> verifyLocks = project.getTasks().register("verifyLocks", VerifyLocksTask.class, task -> {
             task.getCurrentLockState().set(fullLockStateProperty.map(LockStates::toLockState));
-            task.getPersistedLockState()
-                    .set(project.provider(() -> new ConflictSafeLockFile(rootLockfile).readLocks()));
+            task.getPersistedLockState().set(project.provider(lockFile::readLocks));
         });
         project.getTasks().named(LifecycleBasePlugin.CHECK_TASK_NAME).configure(check -> check.dependsOn(verifyLocks));
 
         project.getTasks().register("why", WhyDependencyTask.class, t -> {
-            t.lockfile(rootLockfile);
+            t.lockfile(lockFile.getLockfile());
             t.fullLockState(fullLockStateProperty);
         });
     }
@@ -346,7 +353,11 @@ public class VersionsLockPlugin implements Plugin<Project> {
     }
 
     private static boolean isSkipWriteLocks(Project project) {
-        return project.hasProperty("gcvSkipWriteLocks");
+        return project.hasProperty(SKIP_WRITE_LOCKS_PROPERTY);
+    }
+
+    private static boolean isSkipWriteList(Project project) {
+        return project.hasProperty(SKIP_WRITE_LIST_PROPERTY);
     }
 
     private static Map<Project, LockedConfigurations> wireUpLockedConfigurationsByProject(Project rootProject) {
@@ -879,12 +890,12 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
     private static void configureAllProjectsUsingConstraints(
             Project rootProject,
-            Path gradleLockfile,
+            ConflictSafeLockFile lockFile,
             Map<Project, LockedConfigurations> lockedConfigurations,
             ProjectDependency locksDependency) {
 
         List<DependencyConstraint> publishableConstraints = constructPublishableConstraintsFromLockFile(
-                gradleLockfile, rootProject.getDependencies().getConstraints()::create);
+                lockFile, rootProject.getDependencies().getConstraints()::create);
 
         rootProject.allprojects(subproject -> configureUsingConstraints(
                 subproject, locksDependency, publishableConstraints, lockedConfigurations.get(subproject)));
@@ -997,8 +1008,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
     }
 
     private static List<DependencyConstraint> constructConstraintsFromLockFile(
-            Path gradleLockfile, DependencyConstraintCreator constraintCreator) {
-        LockState lockState = new ConflictSafeLockFile(gradleLockfile).readLocks();
+            ConflictSafeLockFile lockFile, DependencyConstraintCreator constraintCreator) {
+        LockState lockState = lockFile.readLocks();
         Stream<Map.Entry<MyModuleIdentifier, Line>> locks = Stream.concat(
                 lockState.productionLinesByModuleIdentifier().entrySet().stream(),
                 lockState.testLinesByModuleIdentifier().entrySet().stream());
@@ -1016,8 +1027,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
     }
 
     private static List<DependencyConstraint> constructPublishableConstraintsFromLockFile(
-            Path gradleLockfile, DependencyConstraintCreator constraintCreator) {
-        LockState lockState = new ConflictSafeLockFile(gradleLockfile).readLocks();
+            ConflictSafeLockFile lockFile, DependencyConstraintCreator constraintCreator) {
+        LockState lockState = lockFile.readLocks();
         // We only publish the production locks.
         return lockState.productionLinesByModuleIdentifier().entrySet().stream()
                 .map(e -> e.getKey() + ":" + e.getValue().version())
