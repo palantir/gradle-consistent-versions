@@ -121,7 +121,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
     private static final Attribute<GcvUsage> GCV_USAGE_ATTRIBUTE =
             Attribute.of("com.palantir.consistent-versions.usage", GcvUsage.class);
     private static final String GCV_LOCKS_CAPABILITY = "gcv:locks:0";
-    public static final String WRITE_VERSIONS_LOCK = "writeVersionsLock";
+    private static final String WRITE_VERSIONS_LOCK_TASK = "writeVersionsLock";
 
     public enum GcvUsage implements Named {
         /**
@@ -246,7 +246,10 @@ public class VersionsLockPlugin implements Plugin<Project> {
             attrs.attribute(Usage.USAGE_ATTRIBUTE, internalUsage);
         });
 
-        project.getTasks().create(WRITE_VERSIONS_LOCK);
+        // This is a "marker" task that does nothing, it exists solely that we can detect if it has been run and so
+        // write the versions lock task without running --write-locks code from any other gradle plugin. Unfortunately,
+        // we can't just have the task run the write locks code as we need to write the locks in afterEvaluate.
+        project.getTasks().create(WRITE_VERSIONS_LOCK_TASK);
 
         // afterEvaluate is necessary to ensure all projects' dependencies have been configured, because we
         // need to copy them eagerly before we add the constraints from the lock file.
@@ -286,7 +289,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
             fullLockStateProperty.set(project.provider(fullLockStateSupplier::get));
 
             if (startParameter.isWriteDependencyLocks()
-                    || startParameter.getTaskNames().contains(WRITE_VERSIONS_LOCK)) {
+                    || startParameter.getTaskNames().contains(WRITE_VERSIONS_LOCK_TASK)) {
 
                 if (isSkipWriteLocks(project)) {
                     log.lifecycle(
