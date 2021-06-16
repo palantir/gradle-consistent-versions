@@ -59,6 +59,7 @@ import java.util.stream.Stream;
 import javax.inject.Inject;
 import netflix.nebula.dependency.recommender.RecommendationStrategies;
 import netflix.nebula.dependency.recommender.provider.RecommendationProviderContainer;
+import org.gradle.StartParameter;
 import org.gradle.api.GradleException;
 import org.gradle.api.Named;
 import org.gradle.api.NamedDomainObjectProvider;
@@ -245,11 +246,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
             attrs.attribute(Usage.USAGE_ATTRIBUTE, internalUsage);
         });
 
-        project.getTasks().register(WRITE_VERSIONS_LOCK, WriteVersionsLockTask.class, writeVersionsLock -> {
-            writeVersionsLock.getOutputs().upToDateWhen(_ignored -> false);
-            writeVersionsLock.getLockRootLockFile().set(rootLockfile.toFile());
-            writeVersionsLock.getFullLockState().set(fullLockStateProperty);
-        });
+        project.getTasks().create(WRITE_VERSIONS_LOCK);
 
         // afterEvaluate is necessary to ensure all projects' dependencies have been configured, because we
         // need to copy them eagerly before we add the constraints from the lock file.
@@ -270,11 +267,12 @@ public class VersionsLockPlugin implements Plugin<Project> {
             DirectDependencyScopes directDependencyScopes = recursivelyCopyProjectDependencies(
                     project, unifiedClasspath.getIncoming().getDependencies());
 
+            StartParameter startParameter = project.getGradle().getStartParameter();
             Supplier<FullLockState> fullLockStateSupplier = Suppliers.memoize(() -> {
                 ResolutionResult resolutionResult =
                         unifiedClasspath.getIncoming().getResolutionResult();
                 // Throw if there are dependencies that are not present in the lock state.
-                if (project.getGradle().getStartParameter().isConfigureOnDemand()
+                if (startParameter.isConfigureOnDemand()
                         && project.getAllprojects().stream()
                                 .anyMatch(subproject -> !subproject.getState().getExecuted())) {
                     throw new GradleException("All projects must have been configured for this task to work "
@@ -287,23 +285,17 @@ public class VersionsLockPlugin implements Plugin<Project> {
             });
             fullLockStateProperty.set(project.provider(fullLockStateSupplier::get));
 
-            if (project.getGradle().getStartParameter().isWriteDependencyLocks()) {
-                project.getGradle().getStartParameter().getTaskNames();
+            if (startParameter.isWriteDependencyLocks()
+                    || startParameter.getTaskNames().contains(WRITE_VERSIONS_LOCK)) {
+
                 if (isSkipWriteLocks(project)) {
                     log.lifecycle(
                             "Skipped writing lock state to {} because the 'gcvSkipWriteLocks' property was set",
                             rootLockfile);
                 } else {
-                    List<String> originalTaskNames =
-                            project.getGradle().getStartParameter().getTaskNames();
-                    if (!originalTaskNames.contains(WRITE_VERSIONS_LOCK)) {
-                        project.getGradle()
-                                .getStartParameter()
-                                .setTaskNames(ImmutableList.<String>builder()
-                                        .addAll(originalTaskNames)
-                                        .add(WRITE_VERSIONS_LOCK)
-                                        .build());
-                    }
+                    // Triggers evaluation of unifiedClasspath
+                    new ConflictSafeLockFile(rootLockfile).writeLocks(fullLockStateSupplier.get());
+                    log.lifecycle("Finished writing lock state to {}", rootLockfile);
                 }
             } else {
                 if (isIgnoreLockFile(project)) {
