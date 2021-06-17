@@ -34,9 +34,6 @@ final class TaskNameMatcher {
     public boolean matches(String taskName) {
         List<String> taskNameParts = toParts(taskName);
 
-        System.out.println("fullTaskNameParts = " + fullTaskNameParts);
-        System.out.println("taskNameParts = " + taskNameParts);
-
         if (taskNameParts.size() != fullTaskNameParts.size()) {
             return false;
         }
