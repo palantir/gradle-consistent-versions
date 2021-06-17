@@ -59,6 +59,7 @@ import java.util.stream.Stream;
 import javax.inject.Inject;
 import netflix.nebula.dependency.recommender.RecommendationStrategies;
 import netflix.nebula.dependency.recommender.provider.RecommendationProviderContainer;
+import org.gradle.StartParameter;
 import org.gradle.api.GradleException;
 import org.gradle.api.Named;
 import org.gradle.api.NamedDomainObjectProvider;
@@ -120,6 +121,9 @@ public class VersionsLockPlugin implements Plugin<Project> {
     private static final Attribute<GcvUsage> GCV_USAGE_ATTRIBUTE =
             Attribute.of("com.palantir.consistent-versions.usage", GcvUsage.class);
     private static final String GCV_LOCKS_CAPABILITY = "gcv:locks:0";
+    private static final String WRITE_VERSIONS_LOCKS_TASK = "writeVersionsLocks";
+    private static final TaskNameMatcher WRITE_VERSIONS_LOCKS_TASK_NAME_MATCHER =
+            new TaskNameMatcher(WRITE_VERSIONS_LOCKS_TASK);
 
     public enum GcvUsage implements Named {
         /**
@@ -244,6 +248,14 @@ public class VersionsLockPlugin implements Plugin<Project> {
             attrs.attribute(Usage.USAGE_ATTRIBUTE, internalUsage);
         });
 
+        // This is a "marker" task that does nothing, it exists solely that we can detect if it has been run and so
+        // write the versions lock task without running --write-locks code from any other gradle plugin. Unfortunately,
+        // we can't just have the task run the write locks code as we need to write the locks in afterEvaluate.
+        project.getTasks()
+                .register(WRITE_VERSIONS_LOCKS_TASK, WriteVersionsLocksMarkerTask.class, writeVersionsLock -> {
+                    writeVersionsLock.getOutputs().upToDateWhen(_ignored -> false);
+                });
+
         // afterEvaluate is necessary to ensure all projects' dependencies have been configured, because we
         // need to copy them eagerly before we add the constraints from the lock file.
         //
@@ -263,11 +275,12 @@ public class VersionsLockPlugin implements Plugin<Project> {
             DirectDependencyScopes directDependencyScopes = recursivelyCopyProjectDependencies(
                     project, unifiedClasspath.getIncoming().getDependencies());
 
+            StartParameter startParameter = project.getGradle().getStartParameter();
             Supplier<FullLockState> fullLockStateSupplier = Suppliers.memoize(() -> {
                 ResolutionResult resolutionResult =
                         unifiedClasspath.getIncoming().getResolutionResult();
                 // Throw if there are dependencies that are not present in the lock state.
-                if (project.getGradle().getStartParameter().isConfigureOnDemand()
+                if (startParameter.isConfigureOnDemand()
                         && project.getAllprojects().stream()
                                 .anyMatch(subproject -> !subproject.getState().getExecuted())) {
                     throw new GradleException("All projects must have been configured for this task to work "
@@ -280,7 +293,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
             });
             fullLockStateProperty.set(project.provider(fullLockStateSupplier::get));
 
-            if (project.getGradle().getStartParameter().isWriteDependencyLocks()) {
+            if (shouldWriteLocks(project)) {
                 if (isSkipWriteLocks(project)) {
                     log.lifecycle(
                             "Skipped writing lock state to {} because the 'gcvSkipWriteLocks' property was set",
@@ -1029,5 +1042,11 @@ public class VersionsLockPlugin implements Plugin<Project> {
                     constraint.because("Computed from com.palantir.consistent-versions' versions.lock");
                 }))
                 .collect(Collectors.toList());
+    }
+
+    public static boolean shouldWriteLocks(Project project) {
+        StartParameter startParameter = project.getGradle().getStartParameter();
+        return startParameter.isWriteDependencyLocks()
+                || WRITE_VERSIONS_LOCKS_TASK_NAME_MATCHER.matchesAny(startParameter.getTaskNames());
     }
 }

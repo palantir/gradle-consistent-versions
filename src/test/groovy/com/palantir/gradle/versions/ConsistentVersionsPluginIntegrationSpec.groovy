@@ -62,12 +62,42 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         """.stripIndent()
     }
 
-    def '#gradleVersionNumber: can write locks'() {
+    def '#gradleVersionNumber: can write locks using --write-locks'() {
         setup:
         gradleVersion = gradleVersionNumber
 
         when:
         runTasks('--write-locks')
+
+        then:
+        new File(projectDir, "versions.lock").exists()
+        runTasks('resolveConfigurations')
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
+    }
+
+    def '#gradleVersionNumber: can write locks using writeVersionsLock'() {
+        setup:
+        gradleVersion = gradleVersionNumber
+
+        when:
+        runTasks('writeVersionsLock')
+
+        then:
+        new File(projectDir, "versions.lock").exists()
+        runTasks('resolveConfigurations')
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
+    }
+
+    def '#gradleVersionNumber: can write locks using abbreviated writeVersionsLock'() {
+        setup:
+        gradleVersion = gradleVersionNumber
+
+        when:
+        runTasks('wVL')
 
         then:
         new File(projectDir, "versions.lock").exists()
