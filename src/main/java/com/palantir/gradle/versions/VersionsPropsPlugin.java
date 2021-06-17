@@ -79,17 +79,14 @@ public class VersionsPropsPlugin implements Plugin<Project> {
                         if (project.getGradle().getStartParameter().isConfigureOnDemand()
                                 && project.getAllprojects().stream()
                                         .anyMatch(p -> !p.getState().getExecuted())) {
-                            throw new GradleException("The gradle-consistent-versions checkUnusedConstraints task "
-                                    + "must have all projects configured to work accurately, but due to Gradle "
-                                    + "configuration-on-demand, not all projects were configured. Make your command "
-                                    + "work by including a task with no project name (such as `./gradlew build` vs. "
-                                    + "`./gradlew :build`) or use --no-configure-on-demand.");
+                            task.setShouldFailWithConfigurationOnDemandMessage(true);
+                        } else {
+                            task.getClasspath().set(project.provider(() -> project.getAllprojects().stream()
+                                    .flatMap(proj -> CheckUnusedConstraintsTask.getResolvedModuleIdentifiers(
+                                            proj,
+                                            project.getExtensions().getByType(VersionRecommendationsExtension.class)))
+                                    .collect(Collectors.toSet())));
                         }
-
-                        task.getClasspath().set(project.provider(() -> project.getAllprojects().stream()
-                                .flatMap(proj -> CheckUnusedConstraintsTask.getResolvedModuleIdentifiers(
-                                        proj, project.getExtensions().getByType(VersionRecommendationsExtension.class)))
-                                .collect(Collectors.toSet())));
                         task.getPropsFile()
                                 .set(project.getLayout().getProjectDirectory().file("versions.props"));
                     });

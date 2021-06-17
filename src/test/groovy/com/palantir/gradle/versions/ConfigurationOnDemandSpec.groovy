@@ -341,7 +341,7 @@ class ConfigurationOnDemandSpec extends IntegrationSpec {
 
         then:
         !result.output.contains('configuring upstream')
-        // The build actually fails during configuration, so there's no task outcome for :checkUnusedConstraints
+        result.task(':checkUnusedConstraints').outcome == TaskOutcome.FAILED
         result.output.contains("The gradle-consistent-versions checkUnusedConstraints task " +
                 "must have all projects configured to work accurately, but due to Gradle " +
                 "configuration-on-demand, not all projects were configured.")
