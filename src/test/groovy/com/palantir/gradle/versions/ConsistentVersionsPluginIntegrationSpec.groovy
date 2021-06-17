@@ -92,6 +92,21 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         gradleVersionNumber << GRADLE_VERSIONS
     }
 
+    def '#gradleVersionNumber: can write locks using abbreivated writeVersionsLock'() {
+        setup:
+        gradleVersion = gradleVersionNumber
+
+        when:
+        runTasks('wVL')
+
+        then:
+        new File(projectDir, "versions.lock").exists()
+        runTasks('resolveConfigurations')
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
+    }
+
     // TODO(dsanduleac): should remove this since this functionality doesn't fully work anyway, and we are
     //   actively encouraging people to stop resolving the deprecated configurations `compile` and `runtime`.
     def '#gradleVersionNumber: can resolve all configurations like compile with version coming only from versions props'() {
