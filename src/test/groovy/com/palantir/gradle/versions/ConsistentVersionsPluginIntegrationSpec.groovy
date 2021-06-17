@@ -92,7 +92,7 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    def '#gradleVersionNumber: can write locks using abbreivated writeVersionsLock'() {
+    def '#gradleVersionNumber: can write locks using abbreviated writeVersionsLock'() {
         setup:
         gradleVersion = gradleVersionNumber
 
