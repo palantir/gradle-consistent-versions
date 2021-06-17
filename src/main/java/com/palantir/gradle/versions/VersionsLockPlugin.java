@@ -288,31 +288,33 @@ public class VersionsLockPlugin implements Plugin<Project> {
             });
             fullLockStateProperty.set(project.provider(fullLockStateSupplier::get));
 
-            if (startParameter.isWriteDependencyLocks()
-                    || startParameter.getTaskNames().contains(WRITE_VERSIONS_LOCK_TASK)) {
-
-                if (isSkipWriteLocks(project)) {
-                    log.lifecycle(
-                            "Skipped writing lock state to {} because the 'gcvSkipWriteLocks' property was set",
-                            rootLockfile);
+            project.getGradle().getTaskGraph().whenReady(taskExecutionGraph -> {
+                if (startParameter.isWriteDependencyLocks()
+                        || taskExecutionGraph.getAllTasks().stream()
+                                .anyMatch(task -> task.getName().equals(WRITE_VERSIONS_LOCK_TASK))) {
+                    if (isSkipWriteLocks(project)) {
+                        log.lifecycle(
+                                "Skipped writing lock state to {} because the 'gcvSkipWriteLocks' property was set",
+                                rootLockfile);
+                    } else {
+                        // Triggers evaluation of unifiedClasspath
+                        new ConflictSafeLockFile(rootLockfile).writeLocks(fullLockStateSupplier.get());
+                        log.lifecycle("Finished writing lock state to {}", rootLockfile);
+                    }
                 } else {
-                    // Triggers evaluation of unifiedClasspath
-                    new ConflictSafeLockFile(rootLockfile).writeLocks(fullLockStateSupplier.get());
-                    log.lifecycle("Finished writing lock state to {}", rootLockfile);
-                }
-            } else {
-                if (isIgnoreLockFile(project)) {
-                    log.lifecycle("Ignoring lock file for debugging because the 'ignoreLockFile' property was set");
-                    return;
-                }
+                    if (isIgnoreLockFile(project)) {
+                        log.lifecycle("Ignoring lock file for debugging because the 'ignoreLockFile' property was set");
+                        return;
+                    }
 
-                if (Files.notExists(rootLockfile)) {
-                    throw new GradleException(String.format(
-                            "Root lock file '%s' doesn't exist, please run "
-                                    + "`./gradlew --write-locks` to initialise locks",
-                            rootLockfile));
+                    if (Files.notExists(rootLockfile)) {
+                        throw new GradleException(String.format(
+                                "Root lock file '%s' doesn't exist, please run "
+                                        + "`./gradlew --write-locks` to initialise locks",
+                                rootLockfile));
+                    }
                 }
-            }
+            });
 
             // Wire up the locks from the lock file into the strict locks platform.
             gcvLocksConfiguration.configure(conf -> {
