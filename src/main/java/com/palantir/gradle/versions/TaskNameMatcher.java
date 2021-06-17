@@ -18,6 +18,7 @@ package com.palantir.gradle.versions;
 
 import com.google.common.collect.Streams;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -42,6 +43,10 @@ final class TaskNameMatcher {
 
         return Streams.zip(fullTaskNameParts.stream(), taskNameParts.stream(), String::startsWith)
                 .allMatch(bool -> bool);
+    }
+
+    public boolean matchesAny(Collection<String> tasks) {
+        return tasks.stream().allMatch(this::matches);
     }
 
     private static List<String> toParts(String fullTaskName) {

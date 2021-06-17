@@ -133,7 +133,7 @@ final class GradleWorkarounds {
     @SuppressWarnings("CyclomaticComplexity")
     public static void makeEvaluationDependOnSubprojectsToBeEvaluated(Project rootProject) {
         if (!rootProject.getGradle().getStartParameter().isConfigureOnDemand()
-                || rootProject.getGradle().getStartParameter().isWriteDependencyLocks()
+                || VersionsLockPlugin.shouldWriteLocks(rootProject)
                 // If Gradle is run from somewhere other than the root, the task location gets trickier to translate
                 // into the projects to use; this could be implemented in the future if there's demand
                 || !rootProject.getGradle().getStartParameter().getCurrentDir().equals(rootProject.getRootDir())) {

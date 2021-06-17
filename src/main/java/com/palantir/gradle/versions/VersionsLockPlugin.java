@@ -122,6 +122,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
             Attribute.of("com.palantir.consistent-versions.usage", GcvUsage.class);
     private static final String GCV_LOCKS_CAPABILITY = "gcv:locks:0";
     private static final String WRITE_VERSIONS_LOCK_TASK = "writeVersionsLock";
+    private static final TaskNameMatcher WRITE_VERSIONS_LOCK_TASK_NAME_MATCHER =
+            new TaskNameMatcher(WRITE_VERSIONS_LOCK_TASK);
 
     public enum GcvUsage implements Named {
         /**
@@ -249,7 +251,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
         // This is a "marker" task that does nothing, it exists solely that we can detect if it has been run and so
         // write the versions lock task without running --write-locks code from any other gradle plugin. Unfortunately,
         // we can't just have the task run the write locks code as we need to write the locks in afterEvaluate.
-        project.getTasks().create(WRITE_VERSIONS_LOCK_TASK);
+        project.getTasks().create(WRITE_VERSIONS_LOCK_TASK, WriteVersionsLocksMarkerTask.class);
 
         // afterEvaluate is necessary to ensure all projects' dependencies have been configured, because we
         // need to copy them eagerly before we add the constraints from the lock file.
@@ -288,8 +290,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
             });
             fullLockStateProperty.set(project.provider(fullLockStateSupplier::get));
 
-            if (startParameter.isWriteDependencyLocks()
-                    || project.getGradle().getTaskGraph().hasTask(WRITE_VERSIONS_LOCK_TASK)) {
+            if (shouldWriteLocks(project)) {
                 if (isSkipWriteLocks(project)) {
                     log.lifecycle(
                             "Skipped writing lock state to {} because the 'gcvSkipWriteLocks' property was set",
@@ -1038,5 +1039,11 @@ public class VersionsLockPlugin implements Plugin<Project> {
                     constraint.because("Computed from com.palantir.consistent-versions' versions.lock");
                 }))
                 .collect(Collectors.toList());
+    }
+
+    public static boolean shouldWriteLocks(Project project) {
+        StartParameter startParameter = project.getGradle().getStartParameter();
+        return startParameter.isWriteDependencyLocks()
+                || WRITE_VERSIONS_LOCK_TASK_NAME_MATCHER.matchesAny(startParameter.getTaskNames());
     }
 }
