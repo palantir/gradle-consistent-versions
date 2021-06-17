@@ -251,7 +251,9 @@ public class VersionsLockPlugin implements Plugin<Project> {
         // This is a "marker" task that does nothing, it exists solely that we can detect if it has been run and so
         // write the versions lock task without running --write-locks code from any other gradle plugin. Unfortunately,
         // we can't just have the task run the write locks code as we need to write the locks in afterEvaluate.
-        project.getTasks().create(WRITE_VERSIONS_LOCK_TASK, WriteVersionsLocksMarkerTask.class);
+        project.getTasks().register(WRITE_VERSIONS_LOCK_TASK, WriteVersionsLocksMarkerTask.class, writeVersionsLock -> {
+            writeVersionsLock.getOutputs().upToDateWhen(_ignored -> false);
+        });
 
         // afterEvaluate is necessary to ensure all projects' dependencies have been configured, because we
         // need to copy them eagerly before we add the constraints from the lock file.
