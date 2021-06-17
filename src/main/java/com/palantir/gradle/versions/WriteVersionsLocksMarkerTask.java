@@ -20,7 +20,7 @@ import org.gradle.api.DefaultTask;
 import org.gradle.api.GradleException;
 import org.gradle.api.tasks.TaskAction;
 
-class WriteVersionsLocksMarkerTask extends DefaultTask {
+public class WriteVersionsLocksMarkerTask extends DefaultTask {
     @TaskAction
     public final void checkWriteLocksShouldBeRunning() {
         // Check that our task name matcher for writeVersionsLocks is actually matching up the Gradle one - if this
