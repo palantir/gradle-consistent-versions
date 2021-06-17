@@ -25,13 +25,22 @@ class TaskNameMatcherTest {
     private final TaskNameMatcher taskNameMatcher = new TaskNameMatcher("writeVersionsLocks");
 
     @ParameterizedTest
-    @ValueSource(strings = "writeVersionsLocks")
+    @ValueSource(
+            strings = {
+                "writeVersionsLocks",
+                "writeVersionsLock",
+                "writeVersionLocks",
+                "wVL",
+                "wVersionL",
+                "writeVersionsL",
+                "wrVerLoc"
+            })
     void matches(String taskName) {
         assertThat(taskNameMatcher.matches(taskName)).isTrue();
     }
 
     @ParameterizedTest
-    @ValueSource(strings = "foo")
+    @ValueSource(strings = {"foo", "write", "writeVersion", "writeVersions", "writeVersionsFoobar", "", "W", "WVL"})
     void does_not_match(String taskName) {
         assertThat(taskNameMatcher.matches(taskName)).isFalse();
     }

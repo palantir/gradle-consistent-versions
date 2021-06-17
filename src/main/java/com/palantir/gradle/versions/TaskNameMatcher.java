@@ -16,14 +16,48 @@
 
 package com.palantir.gradle.versions;
 
+import com.google.common.collect.Streams;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+
 final class TaskNameMatcher {
-    private final String fullTaskName;
+    private final List<String> fullTaskNameParts;
 
     TaskNameMatcher(String fullTaskName) {
-        this.fullTaskName = fullTaskName;
+        List<String> parts = toParts(fullTaskName);
+
+        this.fullTaskNameParts = parts.stream().filter(part -> !part.isEmpty()).collect(Collectors.toList());
     }
 
     public boolean matches(String taskName) {
-        return fullTaskName.equals(taskName);
+        List<String> taskNameParts = toParts(taskName);
+
+        System.out.println("fullTaskNameParts = " + fullTaskNameParts);
+        System.out.println("taskNameParts = " + taskNameParts);
+
+        if (taskNameParts.size() != fullTaskNameParts.size()) {
+            return false;
+        }
+
+        return Streams.zip(fullTaskNameParts.stream(), taskNameParts.stream(), String::startsWith)
+                .allMatch(bool -> bool);
+    }
+
+    private static List<String> toParts(String fullTaskName) {
+        List<String> parts = new ArrayList<>();
+        StringBuilder currentPart = new StringBuilder();
+        for (int i = 0; i < fullTaskName.length(); i++) {
+            char chr = fullTaskName.charAt(i);
+            if (Character.isUpperCase(chr)) {
+                parts.add(currentPart.toString());
+                currentPart.setLength(0);
+            }
+            currentPart.append(chr);
+        }
+
+        parts.add(currentPart.toString());
+
+        return parts.stream().filter(string -> !string.isEmpty()).collect(Collectors.toList());
     }
 }
