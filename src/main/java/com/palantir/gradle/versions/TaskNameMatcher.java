@@ -26,9 +26,7 @@ final class TaskNameMatcher {
     private final List<String> fullTaskNameParts;
 
     TaskNameMatcher(String fullTaskName) {
-        List<String> parts = toParts(fullTaskName);
-
-        this.fullTaskNameParts = parts.stream().filter(part -> !part.isEmpty()).collect(Collectors.toList());
+        this.fullTaskNameParts = toParts(fullTaskName);
     }
 
     public boolean matches(String taskName) {
