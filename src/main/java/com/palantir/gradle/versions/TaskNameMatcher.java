@@ -43,7 +43,7 @@ final class TaskNameMatcher {
     }
 
     public boolean matchesAny(Collection<String> tasks) {
-        return tasks.stream().allMatch(this::matches);
+        return tasks.stream().anyMatch(this::matches);
     }
 
     private static List<String> toParts(String fullTaskName) {

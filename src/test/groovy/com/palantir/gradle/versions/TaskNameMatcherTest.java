@@ -18,6 +18,8 @@ package com.palantir.gradle.versions;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.google.common.collect.ImmutableList;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
@@ -43,5 +45,14 @@ class TaskNameMatcherTest {
     @ValueSource(strings = {"foo", "write", "writeVersion", "writeVersions", "writeVersionsFoobar", "", "W", "WVL"})
     void does_not_match(String taskName) {
         assertThat(taskNameMatcher.matches(taskName)).isFalse();
+    }
+
+    @Test
+    void anyMatch_works_when_there_are_multiple_args() {
+        assertThat(taskNameMatcher.matchesAny(ImmutableList.of("wVL", "foo"))).isTrue();
+        assertThat(taskNameMatcher.matchesAny(ImmutableList.of("writeVersionsLocks")))
+                .isTrue();
+        assertThat(taskNameMatcher.matchesAny(ImmutableList.of("foo", "bar"))).isFalse();
+        assertThat(taskNameMatcher.matchesAny(ImmutableList.of())).isFalse();
     }
 }
