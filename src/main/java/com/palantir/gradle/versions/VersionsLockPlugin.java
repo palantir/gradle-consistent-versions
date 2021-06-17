@@ -314,16 +314,16 @@ public class VersionsLockPlugin implements Plugin<Project> {
                                 rootLockfile));
                     }
                 }
-            });
 
-            // Wire up the locks from the lock file into the strict locks platform.
-            gcvLocksConfiguration.configure(conf -> {
-                conf.getDependencyConstraints()
-                        .addAll(constructConstraintsFromLockFile(
-                                rootLockfile, project.getDependencies().getConstraints()::create));
-            });
+                // Wire up the locks from the lock file into the strict locks platform.
+                gcvLocksConfiguration.configure(conf -> {
+                    conf.getDependencyConstraints()
+                            .addAll(constructConstraintsFromLockFile(
+                                    rootLockfile, project.getDependencies().getConstraints()::create));
+                });
 
-            configureAllProjectsUsingConstraints(project, rootLockfile, lockedConfigurations, locksDependency);
+                configureAllProjectsUsingConstraints(project, rootLockfile, lockedConfigurations, locksDependency);
+            });
         });
 
         TaskProvider<?> verifyLocks = project.getTasks().register("verifyLocks", VerifyLocksTask.class, task -> {
