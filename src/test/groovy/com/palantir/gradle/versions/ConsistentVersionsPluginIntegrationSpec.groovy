@@ -41,23 +41,31 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         makePlatformPom(mavenRepo, "org", "platform", "1.0")
 
         buildFile << """
-            buildscript {
-                repositories {
-                    mavenCentral()
-                }
-                dependencies {
-                    classpath 'com.palantir.configurationresolver:gradle-configuration-resolver-plugin:0.3.0'
-                }
-            }
             plugins {
                 id '${PLUGIN_NAME}'
             }
             allprojects {
-                apply plugin: 'com.palantir.configuration-resolver'
+                tasks.register("resolveConfigurations", {
+                    project.configurations.all { configuration ->
+                        // Resolving these throws deprecation warnings for Gradle 8
+                        def deprecatedResolve = configuration.name == "default" || configuration.name == "archives"
+                        if (deprecatedResolve ||
+                                (configuration.metaClass.respondsTo(configuration, "isCanBeResolved") &&
+                                !configuration.isCanBeResolved())) {
+                            return
+                        }
+                        configuration.resolve()
+                    }
+                })
                 
                 repositories {
                     maven { url "file:///${mavenRepo.getAbsolutePath()}" }
                 }
+            }
+            
+            subprojects {
+                // Parallel 'resolveConfigurations' sometimes breaks unless we force the root one to run first.
+                tasks.named("resolveConfigurations", { it.mustRunAfter ":resolveConfigurations" })
             }
         """.stripIndent()
     }

@@ -33,6 +33,11 @@ class CheckUnusedConstraintIntegrationSpec extends IntegrationSpec {
                 mavenCentral()
                 maven { url "${projectDir.toURI()}/maven" }
             }
+            
+            // Get rid of deprecation warnings for Gradle 7+
+            versionRecommendations {
+                excludeConfigurations 'compile', 'runtime', 'testCompile', 'testRuntime'
+            }
         """.stripIndent()
         file('gradle.properties').text = """
         ignoreLockFile=true

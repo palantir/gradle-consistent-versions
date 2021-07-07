@@ -18,6 +18,7 @@ package com.palantir.gradle.versions
 
 import groovy.util.slurpersupport.GPathResult
 import groovy.util.slurpersupport.NodeChildren
+import org.gradle.util.GradleVersion
 import spock.lang.Unroll
 
 import static com.palantir.gradle.versions.GradleTestVersions.GRADLE_VERSIONS
@@ -82,7 +83,7 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
             org.slf4j:* = 1.7.24
         """.stripIndent()
 
-        addSubproject('foo', """
+        def fooProject = addSubproject('foo', """
             apply plugin: 'java'
             dependencies {
                 implementation 'org.slf4j:slf4j-api'
@@ -92,8 +93,7 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
         expect:
         runTasks('resolveConfigurations', '--write-locks')
 
-        file("foo/gradle/dependency-locks/runtimeClasspath.lockfile").text
-                .contains("org.slf4j:slf4j-api:1.7.24")
+        verifyLockfile(fooProject, "org.slf4j:slf4j-api:1.7.24")
 
         where:
         gradleVersionNumber << GRADLE_VERSIONS
@@ -108,7 +108,7 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
             ch.qos.logback:logback-classic = 1.1.11  # brings in slf4j-api 1.7.22
         """.stripIndent()
 
-        addSubproject('foo', """
+        def fooProject = addSubproject('foo', """
             apply plugin: 'java'
             dependencies {
                 implementation 'ch.qos.logback:logback-classic'
@@ -118,8 +118,7 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
         expect:
         runTasks('resolveConfigurations', '--write-locks')
 
-        file("foo/gradle/dependency-locks/runtimeClasspath.lockfile").text
-                .contains("org.slf4j:slf4j-api:1.7.22")
+        verifyLockfile(fooProject, "org.slf4j:slf4j-api:1.7.22")
 
         where:
         gradleVersionNumber << GRADLE_VERSIONS
@@ -134,7 +133,7 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
             ch.qos.logback:logback-classic = 1.1.11  # brings in slf4j-api 1.7.22
         """.stripIndent()
 
-        addSubproject('foo', """
+        def fooProject = addSubproject('foo', """
             apply plugin: 'java'
             dependencies {
                 implementation 'ch.qos.logback:logback-classic'
@@ -144,8 +143,7 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
         expect:
         runTasks('resolveConfigurations', '--write-locks')
 
-        file("foo/gradle/dependency-locks/runtimeClasspath.lockfile").text
-                .contains("org.slf4j:slf4j-api:1.7.25")
+        verifyLockfile(fooProject, "org.slf4j:slf4j-api:1.7.25")
 
         where:
         gradleVersionNumber << GRADLE_VERSIONS
@@ -217,11 +215,7 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
         runTasks('resolveConfigurations', '--write-locks')
 
         then:
-        def lockLines = file("gradle/dependency-locks/runtimeClasspath.lockfile").readLines() as Set
-        [
-                'com.fasterxml.jackson.core:jackson-databind:2.9.0',
-                'com.fasterxml.jackson.core:jackson-annotations:2.9.7',
-        ].each { lockLines.contains(it) }
+        verifyLockfile(projectDir, "com.fasterxml.jackson.core:jackson-databind:2.9.0", "com.fasterxml.jackson.core:jackson-annotations:2.9.7")
 
         where:
         gradleVersionNumber << GRADLE_VERSIONS
@@ -290,6 +284,18 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
 
         where:
         gradleVersionNumber << GRADLE_VERSIONS
+    }
+
+    boolean verifyLockfile(File projectDir, String... lines) {
+        // Gradle 7+ only uses a single lockfile per project:
+        // https://docs.gradle.org/current/userguide/upgrading_version_6.html#locking_single
+        if (GradleVersion.version(gradleVersion) >= GradleVersion.version("7.0.0")) {
+            def lockfile = file("gradle.lockfile", projectDir).text
+            lines.each{ assert lockfile.contains(it + "=runtimeClasspath") }
+        } else {
+            def lockfile = file("gradle/dependency-locks/runtimeClasspath.lockfile", projectDir).text
+            lines.each{ assert lockfile.contains(it) }
+        }
     }
 
     /**

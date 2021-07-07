@@ -55,10 +55,8 @@ public class FixLegacyJavaConfigurationsPlugin implements Plugin<Project> {
     }
 
     private void fixLegacyResolvableJavaConfigurations(Project project, Configuration unifiedClasspath) {
-        Stream.of(
-                        JavaPlugin.COMPILE_CONFIGURATION_NAME,
-                        JavaPlugin.COMPILE_ONLY_CONFIGURATION_NAME,
-                        JavaPlugin.RUNTIME_CONFIGURATION_NAME)
+        // TODO(fwindheuser): Remove compile and runtime after stating to build with Gradle 7+
+        Stream.of("compile", "runtime", JavaPlugin.COMPILE_ONLY_CONFIGURATION_NAME)
                 .map(project.getConfigurations()::findByName)
                 .filter(Objects::nonNull)
                 .forEach(conf -> {

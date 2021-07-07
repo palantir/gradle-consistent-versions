@@ -16,14 +16,23 @@
 
 package com.palantir.gradle.versions;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import java.util.Set;
 import java.util.stream.Stream;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.plugins.JavaPluginConvention;
+import org.gradle.api.tasks.SourceSet;
 
 final class GradleConfigurations {
+    /**
+     * Deprecated sourcesets of the compile and runtime configuration, to be removed with Gradle 7.
+     * The full configuration name follows the naming scheme of "$taskBaseName + capitalize($configurationName)"
+     * see {@link org.gradle.api.internal.tasks.DefaultSourceSet#configurationNameOf}.
+     */
+    private static final ImmutableList<String> DEPRECATED_SOURCESET_SUFFIXES = ImmutableList.of("Compile", "Runtime");
+
     /**
      * Filters out both the unresolvable configurations but also the legacy java configurations that should not be
      * resolved.
@@ -32,7 +41,9 @@ final class GradleConfigurations {
         Set<String> legacyJavaConfigurations = getLegacyJavaConfigurations(project);
         return project.getConfigurations().stream()
                 .filter(Configuration::isCanBeResolved)
-                .filter(conf -> !legacyJavaConfigurations.contains(conf.getName()));
+                .filter(conf -> !legacyJavaConfigurations.contains(conf.getName()))
+                .filter(conf -> DEPRECATED_SOURCESET_SUFFIXES.stream()
+                        .noneMatch(suffix -> conf.getName().endsWith(suffix)));
     }
 
     /**
@@ -47,10 +58,7 @@ final class GradleConfigurations {
         return ImmutableSet.<String>builder()
                 .add("default")
                 .addAll(javaConvention.getSourceSets().stream()
-                        .flatMap(ss -> Stream.of(
-                                ss.getCompileConfigurationName(),
-                                ss.getRuntimeConfigurationName(),
-                                ss.getCompileOnlyConfigurationName()))
+                        .map(SourceSet::getCompileOnlyConfigurationName)
                         .iterator())
                 .build();
     }
