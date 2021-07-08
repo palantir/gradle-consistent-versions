@@ -30,6 +30,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.gradle.api.DefaultTask;
+import org.gradle.api.GradleException;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.component.ModuleComponentIdentifier;
 import org.gradle.api.artifacts.result.ResolutionResult;
@@ -46,12 +47,15 @@ import org.gradle.language.base.plugins.LifecycleBasePlugin;
 
 public class CheckUnusedConstraintsTask extends DefaultTask {
 
+    private final Property<Boolean> shouldFailWithConfigurationOnDemandMessage =
+            getProject().getObjects().property(Boolean.class);
     private final Property<Boolean> shouldFix = getProject().getObjects().property(Boolean.class);
     private final RegularFileProperty propsFileProperty =
             getProject().getObjects().fileProperty();
     private final SetProperty<String> classpath = getProject().getObjects().setProperty(String.class);
 
     public CheckUnusedConstraintsTask() {
+        shouldFailWithConfigurationOnDemandMessage.set(false);
         shouldFix.set(false);
         setGroup(LifecycleBasePlugin.VERIFICATION_GROUP);
         setDescription("Ensures all versions in your versions.props correspond to an actual gradle dependency");
@@ -73,6 +77,15 @@ public class CheckUnusedConstraintsTask extends DefaultTask {
     }
 
     @Input
+    public final Property<Boolean> getShouldFailWithConfigurationOnDemandMessage() {
+        return shouldFailWithConfigurationOnDemandMessage;
+    }
+
+    final void setShouldFailWithConfigurationOnDemandMessage(boolean shouldFail) {
+        this.shouldFailWithConfigurationOnDemandMessage.set(shouldFail);
+    }
+
+    @Input
     public final Property<Boolean> getShouldFix() {
         return shouldFix;
     }
@@ -84,6 +97,13 @@ public class CheckUnusedConstraintsTask extends DefaultTask {
 
     @TaskAction
     public final void checkNoUnusedPin() {
+        if (shouldFailWithConfigurationOnDemandMessage.get()) {
+            throw new GradleException("The gradle-consistent-versions checkUnusedConstraints task must have all "
+                    + "projects configured to work accurately, but due to Gradle configuration-on-demand, not all "
+                    + "projects were configured. Make your command work by including a task with no project name (such "
+                    + "as `./gradlew build` vs. `./gradlew :build`) or use --no-configure-on-demand.");
+        }
+
         Set<String> artifacts = getClasspath().get();
         VersionsProps versionsProps =
                 VersionsProps.loadFromFile(getPropsFile().get().getAsFile().toPath());

@@ -8,7 +8,7 @@ buildscript {
     dependencies {
         classpath 'com.palantir.gradle.externalpublish:gradle-external-publish-plugin:1.2.1'
         classpath 'com.palantir.javaformat:gradle-palantir-java-format:2.0.1'
-        classpath 'com.palantir.gradle.consistentversions:gradle-consistent-versions:1.28.0'
+        classpath 'com.palantir.gradle.consistentversions:gradle-consistent-versions:1.30.0'
         classpath 'com.palantir.baseline:gradle-baseline-java:3.85.0'
         classpath 'com.palantir.gradle.gitversion:gradle-git-version:0.12.3'
         classpath 'gradle.plugin.org.inferred:gradle-processors:3.3.0'
@@ -53,7 +53,7 @@ dependencies {
     testImplementation 'com.fasterxml.jackson.core:jackson-databind'
     testImplementation "org.junit.jupiter:junit-jupiter-api"
     testImplementation 'org.assertj:assertj-core'
-    testRuntimeOnly 'org.junit.jupiter:junit-jupiter'
+    testImplementation 'org.junit.jupiter:junit-jupiter'
     testRuntimeOnly "org.junit.vintage:junit-vintage-engine"
 
     annotationProcessor "org.immutables:value"

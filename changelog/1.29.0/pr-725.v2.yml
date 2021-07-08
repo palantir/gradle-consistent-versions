@@ -1,0 +1,7 @@
+type: fix
+fix:
+  description: Fix the `checkUnusedConstraints` task to delay throwing an error about
+    incomplete configuration due to configure-on-demand until the task is actually
+    run. This fixes some situations in which the task is instantiated but not run.
+  links:
+  - https://github.com/palantir/gradle-consistent-versions/pull/725
