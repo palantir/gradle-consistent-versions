@@ -1,5 +1,5 @@
-type: fix
+type: improvement
 fix:
-  description: Handle gradle 7 removing default configurations
+  description: Handle Gradle 7 removing default configurations. Increase minimum required Gradle version to 6.1.
   links:
   - https://github.com/palantir/gradle-consistent-versions/pull/721
