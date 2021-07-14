@@ -168,7 +168,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
             }
         """.stripIndent()
 
-        addSubproject('foo', '''
+        def fooProject = addSubproject('foo', '''
             apply plugin: 'java'
             dependencies {
                 implementation 'org.slf4j:slf4j-api'
@@ -196,8 +196,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         runTasks('resolveConfigurations', '--write-locks')
 
         and: "foo now picks up a higher version than nebula suggested"
-        file("foo/gradle/dependency-locks/runtimeClasspath.lockfile").text
-                .contains("org.slf4j:slf4j-api:1.7.25")
+        verifyLockfile(fooProject, "org.slf4j:slf4j-api:1.7.25")
 
         and: "I can resolve"
         runTasks('resolveConfigurations')
@@ -224,17 +223,11 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
 
         then: "Lock files are consistent with version resolved at root"
         file("versions.lock").text.readLines().any { it.startsWith('org.slf4j:slf4j-api:1.7.24') }
-        [
-                "foo/gradle/dependency-locks/runtimeClasspath.lockfile",
-                "bar/gradle/dependency-locks/runtimeClasspath.lockfile",
-                "baz/gradle/dependency-locks/runtimeClasspath.lockfile",
-        ].each {
-            assert file(it).text.contains('org.slf4j:slf4j-api:1.7.24')
-        }
+
+        ["foo", "bar", "baz"].each { verifyLockfile(file(it), "org.slf4j:slf4j-api:1.7.24") }
 
         then: "Manually forced version overrides unified dependency"
-        file("forced/gradle/dependency-locks/runtimeClasspath.lockfile").text
-                .contains('org.slf4j:slf4j-api:1.7.20')
+        verifyLockfile(file("forced"), "org.slf4j:slf4j-api:1.7.20")
 
         then: "I can resolve configurations"
         runTasks('resolveConfigurations')
@@ -1009,5 +1002,17 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
 
         where:
         gradleVersionNumber << GRADLE_VERSIONS
+    }
+
+    boolean verifyLockfile(File projectDir, String... lines) {
+        // Gradle 7+ only uses a single lockfile per project:
+        // https://docs.gradle.org/current/userguide/upgrading_version_6.html#locking_single
+        if (GradleVersion.version(gradleVersion) >= GradleVersion.version("7.0.0")) {
+            def lockfile = file("gradle.lockfile", projectDir).text
+            lines.each{ assert lockfile.contains(it + "=runtimeClasspath") }
+        } else {
+            def lockfile = file("gradle/dependency-locks/runtimeClasspath.lockfile", projectDir).text
+            lines.each{ assert lockfile.contains(it) }
+        }
     }
 }

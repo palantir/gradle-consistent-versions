@@ -73,6 +73,11 @@ class ConfigurationOnDemandSpec extends IntegrationSpec {
                     }
                 }
             }
+            
+            // Get rid of deprecation warnings for Gradle 7+
+            versionRecommendations {
+                excludeConfigurations 'compile', 'runtime', 'testCompile', 'testRuntime'
+            }
         """.stripIndent()
 
         file('versions.props').text = """
