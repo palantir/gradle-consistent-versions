@@ -1,4 +1,4 @@
-type: improvement
+type: break
 fix:
   description: Handle Gradle 7 removing default configurations. Increase minimum required Gradle version to 6.1.
   links:
