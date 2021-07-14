@@ -1,13 +1,16 @@
-com.netflix.nebula:nebula-dependency-recommender = 10.0.0
-com.netflix.nebula:nebula-test = 7.10.2
-com.google.guava:guava = 30.1-jre
-org.immutables:value = 2.8.8
-org.junit:junit-bom = 5.7.1
 com.fasterxml.jackson.*:jackson-* = 2.11.3
-org.assertj:* = 3.19.0
-org.mockito:mockito-core = 3.7.7
-
+com.google.guava:guava = 30.1.1-jre
+com.netflix.nebula:nebula-dependency-recommender = 10.0.0
+org.assertj:* = 3.20.2
+org.immutables:value = 2.8.8
+org.junit:junit-bom = 5.7.2
+org.mockito:mockito-core = 3.11.2
 
 # Unnecessary once we have lock files
 com.google.code.findbugs:jsr305 = 3.0.2
-com.google.errorprone:error_prone_annotations = 2.5.1
+com.google.errorprone:error_prone_annotations = 2.7.1
+
+# dependency-upgrader:OFF
+# nebula-test 10.x requires Gradle 7
+com.netflix.nebula:nebula-test = 9.0.0
+# dependency-upgrader:ON
