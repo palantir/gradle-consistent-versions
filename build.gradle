@@ -2,7 +2,6 @@ buildscript {
     repositories {
         gradlePluginPortal()
         mavenCentral()
-        jcenter()
     }
 
     dependencies {
@@ -21,7 +20,6 @@ plugins {
 
 repositories {
     mavenCentral()
-    jcenter()
 }
 
 
