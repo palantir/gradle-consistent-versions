@@ -23,7 +23,8 @@ import spock.lang.Specification
 class ConflictSafeLockFileSpec extends Specification {
 
     def 'should parse a lock file successfully'() {
-        def file = new ConflictSafeLockFile(Paths.get("src/test/resources/sample-versions.lock"))
+        def prefix = "src/test/resources/sample-versions"
+        def file = new ConflictSafeLockFile(Paths.get("${prefix}.lock"), Paths.get("${prefix}.list"), true)
 
         when:
         LockState locks = file.readLocks()
