@@ -8,7 +8,7 @@ org.mockito:mockito-core = 3.11.2
 
 # Unnecessary once we have lock files
 com.google.code.findbugs:jsr305 = 3.0.2
-com.google.errorprone:error_prone_annotations = 2.7.1
+com.google.errorprone:error_prone_annotations = 2.8.0
 
 # dependency-upgrader:OFF
 # nebula-test 10.x requires Gradle 7
