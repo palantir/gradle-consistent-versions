@@ -1011,6 +1011,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
     private static ImmutableSet<Configuration> getConfigurationsForSourceSet(Project project, SourceSet sourceSet) {
         return ImmutableSet.of(
+                project.getConfigurations().getByName(sourceSet.getAnnotationProcessorConfigurationName()),
                 project.getConfigurations().getByName(sourceSet.getCompileClasspathConfigurationName()),
                 project.getConfigurations().getByName(sourceSet.getRuntimeClasspathConfigurationName()));
     }
