@@ -45,7 +45,7 @@ dependencies {
     implementation 'com.google.guava:guava'
     implementation 'com.netflix.nebula:nebula-dependency-recommender'
 
-    testCompile platform('org.junit:junit-bom')
+    testImplementation platform('org.junit:junit-bom')
     testImplementation 'com.netflix.nebula:nebula-test'
     testImplementation 'org.mockito:mockito-core'
     testImplementation 'com.fasterxml.jackson.core:jackson-databind'

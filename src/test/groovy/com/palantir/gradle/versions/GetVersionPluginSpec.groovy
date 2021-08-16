@@ -44,22 +44,22 @@ class GetVersionPluginSpec extends ProjectSpec {
         when:
         project.apply plugin: GetVersionPlugin
         project.apply plugin: JavaPlugin
-        project.ext.getVersion('com.google.guava:guava', project.configurations.compile)
+        project.ext.getVersion('com.google.guava:guava', project.configurations.runtimeClasspath)
 
         then:
         def ex = thrown(GradleException)
-        ex.message.contains "Unable to find 'com.google.guava:guava' in configuration ':compile'"
+        ex.message.contains "Unable to find 'com.google.guava:guava' in configuration ':runtimeClasspath'"
     }
 
     def 'function is callable from groovy with two string args & configuration arg'() {
         when:
         project.apply plugin: GetVersionPlugin
         project.apply plugin: JavaPlugin
-        project.ext.getVersion('com.google.guava', 'guava', project.configurations.compile)
+        project.ext.getVersion('com.google.guava', 'guava', project.configurations.runtimeClasspath)
 
         then:
         def ex = thrown(GradleException)
-        ex.message.contains "Unable to find 'com.google.guava:guava' in configuration ':compile'"
+        ex.message.contains "Unable to find 'com.google.guava:guava' in configuration ':runtimeClasspath'"
     }
 
 
