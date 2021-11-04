@@ -9,4 +9,4 @@ com.netflix.nebula:nebula-test = 10.0.0
 
 # Unnecessary once we have lock files
 com.google.code.findbugs:jsr305 = 3.0.2
-com.google.errorprone:error_prone_annotations = 2.9.0
+com.google.errorprone:error_prone_annotations = 2.10.0
