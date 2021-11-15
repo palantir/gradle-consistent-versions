@@ -70,18 +70,8 @@ public class CheckNewVersionsTask extends DefaultTask {
     }
 
     private Set<VersionUpgradeDetail> getUpgradesForConfiguration(Configuration config) {
-        Configuration resolvableOriginal = getResolvableCopy(config);
-        Map<String, ResolvedDependency> currentVersions = getResolvedVersions(resolvableOriginal);
-
-        Configuration resolvableLatest = getResolvableCopy(config);
-        Set<Dependency> latestDepsForConfig = currentVersions.keySet().stream()
-                .map(key -> getProject().getDependencies().create(key + ":+"))
-                .collect(Collectors.toSet());
-        resolvableLatest.getDependencies().clear();
-        resolvableLatest.getDependencies().addAll(latestDepsForConfig);
-        // TODO(markelliot): we may want to find a way to tweak the resolution strategy so that forced module overrides
-        //  still get a recommended upgrade
-        Map<String, ResolvedDependency> latestVersions = getResolvedVersions(resolvableLatest);
+        Map<String, ResolvedDependency> currentVersions = getCurrentDependencyVersions(config);
+        Map<String, ResolvedDependency> latestVersions = getLatestDependencyVersions(config, currentVersions);
 
         return currentVersions.entrySet().stream()
                 .flatMap(entry -> {
@@ -102,6 +92,27 @@ public class CheckNewVersionsTask extends DefaultTask {
                             .build());
                 })
                 .collect(Collectors.toSet());
+    }
+
+    private Map<String, ResolvedDependency> getCurrentDependencyVersions(Configuration config) {
+        Configuration resolvableOriginal = getResolvableCopy(config);
+        Map<String, ResolvedDependency> currentVersions = getResolvedVersions(resolvableOriginal);
+        return currentVersions;
+    }
+
+    private Map<String, ResolvedDependency> getLatestDependencyVersions(
+            Configuration config,
+            Map<String, ResolvedDependency> currentVersions) {
+        Configuration resolvableLatest = getResolvableCopy(config);
+        Set<Dependency> latestDepsForConfig = currentVersions.keySet().stream()
+                .map(key -> getProject().getDependencies().create(key + ":+"))
+                .collect(Collectors.toSet());
+        resolvableLatest.getDependencies().clear();
+        resolvableLatest.getDependencies().addAll(latestDepsForConfig);
+        // TODO(markelliot): we may want to find a way to tweak the resolution strategy so that forced module overrides
+        //  still get a recommended upgrade
+        Map<String, ResolvedDependency> latestVersions = getResolvedVersions(resolvableLatest);
+        return latestVersions;
     }
 
     private Configuration getResolvableCopy(Configuration config) {
