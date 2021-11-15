@@ -96,8 +96,7 @@ public class CheckNewVersionsTask extends DefaultTask {
 
     private Map<String, ResolvedDependency> getCurrentDependencyVersions(Configuration config) {
         Configuration resolvableOriginal = getResolvableCopy(config);
-        Map<String, ResolvedDependency> currentVersions = getResolvedVersions(resolvableOriginal);
-        return currentVersions;
+        return getResolvedVersions(resolvableOriginal);
     }
 
     private Map<String, ResolvedDependency> getLatestDependencyVersions(
@@ -111,8 +110,7 @@ public class CheckNewVersionsTask extends DefaultTask {
         resolvableLatest.getDependencies().addAll(latestDepsForConfig);
         // TODO(markelliot): we may want to find a way to tweak the resolution strategy so that forced module overrides
         //  still get a recommended upgrade
-        Map<String, ResolvedDependency> latestVersions = getResolvedVersions(resolvableLatest);
-        return latestVersions;
+        return getResolvedVersions(resolvableLatest);
     }
 
     private Configuration getResolvableCopy(Configuration config) {
