@@ -31,12 +31,13 @@ import org.gradle.api.tasks.TaskAction;
 import org.immutables.value.Value;
 
 public class CheckNewVersionsTask extends DefaultTask {
-
     private boolean collapseConfigurations = true;
 
     @TaskAction
     public void taskAction() {
         Map<String, Set<VersionUpgradeDetail>> upgradeRecs = getProject().getConfigurations().stream()
+                // make safe for use with gradle-consistent-versions
+                .filter(config -> !config.getName().startsWith("consistentVersions"))
                 .collect(Collectors.toMap(Configuration::getName, this::getUpgradesForConfiguration));
 
         if (upgradeRecs.values().stream().anyMatch(upgrades -> !upgrades.isEmpty())) {
@@ -104,7 +105,7 @@ public class CheckNewVersionsTask extends DefaultTask {
     }
 
     private Configuration getResolvableCopy(Configuration config) {
-        Configuration resolvableConfig = config.copyRecursive().setTransitive(false);
+        Configuration resolvableConfig = config.copy().setTransitive(false);
         resolvableConfig.setCanBeResolved(true);
         return resolvableConfig;
     }
