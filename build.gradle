@@ -90,6 +90,14 @@ gradlePlugin {
             id = 'com.palantir.versions-props'
             implementationClass = 'com.palantir.gradle.versions.VersionsPropsPlugin'
         }
+        getVersions {
+            id = 'com.palantir.get-versions'
+            implementationClass = 'com.palantir.gradle.versions.GetVersionPlugin'
+        }
+        upgradeVersions {
+            id = 'com.palantir.check-versions'
+            implementationClass = 'com.palantir.gradle.versions.CheckVersionsPlugin'
+        }
     }
 }
 
