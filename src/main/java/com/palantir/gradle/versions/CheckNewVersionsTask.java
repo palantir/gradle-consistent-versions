@@ -17,7 +17,6 @@
 package com.palantir.gradle.versions;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -29,20 +28,47 @@ import org.gradle.api.artifacts.LenientConfiguration;
 import org.gradle.api.artifacts.ResolvedDependency;
 import org.gradle.api.specs.Specs;
 import org.gradle.api.tasks.TaskAction;
+import org.immutables.value.Value;
 
 public class CheckNewVersionsTask extends DefaultTask {
 
+    private boolean collapseConfigurations = true;
+
     @TaskAction
     public void taskAction() {
-        getProject().getConfigurations().forEach(config -> printLatestVersions(config, config.getName()));
+        Map<String, Set<VersionUpgradeDetail>> upgradeRecs = getProject().getConfigurations().stream()
+                .collect(Collectors.toMap(Configuration::getName, this::getUpgradesForConfiguration));
+
+        if (upgradeRecs.values().stream().anyMatch(upgrades -> !upgrades.isEmpty())) {
+            System.out.println(
+                    "Dependency upgrades available for project '" + getProject().getName() + "'");
+            if (collapseConfigurations) {
+                upgradeRecs.values().stream()
+                        .flatMap(Set::stream)
+                        .collect(Collectors.toSet())
+                        .forEach(upgrade -> System.out.println("- " + upgrade.asString()));
+            } else {
+                upgradeRecs.forEach((config, upgrades) -> {
+                    if (!upgrades.isEmpty()) {
+                        System.out.println(" * Configuration '" + config + "':");
+                        upgrades.forEach(upgrade -> System.out.println("   - " + upgrade.asString()));
+                    }
+                });
+            }
+        }
 
         // Suggest upgrades for plugins
         Configuration pluginConfiguration =
                 getProject().getBuildscript().getConfigurations().getByName("classpath");
-        printLatestVersions(pluginConfiguration, "<plugins>");
+        Set<VersionUpgradeDetail> pluginUpgrades = getUpgradesForConfiguration(pluginConfiguration);
+        if (!pluginUpgrades.isEmpty()) {
+            System.out.println(
+                    "Plugin upgrades available for project '" + getProject().getName() + "'");
+            pluginUpgrades.forEach(upgrade -> System.out.println("- " + upgrade.asString()));
+        }
     }
 
-    private void printLatestVersions(Configuration config, String configurationName) {
+    private Set<VersionUpgradeDetail> getUpgradesForConfiguration(Configuration config) {
         Configuration resolvableOriginal = getResolvableCopy(config);
         Map<String, ResolvedDependency> currentVersions = getResolvedVersions(resolvableOriginal);
 
@@ -54,9 +80,9 @@ public class CheckNewVersionsTask extends DefaultTask {
         resolvableLatest.getDependencies().addAll(latestDepsForConfig);
         // TODO(markelliot): we may want to find a way to tweak the resolution strategy so that forced module overrides
         //  still get a recommended upgrade
-
         Map<String, ResolvedDependency> latestVersions = getResolvedVersions(resolvableLatest);
-        List<String> upgradeRecs = currentVersions.entrySet().stream()
+
+        return currentVersions.entrySet().stream()
                 .flatMap(entry -> {
                     if (!latestVersions.containsKey(entry.getKey())) {
                         // possible to reach here because of project dependencies or unresolvable new versions
@@ -67,17 +93,14 @@ public class CheckNewVersionsTask extends DefaultTask {
                     if (currentVersion.equals(latestVersion)) {
                         return Stream.empty();
                     }
-                    return Stream.of(entry.getKey() + " " + currentVersion + " -> " + latestVersion);
+                    return Stream.of(ImmutableVersionUpgradeDetail.builder()
+                            .group(entry.getValue().getModuleGroup())
+                            .name(entry.getValue().getModuleName())
+                            .currentVersion(currentVersion)
+                            .latestVersion(latestVersion)
+                            .build());
                 })
-                .collect(Collectors.toList());
-
-        if (!upgradeRecs.isEmpty()) {
-            System.out.println("Dependency upgrades for project '"
-                    + getProject().getName()
-                    + "' configuration '"
-                    + configurationName + "':");
-            upgradeRecs.forEach(rec -> System.out.println(" - " + rec));
-        }
+                .collect(Collectors.toSet());
     }
 
     private Configuration getResolvableCopy(Configuration config) {
@@ -92,5 +115,20 @@ public class CheckNewVersionsTask extends DefaultTask {
         Map<String, ResolvedDependency> resolvedDeps = new HashMap<>();
         moduleDeps.forEach(dep -> resolvedDeps.put(dep.getModuleGroup() + ":" + dep.getModuleName(), dep));
         return resolvedDeps;
+    }
+
+    @Value.Immutable
+    interface VersionUpgradeDetail {
+        String group();
+
+        String name();
+
+        String currentVersion();
+
+        String latestVersion();
+
+        default String asString() {
+            return group() + ":" + name() + ":{" + currentVersion() + " -> " + latestVersion() + "}";
+        }
     }
 }
