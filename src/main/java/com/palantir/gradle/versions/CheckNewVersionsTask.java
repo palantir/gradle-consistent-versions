@@ -37,51 +37,39 @@ public class CheckNewVersionsTask extends DefaultTask {
         getProject().getConfigurations().forEach(config -> printLatestVersions(config, config.getName()));
 
         // Suggest upgrades for plugins
-        Configuration pluginConfiguration = getProject().getBuildscript().getConfigurations().getByName("classpath");
+        Configuration pluginConfiguration =
+                getProject().getBuildscript().getConfigurations().getByName("classpath");
         printLatestVersions(pluginConfiguration, "<plugins>");
     }
 
     private void printLatestVersions(Configuration config, String configurationName) {
-        Configuration resolvableConfig = config.copyRecursive().setTransitive(false);
-        resolvableConfig.setCanBeResolved(true);
-        LenientConfiguration origLenient = resolvableConfig.getResolvedConfiguration().getLenientConfiguration();
-        Set<ResolvedDependency> originalDeps = origLenient.getFirstLevelModuleDependencies(Specs.SATISFIES_ALL);
+        Configuration resolvableOriginal = getResolvableCopy(config);
+        Map<String, ResolvedDependency> currentVersions = getResolvedVersions(resolvableOriginal);
 
-        Map<String, String> depToCurrentVersion = new HashMap<>();
-
-        Set<Dependency> latestDepsForConfig = originalDeps.stream().map(dep -> {
-                    String key = dep.getModuleGroup() + ":" + dep.getModuleName();
-                    depToCurrentVersion.put(key, dep.getModuleVersion());
-                    return getProject().getDependencies().create(key + ":+");
-                })
+        Configuration resolvableLatest = getResolvableCopy(config);
+        Set<Dependency> latestDepsForConfig = currentVersions.keySet().stream()
+                .map(key -> getProject().getDependencies().create(key + ":+"))
                 .collect(Collectors.toSet());
-
-        Configuration copy = config.copyRecursive().setTransitive(false);
-        copy.setCanBeResolved(true);
-        copy.getDependencies().clear();
+        resolvableLatest.getDependencies().clear();
+        resolvableLatest.getDependencies().addAll(latestDepsForConfig);
         // TODO(markelliot): we may want to find a way to tweak the resolution strategy so that forced module overrides
         //  still get a recommended upgrade
 
-        copy.getDependencies().addAll(latestDepsForConfig);
-
-        LenientConfiguration lenient =
-                copy.getResolvedConfiguration().getLenientConfiguration();
-
-        Set<ResolvedDependency> resolvedDeps =
-                lenient.getFirstLevelModuleDependencies(Specs.SATISFIES_ALL);
-
-        List<String> upgradeRecs = resolvedDeps.stream().flatMap(recDep -> {
-            String key = recDep.getModuleGroup() + ":" + recDep.getModuleName();
-            String currentVersion = depToCurrentVersion.get(key);
-            if (recDep.getModuleVersion().equals(currentVersion)) {
-                return Stream.empty();
-            }
-            return Stream.of(key
-                    + " "
-                    + currentVersion
-                    + " -> "
-                    + recDep.getModuleVersion());
-        }).collect(Collectors.toList());
+        Map<String, ResolvedDependency> latestVersions = getResolvedVersions(resolvableLatest);
+        List<String> upgradeRecs = currentVersions.entrySet().stream()
+                .flatMap(entry -> {
+                    if (!latestVersions.containsKey(entry.getKey())) {
+                        // possible to reach here because of project dependencies or unresolvable new versions
+                        return Stream.empty();
+                    }
+                    String currentVersion = entry.getValue().getModuleVersion();
+                    String latestVersion = latestVersions.get(entry.getKey()).getModuleVersion();
+                    if (currentVersion.equals(latestVersion)) {
+                        return Stream.empty();
+                    }
+                    return Stream.of(entry.getKey() + " " + currentVersion + " -> " + latestVersion);
+                })
+                .collect(Collectors.toList());
 
         if (!upgradeRecs.isEmpty()) {
             System.out.println("Dependency upgrades for project '"
@@ -90,5 +78,19 @@ public class CheckNewVersionsTask extends DefaultTask {
                     + configurationName + "':");
             upgradeRecs.forEach(rec -> System.out.println(" - " + rec));
         }
+    }
+
+    private Configuration getResolvableCopy(Configuration config) {
+        Configuration resolvableConfig = config.copyRecursive().setTransitive(false);
+        resolvableConfig.setCanBeResolved(true);
+        return resolvableConfig;
+    }
+
+    private Map<String, ResolvedDependency> getResolvedVersions(Configuration config) {
+        LenientConfiguration lenientConfig = config.getResolvedConfiguration().getLenientConfiguration();
+        Set<ResolvedDependency> moduleDeps = lenientConfig.getFirstLevelModuleDependencies(Specs.SATISFIES_ALL);
+        Map<String, ResolvedDependency> resolvedDeps = new HashMap<>();
+        moduleDeps.forEach(dep -> resolvedDeps.put(dep.getModuleGroup() + ":" + dep.getModuleName(), dep));
+        return resolvedDeps;
     }
 }
