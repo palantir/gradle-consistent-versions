@@ -123,7 +123,7 @@ public class VersionsPropsPlugin implements Plugin<Project> {
             setupConfiguration(project, extension, rootConfiguration.get(), versionsProps, conf);
         });
 
-        log.info("Configuring rules to assign *-constraints to platforms in {}", project);
+        log.debug("Configuring rules to assign *-constraints to platforms in {}", project);
         project.getDependencies()
                 .getComponents()
                 .all(component -> tryAssignComponentToPlatform(versionsProps, component));
@@ -290,7 +290,7 @@ public class VersionsPropsPlugin implements Plugin<Project> {
         log.debug("Configuring component: {}", component);
         versionsProps.getPlatform(component.getId().getModule()).ifPresent(platform -> {
             String platformNotation = platform + ":" + component.getId().getVersion();
-            log.info("Assigning component {} to virtual platform {}", component, platformNotation);
+            log.debug("Assigning component {} to virtual platform {}", component, platformNotation);
             component.belongsTo(platformNotation);
         });
     }
@@ -299,7 +299,7 @@ public class VersionsPropsPlugin implements Plugin<Project> {
             DependencyConstraintCreator constraintCreator, Configuration conf, VersionsProps versionsProps) {
         ImmutableList<DependencyConstraint> constraints =
                 versionsProps.constructConstraints(constraintCreator).collect(ImmutableList.toImmutableList());
-        log.info("Adding constraints to {}: {}", conf, constraints);
+        log.debug("Adding constraints to {}: {}", conf, constraints);
         constraints.forEach(conf.getDependencyConstraints()::add);
     }
 
@@ -307,7 +307,7 @@ public class VersionsPropsPlugin implements Plugin<Project> {
         if (!Files.exists(versionsPropsFile)) {
             return VersionsProps.empty();
         }
-        log.info("Configuring constraints from properties file {}", versionsPropsFile);
+        log.debug("Configuring constraints from properties file {}", versionsPropsFile);
         return VersionsProps.loadFromFile(versionsPropsFile);
     }
 

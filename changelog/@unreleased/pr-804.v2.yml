@@ -1,0 +1,5 @@
+type: improvement
+improvement:
+  description: Drop noisy gcv logging to debug level
+  links:
+  - https://github.com/palantir/gradle-consistent-versions/pull/804
