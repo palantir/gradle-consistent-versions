@@ -19,7 +19,6 @@ package com.palantir.gradle.versions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import java.util.Set;
-import java.util.stream.Stream;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.plugins.JavaPluginConvention;
@@ -37,13 +36,14 @@ final class GradleConfigurations {
      * Filters out both the unresolvable configurations but also the legacy java configurations that should not be
      * resolved.
      */
-    public static Stream<Configuration> getResolvableConfigurations(Project project) {
+    public static Set<Configuration> getResolvableConfigurations(Project project) {
         Set<String> legacyJavaConfigurations = getLegacyJavaConfigurations(project);
         return project.getConfigurations().stream()
                 .filter(Configuration::isCanBeResolved)
                 .filter(conf -> !legacyJavaConfigurations.contains(conf.getName()))
                 .filter(conf -> DEPRECATED_SOURCESET_SUFFIXES.stream()
-                        .noneMatch(suffix -> conf.getName().endsWith(suffix)));
+                        .noneMatch(suffix -> conf.getName().endsWith(suffix)))
+                .collect(ImmutableSet.toImmutableSet());
     }
 
     /**

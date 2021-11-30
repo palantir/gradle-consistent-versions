@@ -162,7 +162,7 @@ public class CheckUnusedConstraintsTask extends DefaultTask {
     }
 
     static Stream<String> getResolvedModuleIdentifiers(Project project, VersionRecommendationsExtension extension) {
-        return GradleConfigurations.getResolvableConfigurations(project)
+        return GradleConfigurations.getResolvableConfigurations(project).stream()
                 .filter(configuration -> !extension.shouldExcludeConfiguration(configuration.getName()))
                 .flatMap(configuration -> {
                     try {
