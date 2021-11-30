@@ -35,6 +35,9 @@ final class GradleConfigurations {
     /**
      * Filters out both the unresolvable configurations but also the legacy java configurations that should not be
      * resolved.
+     *
+     * Note that we need to do a defensive copy here to guard against concurrent modification.
+     * See https://github.com/palantir/gradle-consistent-versions/pull/812
      */
     public static Set<Configuration> getResolvableConfigurations(Project project) {
         Set<String> legacyJavaConfigurations = getLegacyJavaConfigurations(project);
