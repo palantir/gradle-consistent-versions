@@ -94,6 +94,10 @@ import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.plugins.JavaPluginConvention;
 import org.gradle.api.provider.Property;
+import org.gradle.api.publish.Publication;
+import org.gradle.api.publish.PublishingExtension;
+import org.gradle.api.publish.ivy.IvyPublication;
+import org.gradle.api.publish.maven.MavenPublication;
 import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.SourceSetContainer;
 import org.gradle.api.tasks.TaskProvider;
@@ -897,7 +901,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
             ProjectDependency locksDependency) {
 
         List<DependencyConstraint> publishableConstraints = constructPublishableConstraintsFromLockFile(
-                gradleLockfile, rootProject.getDependencies().getConstraints()::create);
+                rootProject, gradleLockfile, rootProject.getDependencies().getConstraints()::create);
 
         rootProject.allprojects(subproject -> configureUsingConstraints(
                 subproject, locksDependency, publishableConstraints, lockedConfigurations.get(subproject)));
@@ -1029,19 +1033,78 @@ public class VersionsLockPlugin implements Plugin<Project> {
     }
 
     private static List<DependencyConstraint> constructPublishableConstraintsFromLockFile(
-            Path gradleLockfile, DependencyConstraintCreator constraintCreator) {
+            Project rootProject, Path gradleLockfile, DependencyConstraintCreator constraintCreator) {
         LockState lockState = new ConflictSafeLockFile(gradleLockfile).readLocks();
-        // We only publish the production locks.
-        return lockState.productionLinesByModuleIdentifier().entrySet().stream()
-                .map(e -> e.getKey() + ":" + e.getValue().version())
-                .map(notation -> constraintCreator.create(notation, constraint -> {
-                    constraint.version(v -> {
-                        String version = Objects.requireNonNull(constraint.getVersion());
-                        v.require(version);
-                    });
-                    constraint.because("Computed from com.palantir.consistent-versions' versions.lock");
-                }))
+        return Streams.concat(
+                        // Include all other libraries published from the same repository
+                        rootProject.getAllprojects().stream()
+                                .filter(VersionsLockPlugin::isJavaLibrary)
+                                .map(libraryProject -> constraintCreator.create(
+                                        libraryProject,
+                                        constraint -> constraint.because("Library published from the same project"))),
+                        // We only publish the production locks.
+                        lockState.productionLinesByModuleIdentifier().entrySet().stream()
+                                .map(e -> e.getKey() + ":" + e.getValue().version())
+                                .map(notation -> constraintCreator.create(notation, constraint -> {
+                                    constraint.version(v -> {
+                                        String version = Objects.requireNonNull(constraint.getVersion());
+                                        v.require(version);
+                                    });
+                                    constraint.because("Computed from com.palantir.consistent-versions' versions.lock");
+                                })))
                 .collect(Collectors.toList());
+    }
+
+    private static boolean isJavaLibrary(Project project) {
+        if (project.getPluginManager().hasPlugin("nebula.maven-publish")) {
+            // 'nebula.maven-publish' creates publications lazily which causes inconsistencies based
+            // on ordering.
+            log.debug(
+                    "Project '{}' is considered a library because the 'nebula.maven-publish' plugin is applied",
+                    project.getDisplayName());
+            return true;
+        }
+        PublishingExtension publishing = project.getExtensions().findByType(PublishingExtension.class);
+        if (publishing == null) {
+            log.debug(
+                    "Project '{}' is considered a distribution, not a library, because "
+                            + "it doesn't define any publishing extensions",
+                    project.getDisplayName());
+            return false;
+        }
+        ImmutableList<String> jarPublications = publishing.getPublications().stream()
+                .filter(pub -> isLibraryPublication(project, pub))
+                .map(Named::getName)
+                .collect(ImmutableList.toImmutableList());
+        if (jarPublications.isEmpty()) {
+            log.debug(
+                    "Project '{}' is considered a distribution because it does not publish jars",
+                    project.getDisplayName());
+            return false;
+        }
+        log.debug(
+                "Project '{}' is considered a library because it publishes jars: {}",
+                project.getDisplayName(),
+                jarPublications);
+        return true;
+    }
+
+    private static boolean isLibraryPublication(Project project, Publication publication) {
+        if (publication instanceof MavenPublication) {
+            MavenPublication mavenPublication = (MavenPublication) publication;
+            return mavenPublication.getArtifacts().stream().anyMatch(artifact -> "jar".equals(artifact.getExtension()));
+        }
+        if (publication instanceof IvyPublication) {
+            IvyPublication ivyPublication = (IvyPublication) publication;
+            return ivyPublication.getArtifacts().stream().anyMatch(artifact -> "jar".equals(artifact.getExtension()));
+        }
+        // Default to true for unknown publication types to avoid setting higher jvm targets than necessary
+        log.warn(
+                "Unknown publication '{}' of type '{}'. Assuming project {} is a library",
+                publication,
+                publication.getClass().getName(),
+                project.getName());
+        return true;
     }
 
     public static boolean shouldWriteLocks(Project project) {
