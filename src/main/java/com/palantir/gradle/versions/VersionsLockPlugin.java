@@ -901,10 +901,24 @@ public class VersionsLockPlugin implements Plugin<Project> {
             ProjectDependency locksDependency) {
 
         List<DependencyConstraint> publishableConstraints = constructPublishableConstraintsFromLockFile(
-                rootProject, gradleLockfile, rootProject.getDependencies().getConstraints()::create);
+                gradleLockfile, rootProject.getDependencies().getConstraints()::create);
 
-        rootProject.allprojects(subproject -> configureUsingConstraints(
-                subproject, locksDependency, publishableConstraints, lockedConfigurations.get(subproject)));
+        rootProject.allprojects(subproject -> {
+            // Avoid including the current project as a constraint -- it must already be present to provide constraints
+            List<DependencyConstraint> localProjectConstraints = constructPublishableConstraintsFromLocalProjects(
+                    rootProject, subproject, rootProject.getDependencies().getConstraints()::create);
+            log.error("Local project constraints: {}", localProjectConstraints);
+            ImmutableList<DependencyConstraint> publishableConstraintsForSubproject =
+                    ImmutableList.<DependencyConstraint>builder()
+                            .addAll(localProjectConstraints)
+                            .addAll(publishableConstraints)
+                            .build();
+            configureUsingConstraints(
+                    subproject,
+                    locksDependency,
+                    publishableConstraintsForSubproject,
+                    lockedConfigurations.get(subproject));
+        });
     }
 
     private static void configureUsingConstraints(
@@ -1033,25 +1047,29 @@ public class VersionsLockPlugin implements Plugin<Project> {
     }
 
     private static List<DependencyConstraint> constructPublishableConstraintsFromLockFile(
-            Project rootProject, Path gradleLockfile, DependencyConstraintCreator constraintCreator) {
+            Path gradleLockfile, DependencyConstraintCreator constraintCreator) {
         LockState lockState = new ConflictSafeLockFile(gradleLockfile).readLocks();
-        return Streams.concat(
-                        // Include all other libraries published from the same repository
-                        rootProject.getAllprojects().stream()
-                                .filter(VersionsLockPlugin::isJavaLibrary)
-                                .map(libraryProject -> constraintCreator.create(
-                                        libraryProject,
-                                        constraint -> constraint.because("Library published from the same project"))),
-                        // We only publish the production locks.
-                        lockState.productionLinesByModuleIdentifier().entrySet().stream()
-                                .map(e -> e.getKey() + ":" + e.getValue().version())
-                                .map(notation -> constraintCreator.create(notation, constraint -> {
-                                    constraint.version(v -> {
-                                        String version = Objects.requireNonNull(constraint.getVersion());
-                                        v.require(version);
-                                    });
-                                    constraint.because("Computed from com.palantir.consistent-versions' versions.lock");
-                                })))
+        // We only publish the production locks.
+        return lockState.productionLinesByModuleIdentifier().entrySet().stream()
+                .map(e -> e.getKey() + ":" + e.getValue().version())
+                .map(notation -> constraintCreator.create(notation, constraint -> {
+                    constraint.version(v -> {
+                        String version = Objects.requireNonNull(constraint.getVersion());
+                        v.require(version);
+                    });
+                    constraint.because("Computed from com.palantir.consistent-versions' versions.lock");
+                }))
+                .collect(Collectors.toList());
+    }
+
+    private static List<DependencyConstraint> constructPublishableConstraintsFromLocalProjects(
+            Project rootProject, Project currentProject, DependencyConstraintCreator constraintCreator) {
+        // Include all other libraries published from the same repository
+        return rootProject.getAllprojects().stream()
+                .filter(project -> !currentProject.equals(project))
+                .filter(VersionsLockPlugin::isJavaLibrary)
+                .map(libraryProject -> constraintCreator.create(
+                        libraryProject, constraint -> constraint.because("Library published from the same project")))
                 .collect(Collectors.toList());
     }
 
