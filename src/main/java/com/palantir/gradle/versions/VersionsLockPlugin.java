@@ -907,7 +907,6 @@ public class VersionsLockPlugin implements Plugin<Project> {
             // Avoid including the current project as a constraint -- it must already be present to provide constraints
             List<DependencyConstraint> localProjectConstraints = constructPublishableConstraintsFromLocalProjects(
                     rootProject, subproject, rootProject.getDependencies().getConstraints()::create);
-            log.error("Local project constraints: {}", localProjectConstraints);
             ImmutableList<DependencyConstraint> publishableConstraintsForSubproject =
                     ImmutableList.<DependencyConstraint>builder()
                             .addAll(localProjectConstraints)
