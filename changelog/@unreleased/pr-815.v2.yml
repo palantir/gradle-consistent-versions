@@ -1,0 +1,5 @@
+type: improvement
+improvement:
+  description: Provide constraints for java libraries in the same repo
+  links:
+  - https://github.com/palantir/gradle-consistent-versions/pull/815
