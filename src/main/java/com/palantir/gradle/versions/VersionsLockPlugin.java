@@ -906,7 +906,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
         rootProject.allprojects(subproject -> {
             // Avoid including the current project as a constraint -- it must already be present to provide constraints
             List<DependencyConstraint> localProjectConstraints = constructPublishableConstraintsFromLocalProjects(
-                    rootProject, subproject, rootProject.getDependencies().getConstraints()::create);
+                    subproject, rootProject.getDependencies().getConstraints()::create);
             ImmutableList<DependencyConstraint> publishableConstraintsForSubproject =
                     ImmutableList.<DependencyConstraint>builder()
                             .addAll(localProjectConstraints)
@@ -1062,9 +1062,9 @@ public class VersionsLockPlugin implements Plugin<Project> {
     }
 
     private static List<DependencyConstraint> constructPublishableConstraintsFromLocalProjects(
-            Project rootProject, Project currentProject, DependencyConstraintCreator constraintCreator) {
+            Project currentProject, DependencyConstraintCreator constraintCreator) {
         // Include all other libraries published from the same repository
-        return rootProject.getAllprojects().stream()
+        return currentProject.getRootProject().getAllprojects().stream()
                 .filter(project -> !currentProject.equals(project))
                 .filter(VersionsLockPlugin::isJavaLibrary)
                 .map(libraryProject -> constraintCreator.create(
@@ -1095,7 +1095,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 .collect(ImmutableList.toImmutableList());
         if (jarPublications.isEmpty()) {
             log.debug(
-                    "Project '{}' is considered a distribution because it does not publish jars",
+                    "Project '{}' is not considered a library because it does not publish jars",
                     project.getDisplayName());
             return false;
         }
@@ -1115,7 +1115,6 @@ public class VersionsLockPlugin implements Plugin<Project> {
             IvyPublication ivyPublication = (IvyPublication) publication;
             return ivyPublication.getArtifacts().stream().anyMatch(artifact -> "jar".equals(artifact.getExtension()));
         }
-        // Default to true for unknown publication types to avoid setting higher jvm targets than necessary
         log.warn(
                 "Unknown publication '{}' of type '{}'. Assuming project {} is a library",
                 publication,
