@@ -1,0 +1,5 @@
+type: fix
+fix:
+  description: Revert "Provide constraints for java libraries in the same repo (#815)"
+  links:
+  - https://github.com/palantir/gradle-consistent-versions/pull/821

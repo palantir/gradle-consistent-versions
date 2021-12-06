@@ -354,21 +354,18 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         buildFile << """
             allprojects {
                 apply plugin: 'java'
-            }
-        """.stripIndent()
-
-        String publish = """
-            apply plugin: 'maven-publish'
-            publishing.publications {
-                maven(MavenPublication) {
-                    from components.java
+                apply plugin: 'maven-publish'
+                
+                publishing.publications {
+                    maven(MavenPublication) {
+                        from components.java
+                    }
                 }
             }
         """.stripIndent()
 
         addSubproject('foo', """
             apply plugin: 'java'
-            $publish
             dependencies {
                 implementation 'ch.qos.logback:logback-classic'
             }
