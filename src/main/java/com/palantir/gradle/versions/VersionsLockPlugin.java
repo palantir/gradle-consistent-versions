@@ -897,7 +897,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
             ProjectDependency locksDependency) {
 
         List<DependencyConstraint> publishableConstraints = constructPublishableConstraintsFromLockFile(
-                gradleLockfile, rootProject.getDependencies().getConstraints()::create);
+                rootProject, gradleLockfile, rootProject.getDependencies().getConstraints()::create);
 
         rootProject.allprojects(subproject -> configureUsingConstraints(
                 subproject, locksDependency, publishableConstraints, lockedConfigurations.get(subproject)));
@@ -1029,7 +1029,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
     }
 
     private static List<DependencyConstraint> constructPublishableConstraintsFromLockFile(
-            Path gradleLockfile, DependencyConstraintCreator constraintCreator) {
+            Project project, Path gradleLockfile, DependencyConstraintCreator constraintCreator) {
         LockState lockState = new ConflictSafeLockFile(gradleLockfile).readLocks();
         // We only publish the production locks.
         return lockState.productionLinesByModuleIdentifier().entrySet().stream()
@@ -1039,7 +1039,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
                         String version = Objects.requireNonNull(constraint.getVersion());
                         v.require(version);
                     });
-                    constraint.because("Computed from com.palantir.consistent-versions' versions.lock");
+                    constraint.because(
+                            "Computed from com.palantir.consistent-versions' versions.lock in " + project.getName());
                 }))
                 .collect(Collectors.toList());
     }
