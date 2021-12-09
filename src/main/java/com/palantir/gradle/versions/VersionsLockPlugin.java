@@ -128,6 +128,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
     private static final String WRITE_VERSIONS_LOCKS_TASK = "writeVersionsLocks";
     private static final TaskNameMatcher WRITE_VERSIONS_LOCKS_TASK_NAME_MATCHER =
             new TaskNameMatcher(WRITE_VERSIONS_LOCKS_TASK);
+    private static final String PUBLISH_LOCAL_CONSTRAINTS_PROPERTY =
+            "com.palantir.gradle.versions.publishLocalConstraints";
 
     public enum GcvUsage implements Named {
         /**
@@ -901,7 +903,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
             ProjectDependency locksDependency) {
 
         List<DependencyConstraint> publishableConstraints = constructPublishableConstraintsFromLockFile(
-                gradleLockfile, rootProject.getDependencies().getConstraints()::create);
+                rootProject, gradleLockfile, rootProject.getDependencies().getConstraints()::create);
 
         rootProject.allprojects(subproject -> {
             // Avoid including the current project as a constraint -- it must already be present to provide constraints
@@ -1046,7 +1048,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
     }
 
     private static List<DependencyConstraint> constructPublishableConstraintsFromLockFile(
-            Path gradleLockfile, DependencyConstraintCreator constraintCreator) {
+            Project rootProject, Path gradleLockfile, DependencyConstraintCreator constraintCreator) {
         LockState lockState = new ConflictSafeLockFile(gradleLockfile).readLocks();
         // We only publish the production locks.
         return lockState.productionLinesByModuleIdentifier().entrySet().stream()
@@ -1056,20 +1058,32 @@ public class VersionsLockPlugin implements Plugin<Project> {
                         String version = Objects.requireNonNull(constraint.getVersion());
                         v.require(version);
                     });
-                    constraint.because("Computed from com.palantir.consistent-versions' versions.lock");
+                    constraint.because("Computed from com.palantir.consistent-versions' versions.lock in "
+                            + rootProject.getName());
                 }))
                 .collect(Collectors.toList());
     }
 
     private static List<DependencyConstraint> constructPublishableConstraintsFromLocalProjects(
             Project currentProject, DependencyConstraintCreator constraintCreator) {
-        // Include all other libraries published from the same repository
-        return currentProject.getRootProject().getAllprojects().stream()
-                .filter(project -> !currentProject.equals(project))
-                .filter(VersionsLockPlugin::isJavaLibrary)
-                .map(libraryProject -> constraintCreator.create(
-                        libraryProject, constraint -> constraint.because("Library published from the same project")))
-                .collect(Collectors.toList());
+        if (publishLocalConstraints(currentProject)) {
+            // Include all other libraries published from the same repository
+            return currentProject.getRootProject().getAllprojects().stream()
+                    .filter(project -> !currentProject.equals(project))
+                    .filter(VersionsLockPlugin::isJavaLibrary)
+                    .map(libraryProject -> constraintCreator.create(
+                            libraryProject,
+                            constraint -> constraint.because("Library published from the same project: "
+                                    + currentProject.getRootProject().getName())))
+                    .collect(Collectors.toList());
+        } else {
+            return ImmutableList.of();
+        }
+    }
+
+    private static boolean publishLocalConstraints(Project project) {
+        return project.hasProperty(PUBLISH_LOCAL_CONSTRAINTS_PROPERTY)
+                && "true".equals(project.property(PUBLISH_LOCAL_CONSTRAINTS_PROPERTY));
     }
 
     private static boolean isJavaLibrary(Project project) {
