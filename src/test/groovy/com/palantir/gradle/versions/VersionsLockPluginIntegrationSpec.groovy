@@ -43,6 +43,8 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                 "org:test-dep-that-logs:1.0 -> org.slf4j:slf4j-api:1.7.11"
         )
         makePlatformPom(mavenRepo, "org", "platform", "1.0")
+        // Test with local constraints enabled
+        file('gradle.properties') << 'com.palantir.gradle.versions.publishLocalConstraints = true'
         
         buildFile << """
             buildscript {
