@@ -857,23 +857,29 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         buildFile << """
             allprojects {
                 apply plugin: 'java'
-                apply plugin: 'maven-publish'
-                
-                publishing.publications {
-                    maven(MavenPublication) {
-                        from components.java
-                    }
+            }
+        """.stripIndent()
+
+        String publish = """
+            apply plugin: 'maven-publish'
+            group = 'com.palantir.published-constraints'
+            version = '1.2.3'
+            publishing.publications {
+                maven(MavenPublication) {
+                    from components.java
                 }
             }
         """.stripIndent()
 
         addSubproject('foo', """
+            $publish
             dependencies {
                 implementation 'ch.qos.logback:logback-classic:1.2.3'
             }
         """.stripIndent())
 
         addSubproject('bar', """
+            $publish
             dependencies {
                 implementation 'junit:junit:4.10'
             }
@@ -902,6 +908,14 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                 group: 'org.slf4j',
                 module: 'slf4j-api',
                 version: [requires: '1.7.25'])
+        def fooDep = new MetadataFile.Dependency(
+                group: 'com.palantir.published-constraints',
+                module: 'foo',
+                version: [requires: '1.2.3'])
+        def barDep = new MetadataFile.Dependency(
+                group: 'com.palantir.published-constraints',
+                module: 'bar',
+                version: [requires: '1.2.3'])
 
         then: "foo's metadata file has the right dependency constraints"
         def fooMetadataFilename = new File(projectDir, "foo/build/publications/maven/module.json")
@@ -909,13 +923,13 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
 
         fooMetadata.variants == [
                 new MetadataFile.Variant(
-                        name: 'apiElements',
-                        dependencies: null,
-                        dependencyConstraints: [junitDep, logbackDep, slf4jDep]),
-                new MetadataFile.Variant(
                         name: 'runtimeElements',
                         dependencies: [logbackDep],
-                        dependencyConstraints: [junitDep, logbackDep, slf4jDep]),
+                        dependencyConstraints: [barDep, junitDep, logbackDep, slf4jDep]),
+                new MetadataFile.Variant(
+                        name: 'apiElements',
+                        dependencies: null,
+                        dependencyConstraints: [barDep, junitDep, logbackDep, slf4jDep])
         ] as Set
 
         and: "bar's metadata file has the right dependency constraints"
@@ -924,13 +938,13 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
 
         barMetadata.variants == [
                 new MetadataFile.Variant(
-                        name: 'apiElements',
-                        dependencies: null,
-                        dependencyConstraints: [junitDep, logbackDep, slf4jDep]),
-                new MetadataFile.Variant(
                         name: 'runtimeElements',
                         dependencies: [junitDep],
-                        dependencyConstraints: [junitDep, logbackDep, slf4jDep]),
+                        dependencyConstraints: [fooDep, junitDep, logbackDep, slf4jDep]),
+                new MetadataFile.Variant(
+                        name: 'apiElements',
+                        dependencies: null,
+                        dependencyConstraints: [fooDep, junitDep, logbackDep, slf4jDep]),
         ] as Set
 
         where:
