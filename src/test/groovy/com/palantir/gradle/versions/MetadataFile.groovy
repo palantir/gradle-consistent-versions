@@ -25,13 +25,13 @@ import groovy.transform.ToString
  * Gradle Metadata File</a>.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-@ToString
+@ToString(includePackage = false)
 @EqualsAndHashCode
 class MetadataFile {
     Set<Variant> variants
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    @ToString
+    @ToString(includePackage = false)
     @EqualsAndHashCode
     static class Variant {
         String name
@@ -39,7 +39,7 @@ class MetadataFile {
         Set<Dependency> dependencyConstraints
     }
 
-    @ToString
+    @ToString(includePackage = false)
     @EqualsAndHashCode
     @JsonIgnoreProperties(ignoreUnknown = true)
     static class Dependency {
