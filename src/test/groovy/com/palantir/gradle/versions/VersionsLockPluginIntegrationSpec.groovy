@@ -43,8 +43,6 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                 "org:test-dep-that-logs:1.0 -> org.slf4j:slf4j-api:1.7.11"
         )
         makePlatformPom(mavenRepo, "org", "platform", "1.0")
-        // Test with local constraints enabled
-        file('gradle.properties') << 'com.palantir.gradle.versions.publishLocalConstraints = true'
         
         buildFile << """
             buildscript {
@@ -852,8 +850,10 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    def "#gradleVersionNumber: published constraints are derived from lock file"() {
+    def "#gradleVersionNumber: published constraints are derived from lock file (with local constraints)"() {
         setup:
+        // Test with local constraints enabled
+        file('gradle.properties') << 'com.palantir.gradle.versions.publishLocalConstraints = true'
         gradleVersion = gradleVersionNumber
 
         buildFile << """
@@ -947,6 +947,92 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                         name: 'apiElements',
                         dependencies: null,
                         dependencyConstraints: [fooDep, junitDep, logbackDep, slf4jDep]),
+        ] as Set
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
+    }
+
+    def "#gradleVersionNumber: published constraints are derived from lock file (without local constraints)"() {
+        setup:
+        gradleVersion = gradleVersionNumber
+
+        buildFile << """
+            allprojects {
+                apply plugin: 'java'
+                apply plugin: 'maven-publish'
+                publishing.publications {
+                    maven(MavenPublication) {
+                        from components.java
+                    }
+                }
+            }
+        """.stripIndent()
+
+        addSubproject('foo', """
+            dependencies {
+                implementation 'ch.qos.logback:logback-classic:1.2.3'
+            }
+        """.stripIndent())
+
+        addSubproject('bar', """
+            dependencies {
+                implementation 'junit:junit:4.10'
+            }
+        """.stripIndent())
+
+        if (GradleVersion.version(gradleVersionNumber) < GradleVersion.version("6.0")) {
+            settingsFile << """
+                enableFeaturePreview('GRADLE_METADATA')
+            """.stripIndent()
+        }
+
+        runTasks('--write-locks')
+
+        when:
+        runTasks('generatePomFileForMavenPublication', 'generateMetadataFileForMavenPublication')
+
+        def junitDep = new MetadataFile.Dependency(
+                group: 'junit',
+                module: 'junit',
+                version: [requires: '4.10'])
+        def logbackDep = new MetadataFile.Dependency(
+                group: 'ch.qos.logback',
+                module: 'logback-classic',
+                version: [requires: '1.2.3'])
+        def slf4jDep = new MetadataFile.Dependency(
+                group: 'org.slf4j',
+                module: 'slf4j-api',
+                version: [requires: '1.7.25'])
+
+        then: "foo's metadata file has the right dependency constraints"
+        def fooMetadataFilename = new File(projectDir, "foo/build/publications/maven/module.json")
+        def fooMetadata = new ObjectMapper().readValue(fooMetadataFilename, MetadataFile)
+
+        fooMetadata.variants == [
+                new MetadataFile.Variant(
+                        name: 'apiElements',
+                        dependencies: null,
+                        dependencyConstraints: [junitDep, logbackDep, slf4jDep]),
+                new MetadataFile.Variant(
+                        name: 'runtimeElements',
+                        dependencies: [logbackDep],
+                        dependencyConstraints: [junitDep, logbackDep, slf4jDep]),
+        ] as Set
+
+        and: "bar's metadata file has the right dependency constraints"
+        def barMetadataFilename = new File(projectDir, "bar/build/publications/maven/module.json")
+        def barMetadata = new ObjectMapper().readValue(barMetadataFilename, MetadataFile)
+
+        barMetadata.variants == [
+                new MetadataFile.Variant(
+                        name: 'apiElements',
+                        dependencies: null,
+                        dependencyConstraints: [junitDep, logbackDep, slf4jDep]),
+                new MetadataFile.Variant(
+                        name: 'runtimeElements',
+                        dependencies: [junitDep],
+                        dependencyConstraints: [junitDep, logbackDep, slf4jDep]),
         ] as Set
 
         where:
