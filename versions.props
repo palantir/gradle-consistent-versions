@@ -4,9 +4,9 @@ com.netflix.nebula:nebula-dependency-recommender = 11.0.0
 org.assertj:* = 3.22.0
 org.immutables:value = 2.9.0
 org.junit:junit-bom = 5.8.2
-org.mockito:mockito-core = 4.3.0
+org.mockito:mockito-core = 4.3.1
 com.netflix.nebula:nebula-test = 10.0.0
 
 # Unnecessary once we have lock files
 com.google.code.findbugs:jsr305 = 3.0.2
-com.google.errorprone:error_prone_annotations = 2.10.0
+com.google.errorprone:error_prone_annotations = 2.11.0
