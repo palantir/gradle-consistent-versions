@@ -99,6 +99,7 @@ public class VersionsLockExtension {
         }
 
         public void from(SourceSet sourceSet) {
+            from(sourceSet.getAnnotationProcessorConfigurationName());
             from(sourceSet.getCompileClasspathConfigurationName());
             from(sourceSet.getRuntimeClasspathConfigurationName());
         }

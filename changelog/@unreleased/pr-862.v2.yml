@@ -1,0 +1,6 @@
+type: improvement
+improvement:
+  description: The `annotationProcessor` configuration is now included in the locked
+    configurations.
+  links:
+  - https://github.com/palantir/gradle-consistent-versions/pull/862
