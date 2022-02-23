@@ -136,8 +136,8 @@ com.github.zafarkhaja:java-semver:0.9.0 (1 constraints: c315c0d2)
 com.jayway.awaitility:awaitility:1.6.5 (1 constraints: c615c1d2)
 ```
 
-The lockfile sources production dependencies from the _annotationProcessor_, _compileClasspath_, and _runtimeClasspath_ configurations, and
-test dependencies from the annotation processor, compile classpath, and runtime classpath of any source set that ends in test (e.g. `test`, `integrationTest`,
+The lockfile sources production dependencies from the _compileClasspath_ and _runtimeClasspath_ configurations, and
+test dependencies from the compile/runtime classpaths of any source set that ends in test (e.g. `test`, `integrationTest`,
 `eteTest`).
 
 There is a `verifyLocks` task (automatically run as part of `check`) that will ensure `versions.lock` is still consistent

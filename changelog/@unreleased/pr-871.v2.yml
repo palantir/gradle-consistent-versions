@@ -1,0 +1,6 @@
+type: improvement
+improvement:
+  description: Annotation processors are no longer included in locked configurations
+    by default
+  links:
+  - https://github.com/palantir/gradle-consistent-versions/pull/871
