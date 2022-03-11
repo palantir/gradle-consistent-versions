@@ -613,10 +613,12 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
             Configuration targetConf = getTargetConfiguration(dependencySet, projectDependency);
 
-            log.debug(
-                    "Found legacy project dependency (with target configuration): {} -> {}",
-                    dependencySet,
-                    formatProjectDependency(projectDependency));
+            if (log.isDebugEnabled()) {
+                log.debug(
+                        "Found legacy project dependency (with target configuration): {} -> {}",
+                        dependencySet,
+                        formatProjectDependency(projectDependency));
+            }
 
             if (copiedConfigurationsCache.containsKey(targetConf)) {
                 String copiedConf = copiedConfigurationsCache.get(targetConf);
