@@ -1,4 +1,5 @@
 com.fasterxml.jackson.*:jackson-* = 2.13.2
+com.fasterxml.jackson.core:jackson-databind = 2.13.2.1
 com.google.guava:guava = 31.1-jre
 com.netflix.nebula:nebula-dependency-recommender = 11.0.0
 org.assertj:* = 3.22.0
