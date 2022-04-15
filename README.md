@@ -160,6 +160,9 @@ This is effectively just a more concise version of `dependencyInsight`:
 ./gradlew  dependencyInsight --configuration unifiedClasspath --dependency jackson-databind
 ```
 
+You can check multiple dependencies at once by passing multiple comma-delimited hash values, e.g.
+`./gradlew why --hash a60c3ce8,400d4d2a`.
+
 ## ./gradlew checkUnusedConstraints
 `checkUnusedConstraints` prevents unnecessary constraints from accruing in your `versions.props` file. Run
 `./gradlew checkUnusedConstraints --fix` to automatically remove any unused constraints from your props file.
