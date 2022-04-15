@@ -40,7 +40,9 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                 "org.slf4j:slf4j-api:1.7.24",
                 "org.slf4j:slf4j-api:1.7.25",
                 "junit:junit:4.10",
-                "org:test-dep-that-logs:1.0 -> org.slf4j:slf4j-api:1.7.11"
+                "org:test-dep-that-logs:1.0 -> org.slf4j:slf4j-api:1.7.11",
+                "org:another-transitive-dependency:3.2.1",
+                "org:another-direct-dependency:1.2.3 -> org:another-transitive-dependency:3.2.1",
         )
         makePlatformPom(mavenRepo, "org", "platform", "1.0")
         
@@ -529,6 +531,32 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         def result = runTasks('why', '--hash', '400d4d2a') // slf4j-api
         result.output.contains('org.slf4j:slf4j-api:1.7.25')
         result.output.contains('ch.qos.logback:logback-classic -> 1.7.25')
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
+    }
+
+    def "#gradleVersionNumber: why with comma-delimited multiple hashes works"() {
+        setup:
+        gradleVersion = gradleVersionNumber
+
+        buildFile << '''
+            apply plugin: 'java'
+            dependencies {
+                implementation 'ch.qos.logback:logback-classic:1.2.3' // brings in slf4j-api 1.7.25
+                implementation 'org:another-direct-dependency:1.2.3' // brings in org:another-transitive-dependency:3.2.1
+            }
+        '''.stripIndent()
+
+        when:
+        runTasks('--write-locks')
+
+        then:
+        def result = runTasks('why', '--hash', '400d4d2a,050d6518') // both transitive dependencies
+        result.output.contains('org.slf4j:slf4j-api:1.7.25')
+        result.output.contains('ch.qos.logback:logback-classic -> 1.7.25')
+        result.output.contains('org:another-transitive-dependency:3.2.1')
+        result.output.contains('org:another-direct-dependency -> 3.2.1')
 
         where:
         gradleVersionNumber << GRADLE_VERSIONS
