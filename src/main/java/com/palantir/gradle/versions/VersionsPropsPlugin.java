@@ -56,6 +56,7 @@ public class VersionsPropsPlugin implements Plugin<Project> {
     private static final ImmutableSet<String> JAVA_PUBLISHED_CONFIGURATION_NAMES =
             ImmutableSet.of(JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME, JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME);
     private static final String GCV_VERSIONS_PROPS_CONSTRAINTS_CONFIGURATION_NAME = "gcvVersionsPropsConstraints";
+    private static final String VERSION_PROPS_EXTENSION = "versionsProps";
 
     @Override
     public final void apply(Project project) {
@@ -68,8 +69,7 @@ public class VersionsPropsPlugin implements Plugin<Project> {
                 project.getObjects().named(Usage.class, ConsistentVersionsPlugin.CONSISTENT_VERSIONS_USAGE);
         String gcvVersionsPropsCapability = "gcv:versions-props:0";
 
-        VersionsProps versionsProps = loadVersionsProps(
-                project.getRootProject().file("versions.props").toPath());
+        VersionsProps versionsProps = getVersionsProps(project.getRootProject());
 
         if (project.getRootProject().equals(project)) {
             applyToRootProject(project);
@@ -301,6 +301,15 @@ public class VersionsPropsPlugin implements Plugin<Project> {
                 versionsProps.constructConstraints(constraintCreator).collect(ImmutableList.toImmutableList());
         log.debug("Adding constraints to {}: {}", conf, constraints);
         constraints.forEach(conf.getDependencyConstraints()::add);
+    }
+
+    private static VersionsProps getVersionsProps(Project rootProject) {
+        VersionsProps versionsProps = rootProject.getExtensions().findByType(VersionsProps.class);
+        if (versionsProps == null) {
+            versionsProps = loadVersionsProps(rootProject.file("versions.props").toPath());
+            rootProject.getExtensions().add(VERSION_PROPS_EXTENSION, versionsProps);
+        }
+        return versionsProps;
     }
 
     private static VersionsProps loadVersionsProps(Path versionsPropsFile) {
