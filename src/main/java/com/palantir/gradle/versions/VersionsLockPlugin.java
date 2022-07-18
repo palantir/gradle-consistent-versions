@@ -28,6 +28,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.LinkedHashMultimap;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
+import com.google.common.collect.Sets;
 import com.google.common.collect.Streams;
 import com.palantir.gradle.versions.internal.MyModuleIdentifier;
 import com.palantir.gradle.versions.internal.MyModuleVersionIdentifier;
@@ -816,7 +817,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 new ArrayDeque<>(component.getDependents().size());
         stack.addAll(component.getDependents());
 
-        Set<GcvScope> discoveredScopes = new HashSet<>(2);
+        Set<GcvScope> discoveredScopes = Sets.newHashSetWithExpectedSize(2);
         while (!stack.isEmpty()) {
             ResolvedDependencyResult dependent = stack.removeFirst();
             if (dependent.isConstraint() || !(dependent.getRequested() instanceof ModuleComponentSelector)) {
