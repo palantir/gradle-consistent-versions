@@ -1,0 +1,22 @@
+type: improvement
+improvement:
+  description: |-
+    Support lenient versions in GCV to enable Jakarta bridge migrations
+
+
+    In order to support libraries like tracing-java which need
+    both javax libraries and jakarta libraries, we need to have some
+    way of hosting both in the same repository, but not having GCV
+    force our versions of all subprojects up to that version as well.
+
+    This introduces a mode in GCV (which is very much frowned upon
+    anyone using), which instead of forcing strict versions from the
+    versions.lock file, instead makes them prefer, this then lets
+    subprojects force the version to strict, which overrides any
+    past or future version constraints.
+
+    I'm not super happy with this solution since it does violate some
+    of the principles of GCV, but the problem we're trying to solve with
+    the Jakarta migration is very much non-compliant.
+  links:
+  - https://github.com/palantir/gradle-consistent-versions/pull/968
