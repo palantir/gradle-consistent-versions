@@ -47,19 +47,20 @@ Direct dependencies are specified in a top level `versions.props` file and then 
     1. An evolution of `nebula.dependency-recommender`
 1. [Concepts](#concepts)
     1. versions.props: lower bounds for dependencies
-    1. versions.lock: compact representation of your prod classpath
-    1. ./gradlew why
-    1. ./gradlew checkUnusedConstraints
-    1. getVersion
-    1. BOMs
-    1. Specifying exact versions
-    1. Downgrading things
-    1. Common workflow: SLF4J
-    1. Common workflow: dependencySubstitution
-    1. Common workflow: internal test utility projects
-    1. Resolving dependencies at configuration time is banned
-    1. Known limitation: root project must have a unique name
-    1. Scala
+    2. versions.lock: compact representation of your prod classpath
+    3. ./gradlew why
+    4. ./gradlew checkUnusedConstraints
+    5. getVersion
+    6. BOMs
+    7. Specifying exact versions
+    8. Downgrading things
+    9. Common workflow: SLF4J
+    10. Common workflow: dependencySubstitution
+    11. Common workflow: internal test utility projects
+    12. Edge case workflow: run with different sub project versions
+    13. Resolving dependencies at configuration time is banned
+    14. Known limitation: root project must have a unique name
+    15. Scala
 1. [Migration](#migration)
     1. How to make this work with Baseline
     1. `dependencyRecommendations.getRecommendedVersion` -> `getVersion`
@@ -307,6 +308,39 @@ versionsLock {
     testProject()
 }
 ```
+
+### Edge case workflow: run with different sub project versions
+
+**NB:** This work around should only be used for projects which need to support multiple
+different versions of libraries running across disjoint subprojects. It is documented
+for completeness.
+
+If your project has an expressed need to support multiple different versions of libraries between
+subprojects which are not dependent on each other, then you can relax the dependency constraints
+enforced by this plugin from `strictly` to `prefer`, this enables one project to rely on the versions
+locked in `versions.lock`, and another project to force a different version:
+
+```groovy
+dependencies {
+    api "org.glassfish.jersey.core:jersey-server", {
+        version {
+            strictly '2.22.2'
+        }
+    }
+}
+```
+
+To enter this mode, apply the following to your root project:
+
+```groovy
+versionsLock {
+    lenientVersions = true
+}
+```
+
+This will allow subprojects to selectively override the `versions.lock` version. See the
+[gradle documentation on rich versions](https://docs.gradle.org/current/userguide/rich_versions.html)
+for details.
 
 ### Resolving dependencies at configuration time is banned
 In order for this plugin to function, we must be able to guarantee that no dependencies are resolved at configuration time.  Gradle already [recommends this](https://guides.gradle.org/performance/#don_t_resolve_dependencies_at_configuration_time) but gradle-consistent-versions enforces it.

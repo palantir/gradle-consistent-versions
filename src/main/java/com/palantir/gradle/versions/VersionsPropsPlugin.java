@@ -100,7 +100,11 @@ public class VersionsPropsPlugin implements Plugin<Project> {
                 conf.setCanBeConsumed(true);
                 conf.setVisible(false);
 
-                addVersionsPropsConstraints(project.getDependencies().getConstraints()::create, conf, versionsProps);
+                addVersionsPropsConstraints(
+                        DependencyConstraintCreator.strict(
+                                project.getDependencies().getConstraints()),
+                        conf,
+                        versionsProps);
             });
         }
 

@@ -18,12 +18,43 @@ package com.palantir.gradle.versions;
 
 import org.gradle.api.Action;
 import org.gradle.api.artifacts.DependencyConstraint;
+import org.gradle.api.artifacts.MutableVersionConstraint;
+import org.gradle.api.artifacts.dsl.DependencyConstraintHandler;
 
-@FunctionalInterface
 interface DependencyConstraintCreator {
     default DependencyConstraint create(Object notation) {
         return create(notation, _constraint -> {});
     }
 
     DependencyConstraint create(Object notation, Action<? super DependencyConstraint> action);
+
+    void lockVersion(MutableVersionConstraint versionConstraint, String version);
+
+    static DependencyConstraintCreator strict(DependencyConstraintHandler handler) {
+        return new DependencyConstraintCreator() {
+            @Override
+            public DependencyConstraint create(Object notation, Action<? super DependencyConstraint> action) {
+                return handler.create(notation, action);
+            }
+
+            @Override
+            public void lockVersion(MutableVersionConstraint versionConstraint, String version) {
+                versionConstraint.strictly(version);
+            }
+        };
+    }
+
+    static DependencyConstraintCreator required(DependencyConstraintHandler handler) {
+        return new DependencyConstraintCreator() {
+            @Override
+            public DependencyConstraint create(Object notation, Action<? super DependencyConstraint> action) {
+                return handler.create(notation, action);
+            }
+
+            @Override
+            public void lockVersion(MutableVersionConstraint versionConstraint, String version) {
+                versionConstraint.prefer(version);
+            }
+        };
+    }
 }

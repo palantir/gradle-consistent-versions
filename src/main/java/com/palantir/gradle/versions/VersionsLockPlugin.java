@@ -325,10 +325,18 @@ public class VersionsLockPlugin implements Plugin<Project> {
             }
 
             // Wire up the locks from the lock file into the strict locks platform.
+            VersionsLockExtension extension =
+                    project.getRootProject().getExtensions().getByType(VersionsLockExtension.class);
+            DependencyConstraintCreator constraintCreator =
+                    extension.getLenientVersions().get()
+                            ? DependencyConstraintCreator.required(
+                                    project.getDependencies().getConstraints())
+                            : DependencyConstraintCreator.strict(
+                                    project.getDependencies().getConstraints());
+
             gcvLocksConfiguration.configure(conf -> {
                 conf.getDependencyConstraints()
-                        .addAll(constructConstraintsFromLockFile(
-                                rootLockfile, project.getDependencies().getConstraints()::create));
+                        .addAll(constructConstraintsFromLockFile(rootLockfile, constraintCreator));
             });
 
             configureAllProjectsUsingConstraints(project, rootLockfile, lockedConfigurations, locksDependency);
@@ -906,12 +914,16 @@ public class VersionsLockPlugin implements Plugin<Project> {
             ProjectDependency locksDependency) {
 
         List<DependencyConstraint> publishableConstraints = constructPublishableConstraintsFromLockFile(
-                rootProject, gradleLockfile, rootProject.getDependencies().getConstraints()::create);
+                rootProject,
+                gradleLockfile,
+                DependencyConstraintCreator.strict(rootProject.getDependencies().getConstraints()));
 
         rootProject.allprojects(subproject -> {
             // Avoid including the current project as a constraint -- it must already be present to provide constraints
             List<DependencyConstraint> localProjectConstraints = constructPublishableConstraintsFromLocalProjects(
-                    subproject, rootProject.getDependencies().getConstraints()::create);
+                    subproject,
+                    DependencyConstraintCreator.strict(
+                            rootProject.getDependencies().getConstraints()));
             ImmutableList<DependencyConstraint> publishableConstraintsForSubproject =
                     ImmutableList.<DependencyConstraint>builder()
                             .addAll(localProjectConstraints)
@@ -1043,7 +1055,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 .map(notation -> constraintCreator.create(notation, constraint -> {
                     constraint.version(v -> {
                         String version = Objects.requireNonNull(constraint.getVersion());
-                        v.strictly(version);
+                        constraintCreator.lockVersion(v, version);
                     });
                     constraint.because("Locked by versions.lock");
                 }))

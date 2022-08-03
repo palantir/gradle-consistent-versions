@@ -30,6 +30,8 @@ public class VersionsLockExtension {
     private final Project project;
     private final SetProperty<String> productionConfigurations;
     private final SetProperty<String> testConfigurations;
+
+    private final Property<Boolean> lenientVersions;
     private final ScopeConfigurer productionConfigurer;
     private final ScopeConfigurer testConfigurer;
     private final Property<Boolean> useJavaPluginDefaults;
@@ -39,11 +41,14 @@ public class VersionsLockExtension {
         this.project = project;
         this.useJavaPluginDefaults =
                 project.getObjects().property(Boolean.class).convention(true);
+        this.lenientVersions = project.getObjects().property(Boolean.class).convention(false);
         this.productionConfigurations =
                 project.getObjects().setProperty(String.class).empty();
         this.testConfigurations = project.getObjects().setProperty(String.class).empty();
         this.productionConfigurer = new ScopeConfigurer(productionConfigurations);
         this.testConfigurer = new ScopeConfigurer(testConfigurations);
+
+        this.lenientVersions.finalizeValueOnRead();
     }
 
     public final void production(Action<ScopeConfigurer> action) {
@@ -56,6 +61,10 @@ public class VersionsLockExtension {
 
     public final void disableJavaPluginDefaults() {
         useJavaPluginDefaults.set(false);
+    }
+
+    public final Property<Boolean> getLenientVersions() {
+        return lenientVersions;
     }
 
     public final void testProject() {

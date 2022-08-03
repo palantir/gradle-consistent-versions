@@ -218,6 +218,37 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         gradleVersionNumber << GRADLE_VERSIONS
     }
 
+    def "#gradleVersionNumber: isLenientVersions works"() {
+        setup:
+        gradleVersion = gradleVersionNumber
+
+        buildFile << """
+            apply plugin: 'java'
+            dependencies {
+                implementation 'junit:junit'
+            }
+            
+            versionsLock {
+                lenientVersions = true
+            }
+        """.stripIndent()
+
+        file('versions.props') << 'org.slf4j:* = 1.7.25'
+
+        expect:
+        runTasks('--write-locks')
+        def expected = """\
+            # Run ./gradlew --write-locks to regenerate this file
+             
+            [Test dependencies]
+            junit:junit:4.10 (1 constraints: d904fd30)
+        """.stripIndent()
+        file('versions.lock').text == expected
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
+    }
+
     def "#gradleVersionNumber: virtual platform is respected across projects"() {
         setup:
         gradleVersion = gradleVersionNumber
