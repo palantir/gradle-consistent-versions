@@ -225,7 +225,7 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         buildFile << """
             apply plugin: 'java'
             dependencies {
-                implementation 'junit:junit'
+                implementation 'org.slf4j:slf4j-api'
             }
             
             versionsLock {
@@ -233,7 +233,7 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
             }
         """.stripIndent()
 
-        file('versions.props') << 'junit:* = 4.10'
+        file('versions.props') << 'org.slf4j:* = 1.7.25'
 
         expect:
         runTasks('--write-locks')
