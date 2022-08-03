@@ -239,9 +239,7 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         runTasks('--write-locks')
         def expected = """\
             # Run ./gradlew --write-locks to regenerate this file
-             
-            [Test dependencies]
-            junit:junit:4.10 (1 constraints: d904fd30)
+            org.slf4j:slf4j-api:1.7.25 (1 constraints: 4105483b)
         """.stripIndent()
         file('versions.lock').text == expected
 
