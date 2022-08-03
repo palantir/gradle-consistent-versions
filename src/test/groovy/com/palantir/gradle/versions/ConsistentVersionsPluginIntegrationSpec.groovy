@@ -233,7 +233,7 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
             }
         """.stripIndent()
 
-        file('versions.props') << 'org.slf4j:* = 1.7.25'
+        file('versions.props') << 'junit:* = 4.10'
 
         expect:
         runTasks('--write-locks')
