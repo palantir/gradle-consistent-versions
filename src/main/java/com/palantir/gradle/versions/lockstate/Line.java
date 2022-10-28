@@ -49,7 +49,11 @@ public interface Line extends Serializable {
         return "#\n" //
                 + "# Three lines of non-changing comments\n" //
                 + "# to avoid conflicts with automated upgrades\n" //
-                + group()
-                + ':' + name() + ':' + version() + " (" + numDependents() + " constraints: " + dependentsHash() + ')';
+                + lockLine();
+    }
+
+    default String lockLine() {
+        return group() + ':' + name() + ':' + version() + " (" + numDependents() + " constraints: " + dependentsHash()
+                + ')';
     }
 }
