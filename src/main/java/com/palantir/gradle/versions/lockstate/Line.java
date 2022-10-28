@@ -46,7 +46,10 @@ public interface Line extends Serializable {
 
     @Lazy
     default String stringRepresentation() {
-        return String.format(
-                "%s:%s:%s (%s constraints: %s)", group(), name(), version(), numDependents(), dependentsHash());
+        return "#\n" //
+                + "# Three lines of non-changing comments\n" //
+                + "# to avoid conflicts with automated upgrades\n" //
+                + group()
+                + ':' + name() + ':' + version() + " (" + numDependents() + " constraints: " + dependentsHash() + ')';
     }
 }
