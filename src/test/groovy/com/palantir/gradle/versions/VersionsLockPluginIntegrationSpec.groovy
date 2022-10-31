@@ -606,8 +606,8 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         file('versions.lock').readLines() == [
                 '# Run ./gradlew --write-locks to regenerate this file',
                 '#',
-                '# Three lines of non-changing comments',
-                '# to avoid conflicts with automated upgrades',
+                '#',
+                '#',
                 'org:platform:1.0 (1 constraints: a5041a2c)',
         ]
 
@@ -692,12 +692,12 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         file('versions.lock').readLines() == [
                 '# Run ./gradlew --write-locks to regenerate this file',
                 '#',
-                '# Three lines of non-changing comments',
-                '# to avoid conflicts with automated upgrades',
+                '#',
+                '#',
                 'ch.qos.logback:logback-classic:1.2.3 (1 constraints: 0805f935)',
                 '#',
-                '# Three lines of non-changing comments',
-                '# to avoid conflicts with automated upgrades',
+                '#',
+                '#',
                 'org.slf4j:slf4j-api:1.7.25 (1 constraints: 400d4d2a)',
         ]
 
@@ -785,18 +785,18 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         def expected = """\
             # Run ./gradlew --write-locks to regenerate this file
             #
-            # Three lines of non-changing comments
-            # to avoid conflicts with automated upgrades
+            #
+            #
             ch.qos.logback:logback-classic:1.2.3 (1 constraints: 0805f935)
             #
-            # Three lines of non-changing comments
-            # to avoid conflicts with automated upgrades
+            #
+            #
             org.slf4j:slf4j-api:1.7.25 (2 constraints: 7917e690)
-             
+
             [Test dependencies]
             #
-            # Three lines of non-changing comments
-            # to avoid conflicts with automated upgrades
+            #
+            #
             org:test-dep-that-logs:1.0 (1 constraints: a5041a2c)
         """.stripIndent()
         file('versions.lock').text == expected
@@ -826,22 +826,22 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         def expected = """\
             # Run ./gradlew --write-locks to regenerate this file
             #
-            # Three lines of non-changing comments
-            # to avoid conflicts with automated upgrades
+            #
+            #
             ch.qos.logback:logback-classic:1.2.3 (1 constraints: 0805f935)
             #
-            # Three lines of non-changing comments
-            # to avoid conflicts with automated upgrades
+            #
+            #
             org.slf4j:slf4j-api:1.7.25 (2 constraints: 7917e690)
-             
+
             [Test dependencies]
             #
-            # Three lines of non-changing comments
-            # to avoid conflicts with automated upgrades
+            #
+            #
             junit:junit:4.10 (1 constraints: d904fd30)
             #
-            # Three lines of non-changing comments
-            # to avoid conflicts with automated upgrades
+            #
+            #
             org:test-dep-that-logs:1.0 (1 constraints: a5041a2c)
         """.stripIndent()
         file('versions.lock').text == expected
@@ -870,8 +870,8 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
              
             [Test dependencies]
             #
-            # Three lines of non-changing comments
-            # to avoid conflicts with automated upgrades
+            #
+            #
             junit:junit:4.10 (1 constraints: d904fd30)
         """.stripIndent()
         file('versions.lock').text == expected
@@ -903,12 +903,12 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
              
             [Test dependencies]
             #
-            # Three lines of non-changing comments
-            # to avoid conflicts with automated upgrades
+            #
+            #
             ch.qos.logback:logback-classic:1.2.3 (1 constraints: 0805f935)
             #
-            # Three lines of non-changing comments
-            # to avoid conflicts with automated upgrades
+            #
+            #
             org.slf4j:slf4j-api:1.7.25 (1 constraints: 400d4d2a)
         """.stripIndent()
         file('versions.lock').text == expected
@@ -1139,12 +1139,12 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         file('versions.lock').text == """\
             # Run ./gradlew --write-locks to regenerate this file
             #
-            # Three lines of non-changing comments
-            # to avoid conflicts with automated upgrades
+            #
+            #
             ch.qos.logback:logback-classic:1.2.3 (1 constraints: 0805f935)
             #
-            # Three lines of non-changing comments
-            # to avoid conflicts with automated upgrades
+            #
+            #
             org.slf4j:slf4j-api:1.7.25 (2 constraints: 8012a437)
         """.stripIndent()
 
