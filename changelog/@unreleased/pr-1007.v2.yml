@@ -1,0 +1,5 @@
+type: improvement
+improvement:
+  description: Clarify instructions on how to automate removal of unused pins
+  links:
+  - https://github.com/palantir/gradle-consistent-versions/pull/1007
