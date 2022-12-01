@@ -135,7 +135,7 @@ public class CheckUnusedConstraintsTask extends DefaultTask {
         throw new RuntimeException("There are unused pins in your versions.props: \n"
                 + unusedConstraints
                 + "\n\n"
-                + "Rerun with --fix to remove them.");
+                + "Run ./gradlew checkUnusedConstraints --fix to remove them.");
     }
 
     private static void writeVersionsProps(File propsFile, Set<String> unusedConstraints) {
