@@ -23,5 +23,5 @@ public final class GradleTestVersions {
     private GradleTestVersions() {}
 
     public static final List<String> GRADLE_VERSIONS =
-            ImmutableList.of(VersionsLockPlugin.MINIMUM_GRADLE_VERSION.getVersion(), "6.9", "7.1.1");
+            ImmutableList.of(VersionsLockPlugin.MINIMUM_GRADLE_VERSION.getVersion(), "7.6", "7.6.1");
 }
