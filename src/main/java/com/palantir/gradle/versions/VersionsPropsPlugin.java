@@ -92,6 +92,15 @@ public class VersionsPropsPlugin implements Plugin<Project> {
                     });
             project.getTasks().named("check").configure(task -> task.dependsOn(checkNoUnusedConstraints));
 
+            TaskProvider<CheckBadPinsTask> checkBadPins = project.getTasks()
+                    .register("checkBadPins", CheckBadPinsTask.class, task -> {
+                        task.getLockFile()
+                                .set(project.getLayout().getProjectDirectory().file("versions.lock"));
+                        task.getPropsFile()
+                                .set(project.getLayout().getProjectDirectory().file("versions.props"));
+                    });
+            project.getTasks().named("check").configure(task -> task.dependsOn(checkBadPins));
+
             // Create "platform" configuration in root project, which will hold the versions props constraints
             project.getConfigurations().register(GCV_VERSIONS_PROPS_CONSTRAINTS_CONFIGURATION_NAME, conf -> {
                 conf.getAttributes().attribute(Usage.USAGE_ATTRIBUTE, gcvVersionsPropsUsage);
