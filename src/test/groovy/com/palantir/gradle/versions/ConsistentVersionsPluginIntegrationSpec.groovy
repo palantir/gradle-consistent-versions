@@ -115,34 +115,6 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    // TODO(dsanduleac): should remove this since this functionality doesn't fully work anyway, and we are
-    //   actively encouraging people to stop resolving the deprecated configurations `compile` and `runtime`.
-    def '#gradleVersionNumber: can resolve all configurations like compile with version coming only from versions props'() {
-        setup:
-        gradleVersion = gradleVersionNumber
-
-        file('versions.props') << """
-            org.slf4j:slf4j-api = 1.7.22
-        """.stripIndent()
-
-        buildFile << """
-            apply plugin: 'java'
-            dependencies {
-                implementation "org.slf4j:slf4j-api"
-            }
-        """.stripIndent()
-
-        when:
-        runTasks('--write-locks')
-
-        then:
-        // Ensures that configurations like 'compile' are resolved and their dependencies have versions
-        runTasks('--warning-mode=none', 'resolveConfigurations')
-
-        where:
-        gradleVersionNumber << GRADLE_VERSIONS
-    }
-
     def "#gradleVersionNumber: locks are consistent whether or not we do --write-locks for glob-forced direct dependency"() {
         setup:
         gradleVersion = gradleVersionNumber
