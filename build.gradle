@@ -71,7 +71,8 @@ tasks.withType(Test) {
             'junit.platform.output.capture.stderr'                  : 'true',
             'junit.jupiter.execution.parallel.enabled'              : 'true',
             'junit.jupiter.execution.parallel.config.strategy'      : 'dynamic',
-            'junit.jupiter.execution.parallel.config.dynamic.factor': '1'
+            'junit.jupiter.execution.parallel.config.dynamic.factor': '1',
+            'ignoreDeprecations'                                    : 'true'
     ]
 }
 
@@ -103,6 +104,9 @@ gradlePlugin {
         }
     }
 }
+
+tasks.publishVersionsLockPluginMarkerMavenPublicationToSonatypeRepository.enabled = false
+tasks.publishVersionsPropsPluginMarkerMavenPublicationToSonatypeRepository.enabled = false
 
 tasks.publish.dependsOn tasks.publishPlugins
 publishPlugins.onlyIf { versionDetails().isCleanTag }
