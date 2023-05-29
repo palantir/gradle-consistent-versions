@@ -105,8 +105,10 @@ gradlePlugin {
     }
 }
 
-tasks.publishVersionsLockPluginMarkerMavenPublicationToSonatypeRepository.enabled = false
-tasks.publishVersionsPropsPluginMarkerMavenPublicationToSonatypeRepository.enabled = false
+afterEvaluate {
+    tasks.publishVersionsLockPluginMarkerMavenPublicationToSonatypeRepository.enabled = false
+    tasks.publishVersionsPropsPluginMarkerMavenPublicationToSonatypeRepository.enabled = false
+}
 
 tasks.publish.dependsOn tasks.publishPlugins
 publishPlugins.onlyIf { versionDetails().isCleanTag }
