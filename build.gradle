@@ -72,6 +72,7 @@ tasks.withType(Test) {
             'junit.jupiter.execution.parallel.enabled'              : 'true',
             'junit.jupiter.execution.parallel.config.strategy'      : 'dynamic',
             'junit.jupiter.execution.parallel.config.dynamic.factor': '1',
+            // Ignore Gradle deprecations in tests. Note that we have to tackle those for the Gradle 8 update
             'ignoreDeprecations'                                    : 'true'
     ]
 }
