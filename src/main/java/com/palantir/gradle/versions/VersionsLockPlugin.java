@@ -48,6 +48,7 @@ import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -879,6 +880,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
      * {@link org.gradle.api.tasks.diagnostics.internal.insight.DependencyInsightReporter#collectErrorMessages} does,
      * since that whole class is not public API.
      */
+    @SuppressWarnings("SafeLoggingPropagation")
     private String formatUnresolvedDependencyResult(UnresolvedDependencyResult result) {
         StringBuilder failures = new StringBuilder();
         for (Throwable failure = result.getFailure(); failure != null; failure = failure.getCause()) {
@@ -992,7 +994,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
             // Use heuristic for test source sets.
             sourceSets
-                    .matching(sourceSet -> sourceSet.getName().toLowerCase().endsWith("test"))
+                    .matching(sourceSet ->
+                            sourceSet.getName().toLowerCase(Locale.ROOT).endsWith("test"))
                     .forEach(sourceSet -> lockedConfigurations.addAllTestConfigurations(
                             getConfigurationsForSourceSet(project, sourceSet)));
         }

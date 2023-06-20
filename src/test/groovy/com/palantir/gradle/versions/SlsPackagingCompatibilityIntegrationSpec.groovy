@@ -40,7 +40,7 @@ class SlsPackagingCompatibilityIntegrationSpec extends IntegrationSpec {
             }            
             plugins {
                 id '${PLUGIN_NAME}'
-                id 'com.palantir.sls-java-service-distribution' version '4.15.1' apply false
+                id 'com.palantir.sls-java-service-distribution' version '7.25.0' apply false
             }
             allprojects {
                 repositories {
@@ -94,8 +94,11 @@ class SlsPackagingCompatibilityIntegrationSpec extends IntegrationSpec {
         def wroteLocks = runTasks('--write-locks')
         // Maybe this is a bit too much but for a fixed version of sls-packaging, we expect this to not change
         wroteLocks.tasks(TaskOutcome.SUCCESS).collect { it.path } as Set == [
+                ':api:compileRecommendedProductDependencies',
+                ':api:processResources',
+                ':service:mergeDiagnosticsJson',
+                ':service:resolveProductDependencies',
                 ':service:createManifest',
-                ':api:configureProductDependencies',
         ] as Set
         // Ensure that 'jar' was not run on the API project
         wroteLocks.task(':api:jar') == null

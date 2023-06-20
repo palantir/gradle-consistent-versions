@@ -19,8 +19,10 @@ package com.palantir.gradle.versions;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
-import org.gradle.util.GFileUtils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -29,9 +31,9 @@ public class VersionsPropsTest {
     Path tempDir;
 
     @Test
-    void load_valid_versions_props() {
+    void load_valid_versions_props() throws IOException {
         Path propsFile = tempDir.resolve("versions.props");
-        GFileUtils.writeFile("com.palantir.test:test = 1.0.0", propsFile.toFile());
+        Files.writeString(propsFile, "com.palantir.test:test = 1.0.0", StandardCharsets.UTF_8);
 
         VersionsProps versionsProps = VersionsProps.loadFromFile(propsFile);
         assertThat(versionsProps.getFuzzyResolver().exactMatches()).containsExactly("com.palantir.test:test");
@@ -39,9 +41,9 @@ public class VersionsPropsTest {
     }
 
     @Test
-    void fails_to_load_illegal_artifact() {
+    void fails_to_load_illegal_artifact() throws IOException {
         Path propsFile = tempDir.resolve("versions.props");
-        GFileUtils.writeFile("com.palantir.test:test:1.0.0", propsFile.toFile());
+        Files.writeString(propsFile, "com.palantir.test:test:1.0.0", StandardCharsets.UTF_8);
 
         assertThatThrownBy(() -> VersionsProps.loadFromFile(propsFile))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -49,9 +51,9 @@ public class VersionsPropsTest {
     }
 
     @Test
-    void fails_to_load_illegal_version() {
+    void fails_to_load_illegal_version() throws IOException {
         Path propsFile = tempDir.resolve("versions.props");
-        GFileUtils.writeFile("com.palantir.test:test = ", propsFile.toFile());
+        Files.writeString(propsFile, "com.palantir.test:test = ", StandardCharsets.UTF_8);
 
         assertThatThrownBy(() -> VersionsProps.loadFromFile(propsFile))
                 .isInstanceOf(IllegalArgumentException.class)

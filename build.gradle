@@ -18,7 +18,7 @@ buildscript {
 }
 
 plugins {
-    id 'com.gradle.plugin-publish' version '0.21.0'
+    id 'com.gradle.plugin-publish' version '1.2.0'
 }
 
 repositories {
@@ -71,7 +71,9 @@ tasks.withType(Test) {
             'junit.platform.output.capture.stderr'                  : 'true',
             'junit.jupiter.execution.parallel.enabled'              : 'true',
             'junit.jupiter.execution.parallel.config.strategy'      : 'dynamic',
-            'junit.jupiter.execution.parallel.config.dynamic.factor': '1'
+            'junit.jupiter.execution.parallel.config.dynamic.factor': '1',
+            // Ignore Gradle deprecations in tests. Note that we have to tackle those for the Gradle 8 update
+            'ignoreDeprecations'                                    : 'true'
     ]
 }
 
@@ -82,10 +84,16 @@ tasks.withType(JavaCompile) {
 }
 
 gradlePlugin {
+    website = 'https://github.com/palantir/gradle-consistent-versions'
+    vcsUrl = 'https://github.com/palantir/gradle-consistent-versions'
+
     plugins {
         consistentVersions {
             id = 'com.palantir.consistent-versions'
             implementationClass = 'com.palantir.gradle.versions.ConsistentVersionsPlugin'
+            description = 'Compact, constraint-friendly lockfiles for your dependencies'
+            displayName = 'Compact, constraint-friendly lockfiles for your dependencies'
+            tags.set(['versions'])
         }
         versionsLock {
             id = 'com.palantir.versions-lock'
@@ -98,20 +106,9 @@ gradlePlugin {
     }
 }
 
-pluginBundle {
-    website = 'https://github.com/palantir/gradle-consistent-versions'
-    vcsUrl = 'https://github.com/palantir/gradle-consistent-versions'
-    description = 'Compact, constraint-friendly lockfiles for your dependencies'
-    tags = ['versions']
-
-    // Don't publish the other plugins to the plugin portal
-    plugins.removeIf { it.name != 'consistentVersions' }
-
-    plugins {
-        consistentVersions {
-            displayName = 'Compact, constraint-friendly lockfiles for your dependencies'
-        }
-    }
+afterEvaluate {
+    tasks.publishVersionsLockPluginMarkerMavenPublicationToSonatypeRepository.enabled = false
+    tasks.publishVersionsPropsPluginMarkerMavenPublicationToSonatypeRepository.enabled = false
 }
 
 tasks.publish.dependsOn tasks.publishPlugins
