@@ -16,12 +16,11 @@
 
 package com.palantir.gradle.versions;
 
-import com.google.common.collect.ImmutableList;
 import java.util.List;
 
 public final class GradleTestVersions {
     private GradleTestVersions() {}
 
     public static final List<String> GRADLE_VERSIONS =
-            ImmutableList.of(VersionsLockPlugin.MINIMUM_GRADLE_VERSION.getVersion(), "6.9", "7.1.1");
+            List.of(VersionsLockPlugin.MINIMUM_GRADLE_VERSION.getVersion(), "6.9", "7.1.1", "8.1.1");
 }
