@@ -604,7 +604,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
 
         then:
         file('versions.lock').readLines() == [
-                '# Run ./gradlew --write-locks to regenerate this file',
+                '# Run ./gradlew --write-locks to regenerate this file. Blank lines are to minimize merge conflicts.',
                 '',
                 '',
                 '',
@@ -690,7 +690,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
 
         then: 'slf4j-api still appears in the lock file'
         file('versions.lock').readLines() == [
-                '# Run ./gradlew --write-locks to regenerate this file',
+                '# Run ./gradlew --write-locks to regenerate this file. Blank lines are to minimize merge conflicts.',
                 '',
                 '',
                 '',
@@ -783,7 +783,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         expect:
         runTasks('--write-locks')
         def expected = """\
-            # Run ./gradlew --write-locks to regenerate this file
+            # Run ./gradlew --write-locks to regenerate this file. Blank lines are to minimize merge conflicts.
             
             
             
@@ -824,7 +824,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         expect:
         runTasks('--write-locks')
         def expected = """\
-            # Run ./gradlew --write-locks to regenerate this file
+            # Run ./gradlew --write-locks to regenerate this file. Blank lines are to minimize merge conflicts.
             
             
             
@@ -866,7 +866,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         expect:
         runTasks('--write-locks')
         def expected = """\
-            # Run ./gradlew --write-locks to regenerate this file
+            # Run ./gradlew --write-locks to regenerate this file. Blank lines are to minimize merge conflicts.
              
             [Test dependencies]
             
@@ -899,7 +899,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         expect:
         runTasks('--write-locks')
         def expected = """\
-            # Run ./gradlew --write-locks to regenerate this file
+            # Run ./gradlew --write-locks to regenerate this file. Blank lines are to minimize merge conflicts.
              
             [Test dependencies]
             
@@ -1137,7 +1137,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         expect:
         runTasks("--write-locks")
         file('versions.lock').text == """\
-            # Run ./gradlew --write-locks to regenerate this file
+            # Run ./gradlew --write-locks to regenerate this file. Blank lines are to minimize merge conflicts.
             
             
             
@@ -1163,7 +1163,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         """.stripIndent()
 
         def lockFileContent = """\
-            # Run ./gradlew --write-locks to regenerate this file
+            # Run ./gradlew --write-locks to regenerate this file. Blank lines are to minimize merge conflicts.
         """.stripIndent()
 
         file('versions.lock').text = lockFileContent

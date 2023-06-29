@@ -246,7 +246,7 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
 
         then:
         def expectedLock = """\
-            # Run ./gradlew --write-locks to regenerate this file
+            # Run ./gradlew --write-locks to regenerate this file. Blank lines are to minimize merge conflicts.
             
             
             
@@ -282,7 +282,7 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
 
         then:
         def expectedLock = """\
-            # Run ./gradlew --write-locks to regenerate this file
+            # Run ./gradlew --write-locks to regenerate this file. Blank lines are to minimize merge conflicts.
             
             
             
@@ -343,7 +343,7 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         runTasks('--write-locks')
 
         file('versions.lock').text == """\
-            # Run ./gradlew --write-locks to regenerate this file
+            # Run ./gradlew --write-locks to regenerate this file. Blank lines are to minimize merge conflicts.
             
             
             
