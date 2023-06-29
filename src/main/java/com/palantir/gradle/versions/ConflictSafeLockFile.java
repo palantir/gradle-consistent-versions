@@ -74,6 +74,7 @@ final class ConflictSafeLockFile {
 
     public Stream<Line> parseLines(Stream<String> stringStream) {
         return stringStream
+                .filter(line -> !line.isBlank())
                 .map(line -> {
                     Matcher matcher = LINE_PATTERN.matcher(line);
                     Preconditions.checkState(
