@@ -48,7 +48,7 @@ public interface Line extends Serializable {
     default String stringRepresentation() {
         // Three lines of non-changing comments
         // to avoid conflicts with automated upgrades
-        return "#\n#\n#\n" + lockLine();
+        return "\n\n\n" + lockLine();
     }
 
     default String lockLine() {

@@ -247,13 +247,13 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         then:
         def expectedLock = """\
             # Run ./gradlew --write-locks to regenerate this file
-            #
-            #
-            #
+            
+            
+            
             test-alignment:module-that-should-be-aligned-up:1.1 (1 constraints: a5041a2c)
-            #
-            #
-            #
+            
+            
+            
             test-alignment:module-with-higher-version:1.1 (1 constraints: a6041b2c)
         """.stripIndent()
         file('versions.lock').text == expectedLock
@@ -283,9 +283,9 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         then:
         def expectedLock = """\
             # Run ./gradlew --write-locks to regenerate this file
-            #
-            #
-            #
+            
+            
+            
             org.slf4j:slf4j-api:1.7.25 (1 constraints: 4105483b)
         """.stripIndent()
         file('versions.lock').text == expectedLock
@@ -344,17 +344,17 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
 
         file('versions.lock').text == """\
             # Run ./gradlew --write-locks to regenerate this file
-            #
-            #
-            #
+            
+            
+            
             org.slf4j:slf4j-api:1.7.25 (1 constraints: 4105483b)
-            #
-            #
-            #
+            
+            
+            
             org1:platform:1.0 (1 constraints: a5041a2c)
-            #
-            #
-            #
+            
+            
+            
             org2:platform:1.0 (1 constraints: a5041a2c)
         """.stripIndent()
 

@@ -605,9 +605,9 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         then:
         file('versions.lock').readLines() == [
                 '# Run ./gradlew --write-locks to regenerate this file',
-                '#',
-                '#',
-                '#',
+                '',
+                '',
+                '',
                 'org:platform:1.0 (1 constraints: a5041a2c)',
         ]
 
@@ -691,13 +691,13 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         then: 'slf4j-api still appears in the lock file'
         file('versions.lock').readLines() == [
                 '# Run ./gradlew --write-locks to regenerate this file',
-                '#',
-                '#',
-                '#',
+                '',
+                '',
+                '',
                 'ch.qos.logback:logback-classic:1.2.3 (1 constraints: 0805f935)',
-                '#',
-                '#',
-                '#',
+                '',
+                '',
+                '',
                 'org.slf4j:slf4j-api:1.7.25 (1 constraints: 400d4d2a)',
         ]
 
@@ -784,19 +784,19 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         runTasks('--write-locks')
         def expected = """\
             # Run ./gradlew --write-locks to regenerate this file
-            #
-            #
-            #
+            
+            
+            
             ch.qos.logback:logback-classic:1.2.3 (1 constraints: 0805f935)
-            #
-            #
-            #
+            
+            
+            
             org.slf4j:slf4j-api:1.7.25 (2 constraints: 7917e690)
 
             [Test dependencies]
-            #
-            #
-            #
+            
+            
+            
             org:test-dep-that-logs:1.0 (1 constraints: a5041a2c)
         """.stripIndent()
         file('versions.lock').text == expected
@@ -825,23 +825,23 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         runTasks('--write-locks')
         def expected = """\
             # Run ./gradlew --write-locks to regenerate this file
-            #
-            #
-            #
+            
+            
+            
             ch.qos.logback:logback-classic:1.2.3 (1 constraints: 0805f935)
-            #
-            #
-            #
+            
+            
+            
             org.slf4j:slf4j-api:1.7.25 (2 constraints: 7917e690)
 
             [Test dependencies]
-            #
-            #
-            #
+            
+            
+            
             junit:junit:4.10 (1 constraints: d904fd30)
-            #
-            #
-            #
+            
+            
+            
             org:test-dep-that-logs:1.0 (1 constraints: a5041a2c)
         """.stripIndent()
         file('versions.lock').text == expected
@@ -869,9 +869,9 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
             # Run ./gradlew --write-locks to regenerate this file
              
             [Test dependencies]
-            #
-            #
-            #
+            
+            
+            
             junit:junit:4.10 (1 constraints: d904fd30)
         """.stripIndent()
         file('versions.lock').text == expected
@@ -902,13 +902,13 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
             # Run ./gradlew --write-locks to regenerate this file
              
             [Test dependencies]
-            #
-            #
-            #
+            
+            
+            
             ch.qos.logback:logback-classic:1.2.3 (1 constraints: 0805f935)
-            #
-            #
-            #
+            
+            
+            
             org.slf4j:slf4j-api:1.7.25 (1 constraints: 400d4d2a)
         """.stripIndent()
         file('versions.lock').text == expected
@@ -1138,13 +1138,13 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         runTasks("--write-locks")
         file('versions.lock').text == """\
             # Run ./gradlew --write-locks to regenerate this file
-            #
-            #
-            #
+            
+            
+            
             ch.qos.logback:logback-classic:1.2.3 (1 constraints: 0805f935)
-            #
-            #
-            #
+            
+            
+            
             org.slf4j:slf4j-api:1.7.25 (2 constraints: 8012a437)
         """.stripIndent()
 
