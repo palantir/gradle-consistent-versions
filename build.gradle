@@ -98,10 +98,12 @@ gradlePlugin {
         versionsLock {
             id = 'com.palantir.versions-lock'
             implementationClass = 'com.palantir.gradle.versions.VersionsLockPlugin'
+            displayName = 'Compact, constraint-friendly lockfiles for your dependencies'
         }
         versionsProps {
             id = 'com.palantir.versions-props'
             implementationClass = 'com.palantir.gradle.versions.VersionsPropsPlugin'
+            displayName = 'Inject version constraints into every configuration in your projects'
         }
     }
 }
