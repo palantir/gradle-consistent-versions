@@ -91,17 +91,21 @@ gradlePlugin {
         consistentVersions {
             id = 'com.palantir.consistent-versions'
             implementationClass = 'com.palantir.gradle.versions.ConsistentVersionsPlugin'
-            description = 'Compact, constraint-friendly lockfiles for your dependencies'
             displayName = 'Compact, constraint-friendly lockfiles for your dependencies'
+            description = displayName
             tags.set(['versions'])
         }
         versionsLock {
             id = 'com.palantir.versions-lock'
             implementationClass = 'com.palantir.gradle.versions.VersionsLockPlugin'
+            displayName = 'Compact, constraint-friendly lockfiles for your dependencies'
+            description = displayName
         }
         versionsProps {
             id = 'com.palantir.versions-props'
             implementationClass = 'com.palantir.gradle.versions.VersionsPropsPlugin'
+            displayName = 'Inject version constraints into every configuration in your projects'
+            description = displayName
         }
     }
 }
