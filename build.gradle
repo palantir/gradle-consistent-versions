@@ -124,4 +124,5 @@ project.ext.'gradle.publish.secret' = System.env["GRADLE_SECRET"]
 
 javaVersions {
     libraryTarget = 11
+    runtime = 17
 }
