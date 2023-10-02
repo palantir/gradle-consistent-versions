@@ -6,19 +6,19 @@ buildscript {
 
     dependencies {
         classpath 'com.palantir.jakartapackagealignment:jakarta-package-alignment:0.5.0'
-        classpath 'com.palantir.gradle.jdks:gradle-jdks:0.32.0'
-        classpath 'com.palantir.gradle.jdkslatest:gradle-jdks-latest:0.8.0'
+        classpath 'com.palantir.gradle.jdks:gradle-jdks:0.33.0'
+        classpath 'com.palantir.gradle.jdkslatest:gradle-jdks-latest:0.11.0'
         classpath 'com.palantir.gradle.externalpublish:gradle-external-publish-plugin:1.12.0'
-        classpath 'com.palantir.javaformat:gradle-palantir-java-format:2.33.0'
-        classpath 'com.palantir.gradle.consistentversions:gradle-consistent-versions:2.13.0'
-        classpath 'com.palantir.baseline:gradle-baseline-java:5.15.0'
+        classpath 'com.palantir.javaformat:gradle-palantir-java-format:2.38.0'
+        classpath 'com.palantir.gradle.consistentversions:gradle-consistent-versions:2.15.0'
+        classpath 'com.palantir.baseline:gradle-baseline-java:5.22.0'
         classpath 'com.palantir.gradle.gitversion:gradle-git-version:3.0.0'
         classpath 'gradle.plugin.org.inferred:gradle-processors:3.7.0'
     }
 }
 
 plugins {
-    id 'com.gradle.plugin-publish' version '1.2.0'
+ id 'com.gradle.plugin-publish' version '1.2.1'
 }
 
 repositories {
@@ -91,17 +91,23 @@ gradlePlugin {
         consistentVersions {
             id = 'com.palantir.consistent-versions'
             implementationClass = 'com.palantir.gradle.versions.ConsistentVersionsPlugin'
-            description = 'Compact, constraint-friendly lockfiles for your dependencies'
             displayName = 'Compact, constraint-friendly lockfiles for your dependencies'
+            description = displayName
             tags.set(['versions'])
         }
         versionsLock {
             id = 'com.palantir.versions-lock'
             implementationClass = 'com.palantir.gradle.versions.VersionsLockPlugin'
+            displayName = 'Compact, constraint-friendly lockfiles for your dependencies'
+            description = displayName
+            tags.set(['versions'])
         }
         versionsProps {
             id = 'com.palantir.versions-props'
             implementationClass = 'com.palantir.gradle.versions.VersionsPropsPlugin'
+            displayName = 'Inject version constraints into every configuration in your projects'
+            description = displayName
+            tags.set(['versions'])
         }
     }
 }
@@ -112,7 +118,7 @@ afterEvaluate {
 }
 
 tasks.publish.dependsOn tasks.publishPlugins
-publishPlugins.onlyIf { versionDetails().isCleanTag }
+publishPlugins.onlyIf { !System.env.CI || versionDetails().isCleanTag }
 project.ext.'gradle.publish.key' = System.env["GRADLE_KEY"]
 project.ext.'gradle.publish.secret' = System.env["GRADLE_SECRET"]
 

@@ -1,0 +1,5 @@
+type: fix
+fix:
+  description: Second attempt at fixing publishing to the gradle plugin portal.
+  links:
+  - https://github.com/palantir/gradle-consistent-versions/pull/1078
