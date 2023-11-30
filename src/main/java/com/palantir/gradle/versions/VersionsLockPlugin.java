@@ -759,12 +759,19 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 .map(a -> (UnresolvedDependencyResult) a)
                 .collect(Collectors.toList());
         if (!unresolved.isEmpty()) {
-            throw new GradleException(String.format(
-                    "Could not compute lock state from configuration '%s' due to unresolved dependencies:\n%s",
+            GradleException gradleException = new GradleException(String.format(
+                    "Could not compute lock state from configuration '%s' due to unresolved dependencies "
+                            + "(see suppressed exceptions below for full stacktraces):\n%s",
                     UNIFIED_CLASSPATH_CONFIGURATION_NAME,
                     unresolved.stream()
                             .map(this::formatUnresolvedDependencyResult)
                             .collect(Collectors.joining("\n"))));
+
+            unresolved.forEach(unresolvedDependencyResult -> {
+                gradleException.addSuppressed(unresolvedDependencyResult.getFailure());
+            });
+
+            throw gradleException;
         }
     }
 
