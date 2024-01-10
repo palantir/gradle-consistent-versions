@@ -999,8 +999,10 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
             // Use heuristic for test source sets.
             sourceSets
-                    .matching(sourceSet ->
-                            sourceSet.getName().toLowerCase(Locale.ROOT).endsWith("test"))
+                    .matching(sourceSet -> {
+                        String name = sourceSet.getName().toLowerCase(Locale.ROOT);
+                        return name.equals("jmh") || name.endsWith("test");
+                    })
                     .forEach(sourceSet -> lockedConfigurations.addAllTestConfigurations(
                             getConfigurationsForSourceSet(project, sourceSet)));
         }
