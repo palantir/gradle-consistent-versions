@@ -1,0 +1,6 @@
+type: feature
+feature:
+  description: The `why` task now supports a `--dependency` option that matches the
+    behavior of `dependencyInsight`.
+  links:
+  - https://github.com/palantir/gradle-consistent-versions/pull/1115

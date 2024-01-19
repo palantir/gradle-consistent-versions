@@ -144,7 +144,7 @@ There is a `verifyLocks` task (automatically run as part of `check`) that will e
 with the current dependencies.
 
 ### ./gradlew why
-To understand why a particular version in your lockfile has been chosen, run `./gradlew why --hash a60c3ce8` to expand the constraints:
+To understand why a particular version in your lockfile has been chosen, run `./gradlew why --dependency <dependency>` to expand the constraints:
 ```
 > Task :why
 com.fasterxml.jackson.core:jackson-databind:2.9.8
@@ -159,9 +159,6 @@ This is effectively just a more concise version of `dependencyInsight`:
 ```
 ./gradlew  dependencyInsight --configuration unifiedClasspath --dependency jackson-databind
 ```
-
-You can check multiple dependencies at once by passing multiple comma-delimited hash values, e.g.
-`./gradlew why --hash a60c3ce8,400d4d2a`.
 
 ## ./gradlew checkUnusedConstraints
 `checkUnusedConstraints` prevents unnecessary constraints from accruing in your `versions.props` file. Run
