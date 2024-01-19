@@ -45,7 +45,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                 "org:another-direct-dependency:1.2.3 -> org:another-transitive-dependency:3.2.1",
         )
         makePlatformPom(mavenRepo, "org", "platform", "1.0")
-        
+
         buildFile << """
             buildscript {
                 repositories {
@@ -75,7 +75,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
     def '#gradleVersionNumber: can write locks'() {
         setup:
         gradleVersion = gradleVersionNumber
-        
+
         expect:
         runTasks('--write-locks')
         new File(projectDir, "versions.lock").exists()
@@ -514,6 +514,29 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
     }
 
     def "#gradleVersionNumber: why works"() {
+        setup:
+        gradleVersion = gradleVersionNumber
+
+        buildFile << '''
+            apply plugin: 'java'
+            dependencies {
+                implementation 'ch.qos.logback:logback-classic:1.2.3' // brings in slf4j-api 1.7.25
+            }
+        '''.stripIndent()
+
+        when:
+        runTasks('--write-locks')
+
+        then:
+        def result = runTasks('why', '--dependency', 'slf4j-api')
+        result.output.contains('org.slf4j:slf4j-api:1.7.25')
+        result.output.contains('ch.qos.logback:logback-classic -> 1.7.25')
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
+    }
+
+    def "#gradleVersionNumber: why with hash works"() {
         setup:
         gradleVersion = gradleVersionNumber
 
