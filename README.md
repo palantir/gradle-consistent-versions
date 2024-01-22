@@ -137,8 +137,8 @@ com.jayway.awaitility:awaitility:1.6.5 (1 constraints: c615c1d2)
 ```
 
 The lockfile sources production dependencies from the _compileClasspath_ and _runtimeClasspath_ configurations, and
-test dependencies from the compile/runtime classpaths of any source set named `jmh` or whose name ends in "test"
-(e.g. `test`, `integrationTest`, `eteTest`).
+test dependencies from the compile/runtime classpaths of any source set named `jmh` or whose name starts with or ends 
+in "test" (e.g. `test`, `integrationTest`, `eteTest`).
 
 There is a `verifyLocks` task (automatically run as part of `check`) that will ensure `versions.lock` is still consistent
 with the current dependencies.

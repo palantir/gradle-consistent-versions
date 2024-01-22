@@ -849,9 +849,8 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
 
         buildFile << """
             apply plugin: 'java'
-            sourceSets {
-                testFixtures
-            }           
+            apply plugin: 'java-test-fixtures'
+                     
             dependencies {
                 implementation 'ch.qos.logback:logback-classic:1.2.3'
                 testImplementation 'junit:junit:4.10'
