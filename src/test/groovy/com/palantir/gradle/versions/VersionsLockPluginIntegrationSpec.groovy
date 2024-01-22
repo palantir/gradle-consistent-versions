@@ -843,6 +843,39 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         gradleVersionNumber << GRADLE_VERSIONS
     }
 
+    def "#gradleVersionNumber: locks dependencies from extra source sets that start with test"() {
+        setup:
+        gradleVersion = gradleVersionNumber
+
+        buildFile << """
+            apply plugin: 'java'
+            sourceSets {
+                testFixtures
+            }           
+            dependencies {
+                implementation 'ch.qos.logback:logback-classic:1.2.3'
+                testImplementation 'junit:junit:4.10'
+                testFixturesImplementation 'org:test-dep-that-logs:1.0'
+            }
+        """.stripIndent()
+
+        expect:
+        runTasks('--write-locks')
+        def expected = """\
+            # Run ./gradlew --write-locks to regenerate this file
+            ch.qos.logback:logback-classic:1.2.3 (1 constraints: 0805f935)
+            org.slf4j:slf4j-api:1.7.25 (2 constraints: 7917e690)
+             
+            [Test dependencies]
+            junit:junit:4.10 (1 constraints: d904fd30)
+            org:test-dep-that-logs:1.0 (1 constraints: a5041a2c)
+        """.stripIndent()
+        file('versions.lock').text == expected
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
+    }
+
     def "#gradleVersionNumber: versionsLock.testProject() works"() {
         setup:
         gradleVersion = gradleVersionNumber
