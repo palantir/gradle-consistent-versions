@@ -1,0 +1,5 @@
+type: improvement
+improvement:
+  description: Include test configurations starting with "test" in the locked test configurations. Supports Gradle test fixtures plugins.
+  links:
+    - https://github.com/palantir/gradle-consistent-versions/pull/1118
