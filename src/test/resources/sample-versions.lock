@@ -1,4 +1,4 @@
-# Run ./gradlew --write-locks to regenerate this file
+# Run ./gradlew writeVersionsLock to regenerate this file
 aopalliance:aopalliance:1.0 (1 constraints: 170a83ac)
 ch.qos.logback:logback-access:1.2.3 (3 constraints: 4f354f15)
 ch.qos.logback:logback-classic:1.2.3 (5 constraints: 9351d6aa)

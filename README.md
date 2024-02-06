@@ -33,10 +33,10 @@ Direct dependencies are specified in a top level `versions.props` file and then 
     com.squareup.okhttp3:okhttp = 3.12.0
     ```
 
-4. Run **`./gradlew --write-locks`** and see your versions.lock file be automatically created. This file should be checked into your repo:
+4. Run **`./gradlew writeVersionsLock`** and see your versions.lock file be automatically created. This file should be checked into your repo:
 
     ```bash
-    # Run ./gradlew --write-locks to regenerate this file
+    # Run ./gradlew writeVersionsLock to regenerate this file
     com.squareup.okhttp3:okhttp:3.12.0 (1 constraints: 38053b3b)
     com.squareup.okio:okio:1.15.0 (1 constraints: 810cbb09)
     ```
