@@ -2,6 +2,7 @@ buildscript {
     repositories {
         mavenCentral() { metadataSources { mavenPom(); ignoreGradleMetadataRedirection() } }
         gradlePluginPortal() { metadataSources { mavenPom(); ignoreGradleMetadataRedirection() } }
+        mavenLocal()
     }
 
     dependencies {
@@ -23,6 +24,7 @@ plugins {
 
 repositories {
     mavenCentral() { metadataSources { mavenPom(); ignoreGradleMetadataRedirection() } }
+    mavenLocal()
 }
 
 
@@ -50,6 +52,7 @@ dependencies {
     implementation 'com.google.guava:guava'
     implementation 'com.netflix.nebula:nebula-dependency-recommender'
 
+    implementation('com.palantir.gradle.failure-reports:gradle-enhanced-exceptions')
     testImplementation platform('org.junit:junit-bom')
     testImplementation 'com.netflix.nebula:nebula-test'
     testImplementation 'org.mockito:mockito-core'

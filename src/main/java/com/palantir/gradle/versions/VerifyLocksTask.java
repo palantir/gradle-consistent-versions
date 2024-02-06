@@ -20,6 +20,7 @@ import com.google.common.collect.MapDifference;
 import com.google.common.collect.MapDifference.ValueDifference;
 import com.google.common.collect.Maps;
 import com.google.common.io.Files;
+import com.palantir.gradle.enhanced.exceptions.GradleEnhancedException;
 import com.palantir.gradle.versions.internal.MyModuleIdentifier;
 import com.palantir.gradle.versions.lockstate.Line;
 import com.palantir.gradle.versions.lockstate.LockState;
@@ -80,24 +81,21 @@ public class VerifyLocksTask extends DefaultTask {
 
         Set<MyModuleIdentifier> missing = difference.entriesOnlyOnLeft().keySet();
         if (!missing.isEmpty()) {
-            throw new RuntimeException("Locked dependencies missing from the resolution result: "
-                    + missing
-                    + ". Please run './gradlew --write-locks'.");
+            throw new GradleEnhancedException(
+                    "Locked dependencies missing from the resolution result: " + missing, "./gradlew --write-locks");
         }
 
         Set<MyModuleIdentifier> unknown = difference.entriesOnlyOnRight().keySet();
         if (!unknown.isEmpty()) {
-            throw new RuntimeException("Found dependencies that were not in the lock state: "
-                    + unknown
-                    + ". Please run './gradlew --write-locks'.");
+            throw new GradleEnhancedException(
+                    "Found dependencies that were not in the lock state: " + unknown, "./gradlew --write-locks");
         }
 
         Map<MyModuleIdentifier, ValueDifference<Line>> differing = difference.entriesDiffering();
         if (!differing.isEmpty()) {
-            throw new RuntimeException("Found dependencies whose dependents changed:\n"
-                    + formatDependencyDifferences(differing)
-                    + "\n\n"
-                    + "Please run './gradlew --write-locks'.");
+            throw new GradleEnhancedException(
+                    "Found dependencies whose dependents changed:\n" + formatDependencyDifferences(differing) + "\n\n",
+                    "./gradlew --write-locks");
         }
     }
 
