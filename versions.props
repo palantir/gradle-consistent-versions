@@ -7,7 +7,7 @@ org.immutables:value = 2.8.8
 org.junit:junit-bom = 5.9.1
 org.mockito:mockito-core = 4.8.0
 com.netflix.nebula:nebula-test = 10.0.0
-com.palantir.gradle.failure-reports:* = 0.1.0-42-g9d278de
+com.palantir.gradle.failure-reports:* = 0.1.0-60-ga5bc298
 
 # Unnecessary once we have lock files
 com.google.code.findbugs:jsr305 = 3.0.2

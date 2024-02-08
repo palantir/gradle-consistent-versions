@@ -7,7 +7,7 @@ com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava (1 c
 com.google.j2objc:j2objc-annotations:2.8 (1 constraints: be09f5a0)
 com.netflix.nebula:nebula-dependency-recommender:11.0.0 (1 constraints: 34052c3b)
 com.netflix.nebula:nebula-gradle-interop:1.0.11 (1 constraints: 9214098d)
-com.palantir.gradle.failure-reports:gradle-enhanced-exceptions:0.1.0-42-g9d278de (1 constraints: 3108bd84)
+com.palantir.gradle.failure-reports:gradle-enhanced-exceptions:0.1.0-60-ga5bc298 (1 constraints: 2808c885)
 com.palantir.safe-logging:safe-logging:3.7.0 (1 constraints: d41922d5)
 javax.inject:javax.inject:1 (1 constraints: 9d0e8743)
 org.apache.commons:commons-lang3:3.8.1 (1 constraints: 8d0d772f)

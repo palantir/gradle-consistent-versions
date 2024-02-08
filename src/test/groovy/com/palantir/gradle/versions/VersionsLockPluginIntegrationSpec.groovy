@@ -503,7 +503,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         then: 'Check fails because locks are not up to date'
         def failure = runTasksAndFail(':check')
         failure.task(':verifyLocks').outcome == TaskOutcome.FAILED
-        failure.output.contains(expectedError)
+        failure.output.contains('Locked dependencies missing from the resolution result: [org:b]. Please run: `./gradlew --write-locks` to fix the issue.')
 
         and: 'Can finally write locks once again'
         runTasks('--write-locks')
