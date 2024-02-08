@@ -46,7 +46,7 @@ class CheckUnusedConstraintIntegrationSpec extends IntegrationSpec {
     }
 
     def buildSucceed() {
-        BuildResult result = runTasks( 'checkUnusedConstraints')
+        BuildResult result = runTasks('checkUnusedConstraints')
         result.task(':checkUnusedConstraints').outcome == TaskOutcome.SUCCESS
         result
     }
