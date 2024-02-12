@@ -17,8 +17,8 @@
 package com.palantir.gradle.versions;
 
 import com.google.common.base.CharMatcher;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
+import com.palantir.gradle.extrainfo.exceptions.ExtraInfoException;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -59,14 +59,14 @@ public final class VersionsProps {
             if (constraint.matches()) {
                 String key = constraint.group(1);
                 String value = constraint.group(2);
-                Preconditions.checkArgument(
+                Validators.checkResultOrThrow(
                         CharMatcher.is(':').countIn(key) == 1,
-                        "Encountered invalid artifact name '%s' in versions.props",
-                        key);
-                Preconditions.checkArgument(
-                        !value.isEmpty(), "Encountered missing version for artifact '%s' in versions.props", value);
+                        String.format("Encountered invalid artifact name '%s' in versions.props", key));
+                Validators.checkResultOrThrow(
+                        !value.isEmpty(),
+                        String.format("Encountered missing version for artifact '%s' in versions.props", value));
                 if (versions.containsKey(key)) {
-                    throw new RuntimeException("Encountered duplicate constraint for '"
+                    throw new ExtraInfoException("Encountered duplicate constraint for '"
                             + key
                             + "' in versions.props. Please remove one of the entries:\n"
                             + String.format("    %s = %s\n", key, versions.get(key))
@@ -74,7 +74,7 @@ public final class VersionsProps {
                 }
                 versions.put(key, value);
             } else if (!line.trim().isEmpty() && !line.startsWith("#")) {
-                throw new IllegalArgumentException("Encountered invalid constraint " + line);
+                throw new ExtraInfoException("Encountered invalid constraint " + line);
             }
         }
         builder.putAllVersions(versions);
@@ -85,7 +85,7 @@ public final class VersionsProps {
         try {
             return Files.readAllLines(file);
         } catch (IOException e) {
-            throw new RuntimeException("Error reading " + file);
+            throw new ExtraInfoException("Error reading " + file);
         }
     }
 
@@ -141,7 +141,7 @@ public final class VersionsProps {
             return "org:" + sanitized;
         }
         if (occurrences >= 2) {
-            throw new IllegalArgumentException("Encountered a glob constraint with more than one ':' in it: " + glob);
+            throw new ExtraInfoException("Encountered a glob constraint with more than one ':' in it: " + glob);
         }
         return sanitized;
     }

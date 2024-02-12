@@ -19,6 +19,7 @@ package com.palantir.gradle.versions;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.palantir.gradle.extrainfo.exceptions.ExtraInfoException;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -46,7 +47,7 @@ public class VersionsPropsTest {
         Files.writeString(propsFile, "com.palantir.test:test:1.0.0", StandardCharsets.UTF_8);
 
         assertThatThrownBy(() -> VersionsProps.loadFromFile(propsFile))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(ExtraInfoException.class)
                 .hasMessageContaining("invalid constraint");
     }
 
@@ -56,7 +57,7 @@ public class VersionsPropsTest {
         Files.writeString(propsFile, "com.palantir.test:test = ", StandardCharsets.UTF_8);
 
         assertThatThrownBy(() -> VersionsProps.loadFromFile(propsFile))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(ExtraInfoException.class)
                 .hasMessageContaining("invalid constraint");
     }
 }

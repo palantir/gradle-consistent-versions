@@ -16,7 +16,7 @@
 
 package com.palantir.gradle.versions;
 
-import com.google.common.base.Preconditions;
+import com.palantir.gradle.extrainfo.exceptions.ExtraInfoException;
 import com.palantir.gradle.versions.lockstate.FullLockState;
 import com.palantir.gradle.versions.lockstate.ImmutableLine;
 import com.palantir.gradle.versions.lockstate.Line;
@@ -32,7 +32,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import org.gradle.api.GradleException;
 
 final class ConflictSafeLockFile {
     private static final String HEADER_COMMENT = "# Run ./gradlew --write-locks to regenerate this file";
@@ -67,7 +66,7 @@ final class ConflictSafeLockFile {
 
             return LockState.from(parseLines(productionDeps), parseLines(testDeps));
         } catch (IOException e) {
-            throw new GradleException(
+            throw new ExtraInfoException(
                     String.format("Couldn't load versions from palantir dependency lock file: %s", lockfile), e);
         }
     }
@@ -76,11 +75,9 @@ final class ConflictSafeLockFile {
         return stringStream
                 .map(line -> {
                     Matcher matcher = LINE_PATTERN.matcher(line);
-                    Preconditions.checkState(
+                    Validators.checkResultOrThrow(
                             matcher.matches(),
-                            "Found unparseable line in dependency lock file '%s': %s",
-                            lockfile,
-                            line);
+                            String.format("Found unparseable line in dependency lock file '%s': %s", lockfile, line));
                     return matcher;
                 })
                 .map(matcher -> ImmutableLine.of(
@@ -107,7 +104,7 @@ final class ConflictSafeLockFile {
                 lockState.testLinesByModuleIdentifier().values().forEach(line -> writeLine(line, writer));
             }
         } catch (IOException e) {
-            throw new RuntimeException("Failed to write lock file: " + lockfile, e);
+            throw new ExtraInfoException("Failed to write lock file: " + lockfile, e);
         }
     }
 
@@ -116,7 +113,7 @@ final class ConflictSafeLockFile {
             writer.append(line.stringRepresentation());
             writer.newLine();
         } catch (IOException e) {
-            throw new RuntimeException("Failed writing line", e);
+            throw new ExtraInfoException("Failed writing line", e);
         }
     }
 }

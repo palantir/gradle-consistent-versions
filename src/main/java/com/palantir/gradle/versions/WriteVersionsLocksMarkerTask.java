@@ -16,8 +16,8 @@
 
 package com.palantir.gradle.versions;
 
+import com.palantir.gradle.extrainfo.exceptions.ExtraInfoException;
 import org.gradle.api.DefaultTask;
-import org.gradle.api.GradleException;
 import org.gradle.api.tasks.TaskAction;
 
 public class WriteVersionsLocksMarkerTask extends DefaultTask {
@@ -26,11 +26,12 @@ public class WriteVersionsLocksMarkerTask extends DefaultTask {
         // Check that our task name matcher for writeVersionsLocks is actually matching up the Gradle one - if this
         // task is running but we didn't actually write locks, error out.
         if (!VersionsLockPlugin.shouldWriteLocks(getProject())) {
-            throw new GradleException("This `writeVersionsLocks` marker task has been run, but the versions.lock did "
-                    + "not actually get written out at configuration time. Either there is another task "
-                    + "dependency on this task, which is not supported (`writeVersionsLocks` must be run as a gradle "
-                    + "task from the command line - not as a dependent task). If not, this is a bug and should be "
-                    + "reported to the owners of this plugin.");
+            throw new ExtraInfoException(
+                    "This `writeVersionsLocks` marker task has been run, but the versions.lock did "
+                            + "not actually get written out at configuration time. Either there is another task "
+                            + "dependency on this task, which is not supported (`writeVersionsLocks` must be run as a gradle "
+                            + "task from the command line - not as a dependent task). If not, this is a bug and should be "
+                            + "reported to the owners of this plugin.");
         }
     }
 }
