@@ -18,7 +18,6 @@ package com.palantir.gradle.versions;
 
 import com.google.common.base.CharMatcher;
 import com.google.common.collect.Sets;
-import com.palantir.gradle.extrainfo.exceptions.ExtraInfoException;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -54,6 +53,7 @@ public final class VersionsProps {
     public static VersionsProps loadFromFile(Path path) {
         FuzzyPatternResolver.Builder builder = FuzzyPatternResolver.builder();
         Map<String, String> versions = new HashMap<>();
+        int lineNumber = 1;
         for (String line : safeReadLines(path)) {
             Matcher constraint = CONSTRAINT.matcher(line);
             if (constraint.matches()) {
@@ -61,21 +61,33 @@ public final class VersionsProps {
                 String value = constraint.group(2);
                 Validators.checkResultOrThrow(
                         CharMatcher.is(':').countIn(key) == 1,
-                        String.format("Encountered invalid artifact name '%s' in versions.props", key));
+                        String.format("Encountered invalid artifact name '%s' in versions.props", key),
+                        path,
+                        lineNumber);
                 Validators.checkResultOrThrow(
                         !value.isEmpty(),
-                        String.format("Encountered missing version for artifact '%s' in versions.props", value));
-                if (versions.containsKey(key)) {
-                    throw new ExtraInfoException("Encountered duplicate constraint for '"
-                            + key
-                            + "' in versions.props. Please remove one of the entries:\n"
-                            + String.format("    %s = %s\n", key, versions.get(key))
-                            + String.format("    %s = %s\n", key, value));
-                }
+                        String.format("Encountered missing version for artifact '%s' in versions.props", value),
+                        path,
+                        lineNumber);
+                Validators.checkResultOrThrow(
+                        !versions.containsKey(key),
+                        String.format(
+                                "Encountered duplicate constraint for '%s' in versions.props. "
+                                        + "Please remove one of the entries:\n"
+                                        + "    %s = %s\n"
+                                        + "    %s = %s\n",
+                                key, key, versions.get(key), key, value),
+                        path,
+                        lineNumber);
                 versions.put(key, value);
-            } else if (!line.trim().isEmpty() && !line.startsWith("#")) {
-                throw new ExtraInfoException("Encountered invalid constraint " + line);
+            } else {
+                Validators.checkResultOrThrow(
+                        line.trim().isEmpty() || line.startsWith("#"),
+                        "Encountered invalid constraint " + line,
+                        path,
+                        lineNumber);
             }
+            ++lineNumber;
         }
         builder.putAllVersions(versions);
         return new VersionsProps(builder.build());
@@ -85,7 +97,7 @@ public final class VersionsProps {
         try {
             return Files.readAllLines(file);
         } catch (IOException e) {
-            throw new ExtraInfoException("Error reading " + file);
+            throw new RuntimeException("Error reading " + file);
         }
     }
 
@@ -141,7 +153,7 @@ public final class VersionsProps {
             return "org:" + sanitized;
         }
         if (occurrences >= 2) {
-            throw new ExtraInfoException("Encountered a glob constraint with more than one ':' in it: " + glob);
+            throw new IllegalArgumentException("Encountered a glob constraint with more than one ':' in it: " + glob);
         }
         return sanitized;
     }

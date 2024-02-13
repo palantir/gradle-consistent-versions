@@ -16,14 +16,26 @@
 
 package com.palantir.gradle.versions;
 
-import com.palantir.gradle.extrainfo.exceptions.ExtraInfoException;
+import com.palantir.gradle.failurereports.exceptions.ExceptionWithSuggestion;
+import java.nio.file.Path;
 
 public final class Validators {
 
-    public static void checkResultOrThrow(boolean result, String errorMessageTemplate) {
+    public static void checkResultOrThrow(boolean result, String errorMessageTemplate, Path filePath) {
         if (!result) {
-            throw new ExtraInfoException(errorMessageTemplate);
+            throw new ExceptionWithSuggestion(
+                    errorMessageTemplate, filePath.getFileName().toString());
         }
+    }
+
+    public static void checkResultOrThrow(boolean result, String errorMessageTemplate, Path filePath, int lineNumber) {
+        if (!result) {
+            throw new ExceptionWithSuggestion(errorMessageTemplate, getInvalidFileLine(filePath, lineNumber));
+        }
+    }
+
+    private static String getInvalidFileLine(Path filePath, int lineNumber) {
+        return String.format("%s:%d", filePath.getFileName().toString(), lineNumber);
     }
 
     private Validators() {}

@@ -51,7 +51,7 @@ dependencies {
     implementation 'com.google.guava:guava'
     implementation 'com.netflix.nebula:nebula-dependency-recommender'
 
-    implementation 'com.palantir.gradle.failure-reports:gradle-extra-info-exceptions'
+    implementation 'com.palantir.gradle.failure-reports:gradle-failure-reports-exceptions'
     testImplementation platform('org.junit:junit-bom')
     testImplementation 'com.netflix.nebula:nebula-test'
     testImplementation 'org.mockito:mockito-core'

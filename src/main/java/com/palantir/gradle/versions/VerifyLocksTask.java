@@ -20,7 +20,7 @@ import com.google.common.collect.MapDifference;
 import com.google.common.collect.MapDifference.ValueDifference;
 import com.google.common.collect.Maps;
 import com.google.common.io.Files;
-import com.palantir.gradle.extrainfo.exceptions.ExtraInfoException;
+import com.palantir.gradle.failurereports.exceptions.ExceptionWithSuggestion;
 import com.palantir.gradle.versions.internal.MyModuleIdentifier;
 import com.palantir.gradle.versions.lockstate.Line;
 import com.palantir.gradle.versions.lockstate.LockState;
@@ -81,20 +81,25 @@ public class VerifyLocksTask extends DefaultTask {
 
         Set<MyModuleIdentifier> missing = difference.entriesOnlyOnLeft().keySet();
         if (!missing.isEmpty()) {
-            throw new ExtraInfoException(
-                    "Locked dependencies missing from the resolution result: " + missing, "./gradlew --write-locks");
+            throw new ExceptionWithSuggestion(
+                    "Locked dependencies missing from the resolution result: " + missing
+                            + ". Please run './gradlew --write-locks'.",
+                    "./gradlew --write-locks");
         }
 
         Set<MyModuleIdentifier> unknown = difference.entriesOnlyOnRight().keySet();
         if (!unknown.isEmpty()) {
-            throw new ExtraInfoException(
-                    "Found dependencies that were not in the lock state: " + unknown, "./gradlew --write-locks");
+            throw new ExceptionWithSuggestion(
+                    "Found dependencies that were not in the lock state: " + unknown
+                            + ". Please run './gradlew --write-locks'.",
+                    "./gradlew --write-locks");
         }
 
         Map<MyModuleIdentifier, ValueDifference<Line>> differing = difference.entriesDiffering();
         if (!differing.isEmpty()) {
-            throw new ExtraInfoException(
-                    "Found dependencies whose dependents changed:\n" + formatDependencyDifferences(differing) + "\n",
+            throw new ExceptionWithSuggestion(
+                    "Found dependencies whose dependents changed:\n" + formatDependencyDifferences(differing) + "\n"
+                            + "Please run './gradlew --write-locks'.",
                     "./gradlew --write-locks");
         }
     }

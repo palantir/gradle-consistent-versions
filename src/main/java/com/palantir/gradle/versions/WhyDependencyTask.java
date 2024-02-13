@@ -17,7 +17,7 @@
 package com.palantir.gradle.versions;
 
 import com.google.common.base.Splitter;
-import com.palantir.gradle.extrainfo.exceptions.ExtraInfoException;
+import com.palantir.gradle.failurereports.exceptions.ExceptionWithSuggestion;
 import com.palantir.gradle.versions.internal.MyModuleVersionIdentifier;
 import com.palantir.gradle.versions.lockstate.Dependents;
 import com.palantir.gradle.versions.lockstate.FullLockState;
@@ -78,9 +78,9 @@ public class WhyDependencyTask extends DefaultTask {
         if (!hashOption.isPresent() && !dependencyOption.isPresent()) {
             Optional<String> example =
                     lines.stream().findFirst().map(line -> ", e.g. './gradlew why --dependency " + line.name() + "'");
-            throw new ExtraInfoException(
+            throw new ExceptionWithSuggestion(
                     "./gradlew why requires a '--dependency <dependency>' option" + example.orElse(""),
-                    example.orElse("./gradlew why --dependency ADD_HERE"));
+                    example.orElse("./gradlew why --dependency <dependency>"));
         }
 
         Optional<Set<String>> hashes = Optional.ofNullable(hashOption.getOrNull())

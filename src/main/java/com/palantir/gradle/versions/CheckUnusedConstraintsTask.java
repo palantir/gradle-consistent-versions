@@ -18,7 +18,7 @@ package com.palantir.gradle.versions;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
-import com.palantir.gradle.extrainfo.exceptions.ExtraInfoException;
+import com.palantir.gradle.failurereports.exceptions.ExceptionWithSuggestion;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.IOException;
@@ -98,7 +98,7 @@ public class CheckUnusedConstraintsTask extends DefaultTask {
     @TaskAction
     public final void checkNoUnusedPin() {
         if (shouldFailWithConfigurationOnDemandMessage.get()) {
-            throw new ExtraInfoException(
+            throw new ExceptionWithSuggestion(
                     "The gradle-consistent-versions checkUnusedConstraints task must have all "
                             + "projects configured to work accurately, but due to Gradle configuration-on-demand, not all "
                             + "projects were configured. Make your command work by including a task with no project name (such "
@@ -134,8 +134,9 @@ public class CheckUnusedConstraintsTask extends DefaultTask {
             return;
         }
 
-        throw new ExtraInfoException(
-                "There are unused pins in your versions.props: \n" + unusedConstraints + "\n\n",
+        throw new ExceptionWithSuggestion(
+                "There are unused pins in your versions.props: \n" + unusedConstraints + "\n\n"
+                        + "Run ./gradlew checkUnusedConstraints --fix to remove them.",
                 "./gradlew checkUnusedConstraints --fix");
     }
 
@@ -150,7 +151,7 @@ public class CheckUnusedConstraintsTask extends DefaultTask {
                 }
             }
         } catch (IOException e) {
-            throw new ExtraInfoException("Error opening or creating " + propsFile.toPath(), e);
+            throw new RuntimeException("Error opening or creating " + propsFile.toPath(), e);
         }
     }
 
@@ -158,7 +159,7 @@ public class CheckUnusedConstraintsTask extends DefaultTask {
         try (Stream<String> lines = Files.lines(propsFile.toPath())) {
             return lines.collect(ImmutableList.toImmutableList());
         } catch (IOException e) {
-            throw new ExtraInfoException("Error reading " + propsFile.toPath(), e);
+            throw new RuntimeException("Error reading " + propsFile.toPath(), e);
         }
     }
 
@@ -177,7 +178,7 @@ public class CheckUnusedConstraintsTask extends DefaultTask {
                                 .map(mcid -> ((ModuleComponentIdentifier) mcid).getModuleIdentifier())
                                 .map(mid -> mid.getGroup() + ":" + mid.getName());
                     } catch (Exception e) {
-                        throw new ExtraInfoException(
+                        throw new RuntimeException(
                                 String.format(
                                         "Error during resolution of the dependency graph of configuration %s",
                                         configuration),
