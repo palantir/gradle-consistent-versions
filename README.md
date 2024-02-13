@@ -117,6 +117,13 @@ This has the side effect that a line referring specifically to a jar is independ
 
 [virtual platform]: https://docs.gradle.org/current/userguide/dependency_version_alignment.html
 
+Comments in `versions.props` files are signified by a `#` character and can be either on their own line or trailing on the same line as a version. 
+
+```
+# comment on its own line
+junit:junit = 4.12
+org.assertj:* = 3.10.0  # same-line comment 
+```
 
 ### versions.lock: compact representation of your prod classpath
 When you run `./gradlew --write-locks`, the plugin will automatically write a new file: `versions.lock` which contains a version for every single one of your transitive dependencies.
