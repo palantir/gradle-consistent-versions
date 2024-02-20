@@ -21,16 +21,16 @@ import java.nio.file.Path;
 
 public final class Validators {
 
-    public static void checkResultOrThrow(boolean result, String errorMessageTemplate, Path filePath) {
+    public static void checkResultOrThrow(boolean result, String errorMessage, Path filePath) {
         if (!result) {
             throw new ExceptionWithSuggestion(
-                    errorMessageTemplate, filePath.getFileName().toString());
+                    errorMessage, filePath.getFileName().toString());
         }
     }
 
-    public static void checkResultOrThrow(boolean result, String errorMessageTemplate, Path filePath, int lineNumber) {
+    public static void checkResultOrThrow(boolean result, String errorMessage, Path filePath, int lineNumber) {
         if (!result) {
-            throw new ExceptionWithSuggestion(errorMessageTemplate, getInvalidFileLine(filePath, lineNumber));
+            throw new ExceptionWithSuggestion(errorMessage, getInvalidFileLine(filePath, lineNumber));
         }
     }
 

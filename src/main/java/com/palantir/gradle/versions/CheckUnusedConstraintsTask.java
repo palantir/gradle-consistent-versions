@@ -99,10 +99,10 @@ public class CheckUnusedConstraintsTask extends DefaultTask {
     public final void checkNoUnusedPin() {
         if (shouldFailWithConfigurationOnDemandMessage.get()) {
             throw new ExceptionWithSuggestion(
-                    "The gradle-consistent-versions checkUnusedConstraints task must have all "
-                            + "projects configured to work accurately, but due to Gradle configuration-on-demand, not all "
-                            + "projects were configured. Make your command work by including a task with no project name (such "
-                            + "as `./gradlew build` vs. `./gradlew :build`) or use --no-configure-on-demand.",
+                    "The gradle-consistent-versions checkUnusedConstraints task must have all projects "
+                            + "configured to work accurately, but due to Gradle configuration-on-demand, not all "
+                            + "projects were configured. Make your command work by including a task with no project "
+                            + "name (such as `./gradlew build` vs. `./gradlew :build`) or use --no-configure-on-demand.",
                     "./gradlew build");
         }
 
