@@ -16,10 +16,18 @@
 
 package com.palantir.gradle.versions;
 
+import com.google.common.base.Strings;
 import com.palantir.gradle.failurereports.exceptions.ExceptionWithSuggestion;
 import java.nio.file.Path;
 
 public final class Validators {
+
+    public static void checkResultOrThrow(boolean condition, String errorTemplate, String commandSuggestion) {
+        if (!condition) {
+            throw new ExceptionWithSuggestion(
+                    Strings.lenientFormat(errorTemplate, commandSuggestion), commandSuggestion);
+        }
+    }
 
     public static void checkResultOrThrow(boolean result, String errorMessage, Path filePath) {
         if (!result) {
