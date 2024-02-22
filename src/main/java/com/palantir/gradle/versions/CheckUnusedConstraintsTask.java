@@ -18,6 +18,7 @@ package com.palantir.gradle.versions;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
+import com.palantir.gradle.failurereports.exceptions.ExceptionWithSuggestion;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.IOException;
@@ -30,7 +31,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.gradle.api.DefaultTask;
-import org.gradle.api.GradleException;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.component.ModuleComponentIdentifier;
 import org.gradle.api.artifacts.result.ResolutionResult;
@@ -98,10 +98,12 @@ public class CheckUnusedConstraintsTask extends DefaultTask {
     @TaskAction
     public final void checkNoUnusedPin() {
         if (shouldFailWithConfigurationOnDemandMessage.get()) {
-            throw new GradleException("The gradle-consistent-versions checkUnusedConstraints task must have all "
-                    + "projects configured to work accurately, but due to Gradle configuration-on-demand, not all "
-                    + "projects were configured. Make your command work by including a task with no project name (such "
-                    + "as `./gradlew build` vs. `./gradlew :build`) or use --no-configure-on-demand.");
+            throw new ExceptionWithSuggestion(
+                    "The gradle-consistent-versions checkUnusedConstraints task must have all projects configured to"
+                            + " work accurately, but due to Gradle configuration-on-demand, not all projects were"
+                            + " configured. Make your command work by including a task with no project name (such as"
+                            + " `./gradlew build` vs. `./gradlew :build`) or use --no-configure-on-demand.",
+                    "./gradlew build");
         }
 
         Set<String> artifacts = getClasspath().get();
@@ -132,10 +134,10 @@ public class CheckUnusedConstraintsTask extends DefaultTask {
             return;
         }
 
-        throw new RuntimeException("There are unused pins in your versions.props: \n"
-                + unusedConstraints
-                + "\n\n"
-                + "Run ./gradlew checkUnusedConstraints --fix to remove them.");
+        throw new ExceptionWithSuggestion(
+                "There are unused pins in your versions.props: \n" + unusedConstraints + "\n\n"
+                        + "Run ./gradlew checkUnusedConstraints --fix to remove them.",
+                "./gradlew checkUnusedConstraints --fix");
     }
 
     private static void writeVersionsProps(File propsFile, Set<String> unusedConstraints) {
@@ -149,7 +151,7 @@ public class CheckUnusedConstraintsTask extends DefaultTask {
                 }
             }
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("Error opening or creating " + propsFile.toPath(), e);
         }
     }
 
@@ -157,7 +159,7 @@ public class CheckUnusedConstraintsTask extends DefaultTask {
         try (Stream<String> lines = Files.lines(propsFile.toPath())) {
             return lines.collect(ImmutableList.toImmutableList());
         } catch (IOException e) {
-            throw new RuntimeException("Error reading " + propsFile.toPath());
+            throw new RuntimeException("Error reading " + propsFile.toPath(), e);
         }
     }
 
@@ -178,7 +180,7 @@ public class CheckUnusedConstraintsTask extends DefaultTask {
                     } catch (Exception e) {
                         throw new RuntimeException(
                                 String.format(
-                                        "Error during resolution of the dependency graph of " + "configuration %s",
+                                        "Error during resolution of the dependency graph of configuration %s",
                                         configuration),
                                 e);
                     }

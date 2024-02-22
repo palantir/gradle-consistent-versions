@@ -39,6 +39,7 @@ import org.gradle.language.base.plugins.LifecycleBasePlugin;
 
 public class VerifyLocksTask extends DefaultTask {
 
+    private static final String WRITE_LOCKS_SUGGESTION = "./gradlew writeVersionsLock";
     private final File outputFile;
     private final Property<LockState> persistedLockState;
     private final Property<LockState> currentLockState;
@@ -79,26 +80,23 @@ public class VerifyLocksTask extends DefaultTask {
                 getterForScope.apply(persistedLockState.get()), getterForScope.apply(currentLockState.get()));
 
         Set<MyModuleIdentifier> missing = difference.entriesOnlyOnLeft().keySet();
-        if (!missing.isEmpty()) {
-            throw new RuntimeException("Locked dependencies missing from the resolution result: "
-                    + missing
-                    + ". Please run './gradlew --write-locks'.");
-        }
+        Validators.checkResultOrThrow(
+                missing.isEmpty(),
+                "Locked dependencies missing from the resolution result: " + missing + ". Please run '%s'.",
+                WRITE_LOCKS_SUGGESTION);
 
         Set<MyModuleIdentifier> unknown = difference.entriesOnlyOnRight().keySet();
-        if (!unknown.isEmpty()) {
-            throw new RuntimeException("Found dependencies that were not in the lock state: "
-                    + unknown
-                    + ". Please run './gradlew --write-locks'.");
-        }
+        Validators.checkResultOrThrow(
+                unknown.isEmpty(),
+                "Found dependencies that were not in the lock state: " + unknown + ". Please run '%s'.",
+                WRITE_LOCKS_SUGGESTION);
 
         Map<MyModuleIdentifier, ValueDifference<Line>> differing = difference.entriesDiffering();
-        if (!differing.isEmpty()) {
-            throw new RuntimeException("Found dependencies whose dependents changed:\n"
-                    + formatDependencyDifferences(differing)
-                    + "\n\n"
-                    + "Please run './gradlew --write-locks'.");
-        }
+        Validators.checkResultOrThrow(
+                differing.isEmpty(),
+                "Found dependencies whose dependents changed:\n" + formatDependencyDifferences(differing)
+                        + "\nPlease run %s.",
+                WRITE_LOCKS_SUGGESTION);
     }
 
     private static String formatDependencyDifferences(Map<MyModuleIdentifier, ValueDifference<Line>> differing) {

@@ -16,7 +16,6 @@
 
 package com.palantir.gradle.versions;
 
-import com.google.common.base.Preconditions;
 import com.palantir.gradle.versions.lockstate.FullLockState;
 import com.palantir.gradle.versions.lockstate.ImmutableLine;
 import com.palantir.gradle.versions.lockstate.Line;
@@ -76,11 +75,10 @@ final class ConflictSafeLockFile {
         return stringStream
                 .map(line -> {
                     Matcher matcher = LINE_PATTERN.matcher(line);
-                    Preconditions.checkState(
+                    Validators.checkResultOrThrow(
                             matcher.matches(),
-                            "Found unparseable line in dependency lock file '%s': %s",
-                            lockfile,
-                            line);
+                            String.format("Found unparseable line in dependency lock file '%s': %s", lockfile, line),
+                            lockfile);
                     return matcher;
                 })
                 .map(matcher -> ImmutableLine.of(
