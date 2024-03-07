@@ -1001,7 +1001,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
             sourceSets
                     .matching(sourceSet -> {
                         String name = sourceSet.getName().toLowerCase(Locale.ROOT);
-                        return name.equals("jmh") || name.endsWith("test");
+                        return name.equals("jmh") || name.endsWith("test") || name.startsWith("test");
                     })
                     .forEach(sourceSet -> lockedConfigurations.addAllTestConfigurations(
                             getConfigurationsForSourceSet(project, sourceSet)));
