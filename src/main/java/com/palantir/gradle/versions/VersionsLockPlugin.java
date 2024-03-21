@@ -48,7 +48,6 @@ import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -1000,8 +999,11 @@ public class VersionsLockPlugin implements Plugin<Project> {
             // Use heuristic for test source sets.
             sourceSets
                     .matching(sourceSet -> {
-                        String name = sourceSet.getName().toLowerCase(Locale.ROOT);
-                        return name.equals("jmh") || name.endsWith("test");
+                        String name = sourceSet.getName();
+                        return name.equals("test")
+                                || name.equals("testFixtures")
+                                || name.equals("jmh")
+                                || name.endsWith("Test");
                     })
                     .forEach(sourceSet -> lockedConfigurations.addAllTestConfigurations(
                             getConfigurationsForSourceSet(project, sourceSet)));
