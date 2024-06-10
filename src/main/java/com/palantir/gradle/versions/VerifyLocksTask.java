@@ -39,7 +39,7 @@ import org.gradle.language.base.plugins.LifecycleBasePlugin;
 
 public class VerifyLocksTask extends DefaultTask {
 
-    private static final String WRITE_LOCKS_SUGGESTION = "./gradlew writeVersionsLock";
+    private static final String WRITE_LOCKS_SUGGESTION = "./gradlew writeVersionsLocks";
     private final File outputFile;
     private final Property<LockState> persistedLockState;
     private final Property<LockState> currentLockState;

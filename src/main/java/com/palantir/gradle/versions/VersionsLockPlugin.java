@@ -259,8 +259,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
         // write the versions lock task without running --write-locks code from any other gradle plugin. Unfortunately,
         // we can't just have the task run the write locks code as we need to write the locks in afterEvaluate.
         project.getTasks()
-                .register(WRITE_VERSIONS_LOCKS_TASK, WriteVersionsLocksMarkerTask.class, writeVersionsLock -> {
-                    writeVersionsLock.getOutputs().upToDateWhen(_ignored -> false);
+                .register(WRITE_VERSIONS_LOCKS_TASK, WriteVersionsLocksMarkerTask.class, writeVersionsLocks -> {
+                    writeVersionsLocks.getOutputs().upToDateWhen(_ignored -> false);
                 });
 
         // afterEvaluate is necessary to ensure all projects' dependencies have been configured, because we
