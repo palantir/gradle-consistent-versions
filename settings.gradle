@@ -1,1 +1,3 @@
 rootProject.name = 'gradle-consistent-versions'
+
+include 'intellij-plugin'

@@ -1,0 +1,12 @@
+<idea-plugin url="https://github.com/palantir/gradle-jdks">
+  <id>gradle-consistent-versions</id>
+  <name>gradle-consistent-versions</name>
+  <vendor url="https://github.com/palantir/gradle-jdks">
+    Palantir
+  </vendor>
+
+  <depends>com.intellij.modules.java</depends>
+  <depends>com.intellij.modules.lang</depends>
+  <depends>com.intellij.modules.platform</depends>
+  <depends>org.jetbrains.plugins.gradle</depends>
+</idea-plugin>

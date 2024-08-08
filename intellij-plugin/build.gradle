@@ -1,0 +1,74 @@
+apply plugin: 'java'
+apply plugin: 'maven-publish'
+apply plugin: 'org.jetbrains.intellij'
+apply plugin: 'com.palantir.external-publish-jar'
+
+intellij {
+    pluginName = "gradle-consistent-versions"
+    updateSinceUntilBuild = true
+    version = "2024.1"
+    plugins = ['java', 'org.jetbrains.plugins.gradle']
+}
+
+def buildPlugin = tasks.named("buildPlugin")
+
+patchPluginXml {
+    pluginDescription = "TODO"
+    version = project.version
+    sinceBuild = '241' // TODO: test against this version of IntelliJ to ensure no regressions
+    untilBuild = ''
+}
+
+tasks.named("runIde") {
+    // Allow debugging
+    jvmArgs '--add-exports=java.base/jdk.internal.vm=ALL-UNNAMED'
+
+    dependsOn(buildPlugin)
+}
+
+def publishPlugin = tasks.named("publishPlugin") {
+    onlyIf { versionDetails().isCleanTag }
+
+    token = System.env.JETBRAINS_PLUGIN_REPO_TOKEN
+}
+tasks.named("publish") {
+    dependsOn(publishPlugin)
+}
+
+tasks.named("check") {
+    dependsOn(buildPlugin, tasks.named("verifyPlugin"))
+}
+
+tasks.named("buildSearchableOptions") {
+    enabled = false
+}
+
+// Prevent nebula.maven-publish from trying to publish components.java - we are publishing our own different artifact
+ext."nebulaPublish.maven.jar" = false
+
+publishing {
+    publications {
+        nebula(MavenPublication) {
+            artifact buildPlugin
+        }
+    }
+}
+
+versionsLock {
+    // 'org.jetbrains.intellij' creates a dependency on *IntelliJ*, which GCV cannot resolve
+    disableJavaPluginDefaults()
+}
+
+// Javadoc fails if there are no public classes to javadoc, so make it stop complaining.
+tasks.named("javadoc", Javadoc) {
+    failOnError = false
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.errorprone.disable 'PreferSafeLoggableExceptions'
+}
+
+javaVersion {
+    target = 17
+    runtime = 17
+}
