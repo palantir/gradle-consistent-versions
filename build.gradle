@@ -8,7 +8,7 @@ buildscript {
         classpath 'com.palantir.jakartapackagealignment:jakarta-package-alignment:0.6.0'
         classpath 'com.palantir.gradle.jdks:gradle-jdks:0.44.0'
         classpath 'com.palantir.gradle.jdkslatest:gradle-jdks-latest:0.14.0'
-        classpath 'com.palantir.gradle.externalpublish:gradle-external-publish-plugin:1.15.0'
+        classpath 'com.palantir.gradle.externalpublish:gradle-external-publish-plugin:1.18.0'
         classpath 'com.palantir.gradle.failure-reports:gradle-failure-reports:1.10.0'
         classpath 'com.palantir.javaformat:gradle-palantir-java-format:2.49.0'
         classpath 'com.palantir.gradle.consistentversions:gradle-consistent-versions:2.23.0'
@@ -20,7 +20,6 @@ buildscript {
 
 plugins {
     id 'com.gradle.plugin-publish' version '1.2.1'
-    id "org.jetbrains.intellij" version "1.17.3" apply false
 }
 
 apply plugin: 'com.palantir.external-publish'

@@ -9,4 +9,21 @@
   <depends>com.intellij.modules.lang</depends>
   <depends>com.intellij.modules.platform</depends>
   <depends>org.jetbrains.plugins.gradle</depends>
+
+  <extensions defaultExtensionNs="com.intellij">
+    <fileType name="VersionProps File" implementationClass="com.palantir.gradle.versions.intellij.VersionPropsFileType" fieldName="INSTANCE"
+              language="VersionProps" extensions="props"/>
+    <lang.parserDefinition language="VersionProps" implementationClass="com.palantir.gradle.versions.intellij.VersionPropsParserDefinition"/>
+    <lang.syntaxHighlighterFactory language="VersionProps"
+                                   implementationClass="com.palantir.gradle.versions.intellij.VersionPropsSyntaxHighlighterFactory"/>
+    <completion.contributor language="VersionProps"
+                            implementationClass="com.palantir.gradle.versions.intellij.VersionCompletionContributor" order="last"/>
+    <completion.contributor language="VersionProps"
+                            implementationClass="com.palantir.gradle.versions.intellij.GroupCompletionContributor"/>
+    <completion.contributor language="VersionProps"
+                            implementationClass="com.palantir.gradle.versions.intellij.PackageCompletionContributor"/>
+    <lang.commenter language="VersionProps" implementationClass="com.palantir.gradle.versions.intellij.VersionPropsCommenter"/>
+    <vfs.asyncListener implementation="com.palantir.gradle.versions.intellij.VersionPropsFileListener"/>
+    <annotator language="VersionProps" implementationClass="com.palantir.gradle.versions.intellij.VersionPropsAnnotator"/>
+  </extensions>
 </idea-plugin>
