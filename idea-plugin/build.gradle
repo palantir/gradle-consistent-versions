@@ -19,11 +19,15 @@ patchPluginXml {
     untilBuild = ''
 }
 
-tasks.named("runIde") {
+tasks.withType(JavaExec).named("runIde") {
     // Allow debugging
     jvmArgs '--add-exports=java.base/jdk.internal.vm=ALL-UNNAMED'
 
     dependsOn(buildPlugin)
+}
+
+afterEvaluate {
+    tasks.withType(JavaExec).named('runIde').configure { it.javaLauncher = null }
 }
 
 def publishPlugin = tasks.named("publishPlugin") {
