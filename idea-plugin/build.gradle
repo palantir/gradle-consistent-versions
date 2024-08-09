@@ -70,6 +70,8 @@ tasks.named("javadoc", Javadoc) {
 
 tasks.withType(JavaCompile).configureEach {
     options.errorprone.disable 'PreferSafeLoggableExceptions'
+    options.errorprone.disable 'PreferSafeLogger'
+    options.errorprone.disable 'StrictUnusedVariable'
 }
 
 javaVersion {
