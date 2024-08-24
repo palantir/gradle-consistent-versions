@@ -60,4 +60,60 @@ public class VersionsPropsTest {
                 .isInstanceOf(ExceptionWithSuggestion.class)
                 .hasMessageContaining("invalid constraint");
     }
+
+    @Test
+    void ignores_comment_on_its_own_line() throws IOException {
+        Path propsFile = tempDir.resolve("versions.props");
+        Files.writeString(
+                propsFile, "# comment on its own line\ncom.palantir.test:test = 1.0.0", StandardCharsets.UTF_8);
+
+        VersionsProps versionsProps = VersionsProps.loadFromFile(propsFile);
+        assertThat(versionsProps.getFuzzyResolver().exactMatches()).containsExactly("com.palantir.test:test");
+        assertThat(versionsProps.getFuzzyResolver().globs()).isEmpty();
+    }
+
+    @Test
+    void ignores_comment_on_same_line() throws IOException {
+        Path propsFile = tempDir.resolve("versions.props");
+        Files.writeString(propsFile, "com.palantir.test:test = 1.0.0  # comment on same line", StandardCharsets.UTF_8);
+
+        VersionsProps versionsProps = VersionsProps.loadFromFile(propsFile);
+        assertThat(versionsProps.getFuzzyResolver().exactMatches()).containsExactly("com.palantir.test:test");
+        assertThat(versionsProps.getFuzzyResolver().globs()).isEmpty();
+    }
+
+    @Test
+    void ignores_comment_on_same_line_with_no_hash() throws IOException {
+        Path propsFile = tempDir.resolve("versions.props");
+        Files.writeString(
+                propsFile, "com.palantir.test:test = 1.0.0  comment on same line with no hash", StandardCharsets.UTF_8);
+
+        VersionsProps versionsProps = VersionsProps.loadFromFile(propsFile);
+        assertThat(versionsProps.getFuzzyResolver().exactMatches()).containsExactly("com.palantir.test:test");
+        assertThat(versionsProps.getFuzzyResolver().globs()).isEmpty();
+    }
+
+    @Test
+    void ignores_comment_on_same_line_with_hash_and_no_spaces() throws IOException {
+        Path propsFile = tempDir.resolve("versions.props");
+        Files.writeString(
+                propsFile,
+                "com.palantir.test:test = 1.0.0#comment on same line with hash and no spaces",
+                StandardCharsets.UTF_8);
+
+        VersionsProps versionsProps = VersionsProps.loadFromFile(propsFile);
+        assertThat(versionsProps.getFuzzyResolver().exactMatches()).containsExactly("com.palantir.test:test");
+        assertThat(versionsProps.getFuzzyResolver().globs()).isEmpty();
+    }
+
+    @Test
+    void ignores_commented_out_constraint() throws IOException {
+        Path propsFile = tempDir.resolve("versions.props");
+        Files.writeString(
+                propsFile, "# com.palantir.test:test = 1.0.0\n#com.palantir.test:test2=1.2.3", StandardCharsets.UTF_8);
+
+        VersionsProps versionsProps = VersionsProps.loadFromFile(propsFile);
+        assertThat(versionsProps.getFuzzyResolver().exactMatches()).isEmpty();
+        assertThat(versionsProps.getFuzzyResolver().globs()).isEmpty();
+    }
 }
