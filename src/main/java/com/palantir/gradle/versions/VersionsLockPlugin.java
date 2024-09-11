@@ -93,7 +93,7 @@ import org.gradle.api.logging.Logging;
 import org.gradle.api.logging.configuration.ShowStacktrace;
 import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.plugins.JavaPlugin;
-import org.gradle.api.plugins.JavaPluginConvention;
+import org.gradle.api.plugins.JavaPluginExtension;
 import org.gradle.api.provider.Property;
 import org.gradle.api.publish.Publication;
 import org.gradle.api.publish.PublishingExtension;
@@ -108,7 +108,7 @@ import org.immutables.value.Value;
 
 public class VersionsLockPlugin implements Plugin<Project> {
     private static final Logger log = Logging.getLogger(VersionsLockPlugin.class);
-    static final GradleVersion MINIMUM_GRADLE_VERSION = GradleVersion.version("6.1");
+    static final GradleVersion MINIMUM_GRADLE_VERSION = GradleVersion.version("7.2");
 
     /** Root project configuration that collects all the dependencies from each project. */
     static final String UNIFIED_CLASSPATH_CONFIGURATION_NAME = "unifiedClasspath";
@@ -989,9 +989,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 Collections2.transform(ext.getTestConfigurations(), project.getConfigurations()::getByName));
 
         if (ext.isUseJavaPluginDefaults() && project.getPluginManager().hasPlugin("java")) {
-            SourceSetContainer sourceSets = project.getConvention()
-                    .getPlugin(JavaPluginConvention.class)
-                    .getSourceSets();
+            SourceSetContainer sourceSets =
+                    project.getExtensions().getByType(JavaPluginExtension.class).getSourceSets();
 
             lockedConfigurations.addAllProductionConfigurations(
                     getConfigurationsForSourceSet(project, sourceSets.getByName(SourceSet.MAIN_SOURCE_SET_NAME)));
