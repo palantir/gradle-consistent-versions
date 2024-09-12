@@ -33,6 +33,7 @@ apply plugin: 'groovy'
 apply plugin: 'com.palantir.baseline'
 apply plugin: 'com.palantir.consistent-versions'
 apply plugin: 'com.palantir.git-version'
+apply plugin: 'com.palantir.jdks'
 apply plugin: 'org.inferred.processors'
 apply plugin: 'com.palantir.external-publish-jar'
 apply plugin: 'com.palantir.failure-reports'
@@ -127,4 +128,8 @@ project.ext.'gradle.publish.secret' = System.env["GRADLE_SECRET"]
 
 javaVersions {
     libraryTarget = 11
+}
+
+jdks {
+    daemonTarget = 17
 }
