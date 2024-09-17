@@ -22,6 +22,11 @@ plugins {
  id 'com.gradle.plugin-publish' version '1.3.0'
 }
 
+repositories {
+    mavenCentral() { metadataSources { mavenPom(); ignoreGradleMetadataRedirection() } }
+}
+
+
 apply plugin: 'com.palantir.external-publish'
 apply plugin: 'java-gradle-plugin'
 apply plugin: 'groovy'
@@ -37,10 +42,6 @@ apply plugin: 'com.palantir.jdks.latest'
 allprojects {
     apply plugin: 'com.palantir.java-format'
     apply plugin: 'com.palantir.jakarta-package-alignment'
-
-    repositories {
-        mavenCentral() { metadataSources { mavenPom(); ignoreGradleMetadataRedirection() } }
-    }
 }
 
 group 'com.palantir.gradle.consistentversions'
