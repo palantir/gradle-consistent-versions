@@ -42,8 +42,7 @@ public class GroupCompletionContributor extends CompletionContributor {
                             @NotNull ProcessingContext context,
                             @NotNull CompletionResultSet resultSet) {
 
-                        List<String> repositories = List.of(
-                                "https://repo1.maven.org/maven2/");
+                        List<String> repositories = List.of("https://repo1.maven.org/maven2/");
 
                         DependencyGroup group = new DependencyGroup().groupFromParameters(parameters);
 

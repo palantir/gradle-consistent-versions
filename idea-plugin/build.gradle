@@ -14,6 +14,10 @@ patchPluginXml {
     untilBuild = ''
 }
 
+afterEvaluate {
+    tasks.named('test').configure { it.javaLauncher = null }
+}
+
 // Javadoc fails if there are no public classes to javadoc, so make it stop complaining.
 tasks.named("javadoc", Javadoc) {
     failOnError = false
@@ -34,4 +38,5 @@ javaVersion {
 
 dependencies {
     implementation 'org.immutables:value'
+    testImplementation 'org.junit.jupiter:junit-jupiter'
 }

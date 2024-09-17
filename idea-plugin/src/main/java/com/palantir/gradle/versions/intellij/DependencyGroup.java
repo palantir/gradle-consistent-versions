@@ -47,11 +47,14 @@ public class DependencyGroup {
     }
 
     public final String asUrlString() {
-        String url = String.join("/", parts) + "/";
+        String url = String.join("/", parts);
 
         // for som odd reason if you edit the first part of the group you get "IntellijIdeaRulezzz"
         if (url.contains("IntellijIdeaRulezzz")) {
             return "";
+        }
+        if (!url.isEmpty()) {
+            url = url + "/";
         }
         return url;
     }

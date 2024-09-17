@@ -38,7 +38,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.w3c.dom.NodeList;
 
-// TODO: Use Immutables
 public class RepositoryExplorer {
 
     private final String baseUrl;
