@@ -1,0 +1,5 @@
+type: fix
+fix:
+  description: use findByType when not sure if java plugin exists
+  links:
+  - https://github.com/palantir/gradle-consistent-versions/pull/1231
