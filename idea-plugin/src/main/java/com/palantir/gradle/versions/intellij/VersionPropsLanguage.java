@@ -18,7 +18,7 @@ package com.palantir.gradle.versions.intellij;
 
 import com.intellij.lang.Language;
 
-public class VersionPropsLanguage extends Language {
+public final class VersionPropsLanguage extends Language {
 
     public static final VersionPropsLanguage INSTANCE = new VersionPropsLanguage();
 

@@ -42,6 +42,7 @@ public class VersionCompletionContributor extends CompletionContributor {
                 CompletionType.BASIC,
                 PlatformPatterns.psiElement(VersionPropsTypes.VERSION),
                 new CompletionProvider<>() {
+                    @Override
                     public void addCompletions(
                             @NotNull CompletionParameters parameters,
                             @NotNull ProcessingContext context,

@@ -24,6 +24,7 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -78,7 +79,8 @@ public class RepositoryExplorer {
                     throw new ProcessCanceledException();
                 }
 
-                BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+                BufferedReader in =
+                        new BufferedReader(new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8));
                 StringBuilder result = new StringBuilder();
                 String inputLine;
 
@@ -98,7 +100,7 @@ public class RepositoryExplorer {
         } catch (InterruptedException | ProcessCanceledException e) {
             log.debug("Fetch operation was cancelled", e);
         } catch (Exception e) {
-            log.warn("Failed to fetch contents for repo: {}", repoUrl, e);
+            log.warn("Failed to fetch contents", e);
         }
         return content;
     }
@@ -134,7 +136,8 @@ public class RepositoryExplorer {
         try {
             DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
             DocumentBuilder builder = factory.newDocumentBuilder();
-            org.w3c.dom.Document doc = builder.parse(new java.io.ByteArrayInputStream(metadataContent.getBytes()));
+            org.w3c.dom.Document doc =
+                    builder.parse(new java.io.ByteArrayInputStream(metadataContent.getBytes(StandardCharsets.UTF_8)));
 
             NodeList versionNodes = doc.getElementsByTagName("version");
             for (int i = 0; i < versionNodes.getLength(); i++) {
