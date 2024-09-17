@@ -31,12 +31,12 @@ public class VersionPropsFile extends PsiFileBase {
 
     @NotNull
     @Override
-    public FileType getFileType() {
+    public final FileType getFileType() {
         return VersionPropsFileType.INSTANCE;
     }
 
     @Override
-    public String toString() {
+    public final String toString() {
         return "VersionProps File";
     }
 }

@@ -28,7 +28,7 @@ public class VersionPropsTokenType extends IElementType {
     }
 
     @Override
-    public String toString() {
+    public final String toString() {
         return "VersionPropsTokenType." + super.toString();
     }
 }

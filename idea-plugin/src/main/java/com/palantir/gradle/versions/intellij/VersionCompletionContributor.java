@@ -58,8 +58,7 @@ public class VersionCompletionContributor extends CompletionContributor {
                         DependencyPackage dependencyPackage = new DependencyPackage(
                                 property.getDependencyName().getText());
 
-                        List<String> repositories = List.of(
-                                "https://repo1.maven.org/maven2/");
+                        List<String> repositories = List.of("https://repo1.maven.org/maven2/");
 
                         repositories.stream()
                                 .map(RepositoryExplorer::new)

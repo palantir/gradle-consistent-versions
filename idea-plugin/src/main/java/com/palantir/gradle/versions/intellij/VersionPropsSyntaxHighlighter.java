@@ -16,8 +16,6 @@
 
 package com.palantir.gradle.versions.intellij;
 
-import static com.intellij.openapi.editor.colors.TextAttributesKey.createTextAttributesKey;
-
 import com.intellij.lexer.Lexer;
 import com.intellij.openapi.editor.DefaultLanguageHighlighterColors;
 import com.intellij.openapi.editor.HighlighterColors;
@@ -30,18 +28,18 @@ import org.jetbrains.annotations.NotNull;
 
 public class VersionPropsSyntaxHighlighter extends SyntaxHighlighterBase {
 
-    public static final TextAttributesKey SEPARATOR =
-            createTextAttributesKey("SIMPLE_SEPARATOR", DefaultLanguageHighlighterColors.OPERATION_SIGN);
-    public static final TextAttributesKey DEPENDENCY_GROUP =
-            createTextAttributesKey("SIMPLE_DEPENDENCY_GROUP", DefaultLanguageHighlighterColors.CLASS_NAME);
-    public static final TextAttributesKey DEPENDENCY_NAME =
-            createTextAttributesKey("SIMPLE_DEPENDENCY_NAME", DefaultLanguageHighlighterColors.STATIC_METHOD);
-    public static final TextAttributesKey DEPENDENCY_VERSION =
-            createTextAttributesKey("SIMPLE_DEPENDENCY_VERSION", DefaultLanguageHighlighterColors.STRING);
+    public static final TextAttributesKey SEPARATOR = TextAttributesKey.createTextAttributesKey(
+            "SIMPLE_SEPARATOR", DefaultLanguageHighlighterColors.OPERATION_SIGN);
+    public static final TextAttributesKey DEPENDENCY_GROUP = TextAttributesKey.createTextAttributesKey(
+            "SIMPLE_DEPENDENCY_GROUP", DefaultLanguageHighlighterColors.CLASS_NAME);
+    public static final TextAttributesKey DEPENDENCY_NAME = TextAttributesKey.createTextAttributesKey(
+            "SIMPLE_DEPENDENCY_NAME", DefaultLanguageHighlighterColors.STATIC_METHOD);
+    public static final TextAttributesKey DEPENDENCY_VERSION = TextAttributesKey.createTextAttributesKey(
+            "SIMPLE_DEPENDENCY_VERSION", DefaultLanguageHighlighterColors.STRING);
     public static final TextAttributesKey COMMENT =
-            createTextAttributesKey("SIMPLE_COMMENT", DefaultLanguageHighlighterColors.LINE_COMMENT);
+            TextAttributesKey.createTextAttributesKey("SIMPLE_COMMENT", DefaultLanguageHighlighterColors.LINE_COMMENT);
     public static final TextAttributesKey BAD_CHARACTER =
-            createTextAttributesKey("SIMPLE_BAD_CHARACTER", HighlighterColors.BAD_CHARACTER);
+            TextAttributesKey.createTextAttributesKey("SIMPLE_BAD_CHARACTER", HighlighterColors.BAD_CHARACTER);
 
     private static final TextAttributesKey[] BAD_CHAR_KEYS = new TextAttributesKey[] {BAD_CHARACTER};
     private static final TextAttributesKey[] SEPARATOR_KEYS = new TextAttributesKey[] {SEPARATOR};
@@ -53,12 +51,12 @@ public class VersionPropsSyntaxHighlighter extends SyntaxHighlighterBase {
 
     @NotNull
     @Override
-    public Lexer getHighlightingLexer() {
+    public final Lexer getHighlightingLexer() {
         return new VersionPropsLexerAdapter();
     }
 
     @Override
-    public TextAttributesKey @NotNull [] getTokenHighlights(IElementType tokenType) {
+    public final TextAttributesKey @NotNull [] getTokenHighlights(IElementType tokenType) {
         if (tokenType.equals(VersionPropsTypes.COLON) || tokenType.equals(VersionPropsTypes.EQUALS)) {
             return SEPARATOR_KEYS;
         }

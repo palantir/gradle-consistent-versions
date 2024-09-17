@@ -9,7 +9,7 @@ intellij {
 }
 
 patchPluginXml {
-    pluginDescription = "TODO"
+    pluginDescription = "Language plugin for version.props allowing for auto-lock updating"
     sinceBuild = '241' // TODO: test against this version of IntelliJ to ensure no regressions
     untilBuild = ''
 }
@@ -29,7 +29,7 @@ tasks.withType(JavaCompile).configureEach {
     options.errorprone.disable 'StrictUnusedVariable'
 }
 
-sourceSets.main.java.srcDirs 'src/main/gen'
+sourceSets.main.java.srcDirs 'src/main/generated'
 
 javaVersion {
     target = 17

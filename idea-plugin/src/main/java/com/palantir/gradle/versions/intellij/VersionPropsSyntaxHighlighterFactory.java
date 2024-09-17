@@ -26,7 +26,7 @@ public class VersionPropsSyntaxHighlighterFactory extends SyntaxHighlighterFacto
 
     @NotNull
     @Override
-    public SyntaxHighlighter getSyntaxHighlighter(Project project, VirtualFile virtualFile) {
+    public final SyntaxHighlighter getSyntaxHighlighter(Project project, VirtualFile virtualFile) {
         return new VersionPropsSyntaxHighlighter();
     }
 }

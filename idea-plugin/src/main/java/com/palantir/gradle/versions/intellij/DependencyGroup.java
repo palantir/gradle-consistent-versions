@@ -24,7 +24,6 @@ import java.util.Arrays;
 import java.util.List;
 import org.jetbrains.annotations.NotNull;
 
-// TODO: Use Immutables
 public class DependencyGroup {
     private final List<String> parts = new ArrayList<>();
 

@@ -22,30 +22,30 @@ import org.jetbrains.annotations.Nullable;
 public class VersionPropsCommenter implements Commenter {
 
     @Override
-    public String getLineCommentPrefix() {
+    public final String getLineCommentPrefix() {
         return "#";
     }
 
     @Override
-    public String getBlockCommentPrefix() {
+    public final String getBlockCommentPrefix() {
         return null;
     }
 
     @Nullable
     @Override
-    public String getBlockCommentSuffix() {
+    public final String getBlockCommentSuffix() {
         return null;
     }
 
     @Nullable
     @Override
-    public String getCommentedBlockCommentPrefix() {
+    public final String getCommentedBlockCommentPrefix() {
         return null;
     }
 
     @Nullable
     @Override
-    public String getCommentedBlockCommentSuffix() {
+    public final String getCommentedBlockCommentSuffix() {
         return null;
     }
 }

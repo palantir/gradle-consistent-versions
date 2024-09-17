@@ -16,7 +16,6 @@
 
 package com.palantir.gradle.versions.intellij;
 
-// TODO: Use Immutables
 public class DependencyPackage {
     private final String name;
 
