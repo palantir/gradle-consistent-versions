@@ -16,7 +16,6 @@
 
 package com.palantir.gradle.versions;
 
-import com.google.common.base.Preconditions;
 import java.io.File;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -39,11 +38,6 @@ public final class VersionsPropsIdeaPlugin implements Plugin<Project> {
 
     @Override
     public void apply(Project target) {
-        System.out.println("==");
-        Preconditions.checkState(
-                target == target.getRootProject(),
-                "May only apply com.palantir.version-props-idea to the root project");
-
         target.getPluginManager().withPlugin("idea", _ideaPlugin -> {
             configureIntellij(target);
         });

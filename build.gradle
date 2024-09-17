@@ -112,6 +112,13 @@ gradlePlugin {
             description = displayName
             tags.set(['versions'])
         }
+        VersionsPropsIdeaPlugin {
+            id = 'com.palantir.version-props-idea'
+            implementationClass = 'com.palantir.gradle.versions.VersionsPropsIdeaPlugin'
+            displayName = 'Plugin to collect repositories for use by the IDEA plugin.'
+            description = displayName
+            tags.set(['versions'])
+        }
     }
 }
 

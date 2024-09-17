@@ -16,20 +16,21 @@
 
 package com.palantir.gradle.versions
 
-
-
 import nebula.test.IntegrationSpec
 
 class VersionPropsIdeaPluginTest extends IntegrationSpec {
     def setup() {
         //language=gradle
-        settingsFile << """
-            rootProject.name = 'root'
-            include 'sub'     
-        """.stripIndent(true)
-
-        //language=gradle
         buildFile << """
+            repositories {
+                maven {
+                    url 'https://test'
+                }
+                maven {
+                    url 'https://demo/'
+                }
+            }
+
             apply plugin: 'com.palantir.version-props-idea'
             apply plugin: 'idea'
         """.stripIndent(true)
@@ -40,35 +41,14 @@ class VersionPropsIdeaPluginTest extends IntegrationSpec {
         System.setProperty('idea.active', 'true')
     }
 
-    def 'plugin applies to root project'() {
+    def 'plugin creates mavenRepositories.xml file in .idea folder'() {
         when:
-        def result = runTasksSuccessfully('tasks')
-
-        then:
-        result.standardOutput.contains("BUILD SUCCESSFUL")
-    }
-
-    def 'plugin does not apply to subproject'() {
-        setup:
-        //language=gradle
-        file('sub/build.gradle') << """
-            apply plugin: 'com.palantir.version-props-idea'
-        """.stripIndent(true)
-
-        when:
-        def result = runTasksWithFailure('tasks')
-
-        then:
-        result.standardError.contains('May only apply com.palantir.version-props-idea to the root project')
-    }
-
-    def 'plugin should configure IntelliJ when idea.active is true'() {
-        when:
-        def result = runTasksSuccessfully('idea')
-        println(result.standardOutput)
+        runTasksSuccessfully('idea')
 
         then:
         def repoFile = new File(projectDir, '.idea/mavenRepositories.xml')
         repoFile.exists()
+        repoFile.getText().contains('https://test/')
+        repoFile.getText().contains('https://demo/')
     }
 }
