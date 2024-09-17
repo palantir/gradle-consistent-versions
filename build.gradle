@@ -15,6 +15,9 @@ buildscript {
         classpath 'com.palantir.baseline:gradle-baseline-java:5.66.0'
         classpath 'com.palantir.gradle.gitversion:gradle-git-version:3.1.0'
         classpath 'gradle.plugin.org.inferred:gradle-processors:3.7.0'
+
+
+
     }
 }
 
@@ -39,14 +42,19 @@ apply plugin: 'com.palantir.failure-reports'
 apply plugin: 'com.palantir.baseline-java-versions'
 apply plugin: 'com.palantir.jdks.latest'
 
+version System.env.CIRCLE_TAG ?: gitVersion()
+
 allprojects {
     apply plugin: 'com.palantir.java-format'
     apply plugin: 'com.palantir.jakarta-package-alignment'
+
+    repositories {
+        mavenCentral() { metadataSources { mavenPom(); ignoreGradleMetadataRedirection() } }
+    }
+
+    group 'com.palantir.gradle.consistentversions'
+    version rootProject.version
 }
-
-group 'com.palantir.gradle.consistentversions'
-version System.env.CIRCLE_TAG ?: gitVersion()
-
 
 dependencies {
     implementation 'com.google.guava:guava'
