@@ -21,34 +21,25 @@ import com.intellij.psi.PsiElement;
 import com.palantir.gradle.versions.intellij.psi.VersionPropsTypes;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+import org.immutables.value.Value;
 import org.jetbrains.annotations.NotNull;
 
-public class DependencyGroup {
-    private final List<String> parts = new ArrayList<>();
+@Value.Immutable
+public abstract class DependencyGroup {
 
-    public final boolean isEmpty() {
-        return parts.isEmpty();
-    }
+    @Value.Parameter
+    public abstract List<String> parts();
 
-    private void addPart(String part) {
-        parts.add(0, part); // Add to the beginning to maintain order
-    }
-
-    private void addFromString(String string) {
-        parts.addAll(Arrays.asList(string.split("\\."))); // Escape the dot
-    }
-
-    public final DependencyGroup fromString(String string) {
-        parts.clear();
-        addFromString(string);
-        return this;
+    public static DependencyGroup fromString(String string) {
+        return ImmutableDependencyGroup.of(Arrays.asList(string.split("\\.")));
     }
 
     public final String asUrlString() {
-        String url = String.join("/", parts);
+        String url = String.join("/", parts());
 
-        // for som odd reason if you edit the first part of the group you get "IntellijIdeaRulezzz"
+        // For some odd reason if you edit the first part of the group you get "IntellijIdeaRulezzz"
         if (url.contains("IntellijIdeaRulezzz")) {
             return "";
         }
@@ -58,23 +49,26 @@ public class DependencyGroup {
         return url;
     }
 
-    public final DependencyGroup groupFromParameters(@NotNull CompletionParameters parameters) {
-        parts.clear();
+    public static DependencyGroup groupFromParameters(@NotNull CompletionParameters parameters) {
         PsiElement position = parameters.getPosition();
-
         PsiElement currentElement = position.getPrevSibling();
         if (currentElement == null) {
             currentElement = position.getParent();
         }
 
+        List<String> newParts = new ArrayList<>();
         while (currentElement != null) {
             if (currentElement.getNode().getElementType() == VersionPropsTypes.GROUP_PART) {
-                addPart(currentElement.getText());
+                newParts.add(0, currentElement.getText());
             } else if (currentElement.getNode().getElementType() == VersionPropsTypes.DEPENDENCY_GROUP) {
-                addFromString(currentElement.getText());
+                newParts.addAll(Arrays.asList(currentElement.getText().split("\\.")));
             }
             currentElement = currentElement.getPrevSibling();
         }
-        return this;
+        return ImmutableDependencyGroup.of(newParts);
+    }
+
+    public static DependencyGroup createEmpty() {
+        return ImmutableDependencyGroup.of(Collections.emptyList());
     }
 }

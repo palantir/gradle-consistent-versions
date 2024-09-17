@@ -21,7 +21,7 @@ import com.intellij.openapi.fileTypes.LanguageFileType;
 import javax.swing.Icon;
 import org.jetbrains.annotations.NotNull;
 
-public class VersionPropsFileType extends LanguageFileType {
+public final class VersionPropsFileType extends LanguageFileType {
 
     public static final VersionPropsFileType INSTANCE = new VersionPropsFileType();
 

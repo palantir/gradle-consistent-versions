@@ -16,14 +16,13 @@
 
 package com.palantir.gradle.versions.intellij;
 
-public class DependencyPackage {
-    private final String name;
+import org.immutables.value.Value;
 
-    public DependencyPackage(String name) {
-        this.name = name;
-    }
+@Value.Immutable
+public abstract class DependencyPackage {
+    protected abstract String name();
 
-    public final String packageName() {
-        return name;
+    public static DependencyPackage of(String name) {
+        return ImmutableDependencyPackage.builder().name(name).build();
     }
 }

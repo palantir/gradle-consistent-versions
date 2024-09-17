@@ -44,10 +44,10 @@ public class PackageCompletionContributor extends CompletionContributor {
 
                         List<String> repositories = List.of("https://repo1.maven.org/maven2/");
 
-                        DependencyGroup group = new DependencyGroup().groupFromParameters(parameters);
-                        if (!group.isEmpty()) {
+                        DependencyGroup group = DependencyGroup.groupFromParameters(parameters);
+                        if (!group.parts().isEmpty()) {
                             repositories.stream()
-                                    .map(RepositoryExplorer::new)
+                                    .map(RepositoryExplorer::of)
                                     .flatMap(repositoryExplorer -> repositoryExplorer.getFolders(group).stream())
                                     .map(LookupElementBuilder::create)
                                     .forEach(resultSet::addElement);

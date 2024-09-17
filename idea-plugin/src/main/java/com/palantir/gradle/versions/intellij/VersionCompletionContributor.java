@@ -54,15 +54,15 @@ public class VersionCompletionContributor extends CompletionContributor {
 
                         VersionPropsProperty property = ReadAction.compute(() -> findParentProperty(versionElement));
 
-                        DependencyGroup group = new DependencyGroup()
-                                .fromString(property.getDependencyGroup().getText());
-                        DependencyPackage dependencyPackage = new DependencyPackage(
+                        DependencyGroup group = DependencyGroup.fromString(
+                                property.getDependencyGroup().getText());
+                        DependencyPackage dependencyPackage = DependencyPackage.of(
                                 property.getDependencyName().getText());
 
                         List<String> repositories = List.of("https://repo1.maven.org/maven2/");
 
                         repositories.stream()
-                                .map(RepositoryExplorer::new)
+                                .map(RepositoryExplorer::of)
                                 .flatMap(repositoryExplorer ->
                                         repositoryExplorer.getVersions(group, dependencyPackage).stream())
                                 .map(LookupElementBuilder::create)
