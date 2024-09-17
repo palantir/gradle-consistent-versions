@@ -1,0 +1,5 @@
+type: feature
+feature:
+  description: Intellij Plugin
+  links:
+  - https://github.com/palantir/gradle-consistent-versions/pull/1234
