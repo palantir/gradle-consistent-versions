@@ -16,19 +16,11 @@
 
 package com.palantir.gradle.versions.intellij;
 
-import com.intellij.openapi.application.ApplicationManager;
-import com.intellij.openapi.progress.ProcessCanceledException;
-import com.intellij.openapi.progress.ProgressIndicator;
-import com.intellij.openapi.progress.ProgressManager;
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.Callable;
-import java.util.concurrent.Future;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import org.jsoup.Jsoup;
@@ -48,100 +40,67 @@ public class RepositoryExplorer {
         this.baseUrl = baseUrl;
     }
 
-    public final List<String> getFolders(DependencyGroup group) {
-        ProgressIndicator indicator = ProgressManager.getInstance().getProgressIndicator();
-        return fetchFoldersFromUrl(baseUrl + group.asUrlString(), indicator);
-    }
+    public final List<Folder> getFolders(DependencyGroup group) {
+        String urlString = baseUrl + group.asUrlString();
+        Contents content = fetchContent(urlString);
 
-    public final List<String> getVersions(DependencyGroup group, DependencyName dependencyPackage) {
-        String metadataUrl = baseUrl + group.asUrlString() + dependencyPackage.name() + "/maven-metadata.xml";
-        ProgressIndicator indicator = ProgressManager.getInstance().getProgressIndicator();
-
-        if (indicator == null) {
+        if (content == null || content.pageContent().isEmpty()) {
+            log.debug("Page does not exist");
             return new ArrayList<>();
         }
 
-        String metadataContent = fetchUrlContents(metadataUrl, indicator);
-
-        return parseVersionsFromMetadata(metadataContent);
+        return fetchFoldersFromUrl(content);
     }
 
-    private String fetchUrlContents(String repoUrl, ProgressIndicator indicator) {
-        String content = "";
+    public final List<DependencyVersion> getVersions(DependencyGroup group, DependencyName dependencyPackage) {
+        String urlString = baseUrl + group.asUrlString() + dependencyPackage.name() + "/maven-metadata.xml";
+        Contents content = fetchContent(urlString);
+
+        if (content == null || content.pageContent().isEmpty()) {
+            log.debug("Empty metadata content received");
+            return new ArrayList<>();
+        }
+
+        return parseVersionsFromMetadata(content);
+    }
+
+    private Contents fetchContent(String urlString) {
         try {
-            Callable<String> task = () -> {
-                URL url = new URL(repoUrl);
-                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-                connection.setRequestMethod("GET");
-
-                if (connection.getResponseCode() != 200) {
-                    connection.disconnect();
-                    throw new ProcessCanceledException();
-                }
-
-                BufferedReader in =
-                        new BufferedReader(new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8));
-                StringBuilder result = new StringBuilder();
-                String inputLine;
-
-                while ((inputLine = in.readLine()) != null) {
-                    if (indicator != null && indicator.isCanceled()) {
-                        throw new InterruptedException("Fetch cancelled");
-                    }
-                    result.append(inputLine);
-                }
-
-                in.close();
-                connection.disconnect();
-                return result.toString();
-            };
-            Future<String> future = ApplicationManager.getApplication().executeOnPooledThread(task);
-            content = com.intellij.openapi.application.ex.ApplicationUtil.runWithCheckCanceled(future::get, indicator);
-        } catch (InterruptedException | ProcessCanceledException e) {
-            log.debug("Fetch operation was cancelled", e);
-        } catch (Exception e) {
-            log.warn("Failed to fetch contents", e);
+            URL url = new URL(urlString);
+            return Contents.pageContents(url);
+        } catch (MalformedURLException e) {
+            log.error("Malformed URL", e);
+            return null;
         }
-        return content;
     }
 
-    private List<String> fetchFoldersFromUrl(String repoUrl, ProgressIndicator indicator) {
-        List<String> folders = new ArrayList<>();
+    private List<Folder> fetchFoldersFromUrl(Contents pageContents) {
+        List<Folder> folders = new ArrayList<>();
 
-        String content = fetchUrlContents(repoUrl, indicator);
-        if (content == null) {
-            return folders;
-        }
-
-        Document doc = Jsoup.parse(content);
+        Document doc = Jsoup.parse(pageContents.pageContent());
         Elements links = doc.select("a[href]");
 
         for (Element link : links) {
             String href = link.attr("href");
             if (href.endsWith("/") && !href.contains(".")) {
-                folders.add(href.substring(0, href.length() - 1));
+                folders.add(Folder.of(href.substring(0, href.length() - 1)));
             }
         }
         return folders;
     }
 
-    private List<String> parseVersionsFromMetadata(String metadataContent) {
-        List<String> versions = new ArrayList<>();
-
-        if (metadataContent == null || metadataContent.isEmpty()) {
-            log.debug("Empty metadata content received");
-            return versions;
-        }
+    private List<DependencyVersion> parseVersionsFromMetadata(Contents metadataContent) {
+        List<DependencyVersion> versions = new ArrayList<>();
 
         try {
             DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
             DocumentBuilder builder = factory.newDocumentBuilder();
-            org.w3c.dom.Document doc =
-                    builder.parse(new java.io.ByteArrayInputStream(metadataContent.getBytes(StandardCharsets.UTF_8)));
+            org.w3c.dom.Document doc = builder.parse(new java.io.ByteArrayInputStream(
+                    metadataContent.pageContent().getBytes(StandardCharsets.UTF_8)));
 
             NodeList versionNodes = doc.getElementsByTagName("version");
             for (int i = 0; i < versionNodes.getLength(); i++) {
-                versions.add(versionNodes.item(i).getTextContent());
+                versions.add(DependencyVersion.of(versionNodes.item(i).getTextContent()));
             }
         } catch (Exception e) {
             log.debug("Failed to parse maven-metadata.xml", e);
