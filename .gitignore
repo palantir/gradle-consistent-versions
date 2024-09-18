@@ -41,3 +41,6 @@ reports/
 
 # Intellij generated code
 idea-plugin/src/main/generated
+
+# Gradle JDKs setup
+!gradle/*
