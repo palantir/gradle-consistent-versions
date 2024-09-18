@@ -2,17 +2,18 @@ buildscript {
     repositories {
         mavenCentral() { metadataSources { mavenPom(); ignoreGradleMetadataRedirection() } }
         gradlePluginPortal() { metadataSources { mavenPom(); ignoreGradleMetadataRedirection() } }
+        mavenLocal()
     }
 
     dependencies {
         classpath 'com.palantir.jakartapackagealignment:jakarta-package-alignment:0.6.0'
         classpath 'com.palantir.gradle.jdks:gradle-jdks:0.47.0'
         classpath 'com.palantir.gradle.jdkslatest:gradle-jdks-latest:0.15.0'
-        classpath 'com.palantir.gradle.externalpublish:gradle-external-publish-plugin:1.18.0'
+        classpath 'com.palantir.gradle.externalpublish:gradle-external-publish-plugin:999'
         classpath 'com.palantir.gradle.failure-reports:gradle-failure-reports:1.13.0'
         classpath 'com.palantir.javaformat:gradle-palantir-java-format:2.50.0'
         classpath 'com.palantir.gradle.consistentversions:gradle-consistent-versions:2.25.0'
-        classpath 'com.palantir.baseline:gradle-baseline-java:5.66.0'
+        classpath 'com.palantir.baseline:gradle-baseline-java:999'
         classpath 'com.palantir.gradle.gitversion:gradle-git-version:3.1.0'
         classpath 'gradle.plugin.org.inferred:gradle-processors:3.7.0'
         classpath 'org.jetbrains.grammarkit:org.jetbrains.grammarkit.gradle.plugin:2022.3.2.2'
@@ -43,6 +44,7 @@ allprojects {
 
     repositories {
         mavenCentral() { metadataSources { mavenPom(); ignoreGradleMetadataRedirection() } }
+        mavenLocal()
     }
 
     group 'com.palantir.gradle.consistentversions'
