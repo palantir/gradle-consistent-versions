@@ -1,5 +1,6 @@
 apply plugin: 'java'
 apply plugin: 'com.palantir.external-publish-intellij'
+apply plugin: 'org.jetbrains.grammarkit'
 
 intellij {
     pluginName = "gradle-consistent-versions"
@@ -42,3 +43,25 @@ dependencies {
     compileOnly 'org.immutables:value::annotations'
     testImplementation 'org.junit.jupiter:junit-jupiter'
 }
+
+grammarKit {
+    jflexRelease = "1.9.2"
+    grammarKitRelease = "2022.3.2"
+}
+
+generateParser {
+    sourceFile = file('src/main/java/com/palantir/gradle/versions/intellij/VersionProps.bnf')
+    targetRootOutputDir = file('src/main/generated')
+    pathToParser = 'com/palantir/gradle/versions/intellij/parser/VersionPropsParser'
+    pathToPsiRoot = 'com/palantir/gradle/versions/intellij/psi'
+    purgeOldFiles = true
+}
+
+generateLexer {
+    sourceFile = file('src/main/java/com/palantir/gradle/versions/intellij/VersionProps.flex')
+    targetOutputDir = file('src/main/generated/com/palantir/gradle/versions/intellij')
+    targetClass = 'com.palantir.gradle.versions.intellij.VersionPropsLexer'
+    purgeOldFiles = true
+}
+
+compileJava.dependsOn generateParser, generateLexer

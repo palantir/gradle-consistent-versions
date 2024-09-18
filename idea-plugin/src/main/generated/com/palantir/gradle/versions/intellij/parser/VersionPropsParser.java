@@ -14,120 +14,120 @@ import com.intellij.lang.LightPsiParser;
 @SuppressWarnings({"SimplifiableIfStatement", "UnusedAssignment"})
 public class VersionPropsParser implements PsiParser, LightPsiParser {
 
-  public ASTNode parse(IElementType t, PsiBuilder b) {
-    parseLight(t, b);
-    return b.getTreeBuilt();
+  public ASTNode parse(IElementType root_, PsiBuilder builder_) {
+    parseLight(root_, builder_);
+    return builder_.getTreeBuilt();
   }
 
-  public void parseLight(IElementType t, PsiBuilder b) {
-    boolean r;
-    b = adapt_builder_(t, b, this, null);
-    Marker m = enter_section_(b, 0, _COLLAPSE_, null);
-    r = parse_root_(t, b);
-    exit_section_(b, 0, m, t, r, true, TRUE_CONDITION);
+  public void parseLight(IElementType root_, PsiBuilder builder_) {
+    boolean result_;
+    builder_ = adapt_builder_(root_, builder_, this, null);
+    Marker marker_ = enter_section_(builder_, 0, _COLLAPSE_, null);
+    result_ = parse_root_(root_, builder_);
+    exit_section_(builder_, 0, marker_, root_, result_, true, TRUE_CONDITION);
   }
 
-  protected boolean parse_root_(IElementType t, PsiBuilder b) {
-    return parse_root_(t, b, 0);
+  protected boolean parse_root_(IElementType root_, PsiBuilder builder_) {
+    return parse_root_(root_, builder_, 0);
   }
 
-  static boolean parse_root_(IElementType t, PsiBuilder b, int l) {
-    return simpleFile(b, l + 1);
+  static boolean parse_root_(IElementType root_, PsiBuilder builder_, int level_) {
+    return simpleFile(builder_, level_ + 1);
   }
 
   /* ********************************************************** */
   // GROUP_PART (DOT GROUP_PART)*
-  public static boolean dependencyGroup(PsiBuilder b, int l) {
-    if (!recursion_guard_(b, l, "dependencyGroup")) return false;
-    if (!nextTokenIs(b, GROUP_PART)) return false;
-    boolean r;
-    Marker m = enter_section_(b);
-    r = consumeToken(b, GROUP_PART);
-    r = r && dependencyGroup_1(b, l + 1);
-    exit_section_(b, m, DEPENDENCY_GROUP, r);
-    return r;
+  public static boolean dependencyGroup(PsiBuilder builder_, int level_) {
+    if (!recursion_guard_(builder_, level_, "dependencyGroup")) return false;
+    if (!nextTokenIs(builder_, GROUP_PART)) return false;
+    boolean result_;
+    Marker marker_ = enter_section_(builder_);
+    result_ = consumeToken(builder_, GROUP_PART);
+    result_ = result_ && dependencyGroup_1(builder_, level_ + 1);
+    exit_section_(builder_, marker_, DEPENDENCY_GROUP, result_);
+    return result_;
   }
 
   // (DOT GROUP_PART)*
-  private static boolean dependencyGroup_1(PsiBuilder b, int l) {
-    if (!recursion_guard_(b, l, "dependencyGroup_1")) return false;
+  private static boolean dependencyGroup_1(PsiBuilder builder_, int level_) {
+    if (!recursion_guard_(builder_, level_, "dependencyGroup_1")) return false;
     while (true) {
-      int c = current_position_(b);
-      if (!dependencyGroup_1_0(b, l + 1)) break;
-      if (!empty_element_parsed_guard_(b, "dependencyGroup_1", c)) break;
+      int pos_ = current_position_(builder_);
+      if (!dependencyGroup_1_0(builder_, level_ + 1)) break;
+      if (!empty_element_parsed_guard_(builder_, "dependencyGroup_1", pos_)) break;
     }
     return true;
   }
 
   // DOT GROUP_PART
-  private static boolean dependencyGroup_1_0(PsiBuilder b, int l) {
-    if (!recursion_guard_(b, l, "dependencyGroup_1_0")) return false;
-    boolean r;
-    Marker m = enter_section_(b);
-    r = consumeTokens(b, 0, DOT, GROUP_PART);
-    exit_section_(b, m, null, r);
-    return r;
+  private static boolean dependencyGroup_1_0(PsiBuilder builder_, int level_) {
+    if (!recursion_guard_(builder_, level_, "dependencyGroup_1_0")) return false;
+    boolean result_;
+    Marker marker_ = enter_section_(builder_);
+    result_ = consumeTokens(builder_, 0, DOT, GROUP_PART);
+    exit_section_(builder_, marker_, null, result_);
+    return result_;
   }
 
   /* ********************************************************** */
   // NAME_KEY
-  public static boolean dependencyName(PsiBuilder b, int l) {
-    if (!recursion_guard_(b, l, "dependencyName")) return false;
-    if (!nextTokenIs(b, NAME_KEY)) return false;
-    boolean r;
-    Marker m = enter_section_(b);
-    r = consumeToken(b, NAME_KEY);
-    exit_section_(b, m, DEPENDENCY_NAME, r);
-    return r;
+  public static boolean dependencyName(PsiBuilder builder_, int level_) {
+    if (!recursion_guard_(builder_, level_, "dependencyName")) return false;
+    if (!nextTokenIs(builder_, NAME_KEY)) return false;
+    boolean result_;
+    Marker marker_ = enter_section_(builder_);
+    result_ = consumeToken(builder_, NAME_KEY);
+    exit_section_(builder_, marker_, DEPENDENCY_NAME, result_);
+    return result_;
   }
 
   /* ********************************************************** */
   // VERSION
-  public static boolean dependencyVersion(PsiBuilder b, int l) {
-    if (!recursion_guard_(b, l, "dependencyVersion")) return false;
-    if (!nextTokenIs(b, VERSION)) return false;
-    boolean r;
-    Marker m = enter_section_(b);
-    r = consumeToken(b, VERSION);
-    exit_section_(b, m, DEPENDENCY_VERSION, r);
-    return r;
+  public static boolean dependencyVersion(PsiBuilder builder_, int level_) {
+    if (!recursion_guard_(builder_, level_, "dependencyVersion")) return false;
+    if (!nextTokenIs(builder_, VERSION)) return false;
+    boolean result_;
+    Marker marker_ = enter_section_(builder_);
+    result_ = consumeToken(builder_, VERSION);
+    exit_section_(builder_, marker_, DEPENDENCY_VERSION, result_);
+    return result_;
   }
 
   /* ********************************************************** */
   // property | COMMENT | CRLF
-  static boolean item_(PsiBuilder b, int l) {
-    if (!recursion_guard_(b, l, "item_")) return false;
-    boolean r;
-    r = property(b, l + 1);
-    if (!r) r = consumeToken(b, COMMENT);
-    if (!r) r = consumeToken(b, CRLF);
-    return r;
+  static boolean item_(PsiBuilder builder_, int level_) {
+    if (!recursion_guard_(builder_, level_, "item_")) return false;
+    boolean result_;
+    result_ = property(builder_, level_ + 1);
+    if (!result_) result_ = consumeToken(builder_, COMMENT);
+    if (!result_) result_ = consumeToken(builder_, CRLF);
+    return result_;
   }
 
   /* ********************************************************** */
   // dependencyGroup COLON dependencyName EQUALS dependencyVersion
-  public static boolean property(PsiBuilder b, int l) {
-    if (!recursion_guard_(b, l, "property")) return false;
-    if (!nextTokenIs(b, GROUP_PART)) return false;
-    boolean r;
-    Marker m = enter_section_(b);
-    r = dependencyGroup(b, l + 1);
-    r = r && consumeToken(b, COLON);
-    r = r && dependencyName(b, l + 1);
-    r = r && consumeToken(b, EQUALS);
-    r = r && dependencyVersion(b, l + 1);
-    exit_section_(b, m, PROPERTY, r);
-    return r;
+  public static boolean property(PsiBuilder builder_, int level_) {
+    if (!recursion_guard_(builder_, level_, "property")) return false;
+    if (!nextTokenIs(builder_, GROUP_PART)) return false;
+    boolean result_;
+    Marker marker_ = enter_section_(builder_);
+    result_ = dependencyGroup(builder_, level_ + 1);
+    result_ = result_ && consumeToken(builder_, COLON);
+    result_ = result_ && dependencyName(builder_, level_ + 1);
+    result_ = result_ && consumeToken(builder_, EQUALS);
+    result_ = result_ && dependencyVersion(builder_, level_ + 1);
+    exit_section_(builder_, marker_, PROPERTY, result_);
+    return result_;
   }
 
   /* ********************************************************** */
   // item_*
-  static boolean simpleFile(PsiBuilder b, int l) {
-    if (!recursion_guard_(b, l, "simpleFile")) return false;
+  static boolean simpleFile(PsiBuilder builder_, int level_) {
+    if (!recursion_guard_(builder_, level_, "simpleFile")) return false;
     while (true) {
-      int c = current_position_(b);
-      if (!item_(b, l + 1)) break;
-      if (!empty_element_parsed_guard_(b, "simpleFile", c)) break;
+      int pos_ = current_position_(builder_);
+      if (!item_(builder_, level_ + 1)) break;
+      if (!empty_element_parsed_guard_(builder_, "simpleFile", pos_)) break;
     }
     return true;
   }
