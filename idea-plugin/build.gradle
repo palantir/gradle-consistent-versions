@@ -20,12 +20,6 @@ tasks.named("javadoc", Javadoc) {
     failOnError = false
 }
 
-tasks.withType(JavaCompile).configureEach {
-    options.errorprone.disable 'PreferSafeLoggableExceptions'
-    options.errorprone.disable 'PreferSafeLogger'
-    options.errorprone.disable 'StrictUnusedVariable'
-}
-
 sourceSets.main.java.srcDirs 'src/main/generated'
 
 javaVersion {
