@@ -21,15 +21,12 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 public class VersionPropsCodeInsightTest extends LightJavaCodeInsightFixtureTestCase {
-    @Override
-    protected final String getTestDataPath() {
-        return "src/test/testData";
-    }
 
     @Test
     public void test_version_completion() throws Exception {
         setUp();
-        myFixture.configureByFiles("VersionTestData.props");
+        // The file name is required for context but does not need to exist on the filesystem
+        myFixture.configureByText("DummyPropsFile.props", "com.palantir.baseline:baseline-error-prone = <caret>");
         myFixture.complete(CompletionType.BASIC);
         List<String> lookupElementStrings = myFixture.getLookupElementStrings();
         assertNotNull(lookupElementStrings);
@@ -40,7 +37,8 @@ public class VersionPropsCodeInsightTest extends LightJavaCodeInsightFixtureTest
     @Test
     public void test_group_completion() throws Exception {
         setUp();
-        myFixture.configureByFiles("GroupTestData.props");
+        // The file name is required for context but does not need to exist on the filesystem
+        myFixture.configureByText("DummyPropsFile.props", "com.palantir.baseline.<caret>");
         myFixture.complete(CompletionType.BASIC);
         List<String> lookupElementStrings = myFixture.getLookupElementStrings();
         assertNotNull(lookupElementStrings);
@@ -51,7 +49,8 @@ public class VersionPropsCodeInsightTest extends LightJavaCodeInsightFixtureTest
     @Test
     public void test_package_completion() throws Exception {
         setUp();
-        myFixture.configureByFiles("PackageTestData.props");
+        // The file name is required for context but does not need to exist on the filesystem
+        myFixture.configureByText("DummyPropsFile.props", "com.palantir.baseline:<caret>");
         myFixture.complete(CompletionType.BASIC);
         List<String> lookupElementStrings = myFixture.getLookupElementStrings();
         assertNotNull(lookupElementStrings);
