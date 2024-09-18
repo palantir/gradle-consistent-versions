@@ -11,7 +11,6 @@ intellij {
 
 patchPluginXml {
     pluginDescription = "Language plugin for version.props allowing for auto-lock updating"
-    version = "1.0.0" // For some reason project.version is unspeificed and thus this fails
     sinceBuild = '241' // TODO: test against this version of IntelliJ to ensure no regressions
     untilBuild = ''
 }

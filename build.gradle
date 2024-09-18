@@ -44,11 +44,6 @@ allprojects {
     repositories {
         mavenCentral() { metadataSources { mavenPom(); ignoreGradleMetadataRedirection() } }
     }
-}
-
-    repositories {
-        mavenCentral() { metadataSources { mavenPom(); ignoreGradleMetadataRedirection() } }
-    }
 
     group 'com.palantir.gradle.consistentversions'
     version rootProject.version
