@@ -24,7 +24,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import org.immutables.value.Value;
-import org.jetbrains.annotations.NotNull;
 
 @Value.Immutable
 public abstract class DependencyGroup {
@@ -49,7 +48,7 @@ public abstract class DependencyGroup {
         return url;
     }
 
-    public static DependencyGroup groupFromParameters(@NotNull CompletionParameters parameters) {
+    public static DependencyGroup groupFromParameters(CompletionParameters parameters) {
         PsiElement position = parameters.getPosition();
         PsiElement currentElement = position.getPrevSibling();
         if (currentElement == null) {

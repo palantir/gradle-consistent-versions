@@ -49,7 +49,6 @@ public class VersionPropsSyntaxHighlighter extends SyntaxHighlighterBase {
     private static final TextAttributesKey[] COMMENT_KEYS = new TextAttributesKey[] {COMMENT};
     private static final TextAttributesKey[] EMPTY_KEYS = new TextAttributesKey[0];
 
-    @NotNull
     @Override
     public final Lexer getHighlightingLexer() {
         return new VersionPropsLexerAdapter();

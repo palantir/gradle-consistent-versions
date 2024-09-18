@@ -36,43 +36,36 @@ public class VersionPropsParserDefinition implements ParserDefinition {
 
     public static final IFileElementType FILE = new IFileElementType(VersionPropsLanguage.INSTANCE);
 
-    @NotNull
     @Override
     public final Lexer createLexer(Project project) {
         return new VersionPropsLexerAdapter();
     }
 
-    @NotNull
     @Override
     public final TokenSet getCommentTokens() {
         return VersionPropsTokenSets.COMMENTS;
     }
 
-    @NotNull
     @Override
     public final TokenSet getStringLiteralElements() {
         return TokenSet.EMPTY;
     }
 
-    @NotNull
     @Override
     public final PsiParser createParser(final Project project) {
         return new VersionPropsParser();
     }
 
-    @NotNull
     @Override
     public final IFileElementType getFileNodeType() {
         return FILE;
     }
 
-    @NotNull
     @Override
     public final PsiFile createFile(@NotNull FileViewProvider viewProvider) {
         return new VersionPropsFile(viewProvider);
     }
 
-    @NotNull
     @Override
     public final PsiElement createElement(ASTNode node) {
         return VersionPropsTypes.Factory.createElement(node);

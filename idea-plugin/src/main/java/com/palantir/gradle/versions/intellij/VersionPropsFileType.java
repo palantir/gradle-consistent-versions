@@ -19,7 +19,6 @@ package com.palantir.gradle.versions.intellij;
 import com.intellij.openapi.fileTypes.FileTypes;
 import com.intellij.openapi.fileTypes.LanguageFileType;
 import javax.swing.Icon;
-import org.jetbrains.annotations.NotNull;
 
 public final class VersionPropsFileType extends LanguageFileType {
 
@@ -29,19 +28,16 @@ public final class VersionPropsFileType extends LanguageFileType {
         super(VersionPropsLanguage.INSTANCE);
     }
 
-    @NotNull
     @Override
     public String getName() {
         return "VersionProps File";
     }
 
-    @NotNull
     @Override
     public String getDescription() {
         return "VersionProps language file";
     }
 
-    @NotNull
     @Override
     public String getDefaultExtension() {
         return "props";
