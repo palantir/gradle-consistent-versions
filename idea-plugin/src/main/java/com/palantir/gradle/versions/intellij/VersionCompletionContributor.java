@@ -56,8 +56,8 @@ public class VersionCompletionContributor extends CompletionContributor {
 
                         DependencyGroup group = DependencyGroup.fromString(
                                 property.getDependencyGroup().getText());
-                        DependencyPackage dependencyPackage = DependencyPackage.of(
-                                property.getDependencyName().getText());
+                        DependencyName dependencyPackage =
+                                DependencyName.of(property.getDependencyName().getText());
 
                         List<String> repositories = List.of("https://repo1.maven.org/maven2/");
 

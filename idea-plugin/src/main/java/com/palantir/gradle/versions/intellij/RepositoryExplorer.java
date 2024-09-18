@@ -53,7 +53,7 @@ public class RepositoryExplorer {
         return fetchFoldersFromUrl(baseUrl + group.asUrlString(), indicator);
     }
 
-    public final List<String> getVersions(DependencyGroup group, DependencyPackage dependencyPackage) {
+    public final List<String> getVersions(DependencyGroup group, DependencyName dependencyPackage) {
         String metadataUrl = baseUrl + group.asUrlString() + dependencyPackage.name() + "/maven-metadata.xml";
         ProgressIndicator indicator = ProgressManager.getInstance().getProgressIndicator();
 

@@ -19,10 +19,10 @@ package com.palantir.gradle.versions.intellij;
 import org.immutables.value.Value;
 
 @Value.Immutable
-public abstract class DependencyPackage {
+public abstract class DependencyName {
     protected abstract String name();
 
-    public static DependencyPackage of(String name) {
-        return ImmutableDependencyPackage.builder().name(name).build();
+    public static DependencyName of(String name) {
+        return ImmutableDependencyName.builder().name(name).build();
     }
 }
