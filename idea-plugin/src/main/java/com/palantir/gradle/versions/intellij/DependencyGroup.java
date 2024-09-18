@@ -21,7 +21,6 @@ import com.intellij.psi.PsiElement;
 import com.palantir.gradle.versions.intellij.psi.VersionPropsTypes;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import org.immutables.value.Value;
 
@@ -65,9 +64,5 @@ public abstract class DependencyGroup {
             currentElement = currentElement.getPrevSibling();
         }
         return ImmutableDependencyGroup.of(newParts);
-    }
-
-    public static DependencyGroup createEmpty() {
-        return ImmutableDependencyGroup.of(Collections.emptyList());
     }
 }
