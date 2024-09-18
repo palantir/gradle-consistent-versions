@@ -31,7 +31,6 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
-import org.immutables.value.Value;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -40,23 +39,22 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.w3c.dom.NodeList;
 
-@Value.Immutable
-public abstract class RepositoryExplorer {
+public class RepositoryExplorer {
     private static final Logger log = LoggerFactory.getLogger(RepositoryExplorer.class);
 
-    protected abstract String baseUrl();
+    private final String baseUrl;
 
-    public static RepositoryExplorer of(String url) {
-        return ImmutableRepositoryExplorer.builder().baseUrl(url).build();
+    public RepositoryExplorer(String baseUrl) {
+        this.baseUrl = baseUrl;
     }
 
     public final List<String> getFolders(DependencyGroup group) {
         ProgressIndicator indicator = ProgressManager.getInstance().getProgressIndicator();
-        return fetchFoldersFromUrl(baseUrl() + group.asUrlString(), indicator);
+        return fetchFoldersFromUrl(baseUrl + group.asUrlString(), indicator);
     }
 
     public final List<String> getVersions(DependencyGroup group, DependencyPackage dependencyPackage) {
-        String metadataUrl = baseUrl() + group.asUrlString() + dependencyPackage.name() + "/maven-metadata.xml";
+        String metadataUrl = baseUrl + group.asUrlString() + dependencyPackage.name() + "/maven-metadata.xml";
         ProgressIndicator indicator = ProgressManager.getInstance().getProgressIndicator();
 
         if (indicator == null) {

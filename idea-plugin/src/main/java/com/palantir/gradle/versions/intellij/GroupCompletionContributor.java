@@ -47,7 +47,7 @@ public class GroupCompletionContributor extends CompletionContributor {
                         DependencyGroup group = DependencyGroup.groupFromParameters(parameters);
 
                         repositories.stream()
-                                .map(RepositoryExplorer::of)
+                                .map(RepositoryExplorer::new)
                                 .flatMap(repositoryExplorer -> repositoryExplorer.getFolders(group).stream())
                                 .map(LookupElementBuilder::create)
                                 .forEach(resultSet::addElement);

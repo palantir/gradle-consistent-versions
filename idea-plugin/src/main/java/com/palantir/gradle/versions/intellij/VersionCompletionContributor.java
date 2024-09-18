@@ -62,7 +62,7 @@ public class VersionCompletionContributor extends CompletionContributor {
                         List<String> repositories = List.of("https://repo1.maven.org/maven2/");
 
                         repositories.stream()
-                                .map(RepositoryExplorer::of)
+                                .map(RepositoryExplorer::new)
                                 .flatMap(repositoryExplorer ->
                                         repositoryExplorer.getVersions(group, dependencyPackage).stream())
                                 .map(LookupElementBuilder::create)
