@@ -54,4 +54,6 @@ generateLexer {
     purgeOldFiles = true
 }
 
-compileJava.dependsOn generateParser, generateLexer
+tasks.named('compileJava').configure {
+    dependsOn tasks.named('generateParser'), tasks.named('generateLexer')
+}
