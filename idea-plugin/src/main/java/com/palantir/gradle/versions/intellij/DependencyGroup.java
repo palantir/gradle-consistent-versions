@@ -37,20 +37,17 @@ public abstract class DependencyGroup {
     public final String asUrlString() {
         String url = String.join("/", parts());
 
-        // For some odd reason if you edit the first part of the group you get "IntellijIdeaRulezzz"
-        if (url.contains("IntellijIdeaRulezzz")) {
-            return "";
-        }
         if (!url.isEmpty()) {
             url = url + "/";
         }
+
         return url;
     }
 
     public static DependencyGroup groupFromParameters(CompletionParameters parameters) {
         PsiElement position = parameters.getPosition();
         PsiElement currentElement = position.getPrevSibling();
-        if (currentElement == null) {
+        if (currentElement == null && position.getNode().getElementType() == VersionPropsTypes.NAME_KEY) {
             currentElement = position.getParent();
         }
 
@@ -60,6 +57,7 @@ public abstract class DependencyGroup {
                 newParts.add(0, currentElement.getText());
             } else if (currentElement.getNode().getElementType() == VersionPropsTypes.DEPENDENCY_GROUP) {
                 newParts.addAll(Arrays.asList(currentElement.getText().split("\\.")));
+                System.out.println(currentElement.getText());
             }
             currentElement = currentElement.getPrevSibling();
         }
