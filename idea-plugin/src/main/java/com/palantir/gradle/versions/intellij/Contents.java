@@ -26,6 +26,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 import org.immutables.value.Value;
@@ -39,12 +40,12 @@ public abstract class Contents {
 
     protected abstract String pageContent();
 
-    public static ImmutableContents pageContents(URL pageUrl) {
+    public static Optional<Contents> pageContents(URL pageUrl) {
         @Nullable String content = null;
         ProgressIndicator indicator = ProgressManager.getInstance().getProgressIndicator();
 
         if (indicator == null) {
-            return ImmutableContents.builder().pageContent("").build();
+            return Optional.empty();
         }
 
         try {
@@ -80,8 +81,8 @@ public abstract class Contents {
         } catch (Exception e) {
             log.warn("Failed to fetch contents", e);
         }
-        return ImmutableContents.builder()
+        return Optional.of(ImmutableContents.builder()
                 .pageContent(Objects.requireNonNullElse(content, ""))
-                .build();
+                .build());
     }
 }

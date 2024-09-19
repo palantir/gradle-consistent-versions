@@ -21,6 +21,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -39,35 +40,35 @@ public class RepositoryExplorer {
 
     public final List<Folder> getFolders(DependencyGroup group) {
         String urlString = baseUrl + group.asUrlString();
-        Contents content = fetchContent(urlString);
+        Optional<Contents> content = fetchContent(urlString);
 
-        if (content == null || content.pageContent().isEmpty()) {
-            log.debug("Page does not exist");
+        if (content.isEmpty()) {
+            log.warn("Page does not exist");
             return new ArrayList<>();
         }
 
-        return fetchFoldersFromUrl(content);
+        return fetchFoldersFromUrl(content.get());
     }
 
     public final List<DependencyVersion> getVersions(DependencyGroup group, DependencyName dependencyPackage) {
         String urlString = baseUrl + group.asUrlString() + dependencyPackage.name() + "/maven-metadata.xml";
-        Contents content = fetchContent(urlString);
+        Optional<Contents> content = fetchContent(urlString);
 
-        if (content == null || content.pageContent().isEmpty()) {
-            log.debug("Empty metadata content received");
+        if (content.isEmpty()) {
+            log.warn("Empty metadata content received");
             return new ArrayList<>();
         }
 
-        return parseVersionsFromMetadata(content);
+        return parseVersionsFromMetadata(content.get());
     }
 
-    private Contents fetchContent(String urlString) {
+    private Optional<Contents> fetchContent(String urlString) {
         try {
             URL url = new URL(urlString);
             return Contents.pageContents(url);
         } catch (MalformedURLException e) {
             log.error("Malformed URL", e);
-            return null;
+            return Optional.empty();
         }
     }
 
