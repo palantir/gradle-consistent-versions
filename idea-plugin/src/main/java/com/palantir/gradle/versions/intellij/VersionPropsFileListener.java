@@ -31,7 +31,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Predicate;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.plugins.gradle.util.GradleConstants;
 import org.slf4j.Logger;
@@ -46,7 +45,7 @@ public final class VersionPropsFileListener implements AsyncFileListener {
 
     @Nullable
     @Override
-    public ChangeApplier prepareChange(@NotNull List<? extends @NotNull VFileEvent> events) {
+    public ChangeApplier prepareChange(List<? extends VFileEvent> events) {
         List<VirtualFile> versionPropsEvents = events.stream()
                 .filter(VFileEvent::isFromSave) // This is quite expensive and noisy so only run on save
                 .map(VFileEvent::getFile)

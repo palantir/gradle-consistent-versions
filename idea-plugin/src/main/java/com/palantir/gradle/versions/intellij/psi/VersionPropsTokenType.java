@@ -19,11 +19,10 @@ package com.palantir.gradle.versions.intellij.psi;
 import com.intellij.psi.tree.IElementType;
 import com.palantir.gradle.versions.intellij.VersionPropsLanguage;
 import org.jetbrains.annotations.NonNls;
-import org.jetbrains.annotations.NotNull;
 
 public class VersionPropsTokenType extends IElementType {
 
-    public VersionPropsTokenType(@NotNull @NonNls String debugName) {
+    public VersionPropsTokenType(@NonNls String debugName) {
         super(debugName, VersionPropsLanguage.INSTANCE);
     }
 

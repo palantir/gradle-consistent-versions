@@ -30,7 +30,6 @@ import com.palantir.gradle.versions.intellij.parser.VersionPropsParser;
 import com.palantir.gradle.versions.intellij.psi.VersionPropsFile;
 import com.palantir.gradle.versions.intellij.psi.VersionPropsTokenSets;
 import com.palantir.gradle.versions.intellij.psi.VersionPropsTypes;
-import org.jetbrains.annotations.NotNull;
 
 public class VersionPropsParserDefinition implements ParserDefinition {
 
@@ -62,7 +61,7 @@ public class VersionPropsParserDefinition implements ParserDefinition {
     }
 
     @Override
-    public final PsiFile createFile(@NotNull FileViewProvider viewProvider) {
+    public final PsiFile createFile(FileViewProvider viewProvider) {
         return new VersionPropsFile(viewProvider);
     }
 

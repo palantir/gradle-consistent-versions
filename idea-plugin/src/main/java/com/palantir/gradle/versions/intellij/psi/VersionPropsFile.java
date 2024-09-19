@@ -21,15 +21,13 @@ import com.intellij.openapi.fileTypes.FileType;
 import com.intellij.psi.FileViewProvider;
 import com.palantir.gradle.versions.intellij.VersionPropsFileType;
 import com.palantir.gradle.versions.intellij.VersionPropsLanguage;
-import org.jetbrains.annotations.NotNull;
 
 public class VersionPropsFile extends PsiFileBase {
 
-    public VersionPropsFile(@NotNull FileViewProvider viewProvider) {
+    public VersionPropsFile(FileViewProvider viewProvider) {
         super(viewProvider, VersionPropsLanguage.INSTANCE);
     }
 
-    @NotNull
     @Override
     public final FileType getFileType() {
         return VersionPropsFileType.INSTANCE;

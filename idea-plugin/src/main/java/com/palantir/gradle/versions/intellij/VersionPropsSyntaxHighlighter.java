@@ -24,7 +24,6 @@ import com.intellij.openapi.fileTypes.SyntaxHighlighterBase;
 import com.intellij.psi.TokenType;
 import com.intellij.psi.tree.IElementType;
 import com.palantir.gradle.versions.intellij.psi.VersionPropsTypes;
-import org.jetbrains.annotations.NotNull;
 
 public class VersionPropsSyntaxHighlighter extends SyntaxHighlighterBase {
 
@@ -55,7 +54,7 @@ public class VersionPropsSyntaxHighlighter extends SyntaxHighlighterBase {
     }
 
     @Override
-    public final TextAttributesKey @NotNull [] getTokenHighlights(IElementType tokenType) {
+    public final TextAttributesKey[] getTokenHighlights(IElementType tokenType) {
         if (tokenType.equals(VersionPropsTypes.COLON) || tokenType.equals(VersionPropsTypes.EQUALS)) {
             return SEPARATOR_KEYS;
         }
