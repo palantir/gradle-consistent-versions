@@ -23,33 +23,35 @@ import com.intellij.codeInsight.completion.CompletionResultSet;
 import com.intellij.codeInsight.completion.CompletionType;
 import com.intellij.codeInsight.lookup.LookupElementBuilder;
 import com.intellij.patterns.PlatformPatterns;
+import com.intellij.psi.tree.IElementType;
 import com.intellij.util.ProcessingContext;
 import com.palantir.gradle.versions.intellij.psi.VersionPropsTypes;
 import java.util.List;
 
-public class PackageCompletionContributor extends CompletionContributor {
+public class FolderCompletionContributor extends CompletionContributor {
 
-    public PackageCompletionContributor() {
+    public FolderCompletionContributor() {
+        extendCompletion(VersionPropsTypes.GROUP_PART);
 
-        extend(
-                CompletionType.BASIC,
-                PlatformPatterns.psiElement(VersionPropsTypes.NAME_KEY),
-                new CompletionProvider<>() {
-                    @Override
-                    protected void addCompletions(
-                            CompletionParameters parameters, ProcessingContext context, CompletionResultSet resultSet) {
+        extendCompletion(VersionPropsTypes.NAME_KEY);
+    }
 
-                        List<String> repositories = List.of("https://repo1.maven.org/maven2/");
+    private void extendCompletion(IElementType elementType) {
+        extend(CompletionType.BASIC, PlatformPatterns.psiElement(elementType), new CompletionProvider<>() {
+            @Override
+            protected void addCompletions(
+                    CompletionParameters parameters, ProcessingContext context, CompletionResultSet resultSet) {
 
-                        DependencyGroup group = DependencyGroup.groupFromParameters(parameters);
-                        if (!group.parts().isEmpty()) {
-                            repositories.stream()
-                                    .map(RepositoryExplorer::new)
-                                    .flatMap(repositoryExplorer -> repositoryExplorer.getFolders(group).stream())
-                                    .map(LookupElementBuilder::create)
-                                    .forEach(resultSet::addElement);
-                        }
-                    }
-                });
+                List<String> repositories = List.of("https://repo1.maven.org/maven2/");
+
+                DependencyGroup group = DependencyGroup.groupFromParameters(parameters);
+
+                repositories.stream()
+                        .map(RepositoryExplorer::new)
+                        .flatMap(repositoryExplorer -> repositoryExplorer.getFolders(group).stream())
+                        .map(LookupElementBuilder::create)
+                        .forEach(resultSet::addElement);
+            }
+        });
     }
 }
