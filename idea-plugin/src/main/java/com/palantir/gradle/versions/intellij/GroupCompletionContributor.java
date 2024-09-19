@@ -26,7 +26,6 @@ import com.intellij.patterns.PlatformPatterns;
 import com.intellij.util.ProcessingContext;
 import com.palantir.gradle.versions.intellij.psi.VersionPropsTypes;
 import java.util.List;
-import org.jetbrains.annotations.NotNull;
 
 public class GroupCompletionContributor extends CompletionContributor {
 
@@ -38,9 +37,7 @@ public class GroupCompletionContributor extends CompletionContributor {
                 new CompletionProvider<>() {
                     @Override
                     protected void addCompletions(
-                            @NotNull CompletionParameters parameters,
-                            @NotNull ProcessingContext context,
-                            @NotNull CompletionResultSet resultSet) {
+                            CompletionParameters parameters, ProcessingContext context, CompletionResultSet resultSet) {
 
                         List<String> repositories = List.of("https://repo1.maven.org/maven2/");
 

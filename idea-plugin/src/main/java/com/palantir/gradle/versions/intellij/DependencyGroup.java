@@ -57,7 +57,6 @@ public abstract class DependencyGroup {
                 newParts.add(0, currentElement.getText());
             } else if (currentElement.getNode().getElementType() == VersionPropsTypes.DEPENDENCY_GROUP) {
                 newParts.addAll(Arrays.asList(currentElement.getText().split("\\.")));
-                System.out.println(currentElement.getText());
             }
             currentElement = currentElement.getPrevSibling();
         }

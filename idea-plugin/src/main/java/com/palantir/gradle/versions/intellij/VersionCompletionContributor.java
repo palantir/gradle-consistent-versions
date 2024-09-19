@@ -29,7 +29,6 @@ import com.palantir.gradle.versions.intellij.psi.VersionPropsDependencyVersion;
 import com.palantir.gradle.versions.intellij.psi.VersionPropsProperty;
 import com.palantir.gradle.versions.intellij.psi.VersionPropsTypes;
 import java.util.List;
-import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,9 +43,7 @@ public class VersionCompletionContributor extends CompletionContributor {
                 new CompletionProvider<>() {
                     @Override
                     public void addCompletions(
-                            @NotNull CompletionParameters parameters,
-                            @NotNull ProcessingContext context,
-                            @NotNull CompletionResultSet resultSet) {
+                            CompletionParameters parameters, ProcessingContext context, CompletionResultSet resultSet) {
 
                         VersionPropsDependencyVersion versionElement =
                                 ReadAction.compute(() -> (VersionPropsDependencyVersion)
