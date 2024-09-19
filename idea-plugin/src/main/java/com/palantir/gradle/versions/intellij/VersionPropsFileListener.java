@@ -40,7 +40,7 @@ public final class VersionPropsFileListener implements AsyncFileListener {
     private static final Logger log = LoggerFactory.getLogger(VersionPropsFileListener.class);
 
     public VersionPropsFileListener() {
-        log.warn("Got created");
+        log.debug("Got created");
     }
 
     @Nullable

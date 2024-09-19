@@ -43,7 +43,7 @@ public class RepositoryExplorer {
         Optional<Contents> content = fetchContent(urlString);
 
         if (content.isEmpty()) {
-            log.warn("Page does not exist");
+            log.debug("Page does not exist");
             return new ArrayList<>();
         }
 
@@ -55,7 +55,7 @@ public class RepositoryExplorer {
         Optional<Contents> content = fetchContent(urlString);
 
         if (content.isEmpty()) {
-            log.warn("Empty metadata content received");
+            log.debug("Empty metadata content received");
             return new ArrayList<>();
         }
 
