@@ -28,6 +28,7 @@ javaVersion {
 }
 
 dependencies {
+    implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-xml'
     annotationProcessor 'org.immutables:value'
     compileOnly 'org.immutables:value::annotations'
     testImplementation 'org.junit.jupiter:junit-jupiter'

@@ -16,20 +16,17 @@
 
 package com.palantir.gradle.versions.intellij;
 
+import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.w3c.dom.NodeList;
 
 public class RepositoryExplorer {
     private static final Logger log = LoggerFactory.getLogger(RepositoryExplorer.class);
@@ -91,16 +88,14 @@ public class RepositoryExplorer {
 
     private List<DependencyVersion> parseVersionsFromMetadata(Contents metadataContent) {
         List<DependencyVersion> versions = new ArrayList<>();
-
         try {
-            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-            DocumentBuilder builder = factory.newDocumentBuilder();
-            org.w3c.dom.Document doc = builder.parse(new java.io.ByteArrayInputStream(
-                    metadataContent.pageContent().getBytes(StandardCharsets.UTF_8)));
+            XmlMapper xmlMapper = new XmlMapper();
 
-            NodeList versionNodes = doc.getElementsByTagName("version");
-            for (int i = 0; i < versionNodes.getLength(); i++) {
-                versions.add(DependencyVersion.of(versionNodes.item(i).getTextContent()));
+            Metadata metadata = xmlMapper.readValue(metadataContent.pageContent(), Metadata.class);
+            if (metadata.versioning() != null && metadata.versioning().versions() != null) {
+                for (String version : metadata.versioning().versions()) {
+                    versions.add(DependencyVersion.of(version));
+                }
             }
         } catch (Exception e) {
             log.debug("Failed to parse maven-metadata.xml", e);
