@@ -12,7 +12,7 @@
 
   <extensions defaultExtensionNs="com.intellij">
     <fileType name="VersionProps File" implementationClass="com.palantir.gradle.versions.intellij.VersionPropsFileType" fieldName="INSTANCE"
-              language="VersionProps" extensions="props"/>
+              language="VersionProps" fileNames="versions.props"/>
     <lang.parserDefinition language="VersionProps" implementationClass="com.palantir.gradle.versions.intellij.VersionPropsParserDefinition"/>
     <lang.syntaxHighlighterFactory language="VersionProps"
                                    implementationClass="com.palantir.gradle.versions.intellij.VersionPropsSyntaxHighlighterFactory"/>
