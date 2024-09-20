@@ -21,6 +21,7 @@ tasks.named("javadoc", Javadoc) {
 }
 
 sourceSets.main.java.srcDirs 'build/generated/sources/intellij-parser/main/java'
+sourceSets.main.java.srcDirs 'build/generated/sources/intellij-lexer/main/java'
 
 javaVersion {
     target = 17
@@ -49,7 +50,7 @@ generateParser {
 
 generateLexer {
     sourceFile = file('src/main/java/com/palantir/gradle/versions/intellij/VersionProps.flex')
-    targetOutputDir = file('build/generated/sources/intellij-parser/main/java/com/palantir/gradle/versions/intellij')
+    targetOutputDir = file('build/generated/sources/intellij-lexer/main/java/com/palantir/gradle/versions/intellij')
     targetClass = 'com.palantir.gradle.versions.intellij.VersionPropsLexer'
     purgeOldFiles = true
 }
