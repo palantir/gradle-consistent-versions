@@ -26,7 +26,7 @@ public class VersionPropsCodeInsightTest extends LightJavaCodeInsightFixtureTest
     public void test_version_completion() throws Exception {
         setUp();
         // The file name is required for context but does not need to exist on the filesystem
-        myFixture.configureByText("DummyPropsFile.props", "com.palantir.baseline:baseline-error-prone = <caret>");
+        myFixture.configureByText("versions.props", "com.palantir.baseline:baseline-error-prone = <caret>");
         myFixture.complete(CompletionType.BASIC);
         List<String> lookupElementStrings = myFixture.getLookupElementStrings();
         assertNotNull(lookupElementStrings);
@@ -38,7 +38,7 @@ public class VersionPropsCodeInsightTest extends LightJavaCodeInsightFixtureTest
     public void test_group_completion() throws Exception {
         setUp();
         // The file name is required for context but does not need to exist on the filesystem
-        myFixture.configureByText("DummyPropsFile.props", "com.palantir.baseline.<caret>");
+        myFixture.configureByText("versions.props", "com.palantir.baseline.<caret>");
         myFixture.complete(CompletionType.BASIC);
         List<String> lookupElementStrings = myFixture.getLookupElementStrings();
         assertNotNull(lookupElementStrings);
@@ -50,11 +50,21 @@ public class VersionPropsCodeInsightTest extends LightJavaCodeInsightFixtureTest
     public void test_package_completion() throws Exception {
         setUp();
         // The file name is required for context but does not need to exist on the filesystem
-        myFixture.configureByText("DummyPropsFile.props", "com.palantir.baseline:<caret>");
+        myFixture.configureByText("versions.props", "com.palantir.baseline:<caret>");
         myFixture.complete(CompletionType.BASIC);
         List<String> lookupElementStrings = myFixture.getLookupElementStrings();
         assertNotNull(lookupElementStrings);
         assertContainsElements(lookupElementStrings, "baseline-error-prone", "baseline-null-away");
+        tearDown();
+    }
+
+    @Test
+    public void test_other_file_names() throws Exception {
+        setUp();
+        myFixture.configureByText("notVersions.props", "com.palantir.baseline:<caret>");
+        myFixture.complete(CompletionType.BASIC);
+        List<String> lookupElementStrings = myFixture.getLookupElementStrings();
+        assertEmpty(lookupElementStrings);
         tearDown();
     }
 }

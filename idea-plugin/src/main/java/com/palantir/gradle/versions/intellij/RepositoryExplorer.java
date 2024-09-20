@@ -40,7 +40,7 @@ public class RepositoryExplorer {
 
     public final List<Folder> getFolders(DependencyGroup group) {
         String urlString = baseUrl + group.asUrlString();
-        Optional<Contents> content = fetchContent(urlString);
+        Optional<String> content = fetchContent(urlString);
 
         if (content.isEmpty()) {
             log.debug("Page does not exist");
@@ -52,7 +52,7 @@ public class RepositoryExplorer {
 
     public final List<DependencyVersion> getVersions(DependencyGroup group, DependencyName dependencyPackage) {
         String urlString = baseUrl + group.asUrlString() + dependencyPackage.name() + "/maven-metadata.xml";
-        Optional<Contents> content = fetchContent(urlString);
+        Optional<String> content = fetchContent(urlString);
 
         if (content.isEmpty()) {
             log.debug("Empty metadata content received");
@@ -62,20 +62,20 @@ public class RepositoryExplorer {
         return parseVersionsFromMetadata(content.get());
     }
 
-    private Optional<Contents> fetchContent(String urlString) {
+    private Optional<String> fetchContent(String urlString) {
         try {
             URL url = new URL(urlString);
-            return Contents.pageContents(url);
+            return ContentsUtil.fetchPageContents(url);
         } catch (MalformedURLException e) {
             log.error("Malformed URL", e);
             return Optional.empty();
         }
     }
 
-    private List<Folder> fetchFoldersFromUrl(Contents pageContents) {
+    private List<Folder> fetchFoldersFromUrl(String contents) {
         List<Folder> folders = new ArrayList<>();
 
-        Document doc = Jsoup.parse(pageContents.pageContent());
+        Document doc = Jsoup.parse(contents);
         Elements links = doc.select("a[href]");
 
         for (Element link : links) {
@@ -87,12 +87,12 @@ public class RepositoryExplorer {
         return folders;
     }
 
-    private List<DependencyVersion> parseVersionsFromMetadata(Contents metadataContent) {
+    private List<DependencyVersion> parseVersionsFromMetadata(String content) {
         List<DependencyVersion> versions = new ArrayList<>();
         try {
             XmlMapper xmlMapper = new XmlMapper();
 
-            Metadata metadata = xmlMapper.readValue(metadataContent.pageContent(), Metadata.class);
+            Metadata metadata = xmlMapper.readValue(content, Metadata.class);
             if (metadata.versioning() != null && metadata.versioning().versions() != null) {
                 for (String version : metadata.versioning().versions()) {
                     versions.add(DependencyVersion.of(version));
