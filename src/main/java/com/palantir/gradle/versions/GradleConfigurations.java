@@ -54,7 +54,7 @@ final class GradleConfigurations {
      * applied, this returns an empty set.
      */
     private static Set<String> getLegacyJavaConfigurations(Project project) {
-        JavaPluginExtension javaConvention = project.getExtensions().getByType(JavaPluginExtension.class);
+        JavaPluginExtension javaConvention = project.getExtensions().findByType(JavaPluginExtension.class);
         if (javaConvention == null) {
             return ImmutableSet.of();
         }
