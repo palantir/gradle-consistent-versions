@@ -16,9 +16,15 @@
 
 package com.palantir.gradle.versions
 
+import com.fasterxml.jackson.dataformat.xml.XmlMapper
+import com.fasterxml.jackson.datatype.guava.GuavaModule
 import nebula.test.IntegrationSpec
+import spock.util.environment.RestoreSystemProperties
+
+import java.util.stream.Collectors
 
 class VersionPropsIdeaPluginTest extends IntegrationSpec {
+
     def setup() {
         //language=gradle
         buildFile << """
@@ -41,6 +47,7 @@ class VersionPropsIdeaPluginTest extends IntegrationSpec {
         System.setProperty('idea.active', 'true')
     }
 
+    @RestoreSystemProperties
     def 'plugin creates mavenRepositories.xml file in .idea folder'() {
         when:
         runTasksSuccessfully('idea')
@@ -48,7 +55,15 @@ class VersionPropsIdeaPluginTest extends IntegrationSpec {
         then:
         def repoFile = new File(projectDir, '.idea/mavenRepositories.xml')
         repoFile.exists()
-        repoFile.getText().contains('https://test/')
-        repoFile.getText().contains('https://demo/')
+
+
+        def mapper = new XmlMapper();
+        mapper.registerModule(new GuavaModule());
+        def repositories = mapper.readValue(repoFile, MavenRepositories.class);
+        def expectedRepositories = List.of("https://test/", "https://demo/").stream()
+                .map(ImmutableMavenRepository::of)
+                .collect(Collectors.collectingAndThen(Collectors.toList(), ImmutableMavenRepositories::of));
+
+        repositories == expectedRepositories
     }
 }
