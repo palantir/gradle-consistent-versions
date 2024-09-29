@@ -139,6 +139,36 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         gradleVersionNumber << GRADLE_VERSIONS
     }
 
+    def "#gradleVersionNumber: exclude removes constraint from lockfile"() {
+        setup:
+        gradleVersion = gradleVersionNumber
+
+        buildFile << '''
+            apply plugin: 'java'
+            dependencies {
+                implementation('ch.qos.logback:logback-classic') {
+                    exclude group: 'org.slf4j', module: 'slf4j-api'
+                }
+            }
+            task resolve { doLast { configurations.runtimeClasspath.resolve() } }
+        '''.stripIndent()
+
+        file('versions.props') << '''
+            ch.qos.logback:logback-classic = 1.1.11
+            org.slf4j:* = 1.7.25'
+        '''.stripIndent()
+
+        expect:
+        runTasks('resolve', '--write-locks')
+        file('versions.lock').text == """\
+            # Run ./gradlew writeVersionsLocks to regenerate this file
+            ch.qos.logback:logback-classic:1.1.11 (1 constraints: 36052a3b)
+        """.stripIndent()
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
+    }
+
     def "#gradleVersionNumber: getVersion function works"() {
         setup:
         gradleVersion = gradleVersionNumber
