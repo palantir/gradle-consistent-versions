@@ -41,6 +41,7 @@ class VersionPropsIdeaPluginTest extends IntegrationSpec {
                 maven {
                     url 'https://demo/'
                 }
+                mavenCentral() { metadataSources { mavenPom(); ignoreGradleMetadataRedirection() } }
             }
 
             apply plugin: 'com.palantir.version-props-idea'
@@ -63,6 +64,8 @@ class VersionPropsIdeaPluginTest extends IntegrationSpec {
         def repoFile = new File(projectDir, '.idea/gradle-consistent-versions-plugin-settings.xml')
         repoFile.exists()
 
+
+
         def mapper = new XmlMapper()
         mapper.registerModule(new GuavaModule())
 
@@ -71,6 +74,7 @@ class VersionPropsIdeaPluginTest extends IntegrationSpec {
         // Create the expected ProjectSettings object
         List<ListOption> listOfOptions = [
                 ImmutableListOption.of("https://test/"),
+                ImmutableListOption.of("https://repo.maven.apache.org/maven2/"),
                 ImmutableListOption.of("https://demo/")
         ]
 
@@ -119,6 +123,7 @@ class VersionPropsIdeaPluginTest extends IntegrationSpec {
 
         List<ListOption> expectedListOfOptions = [
                 ImmutableListOption.of("https://test/"),
+                ImmutableListOption.of("https://repo.maven.apache.org/maven2/"),
                 ImmutableListOption.of("https://demo/")
         ]
         Option expectedMavenRepositoriesList = ImmutableOption.of("mavenRepositories", null, expectedListOfOptions)
