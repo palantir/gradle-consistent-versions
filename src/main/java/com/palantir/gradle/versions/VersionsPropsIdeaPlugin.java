@@ -16,25 +16,15 @@
 
 package com.palantir.gradle.versions;
 
-import com.fasterxml.jackson.dataformat.xml.XmlMapper;
-import com.fasterxml.jackson.datatype.guava.GuavaModule;
-import com.palantir.gradle.versions.ideapluginsettings.Component;
-import com.palantir.gradle.versions.ideapluginsettings.ImmutableComponent;
-import com.palantir.gradle.versions.ideapluginsettings.ImmutableListOption;
-import com.palantir.gradle.versions.ideapluginsettings.ImmutableOption;
-import com.palantir.gradle.versions.ideapluginsettings.ImmutableProjectSettings;
-import com.palantir.gradle.versions.ideapluginsettings.ListOption;
-import com.palantir.gradle.versions.ideapluginsettings.Option;
-import com.palantir.gradle.versions.ideapluginsettings.ProjectSettings;
-import java.io.File;
-import java.io.IOException;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.gradle.StartParameter;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.repositories.MavenArtifactRepository;
+import org.gradle.api.provider.Provider;
+import org.gradle.api.tasks.TaskProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,67 +34,24 @@ public final class VersionsPropsIdeaPlugin implements Plugin<Project> {
     @Override
     public void apply(Project project) {
 
-        project.afterEvaluate(p -> {
-            if (!Boolean.getBoolean("idea.active")) {
-                return;
-            }
-            configureIntellij(p);
-        });
-    }
-
-    private static void configureIntellij(Project project) {
-
-        Set<String> repositoryUrls = project.getRootProject().getAllprojects().stream()
-                .flatMap(p -> p.getRepositories().withType(MavenArtifactRepository.class).stream())
-                .map(MavenArtifactRepository::getUrl)
-                .map(Object::toString)
-                .map(url -> url.endsWith("/") ? url : url + "/")
-                .collect(Collectors.toSet());
-        File file = project.file(".idea/gradle-consistent-versions-plugin-settings.xml");
-
-        List<ListOption> listOfOptions =
-                repositoryUrls.stream().map(ImmutableListOption::of).collect(Collectors.toList());
-
-        XmlMapper mapper = new XmlMapper();
-        mapper.registerModule(new GuavaModule());
-
-        try {
-            if (file.exists()) {
-                mapper.writerWithDefaultPrettyPrinter().writeValue(file, updateIdeaXml(file, mapper, listOfOptions));
-            } else {
-                mapper.writerWithDefaultPrettyPrinter().writeValue(file, createIdeaXml(listOfOptions));
-            }
-        } catch (IOException e) {
-            log.error("Failed to configure Intellij", e);
+        if (!Boolean.getBoolean("idea.active")) {
+            return;
         }
-    }
 
-    private static ProjectSettings updateIdeaXml(File file, XmlMapper mapper, List<ListOption> listOfOptions)
-            throws IOException {
-        ProjectSettings existingProjectSettings = mapper.readValue(file, ProjectSettings.class);
-        List<Option> options = existingProjectSettings.component().options().stream()
-                .map(option -> {
-                    if (option.name().equals("mavenRepositories")) {
-                        return ImmutableOption.of("mavenRepositories", null, listOfOptions);
-                    }
-                    return option;
-                })
-                .collect(Collectors.toList());
+        TaskProvider<GenerateMavenRepositoriesTask> writeMavenRepositories = project.getTasks()
+                .register("writeMavenRepositories", GenerateMavenRepositoriesTask.class, task -> {
+                    Provider<Set<String>> repositoryProvider = project.provider(() -> project.getRepositories().stream()
+                            .filter(repo -> repo instanceof MavenArtifactRepository)
+                            .map(repo ->
+                                    ((MavenArtifactRepository) repo).getUrl().toString())
+                            .map(url -> url.endsWith("/") ? url : url + "/")
+                            .collect(Collectors.toSet()));
+                    task.getMavenRepositories().set(repositoryProvider);
+                });
 
-        Component updatedComponent =
-                ImmutableComponent.of(existingProjectSettings.component().name(), options);
-
-        return ImmutableProjectSettings.of(existingProjectSettings.version(), updatedComponent);
-    }
-
-    private static ProjectSettings createIdeaXml(List<ListOption> listOfOptions) {
-        Option enableOption = ImmutableOption.of("enabled", "true", null);
-
-        Option mavenRepositoriesList = ImmutableOption.of("mavenRepositories", null, listOfOptions);
-
-        Component component = ImmutableComponent.of(
-                "GradleConsistentVersionsSettings", Arrays.asList(enableOption, mavenRepositoriesList));
-
-        return ImmutableProjectSettings.of("4", component);
+        StartParameter startParameter = project.getGradle().getStartParameter();
+        List<String> taskNames = startParameter.getTaskNames();
+        taskNames.add(String.format(":%s", writeMavenRepositories.getName()));
+        startParameter.setTaskNames(taskNames);
     }
 }

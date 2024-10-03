@@ -55,6 +55,7 @@ dependencies {
     implementation 'com.palantir.gradle.failure-reports:gradle-failure-reports-exceptions'
     implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-xml'
     implementation 'com.fasterxml.jackson.datatype:jackson-datatype-guava'
+    implementation 'one.util:streamex'
 
     testImplementation platform('org.junit:junit-bom')
     testImplementation 'com.netflix.nebula:nebula-test'
