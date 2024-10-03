@@ -43,16 +43,19 @@ public final class VersionsPropsIdeaPlugin implements Plugin<Project> {
 
     @Override
     public void apply(Project project) {
-        if (!Boolean.getBoolean("idea.active")) {
-            return;
-        }
-        configureIntellij(project);
+
+        project.afterEvaluate(p -> {
+            if (!Boolean.getBoolean("idea.active")) {
+                return;
+            }
+            configureIntellij(p);
+        });
     }
 
     private static void configureIntellij(Project project) {
 
         Set<String> repositoryUrls = project.getRootProject().getAllprojects().stream()
-                .flatMap(target -> target.getRepositories().withType(MavenArtifactRepository.class).stream())
+                .flatMap(p -> p.getRepositories().withType(MavenArtifactRepository.class).stream())
                 .map(MavenArtifactRepository::getUrl)
                 .map(Object::toString)
                 .map(url -> url.endsWith("/") ? url : url + "/")
