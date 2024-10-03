@@ -14,23 +14,33 @@
  * limitations under the License.
  */
 
-package com.palantir.gradle.versions;
+package com.palantir.gradle.versions.ideapluginsettings;
 
-import com.fasterxml.jackson.annotation.JsonRootName;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlElementWrapper;
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty;
 import java.util.List;
 import org.immutables.value.Value;
+import org.jetbrains.annotations.Nullable;
 
 @Value.Immutable
-@JsonDeserialize(as = ImmutableMavenRepositories.class)
-@JsonSerialize(as = ImmutableMavenRepositories.class)
-@JsonRootName("repositories")
-interface MavenRepositories {
+@JsonDeserialize(as = ImmutableOption.class)
+@JsonSerialize(as = ImmutableOption.class)
+public interface Option {
+
     @Value.Parameter
-    @JacksonXmlElementWrapper(useWrapping = false)
-    @JacksonXmlProperty(localName = "repository")
-    List<MavenRepository> repository();
+    @JacksonXmlProperty(isAttribute = true)
+    String name();
+
+    @Nullable
+    @Value.Parameter
+    @JacksonXmlProperty(isAttribute = true)
+    String value();
+
+    @Nullable
+    @Value.Parameter
+    @JacksonXmlElementWrapper(localName = "list")
+    @JacksonXmlProperty(localName = "option")
+    List<ListOption> listOptions();
 }

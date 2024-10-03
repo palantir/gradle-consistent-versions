@@ -18,10 +18,16 @@ package com.palantir.gradle.versions
 
 import com.fasterxml.jackson.dataformat.xml.XmlMapper
 import com.fasterxml.jackson.datatype.guava.GuavaModule
+import com.palantir.gradle.versions.ideapluginsettings.Component
+import com.palantir.gradle.versions.ideapluginsettings.ImmutableComponent
+import com.palantir.gradle.versions.ideapluginsettings.ImmutableListOption
+import com.palantir.gradle.versions.ideapluginsettings.ImmutableOption
+import com.palantir.gradle.versions.ideapluginsettings.ImmutableProjectSettings
+import com.palantir.gradle.versions.ideapluginsettings.ListOption
+import com.palantir.gradle.versions.ideapluginsettings.Option
+import com.palantir.gradle.versions.ideapluginsettings.ProjectSettings
 import nebula.test.IntegrationSpec
 import spock.util.environment.RestoreSystemProperties
-
-import java.util.stream.Collectors
 
 class VersionPropsIdeaPluginTest extends IntegrationSpec {
 
@@ -48,22 +54,88 @@ class VersionPropsIdeaPluginTest extends IntegrationSpec {
     }
 
     @RestoreSystemProperties
-    def 'plugin creates mavenRepositories.xml file in .idea folder'() {
+
+    def "plugin creates gradle-consistent-versions-plugin-settings.xml file in .idea folder"() {
         when:
         runTasksSuccessfully('idea')
 
         then:
-        def repoFile = new File(projectDir, '.idea/mavenRepositories.xml')
+        def repoFile = new File(projectDir, '.idea/gradle-consistent-versions-plugin-settings.xml')
         repoFile.exists()
 
+        def mapper = new XmlMapper()
+        mapper.registerModule(new GuavaModule())
 
-        def mapper = new XmlMapper();
-        mapper.registerModule(new GuavaModule());
-        def repositories = mapper.readValue(repoFile, MavenRepositories.class);
-        def expectedRepositories = List.of("https://test/", "https://demo/").stream()
-                .map(ImmutableMavenRepository::of)
-                .collect(Collectors.collectingAndThen(Collectors.toList(), ImmutableMavenRepositories::of));
+        ProjectSettings actualProjectSettings = mapper.readValue(repoFile, ProjectSettings.class)
 
-        repositories == expectedRepositories
+        // Create the expected ProjectSettings object
+        List<ListOption> listOfOptions = [
+                ImmutableListOption.of("https://test/"),
+                ImmutableListOption.of("https://demo/")
+        ]
+
+        Option enableOption = ImmutableOption.of("enabled", "true", (List<ListOption>) null);
+        Option mavenRepositoriesList = ImmutableOption.of("mavenRepositories", null, listOfOptions)
+
+        Component component = ImmutableComponent.of(
+                "GradleConsistentVersionsSettings", [enableOption, mavenRepositoriesList])
+
+        ProjectSettings expectedProjectSettings = ImmutableProjectSettings.of("4", component)
+
+        actualProjectSettings == expectedProjectSettings
+    }
+
+    def "plugin only overwrites the repos and not any other settings"() {
+        given:
+        def initialXml = """
+        <project version="4">
+          <component name="GradleConsistentVersionsSettings">
+            <option name="enabled" value="false"/>
+            <option name="mavenRepositories">
+              <list>
+                <option value="https://oldrepo1/"/>
+                <option value="https://oldrepo2/"/>
+              </list>
+            </option>
+          </component>
+        </project>
+        """.stripIndent(true)
+        def repoFile = new File(projectDir, '.idea/gradle-consistent-versions-plugin-settings.xml')
+        repoFile.parentFile.mkdirs()
+        repoFile.text = initialXml
+
+        when:
+        runTasksSuccessfully('idea')
+
+        then:
+        repoFile.exists()
+
+        def mapper = new XmlMapper()
+        mapper.registerModule(new GuavaModule())
+
+        ProjectSettings actualProjectSettings = mapper.readValue(repoFile, ProjectSettings.class)
+
+        def enabled = actualProjectSettings.component().options().find { it.name() == "enabled" }
+
+        List<ListOption> expectedListOfOptions = [
+                ImmutableListOption.of("https://test/"),
+                ImmutableListOption.of("https://demo/")
+        ]
+        Option expectedMavenRepositoriesList = ImmutableOption.of("mavenRepositories", null, expectedListOfOptions)
+
+        def actualMavenRepositoriesList = actualProjectSettings.component().options().find { it.name() == "mavenRepositories" }
+
+        assert actualMavenRepositoriesList == expectedMavenRepositoriesList
+
+        assert enabled != null
+        assert enabled.value() == "false"
+    }
+
+    private static void normalizeOptionLists(ProjectSettings projectSettings) {
+        projectSettings.component().options().forEach(option -> {
+            if (option.listOptions() == null) {
+                option = ImmutableOption.copyOf(option).withListOptions(Collections.emptyList())
+            }
+        })
     }
 }

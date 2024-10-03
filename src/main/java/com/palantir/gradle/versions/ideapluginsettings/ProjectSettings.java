@@ -14,18 +14,24 @@
  * limitations under the License.
  */
 
-package com.palantir.gradle.versions;
+package com.palantir.gradle.versions.ideapluginsettings;
 
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty;
+import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlRootElement;
 import org.immutables.value.Value;
 
 @Value.Immutable
-@JsonDeserialize(as = ImmutableMavenRepository.class)
-@JsonSerialize(as = ImmutableMavenRepository.class)
-interface MavenRepository {
+@JsonDeserialize(as = ImmutableProjectSettings.class)
+@JsonSerialize(as = ImmutableProjectSettings.class)
+@JacksonXmlRootElement(localName = "project")
+public interface ProjectSettings {
     @Value.Parameter
     @JacksonXmlProperty(isAttribute = true)
-    String value();
+    String version();
+
+    @Value.Parameter
+    @JacksonXmlProperty(localName = "component")
+    Component component();
 }
