@@ -42,22 +42,22 @@ public final class VersionsPropsIdeaPlugin implements Plugin<Project> {
     private static final Logger log = LoggerFactory.getLogger(VersionsPropsIdeaPlugin.class);
 
     @Override
-    public void apply(Project target) {
+    public void apply(Project project) {
         if (!Boolean.getBoolean("idea.active")) {
             return;
         }
-        configureIntellij(target);
+        configureIntellij(project);
     }
 
-    private static void configureIntellij(Project target) {
+    private static void configureIntellij(Project project) {
 
-        Set<String> repositoryUrls = target.getRootProject().getAllprojects().stream()
+        Set<String> repositoryUrls = project.getRootProject().getAllprojects().stream()
                 .flatMap(project -> project.getRepositories().withType(MavenArtifactRepository.class).stream())
                 .map(MavenArtifactRepository::getUrl)
                 .map(Object::toString)
                 .map(url -> url.endsWith("/") ? url : url + "/")
                 .collect(Collectors.toSet());
-        File file = target.file(".idea/gradle-consistent-versions-plugin-settings.xml");
+        File file = project.file(".idea/gradle-consistent-versions-plugin-settings.xml");
 
         List<ListOption> listOfOptions =
                 repositoryUrls.stream().map(ImmutableListOption::of).collect(Collectors.toList());
