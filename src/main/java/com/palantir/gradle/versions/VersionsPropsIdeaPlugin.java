@@ -52,7 +52,7 @@ public final class VersionsPropsIdeaPlugin implements Plugin<Project> {
     private static void configureIntellij(Project project) {
 
         Set<String> repositoryUrls = project.getRootProject().getAllprojects().stream()
-                .flatMap(project -> project.getRepositories().withType(MavenArtifactRepository.class).stream())
+                .flatMap(target -> target.getRepositories().withType(MavenArtifactRepository.class).stream())
                 .map(MavenArtifactRepository::getUrl)
                 .map(Object::toString)
                 .map(url -> url.endsWith("/") ? url : url + "/")
