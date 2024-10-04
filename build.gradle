@@ -53,6 +53,9 @@ dependencies {
     implementation 'com.google.guava:guava'
     implementation 'com.netflix.nebula:nebula-dependency-recommender'
     implementation 'com.palantir.gradle.failure-reports:gradle-failure-reports-exceptions'
+    implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-xml'
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-guava'
+    implementation 'one.util:streamex'
 
     testImplementation platform('org.junit:junit-bom')
     testImplementation 'com.netflix.nebula:nebula-test'
@@ -110,6 +113,13 @@ gradlePlugin {
             id = 'com.palantir.versions-props'
             implementationClass = 'com.palantir.gradle.versions.VersionsPropsPlugin'
             displayName = 'Inject version constraints into every configuration in your projects'
+            description = displayName
+            tags.set(['versions'])
+        }
+        versionsPropsIdeaPlugin {
+            id = 'com.palantir.version-props-idea'
+            implementationClass = 'com.palantir.gradle.versions.VersionsPropsIdeaPlugin'
+            displayName = 'Plugin to collect repositories for use by the IDEA plugin.'
             description = displayName
             tags.set(['versions'])
         }

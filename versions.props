@@ -1,5 +1,7 @@
 com.fasterxml.jackson.*:jackson-* = 2.17.2
 com.fasterxml.jackson.core:jackson-databind = 2.17.2
+com.fasterxml.jackson.dataformat:jackson-dataformat-xml = 2.17.2
+com.fasterxml.jackson.datatype:jackson-datatype-guava = 2.17.2
 com.google.guava:guava = 31.1-jre
 com.netflix.nebula:nebula-dependency-recommender = 11.0.0
 org.assertj:* = 3.23.1
@@ -8,6 +10,7 @@ org.junit:junit-bom = 5.9.1
 org.mockito:mockito-core = 4.8.0
 com.netflix.nebula:nebula-test = 10.0.0
 com.palantir.gradle.failure-reports:* = 1.2.0
+one.util:streamex = 0.8.3
 
 # Unnecessary once we have lock files
 com.google.code.findbugs:jsr305 = 3.0.2
