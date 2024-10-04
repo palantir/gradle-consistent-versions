@@ -17,13 +17,11 @@
 package com.palantir.gradle.versions;
 
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Collectors;
 import org.gradle.StartParameter;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.repositories.MavenArtifactRepository;
-import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.TaskProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,13 +38,12 @@ public final class VersionsPropsIdeaPlugin implements Plugin<Project> {
 
         TaskProvider<GenerateMavenRepositoriesTask> writeMavenRepositories = project.getTasks()
                 .register("writeMavenRepositories", GenerateMavenRepositoriesTask.class, task -> {
-                    Provider<Set<String>> repositoryProvider = project.provider(() -> project.getRepositories().stream()
+                    task.getMavenRepositories().set(project.provider(() -> project.getRepositories().stream()
                             .filter(repo -> repo instanceof MavenArtifactRepository)
                             .map(repo ->
                                     ((MavenArtifactRepository) repo).getUrl().toString())
                             .map(url -> url.endsWith("/") ? url : url + "/")
-                            .collect(Collectors.toSet()));
-                    task.getMavenRepositories().set(repositoryProvider);
+                            .collect(Collectors.toSet())));
                 });
 
         StartParameter startParameter = project.getGradle().getStartParameter();

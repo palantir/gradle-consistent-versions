@@ -44,14 +44,11 @@ class VersionPropsIdeaPluginIntegrationSpec extends IntegrationSpec {
 
         def ideaDir = new File(projectDir, '.idea')
         ideaDir.mkdirs()
-
-        System.setProperty('idea.active', 'true')
     }
 
-    @RestoreSystemProperties
     def "plugin creates gcv-maven-repositories.xml file in .idea folder"() {
         when: 'we run the first time'
-        runTasksSuccessfully()
+        runTasksSuccessfully('-Didea.active=true')
 
         then: 'we generate the correct config'
         def repoFile = new File(projectDir, '.idea/gcv-maven-repositories.xml')
@@ -70,7 +67,7 @@ class VersionPropsIdeaPluginIntegrationSpec extends IntegrationSpec {
         nodeToXmlString(projectNode) == expectedXml
 
         when: 'we run the second time'
-        def secondRun = runTasksSuccessfully()
+        def secondRun = runTasksSuccessfully('-Didea.active=true')
 
         then: "if nothing has changed, the task is then up-to-date"
         secondRun.wasUpToDate(":writeMavenRepositories")
