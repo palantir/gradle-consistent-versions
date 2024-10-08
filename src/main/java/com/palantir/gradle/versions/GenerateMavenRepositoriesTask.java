@@ -16,6 +16,8 @@
 
 package com.palantir.gradle.versions;
 
+import com.ctc.wstx.stax.WstxInputFactory;
+import com.ctc.wstx.stax.WstxOutputFactory;
 import com.fasterxml.jackson.annotation.JsonRootName;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
@@ -38,7 +40,8 @@ import org.immutables.value.Value;
 
 public abstract class GenerateMavenRepositoriesTask extends DefaultTask {
 
-    private static final ObjectMapper XML_MAPPER = new XmlMapper().registerModule(new GuavaModule());
+    private static final ObjectMapper XML_MAPPER =
+            new XmlMapper(new WstxInputFactory(), new WstxOutputFactory()).registerModule(new GuavaModule());
 
     private static final String MAVEN_REPOSITORIES_FILE_NAME = ".idea/gcv-maven-repositories.xml";
 
