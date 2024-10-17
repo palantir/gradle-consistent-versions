@@ -32,53 +32,36 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.gradle.api.DefaultTask;
-import org.gradle.api.file.RegularFile;
 import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputFile;
-import org.gradle.api.tasks.Internal;
 import org.gradle.api.tasks.TaskAction;
 import org.gradle.api.tasks.options.Option;
 import org.gradle.language.base.plugins.LifecycleBasePlugin;
 
 public abstract class CheckOverbroadConstraints extends DefaultTask {
 
-    @Internal
-    protected abstract Property<Boolean> getShouldFixProperty();
+    @Input
+    public abstract Property<Boolean> getShouldFix();
 
-    @Internal
-    protected abstract RegularFileProperty getPropsFileProperty();
+    @InputFile
+    public abstract RegularFileProperty getPropsFile();
 
-    @Internal
-    protected abstract RegularFileProperty getLockFileProperty();
+    @InputFile
+    public abstract RegularFileProperty getLockFile();
 
     public CheckOverbroadConstraints() {
-        getShouldFixProperty().set(false);
+        getShouldFix().set(false);
         setGroup(LifecycleBasePlugin.VERIFICATION_GROUP);
         setDescription(
                 "Ensures matched versions in your versions.lock are pinned to avoid wasted dependency resolution.");
         getOutputs().upToDateWhen(_task -> true); // task has no outputs, this is needed for it to be up to date
     }
 
-    @InputFile
-    public final Property<RegularFile> getLockFile() {
-        return getLockFileProperty();
-    }
-
-    @InputFile
-    public final Property<RegularFile> getPropsFile() {
-        return getPropsFileProperty();
-    }
-
-    @Input
-    public final Property<Boolean> getShouldFix() {
-        return getShouldFixProperty();
-    }
-
     @Option(option = "fix", description = "Whether to apply the suggested fix to versions.props")
-    public final void setShouldFix(boolean shouldFix) {
-        this.getShouldFixProperty().set(shouldFix);
+    public final void setShouldFixOption(boolean shouldFix) {
+        this.getShouldFix().set(shouldFix);
     }
 
     @TaskAction
@@ -97,7 +80,7 @@ public abstract class CheckOverbroadConstraints extends DefaultTask {
 
         if (newLines.isEmpty()) {
             return;
-        } else if (getShouldFixProperty().get()) {
+        } else if (getShouldFix().get()) {
             getLogger()
                     .lifecycle("Adding pins to versions.props:\n"
                             + newLines.stream().collect(Collectors.joining("\n")));
@@ -105,10 +88,14 @@ public abstract class CheckOverbroadConstraints extends DefaultTask {
             return;
         }
 
-        throw new RuntimeException("There are efficient pins missing from your versions.props: \n"
+        throw new RuntimeException("Over-broad version constraints found in versions.props.\n"
+                + "Over-broad constrains often arise due to wildcards in versions.props\n"
+                + "which apply to more dependencies than they should, this can lead to slow builds.\n"
+                + "The following additional pins are recommended:\n"
                 + newLines
                 + "\n\n"
-                + "Run ./gradlew checkOverbroadConstraints --fix to add them.");
+                + "Run ./gradlew checkOverbroadConstraints --fix to add them."
+                + "See https://pl.ntr/2oX for details");
     }
 
     @VisibleForTesting
