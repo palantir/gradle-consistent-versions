@@ -18,6 +18,7 @@ package com.palantir.gradle.versions;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
+import com.palantir.gradle.failurereports.exceptions.ExceptionWithSuggestion;
 import com.palantir.gradle.versions.FuzzyPatternResolver.Glob;
 import com.palantir.gradle.versions.lockstate.Line;
 import com.palantir.gradle.versions.lockstate.LockState;
@@ -80,7 +81,9 @@ public abstract class CheckOverbroadConstraints extends DefaultTask {
 
         if (newLines.isEmpty()) {
             return;
-        } else if (getShouldFix().get()) {
+        }
+
+        if (getShouldFix().get()) {
             getLogger()
                     .lifecycle("Adding pins to versions.props:\n"
                             + newLines.stream().collect(Collectors.joining("\n")));
@@ -88,14 +91,18 @@ public abstract class CheckOverbroadConstraints extends DefaultTask {
             return;
         }
 
-        throw new RuntimeException("Over-broad version constraints found in versions.props.\n"
-                + "Over-broad constrains often arise due to wildcards in versions.props\n"
-                + "which apply to more dependencies than they should, this can lead to slow builds.\n"
-                + "The following additional pins are recommended:\n"
-                + newLines
-                + "\n\n"
-                + "Run ./gradlew checkOverbroadConstraints --fix to add them."
-                + "See https://pl.ntr/2oX for details");
+        throw new ExceptionWithSuggestion(
+                String.join(
+                        "\n",
+                        "Over-broad version constraints found in versions.props.",
+                        "Over-broad constraints often arise due to wildcards in versions.props",
+                        "which apply to more dependencies than they should, this can lead to slow builds.",
+                        "The following additional pins are recommended:",
+                        String.join("\n", newLines),
+                        "",
+                        "Run ./gradlew checkOverbroadConstraints --fix to add them.",
+                        "See https://github.com/palantir/gradle-consistent-versions?tab=readme-ov-file#gradlew-checkoverbroadconstraints for details"),
+                "./gradlew checkOverbroadConstraints --fix");
     }
 
     @VisibleForTesting
