@@ -93,7 +93,7 @@ public class VersionsPropsPlugin implements Plugin<Project> {
             project.getTasks().named("check").configure(task -> task.dependsOn(checkNoUnusedConstraints));
 
             TaskProvider<CheckOverbroadConstraints> checkBadPins = project.getTasks()
-                    .register("checkBadPins", CheckOverbroadConstraints.class, task -> {
+                    .register("checkOverbroadConstraints", CheckOverbroadConstraints.class, task -> {
                         task.getLockFile()
                                 .set(project.getLayout().getProjectDirectory().file("versions.lock"));
                         task.getPropsFile()

@@ -82,16 +82,16 @@ public abstract class CheckOverbroadConstraints extends DefaultTask {
     }
 
     @TaskAction
-    public final void checkBadPins() {
+    public final void checkOverbroadConstraints() {
         VersionsProps versionsProps =
                 VersionsProps.loadFromFile(getPropsFile().get().getAsFile().toPath());
         LockState lockState =
                 new ConflictSafeLockFile(getLockFile().get().getAsFile().toPath()).readLocks();
 
-        checkBadPins(versionsProps, lockState);
+        checkOverbroadConstraints(versionsProps, lockState);
     }
 
-    private void checkBadPins(VersionsProps versionsProps, LockState lockState) {
+    private void checkOverbroadConstraints(VersionsProps versionsProps, LockState lockState) {
 
         List<String> newLines = determineNewLines(versionsProps, lockState);
 
@@ -108,7 +108,7 @@ public abstract class CheckOverbroadConstraints extends DefaultTask {
         throw new RuntimeException("There are efficient pins missing from your versions.props: \n"
                 + newLines
                 + "\n\n"
-                + "Run ./gradlew checkBadPins --fix to add them.");
+                + "Run ./gradlew checkOverbroadConstraints --fix to add them.");
     }
 
     @VisibleForTesting

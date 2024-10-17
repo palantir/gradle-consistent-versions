@@ -33,30 +33,30 @@ class CheckOverbroadConstraintsIntegrationSpec extends IntegrationSpec {
     }
 
     def buildSucceed() {
-        BuildResult result = runTasks('checkBadPins')
-        result.task(':checkBadPins').outcome == TaskOutcome.SUCCESS
+        BuildResult result = runTasks('checkOverbroadConstraints')
+        result.task(':checkOverbroadConstraints').outcome == TaskOutcome.SUCCESS
         result
     }
 
     void buildAndFailWith(String error) {
-        BuildResult result = runTasksAndFail('checkBadPins')
+        BuildResult result = runTasksAndFail('checkOverbroadConstraints')
         assert result.output.contains(error)
     }
 
     def buildWithFixWorks() {
         def currentVersionsProps = file('versions.props').readLines()
         // Check that running with --fix modifies the file
-        runTasks('checkBadPins', '--fix')
+        runTasks('checkOverbroadConstraints', '--fix')
         assert file('versions.props').readLines() != currentVersionsProps
 
         // Check that the task now succeeds
-        runTasks('checkBadPins')
+        runTasks('checkOverbroadConstraints')
     }
 
     def 'Task should run as part of :check'() {
         expect:
         def result = runTasks('check', '-m')
-        result.output.contains(':checkBadPins')
+        result.output.contains(':checkOverbroadConstraints')
     }
 
     def 'All versions are pinned'() {
@@ -74,7 +74,7 @@ class CheckOverbroadConstraintsIntegrationSpec extends IntegrationSpec {
         buildSucceed()
     }
 
-    def 'Not all versions are pinned'() {
+    def 'Not all versions are pinned throws error and fix works'() {
         when:
         file('versions.props').text = """
             com.fasterxml.jackson.*:* = 2.9.3
