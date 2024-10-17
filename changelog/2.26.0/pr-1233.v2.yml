@@ -1,0 +1,5 @@
+type: feature
+feature:
+  description: Plugin to create a maven repo list in the .ideas folder
+  links:
+  - https://github.com/palantir/gradle-consistent-versions/pull/1233

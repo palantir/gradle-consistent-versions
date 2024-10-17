@@ -26,7 +26,7 @@ import org.junit.jupiter.api.Test;
 class CheckOverbroadConstraintsTest {
 
     private static VersionsProps createVersionProps(String contents) {
-        return VersionsProps.fromLines(List.of(contents.split("\n")));
+        return VersionsProps.fromLines(List.of(contents.split("\n")), null);
     }
 
     private static LockState createLockState(String productionContents) {

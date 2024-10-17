@@ -1,0 +1,5 @@
+type: improvement
+improvement:
+  description: Upgrade gradle wrapper to 7.6.1
+  links:
+  - https://github.com/palantir/gradle-consistent-versions/pull/1053

@@ -85,12 +85,12 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    def '#gradleVersionNumber: can write locks using writeVersionsLock'() {
+    def '#gradleVersionNumber: can write locks using writeVersionsLocks'() {
         setup:
         gradleVersion = gradleVersionNumber
 
         when:
-        runTasks('writeVersionsLock')
+        runTasks('writeVersionsLocks')
 
         then:
         new File(projectDir, "versions.lock").exists()
@@ -100,7 +100,7 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    def '#gradleVersionNumber: can write locks using abbreviated writeVersionsLock'() {
+    def '#gradleVersionNumber: can write locks using abbreviated writeVersionsLocks'() {
         setup:
         gradleVersion = gradleVersionNumber
 
@@ -110,34 +110,6 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         then:
         new File(projectDir, "versions.lock").exists()
         runTasks('resolveConfigurations')
-
-        where:
-        gradleVersionNumber << GRADLE_VERSIONS
-    }
-
-    // TODO(dsanduleac): should remove this since this functionality doesn't fully work anyway, and we are
-    //   actively encouraging people to stop resolving the deprecated configurations `compile` and `runtime`.
-    def '#gradleVersionNumber: can resolve all configurations like compile with version coming only from versions props'() {
-        setup:
-        gradleVersion = gradleVersionNumber
-
-        file('versions.props') << """
-            org.slf4j:slf4j-api = 1.7.22
-        """.stripIndent()
-
-        buildFile << """
-            apply plugin: 'java'
-            dependencies {
-                implementation "org.slf4j:slf4j-api"
-            }
-        """.stripIndent()
-
-        when:
-        runTasks('--write-locks')
-
-        then:
-        // Ensures that configurations like 'compile' are resolved and their dependencies have versions
-        runTasks('--warning-mode=none', 'resolveConfigurations')
 
         where:
         gradleVersionNumber << GRADLE_VERSIONS
@@ -246,7 +218,7 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
 
         then:
         def expectedLock = """\
-            # Run ./gradlew --write-locks to regenerate this file
+            # Run ./gradlew writeVersionsLocks to regenerate this file
             test-alignment:module-that-should-be-aligned-up:1.1 (1 constraints: a5041a2c)
             test-alignment:module-with-higher-version:1.1 (1 constraints: a6041b2c)
         """.stripIndent()
@@ -276,7 +248,7 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
 
         then:
         def expectedLock = """\
-            # Run ./gradlew --write-locks to regenerate this file
+            # Run ./gradlew writeVersionsLocks to regenerate this file
             org.slf4j:slf4j-api:1.7.25 (1 constraints: 4105483b)
         """.stripIndent()
         file('versions.lock').text == expectedLock
@@ -334,7 +306,7 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         runTasks('--write-locks')
 
         file('versions.lock').text == """\
-            # Run ./gradlew --write-locks to regenerate this file
+            # Run ./gradlew writeVersionsLocks to regenerate this file
             org.slf4j:slf4j-api:1.7.25 (1 constraints: 4105483b)
             org1:platform:1.0 (1 constraints: a5041a2c)
             org2:platform:1.0 (1 constraints: a5041a2c)

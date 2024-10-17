@@ -33,10 +33,10 @@ Direct dependencies are specified in a top level `versions.props` file and then 
     com.squareup.okhttp3:okhttp = 3.12.0
     ```
 
-4. Run **`./gradlew --write-locks`** and see your versions.lock file be automatically created. This file should be checked into your repo:
+4. Run **`./gradlew writeVersionsLocks`** and see your versions.lock file be automatically created. This file should be checked into your repo:
 
     ```bash
-    # Run ./gradlew --write-locks to regenerate this file
+    # Run ./gradlew writeVersionsLocks to regenerate this file
     com.squareup.okhttp3:okhttp:3.12.0 (1 constraints: 38053b3b)
     com.squareup.okio:okio:1.15.0 (1 constraints: 810cbb09)
     ```
@@ -137,14 +137,14 @@ com.jayway.awaitility:awaitility:1.6.5 (1 constraints: c615c1d2)
 ```
 
 The lockfile sources production dependencies from the _compileClasspath_ and _runtimeClasspath_ configurations, and
-test dependencies from the compile/runtime classpaths of any source set that ends in test (e.g. `test`, `integrationTest`,
-`eteTest`).
+test dependencies from the compile/runtime classpaths of any source set named `jmh` or whose name ends in "test"
+(e.g. `test`, `integrationTest`, `eteTest`).
 
 There is a `verifyLocks` task (automatically run as part of `check`) that will ensure `versions.lock` is still consistent
 with the current dependencies.
 
 ### ./gradlew why
-To understand why a particular version in your lockfile has been chosen, run `./gradlew why --hash a60c3ce8` to expand the constraints:
+To understand why a particular version in your lockfile has been chosen, run `./gradlew why --dependency <dependency>` to expand the constraints:
 ```
 > Task :why
 com.fasterxml.jackson.core:jackson-databind:2.9.8
@@ -159,9 +159,6 @@ This is effectively just a more concise version of `dependencyInsight`:
 ```
 ./gradlew  dependencyInsight --configuration unifiedClasspath --dependency jackson-databind
 ```
-
-You can check multiple dependencies at once by passing multiple comma-delimited hash values, e.g.
-`./gradlew why --hash a60c3ce8,400d4d2a`.
 
 ## ./gradlew checkUnusedConstraints
 `checkUnusedConstraints` prevents unnecessary constraints from accruing in your `versions.props` file. Run

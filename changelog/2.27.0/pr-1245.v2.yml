@@ -1,0 +1,5 @@
+type: fix
+fix:
+  description: Add WstxInputFactory and WstxOutputFactory to XmlMapper
+  links:
+  - https://github.com/palantir/gradle-consistent-versions/pull/1245

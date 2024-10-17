@@ -17,7 +17,6 @@
 package com.palantir.gradle.versions;
 
 import com.google.common.base.CharMatcher;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -53,34 +52,47 @@ public final class VersionsProps {
 
     public static VersionsProps loadFromFile(Path path) {
         List<String> lines = safeReadLines(path);
-        return fromLines(lines);
+        return fromLines(lines, path);
     }
 
-    static VersionsProps fromLines(List<String> lines) {
+    public static VersionsProps fromLines(List<String> lines, Path path) {
         FuzzyPatternResolver.Builder builder = FuzzyPatternResolver.builder();
         Map<String, String> versions = new HashMap<>();
+        int lineNumber = 1;
         for (String line : lines) {
             Matcher constraint = CONSTRAINT.matcher(line);
             if (constraint.matches()) {
                 String key = constraint.group(1);
                 String value = constraint.group(2);
-                Preconditions.checkArgument(
+                Validators.checkResultOrThrow(
                         CharMatcher.is(':').countIn(key) == 1,
-                        "Encountered invalid artifact name '%s' in versions.props",
-                        key);
-                Preconditions.checkArgument(
-                        !value.isEmpty(), "Encountered missing version for artifact '%s' in versions.props", value);
-                if (versions.containsKey(key)) {
-                    throw new RuntimeException("Encountered duplicate constraint for '"
-                            + key
-                            + "' in versions.props. Please remove one of the entries:\n"
-                            + String.format("    %s = %s\n", key, versions.get(key))
-                            + String.format("    %s = %s\n", key, value));
-                }
+                        String.format("Encountered invalid artifact name '%s' in versions.props", key),
+                        path,
+                        lineNumber);
+                Validators.checkResultOrThrow(
+                        !value.isEmpty(),
+                        String.format("Encountered missing version for artifact '%s' in versions.props", value),
+                        path,
+                        lineNumber);
+                Validators.checkResultOrThrow(
+                        !versions.containsKey(key),
+                        String.format(
+                                "Encountered duplicate constraint for '%s' in versions.props. "
+                                        + "Please remove one of the entries:\n"
+                                        + "    %s = %s\n"
+                                        + "    %s = %s\n",
+                                key, key, versions.get(key), key, value),
+                        path,
+                        lineNumber);
                 versions.put(key, value);
-            } else if (!line.trim().isEmpty() && !line.startsWith("#")) {
-                throw new IllegalArgumentException("Encountered invalid constraint " + line);
+            } else {
+                Validators.checkResultOrThrow(
+                        line.trim().isEmpty() || line.startsWith("#"),
+                        "Encountered invalid constraint " + line,
+                        path,
+                        lineNumber);
             }
+            ++lineNumber;
         }
         builder.putAllVersions(versions);
         return new VersionsProps(builder.build());

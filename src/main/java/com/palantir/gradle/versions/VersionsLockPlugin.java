@@ -93,7 +93,7 @@ import org.gradle.api.logging.Logging;
 import org.gradle.api.logging.configuration.ShowStacktrace;
 import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.plugins.JavaPlugin;
-import org.gradle.api.plugins.JavaPluginConvention;
+import org.gradle.api.plugins.JavaPluginExtension;
 import org.gradle.api.provider.Property;
 import org.gradle.api.publish.Publication;
 import org.gradle.api.publish.PublishingExtension;
@@ -108,7 +108,7 @@ import org.immutables.value.Value;
 
 public class VersionsLockPlugin implements Plugin<Project> {
     private static final Logger log = Logging.getLogger(VersionsLockPlugin.class);
-    static final GradleVersion MINIMUM_GRADLE_VERSION = GradleVersion.version("6.1");
+    static final GradleVersion MINIMUM_GRADLE_VERSION = GradleVersion.version("7.6.4");
 
     /** Root project configuration that collects all the dependencies from each project. */
     static final String UNIFIED_CLASSPATH_CONFIGURATION_NAME = "unifiedClasspath";
@@ -259,8 +259,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
         // write the versions lock task without running --write-locks code from any other gradle plugin. Unfortunately,
         // we can't just have the task run the write locks code as we need to write the locks in afterEvaluate.
         project.getTasks()
-                .register(WRITE_VERSIONS_LOCKS_TASK, WriteVersionsLocksMarkerTask.class, writeVersionsLock -> {
-                    writeVersionsLock.getOutputs().upToDateWhen(_ignored -> false);
+                .register(WRITE_VERSIONS_LOCKS_TASK, WriteVersionsLocksMarkerTask.class, writeVersionsLocks -> {
+                    writeVersionsLocks.getOutputs().upToDateWhen(_ignored -> false);
                 });
 
         // afterEvaluate is necessary to ensure all projects' dependencies have been configured, because we
@@ -660,8 +660,6 @@ public class VersionsLockPlugin implements Plugin<Project> {
             copiedConf.getAttributes().attribute(Usage.USAGE_ATTRIBUTE, internalUsage);
             // Must set this because we depend on this configuration when resolving unifiedClasspath.
             copiedConf.setCanBeConsumed(true);
-            // But this should never be resolved! (it will most likely fail to given the usage above)
-            copiedConf.setCanBeResolved(false);
             // Since we only depend on these from the same project (via CONSISTENT_VERSIONS_PRODUCTION or
             // CONSISTENT_VERSIONS_TEST), we shouldn't allow them to be visible outside this project.
             copiedConf.setVisible(false);
@@ -760,12 +758,19 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 .map(a -> (UnresolvedDependencyResult) a)
                 .collect(Collectors.toList());
         if (!unresolved.isEmpty()) {
-            throw new GradleException(String.format(
-                    "Could not compute lock state from configuration '%s' due to unresolved dependencies:\n%s",
+            GradleException gradleException = new GradleException(String.format(
+                    "Could not compute lock state from configuration '%s' due to unresolved dependencies "
+                            + "(see suppressed exceptions below for full stacktraces):\n%s",
                     UNIFIED_CLASSPATH_CONFIGURATION_NAME,
                     unresolved.stream()
                             .map(this::formatUnresolvedDependencyResult)
                             .collect(Collectors.joining("\n"))));
+
+            unresolved.forEach(unresolvedDependencyResult -> {
+                gradleException.addSuppressed(unresolvedDependencyResult.getFailure());
+            });
+
+            throw gradleException;
         }
     }
 
@@ -879,6 +884,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
      * {@link org.gradle.api.tasks.diagnostics.internal.insight.DependencyInsightReporter#collectErrorMessages} does,
      * since that whole class is not public API.
      */
+    @SuppressWarnings("SafeLoggingPropagation")
     private String formatUnresolvedDependencyResult(UnresolvedDependencyResult result) {
         StringBuilder failures = new StringBuilder();
         for (Throwable failure = result.getFailure(); failure != null; failure = failure.getCause()) {
@@ -983,16 +989,21 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 Collections2.transform(ext.getTestConfigurations(), project.getConfigurations()::getByName));
 
         if (ext.isUseJavaPluginDefaults() && project.getPluginManager().hasPlugin("java")) {
-            SourceSetContainer sourceSets = project.getConvention()
-                    .getPlugin(JavaPluginConvention.class)
-                    .getSourceSets();
+            SourceSetContainer sourceSets =
+                    project.getExtensions().getByType(JavaPluginExtension.class).getSourceSets();
 
             lockedConfigurations.addAllProductionConfigurations(
                     getConfigurationsForSourceSet(project, sourceSets.getByName(SourceSet.MAIN_SOURCE_SET_NAME)));
 
             // Use heuristic for test source sets.
             sourceSets
-                    .matching(sourceSet -> sourceSet.getName().toLowerCase().endsWith("test"))
+                    .matching(sourceSet -> {
+                        String name = sourceSet.getName();
+                        return name.equals("test")
+                                || name.equals("testFixtures")
+                                || name.equals("jmh")
+                                || name.endsWith("Test");
+                    })
                     .forEach(sourceSet -> lockedConfigurations.addAllTestConfigurations(
                             getConfigurationsForSourceSet(project, sourceSet)));
         }

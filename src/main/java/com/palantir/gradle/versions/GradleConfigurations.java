@@ -21,7 +21,7 @@ import com.google.common.collect.ImmutableSet;
 import java.util.Set;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
-import org.gradle.api.plugins.JavaPluginConvention;
+import org.gradle.api.plugins.JavaPluginExtension;
 import org.gradle.api.tasks.SourceSet;
 
 final class GradleConfigurations {
@@ -54,7 +54,7 @@ final class GradleConfigurations {
      * applied, this returns an empty set.
      */
     private static Set<String> getLegacyJavaConfigurations(Project project) {
-        JavaPluginConvention javaConvention = project.getConvention().findPlugin(JavaPluginConvention.class);
+        JavaPluginExtension javaConvention = project.getExtensions().findByType(JavaPluginExtension.class);
         if (javaConvention == null) {
             return ImmutableSet.of();
         }

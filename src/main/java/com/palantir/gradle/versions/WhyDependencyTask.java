@@ -17,20 +17,17 @@
 package com.palantir.gradle.versions;
 
 import com.google.common.base.Splitter;
-import com.google.common.collect.HashMultimap;
-import com.google.common.collect.Multimap;
-import com.google.common.collect.Multimaps;
+import com.palantir.gradle.failurereports.exceptions.ExceptionWithSuggestion;
 import com.palantir.gradle.versions.internal.MyModuleVersionIdentifier;
 import com.palantir.gradle.versions.lockstate.Dependents;
 import com.palantir.gradle.versions.lockstate.FullLockState;
 import com.palantir.gradle.versions.lockstate.Line;
 import com.palantir.gradle.versions.lockstate.LockStates;
 import java.nio.file.Path;
-import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.stream.Stream;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.artifacts.ModuleVersionIdentifier;
@@ -42,11 +39,13 @@ import org.gradle.api.tasks.options.Option;
 public class WhyDependencyTask extends DefaultTask {
 
     private final Property<String> hashOption;
+    private final Property<String> dependencyOption;
     private final Property<FullLockState> fullLockState;
     private Path lockfile;
 
     public WhyDependencyTask() {
         this.hashOption = getProject().getObjects().property(String.class);
+        this.dependencyOption = getProject().getObjects().property(String.class);
         this.fullLockState = getProject().getObjects().property(FullLockState.class);
 
         setGroup("Help");
@@ -56,6 +55,11 @@ public class WhyDependencyTask extends DefaultTask {
     @Option(option = "hash", description = "Hash from versions.lock to explain")
     public final void setHashOption(String string) {
         hashOption.set(string);
+    }
+
+    @Option(option = "dependency", description = "Dependency from versions.lock to explain")
+    public final void setDependencyOption(String string) {
+        dependencyOption.set(string);
     }
 
     public final void lockfile(Path path) {
@@ -69,22 +73,23 @@ public class WhyDependencyTask extends DefaultTask {
     @TaskAction
     public final void taskAction() {
         // read the lockfile from disk so that we can fail fast without resolving anything if the hash isn't found
-        Multimap<String, Line> lineByHash = new ConflictSafeLockFile(lockfile)
-                .readLocks().allLines().stream()
-                        .collect(Multimaps.toMultimap(Line::dependentsHash, Function.identity(), HashMultimap::create));
+        List<Line> lines = new ConflictSafeLockFile(lockfile).readLocks().allLines();
 
-        if (!hashOption.isPresent()) {
-            Optional<String> example = lineByHash.keySet().stream()
-                    .map(h -> ", e.g. './gradlew why --hash " + h + "'")
-                    .findFirst();
-            throw new RuntimeException(
-                    "./gradlew why requires a '--hash <hash>' from versions.lock" + example.orElse(""));
+        if (!hashOption.isPresent() && !dependencyOption.isPresent()) {
+            Optional<String> example =
+                    lines.stream().findFirst().map(line -> ", e.g. './gradlew why --dependency " + line.name() + "'");
+            throw new ExceptionWithSuggestion(
+                    "./gradlew why requires a '--dependency <dependency>' option" + example.orElse(""),
+                    example.orElse("./gradlew why --dependency <dependency>"));
         }
 
-        Set<String> hashes = new LinkedHashSet<>(Splitter.on(",").splitToList(hashOption.get()));
+        Optional<Set<String>> hashes = Optional.ofNullable(hashOption.getOrNull())
+                .map(hash -> Set.copyOf(Splitter.on(",").splitToList(hash)));
+        Optional<String> dependency = Optional.ofNullable(dependencyOption.getOrNull());
 
-        for (String hash : hashes) {
-            lineByHash.get(hash).forEach(line -> {
+        for (Line line : lines) {
+            if ((hashes.isPresent() && hashes.get().contains(line.dependentsHash()))
+                    || (dependency.isPresent() && line.identifier().toString().contains(dependency.get()))) {
                 ModuleVersionIdentifier key = MyModuleVersionIdentifier.of(line.group(), line.name(), line.version());
 
                 Optional<Dependents> entry = Stream.of(
@@ -101,7 +106,7 @@ public class WhyDependencyTask extends DefaultTask {
                     getLogger().lifecycle("\t{}", pretty);
                 });
                 getLogger().lifecycle("");
-            });
+            }
         }
     }
 }

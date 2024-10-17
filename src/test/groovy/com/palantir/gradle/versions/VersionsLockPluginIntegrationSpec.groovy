@@ -45,7 +45,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                 "org:another-direct-dependency:1.2.3 -> org:another-transitive-dependency:3.2.1",
         )
         makePlatformPom(mavenRepo, "org", "platform", "1.0")
-        
+
         buildFile << """
             buildscript {
                 repositories {
@@ -75,7 +75,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
     def '#gradleVersionNumber: can write locks'() {
         setup:
         gradleVersion = gradleVersionNumber
-        
+
         expect:
         runTasks('--write-locks')
         new File(projectDir, "versions.lock").exists()
@@ -528,6 +528,29 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         runTasks('--write-locks')
 
         then:
+        def result = runTasks('why', '--dependency', 'slf4j-api')
+        result.output.contains('org.slf4j:slf4j-api:1.7.25')
+        result.output.contains('ch.qos.logback:logback-classic -> 1.7.25')
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
+    }
+
+    def "#gradleVersionNumber: why with hash works"() {
+        setup:
+        gradleVersion = gradleVersionNumber
+
+        buildFile << '''
+            apply plugin: 'java'
+            dependencies {
+                implementation 'ch.qos.logback:logback-classic:1.2.3' // brings in slf4j-api 1.7.25
+            }
+        '''.stripIndent()
+
+        when:
+        runTasks('--write-locks')
+
+        then:
         def result = runTasks('why', '--hash', '400d4d2a') // slf4j-api
         result.output.contains('org.slf4j:slf4j-api:1.7.25')
         result.output.contains('ch.qos.logback:logback-classic -> 1.7.25')
@@ -604,7 +627,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
 
         then:
         file('versions.lock').readLines() == [
-                '# Run ./gradlew --write-locks to regenerate this file',
+                '# Run ./gradlew writeVersionsLocks to regenerate this file',
                 'org:platform:1.0 (1 constraints: a5041a2c)',
         ]
 
@@ -687,7 +710,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
 
         then: 'slf4j-api still appears in the lock file'
         file('versions.lock').readLines() == [
-                '# Run ./gradlew --write-locks to regenerate this file',
+                '# Run ./gradlew writeVersionsLocks to regenerate this file',
                 'ch.qos.logback:logback-classic:1.2.3 (1 constraints: 0805f935)',
                 'org.slf4j:slf4j-api:1.7.25 (1 constraints: 400d4d2a)',
         ]
@@ -774,7 +797,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         expect:
         runTasks('--write-locks')
         def expected = """\
-            # Run ./gradlew --write-locks to regenerate this file
+            # Run ./gradlew writeVersionsLocks to regenerate this file
             ch.qos.logback:logback-classic:1.2.3 (1 constraints: 0805f935)
             org.slf4j:slf4j-api:1.7.25 (2 constraints: 7917e690)
              
@@ -806,7 +829,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         expect:
         runTasks('--write-locks')
         def expected = """\
-            # Run ./gradlew --write-locks to regenerate this file
+            # Run ./gradlew writeVersionsLocks to regenerate this file
             ch.qos.logback:logback-classic:1.2.3 (1 constraints: 0805f935)
             org.slf4j:slf4j-api:1.7.25 (2 constraints: 7917e690)
              
@@ -836,7 +859,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         expect:
         runTasks('--write-locks')
         def expected = """\
-            # Run ./gradlew --write-locks to regenerate this file
+            # Run ./gradlew writeVersionsLocks to regenerate this file
              
             [Test dependencies]
             junit:junit:4.10 (1 constraints: d904fd30)
@@ -866,7 +889,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         expect:
         runTasks('--write-locks')
         def expected = """\
-            # Run ./gradlew --write-locks to regenerate this file
+            # Run ./gradlew writeVersionsLocks to regenerate this file
              
             [Test dependencies]
             ch.qos.logback:logback-classic:1.2.3 (1 constraints: 0805f935)
@@ -1098,7 +1121,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         expect:
         runTasks("--write-locks")
         file('versions.lock').text == """\
-            # Run ./gradlew --write-locks to regenerate this file
+            # Run ./gradlew writeVersionsLocks to regenerate this file
             ch.qos.logback:logback-classic:1.2.3 (1 constraints: 0805f935)
             org.slf4j:slf4j-api:1.7.25 (2 constraints: 8012a437)
         """.stripIndent()
@@ -1118,7 +1141,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         """.stripIndent()
 
         def lockFileContent = """\
-            # Run ./gradlew --write-locks to regenerate this file
+            # Run ./gradlew writeVersionsLocks to regenerate this file
         """.stripIndent()
 
         file('versions.lock').text = lockFileContent

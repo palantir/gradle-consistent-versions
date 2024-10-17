@@ -5,26 +5,22 @@ buildscript {
     }
 
     dependencies {
-        classpath 'com.palantir.jakartapackagealignment:jakarta-package-alignment:0.5.0'
-        classpath 'com.palantir.gradle.jdks:gradle-jdks:0.32.0'
-        classpath 'com.palantir.gradle.jdkslatest:gradle-jdks-latest:0.7.0'
-        classpath 'com.palantir.gradle.externalpublish:gradle-external-publish-plugin:1.11.0'
-        classpath 'com.palantir.javaformat:gradle-palantir-java-format:2.30.0'
-        classpath 'com.palantir.gradle.consistentversions:gradle-consistent-versions:2.12.0'
-        classpath 'com.palantir.baseline:gradle-baseline-java:5.7.0'
-        classpath 'com.palantir.gradle.gitversion:gradle-git-version:3.0.0'
+        classpath 'com.palantir.jakartapackagealignment:jakarta-package-alignment:0.6.0'
+        classpath 'com.palantir.gradle.jdks:gradle-jdks:0.51.0'
+        classpath 'com.palantir.gradle.jdkslatest:gradle-jdks-latest:0.16.0'
+        classpath 'com.palantir.gradle.externalpublish:gradle-external-publish-plugin:1.19.0'
+        classpath 'com.palantir.gradle.failure-reports:gradle-failure-reports:1.13.0'
+        classpath 'com.palantir.javaformat:gradle-palantir-java-format:2.50.0'
+        classpath 'com.palantir.gradle.consistentversions:gradle-consistent-versions:2.27.0'
+        classpath 'com.palantir.baseline:gradle-baseline-java:5.70.0'
+        classpath 'com.palantir.gradle.gitversion:gradle-git-version:3.1.0'
         classpath 'gradle.plugin.org.inferred:gradle-processors:3.7.0'
     }
 }
 
 plugins {
-    id 'com.gradle.plugin-publish' version '0.21.0'
+ id 'com.gradle.plugin-publish' version '1.3.0'
 }
-
-repositories {
-    mavenCentral() { metadataSources { mavenPom(); ignoreGradleMetadataRedirection() } }
-}
-
 
 apply plugin: 'com.palantir.external-publish'
 apply plugin: 'java-gradle-plugin'
@@ -32,23 +28,34 @@ apply plugin: 'groovy'
 apply plugin: 'com.palantir.baseline'
 apply plugin: 'com.palantir.consistent-versions'
 apply plugin: 'com.palantir.git-version'
+apply plugin: 'com.palantir.jdks'
 apply plugin: 'org.inferred.processors'
 apply plugin: 'com.palantir.external-publish-jar'
+apply plugin: 'com.palantir.failure-reports'
 apply plugin: 'com.palantir.baseline-java-versions'
 apply plugin: 'com.palantir.jdks.latest'
+
+version System.env.CIRCLE_TAG ?: gitVersion()
 
 allprojects {
     apply plugin: 'com.palantir.java-format'
     apply plugin: 'com.palantir.jakarta-package-alignment'
+
+    repositories {
+        mavenCentral() { metadataSources { mavenPom(); ignoreGradleMetadataRedirection() } }
+    }
+
+    group 'com.palantir.gradle.consistentversions'
+    version rootProject.version
 }
-
-group 'com.palantir.gradle.consistentversions'
-version System.env.CIRCLE_TAG ?: gitVersion()
-
 
 dependencies {
     implementation 'com.google.guava:guava'
     implementation 'com.netflix.nebula:nebula-dependency-recommender'
+    implementation 'com.palantir.gradle.failure-reports:gradle-failure-reports-exceptions'
+    implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-xml'
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-guava'
+    implementation 'one.util:streamex'
 
     testImplementation platform('org.junit:junit-bom')
     testImplementation 'com.netflix.nebula:nebula-test'
@@ -71,7 +78,9 @@ tasks.withType(Test) {
             'junit.platform.output.capture.stderr'                  : 'true',
             'junit.jupiter.execution.parallel.enabled'              : 'true',
             'junit.jupiter.execution.parallel.config.strategy'      : 'dynamic',
-            'junit.jupiter.execution.parallel.config.dynamic.factor': '1'
+            'junit.jupiter.execution.parallel.config.dynamic.factor': '1',
+            // Ignore Gradle deprecations in tests. Note that we have to tackle those for the Gradle 8 update
+            'ignoreDeprecations'                                    : 'true'
     ]
 }
 
@@ -82,43 +91,55 @@ tasks.withType(JavaCompile) {
 }
 
 gradlePlugin {
+    website = 'https://github.com/palantir/gradle-consistent-versions'
+    vcsUrl = 'https://github.com/palantir/gradle-consistent-versions'
+
     plugins {
         consistentVersions {
             id = 'com.palantir.consistent-versions'
             implementationClass = 'com.palantir.gradle.versions.ConsistentVersionsPlugin'
+            displayName = 'Compact, constraint-friendly lockfiles for your dependencies'
+            description = displayName
+            tags.set(['versions'])
         }
         versionsLock {
             id = 'com.palantir.versions-lock'
             implementationClass = 'com.palantir.gradle.versions.VersionsLockPlugin'
+            displayName = 'Compact, constraint-friendly lockfiles for your dependencies'
+            description = displayName
+            tags.set(['versions'])
         }
         versionsProps {
             id = 'com.palantir.versions-props'
             implementationClass = 'com.palantir.gradle.versions.VersionsPropsPlugin'
+            displayName = 'Inject version constraints into every configuration in your projects'
+            description = displayName
+            tags.set(['versions'])
+        }
+        versionsPropsIdeaPlugin {
+            id = 'com.palantir.version-props-idea'
+            implementationClass = 'com.palantir.gradle.versions.VersionsPropsIdeaPlugin'
+            displayName = 'Plugin to collect repositories for use by the IDEA plugin.'
+            description = displayName
+            tags.set(['versions'])
         }
     }
 }
 
-pluginBundle {
-    website = 'https://github.com/palantir/gradle-consistent-versions'
-    vcsUrl = 'https://github.com/palantir/gradle-consistent-versions'
-    description = 'Compact, constraint-friendly lockfiles for your dependencies'
-    tags = ['versions']
-
-    // Don't publish the other plugins to the plugin portal
-    plugins.removeIf { it.name != 'consistentVersions' }
-
-    plugins {
-        consistentVersions {
-            displayName = 'Compact, constraint-friendly lockfiles for your dependencies'
-        }
-    }
+afterEvaluate {
+    tasks.publishVersionsLockPluginMarkerMavenPublicationToSonatypeRepository.enabled = false
+    tasks.publishVersionsPropsPluginMarkerMavenPublicationToSonatypeRepository.enabled = false
 }
 
 tasks.publish.dependsOn tasks.publishPlugins
-publishPlugins.onlyIf { versionDetails().isCleanTag }
+publishPlugins.onlyIf { !System.env.CI || versionDetails().isCleanTag }
 project.ext.'gradle.publish.key' = System.env["GRADLE_KEY"]
 project.ext.'gradle.publish.secret' = System.env["GRADLE_SECRET"]
 
 javaVersions {
     libraryTarget = 11
+}
+
+jdks {
+    daemonTarget = 17
 }
