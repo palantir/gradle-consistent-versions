@@ -19,7 +19,7 @@ package com.palantir.gradle.versions
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.TaskOutcome
 
-class CheckBadPinsIntegrationSpec extends IntegrationSpec {
+class CheckOverbroadConstraintsIntegrationSpec extends IntegrationSpec {
 
     def setup() {
         buildFile << """
@@ -27,7 +27,7 @@ class CheckBadPinsIntegrationSpec extends IntegrationSpec {
                 id 'com.palantir.versions-lock'
                 id 'com.palantir.versions-props'
             }
-        """.stripIndent()
+        """.stripIndent(true)
         createFile('versions.props')
         createFile('versions.lock')
     }
@@ -64,11 +64,11 @@ class CheckBadPinsIntegrationSpec extends IntegrationSpec {
         file('versions.props').text = """
             com.fasterxml.jackson.*:* = 2.9.3
             com.fasterxml.jackson.core:jackson-annotations = 2.9.5
-        """.stripIndent()
+        """.stripIndent(true)
         file('versions.lock').text = """
             com.fasterxml.jackson.core:jackson-annotations:2.9.5 (2 constraints: abcdef0)
             com.fasterxml.jackson.core:jackson-core:2.9.3 (2 constraints: abcdef1)
-        """.stripIndent().trim()
+        """.stripIndent(true).trim()
 
         then:
         buildSucceed()
@@ -78,11 +78,11 @@ class CheckBadPinsIntegrationSpec extends IntegrationSpec {
         when:
         file('versions.props').text = """
             com.fasterxml.jackson.*:* = 2.9.3
-        """.stripIndent()
+        """.stripIndent(true)
         file('versions.lock').text = """
             com.fasterxml.jackson.core:jackson-annotations:2.9.5 (2 constraints: abcdef0)
             com.fasterxml.jackson.core:jackson-core:2.9.3 (2 constraints: abcdef1)
-        """.stripIndent().trim()
+        """.stripIndent(true).trim()
 
         then:
         buildAndFailWith('There are efficient pins missing from your versions.props: \n[com.fasterxml.jackson.core:jackson-annotations = 2.9.5]')
@@ -90,6 +90,6 @@ class CheckBadPinsIntegrationSpec extends IntegrationSpec {
         file('versions.props').text.trim() == """
             com.fasterxml.jackson.*:* = 2.9.3
             com.fasterxml.jackson.core:jackson-annotations = 2.9.5
-        """.stripIndent().trim()
+        """.stripIndent(true).trim()
     }
 }

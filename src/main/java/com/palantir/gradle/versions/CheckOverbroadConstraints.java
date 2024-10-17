@@ -15,18 +15,16 @@
  */
 package com.palantir.gradle.versions;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
 import com.palantir.gradle.versions.FuzzyPatternResolver.Glob;
 import com.palantir.gradle.versions.lockstate.Line;
 import com.palantir.gradle.versions.lockstate.LockState;
-import java.io.BufferedWriter;
 import java.io.File;
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.nio.file.Files;
-import java.nio.file.StandardOpenOption;
-import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -39,52 +37,48 @@ import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputFile;
+import org.gradle.api.tasks.Internal;
 import org.gradle.api.tasks.TaskAction;
 import org.gradle.api.tasks.options.Option;
 import org.gradle.language.base.plugins.LifecycleBasePlugin;
 
-public class CheckBadPinsTask extends DefaultTask {
+public abstract class CheckOverbroadConstraints extends DefaultTask {
 
-    private final Property<Boolean> shouldFix = getProject().getObjects().property(Boolean.class);
-    private final RegularFileProperty propsFileProperty =
-            getProject().getObjects().fileProperty();
-    private final RegularFileProperty lockFileProperty =
-            getProject().getObjects().fileProperty();
+    @Internal
+    protected abstract Property<Boolean> getShouldFixProperty();
 
-    public CheckBadPinsTask() {
-        shouldFix.set(false);
+    @Internal
+    protected abstract RegularFileProperty getPropsFileProperty();
+
+    @Internal
+    protected abstract RegularFileProperty getLockFileProperty();
+
+    public CheckOverbroadConstraints() {
+        getShouldFixProperty().set(false);
         setGroup(LifecycleBasePlugin.VERIFICATION_GROUP);
         setDescription(
                 "Ensures matched versions in your versions.lock are pinned to avoid wasted dependency resolution.");
         getOutputs().upToDateWhen(_task -> true); // task has no outputs, this is needed for it to be up to date
     }
 
-    final void setLockFile(File lockFile) {
-        this.lockFileProperty.set(lockFile);
-    }
-
-    final void setPropsFile(File propsFile) {
-        this.propsFileProperty.set(propsFile);
-    }
-
     @InputFile
     public final Property<RegularFile> getLockFile() {
-        return lockFileProperty;
+        return getLockFileProperty();
     }
 
     @InputFile
     public final Property<RegularFile> getPropsFile() {
-        return propsFileProperty;
+        return getPropsFileProperty();
     }
 
     @Input
     public final Property<Boolean> getShouldFix() {
-        return shouldFix;
+        return getShouldFixProperty();
     }
 
     @Option(option = "fix", description = "Whether to apply the suggested fix to versions.props")
     public final void setShouldFix(boolean shouldFix) {
-        this.shouldFix.set(shouldFix);
+        this.getShouldFixProperty().set(shouldFix);
     }
 
     @TaskAction
@@ -98,27 +92,13 @@ public class CheckBadPinsTask extends DefaultTask {
     }
 
     private void checkBadPins(VersionsProps versionsProps, LockState lockState) {
-        Map<String, Line> lineByArtifact = lockState.allLines().stream()
-                .collect(Collectors.toMap(line -> line.identifier().toString(), line -> line));
-        Set<String> artifacts = lineByArtifact.keySet();
 
-        Set<String> exactConstraints = versionsProps.getFuzzyResolver().exactMatches();
-        Set<String> unmatchedArtifacts = new HashSet<>(Sets.difference(artifacts, exactConstraints));
-
-        List<String> newLines = new ArrayList<>();
-        // assumes globs are sorted by specificity
-        for (FuzzyPatternResolver.Glob glob : versionsProps.getFuzzyResolver().globs()) {
-            Set<String> matchedByGlob =
-                    unmatchedArtifacts.stream().filter(glob::matches).collect(Collectors.toSet());
-            unmatchedArtifacts.removeAll(matchedByGlob);
-            newLines.addAll(computeNewLines(getVersionPin(versionsProps, glob), matchedByGlob, lineByArtifact));
-        }
+        List<String> newLines = determineNewLines(versionsProps, lockState);
 
         if (newLines.isEmpty()) {
             return;
-        } else if (shouldFix.get()) {
-            getProject()
-                    .getLogger()
+        } else if (getShouldFixProperty().get()) {
+            getLogger()
                     .lifecycle("Adding pins to versions.props:\n"
                             + newLines.stream().collect(Collectors.joining("\n")));
             writeVersionsProps(getPropsFile().get().getAsFile(), newLines);
@@ -128,14 +108,34 @@ public class CheckBadPinsTask extends DefaultTask {
         throw new RuntimeException("There are efficient pins missing from your versions.props: \n"
                 + newLines
                 + "\n\n"
-                + "Run ./gradlew checkBadPins --fix to remove them.");
+                + "Run ./gradlew checkBadPins --fix to add them.");
     }
 
-    private String getVersionPin(VersionsProps versionsProps, Glob glob) {
+    @VisibleForTesting
+    static List<String> determineNewLines(VersionsProps versionsProps, LockState lockState) {
+        Map<String, Line> lineByArtifact = lockState.allLines().stream()
+                .collect(Collectors.toMap(line -> line.identifier().toString(), line -> line));
+        Set<String> artifacts = lineByArtifact.keySet();
+
+        Set<String> exactConstraints = versionsProps.getFuzzyResolver().exactMatches();
+        Set<String> unmatchedArtifacts = new HashSet<>(Sets.difference(artifacts, exactConstraints));
+
+        // assumes globs are sorted by specificity
+        return versionsProps.getFuzzyResolver().globs().stream()
+                .flatMap(glob -> {
+                    Set<String> matchedByGlob =
+                            unmatchedArtifacts.stream().filter(glob::matches).collect(Collectors.toSet());
+                    unmatchedArtifacts.removeAll(matchedByGlob);
+                    return computeNewLines(getVersionPin(versionsProps, glob), matchedByGlob, lineByArtifact).stream();
+                })
+                .collect(Collectors.toList());
+    }
+
+    private static String getVersionPin(VersionsProps versionsProps, Glob glob) {
         return versionsProps.getFuzzyResolver().versions().get(glob.getRawPattern());
     }
 
-    private List<String> computeNewLines(
+    private static List<String> computeNewLines(
             String pinnedVersion, Set<String> artifacts, Map<String, Line> lineByArtifact) {
         return artifacts.stream()
                 .map(lineByArtifact::get)
@@ -147,10 +147,9 @@ public class CheckBadPinsTask extends DefaultTask {
 
     private static void writeVersionsProps(File propsFile, List<String> newLines) {
         List<String> lines = readVersionsPropsLines(propsFile);
-        try (BufferedWriter writer0 =
-                        Files.newBufferedWriter(propsFile.toPath(), StandardOpenOption.TRUNCATE_EXISTING);
-                PrintWriter writer = new PrintWriter(writer0)) {
-            Stream.of(lines, newLines).flatMap(List::stream).forEach(writer::println);
+        String content = Stream.of(lines, newLines).flatMap(Collection::stream).collect(Collectors.joining("\n"));
+        try {
+            Files.writeString(propsFile.toPath(), content);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
