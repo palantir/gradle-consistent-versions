@@ -101,7 +101,8 @@ public abstract class CheckOverbroadConstraints extends DefaultTask {
                         String.join("\n", newLines),
                         "",
                         "Run ./gradlew checkOverbroadConstraints --fix to add them.",
-                        "See https://github.com/palantir/gradle-consistent-versions?tab=readme-ov-file#gradlew-checkoverbroadconstraints for details"),
+                        "See https://github.com/palantir/gradle-consistent-versions?tab=readme-ov-file#gradlew-checkoverbroadconstraints"
+                            + " for details"),
                 "./gradlew checkOverbroadConstraints --fix");
     }
 
