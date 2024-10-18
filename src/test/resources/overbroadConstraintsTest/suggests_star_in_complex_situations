@@ -1,0 +1,16 @@
+versions.props:
+com.example.*:*= 1.0.0
+
+versions.lock:
+com.example.core:artifact-random:1.0.0 (2 constraints: abcdef1)
+com.example.module:artifact-platform-commons:2.0.0 (2 constraints: abcdef1)
+com.example.module:artifact-platform-new:2.0.0 (2 constraints: abcdef1)
+com.example.different:so-very-different:2.0.0 (2 constraints: abcdef1)
+com.example.module:artifact-different:3.0.0 (2 constraints: abcdef1)
+com.example.module:artifact-different-again:4.0.0 (2 constraints: abcdef1)
+
+new versions lock pins:
+com.example.module:artifact-platform-* = 2.0.0
+com.example.different:* = 2.0.0
+com.example.module:artifact-different = 3.0.0
+com.example.module:artifact-different-* = 4.0.0

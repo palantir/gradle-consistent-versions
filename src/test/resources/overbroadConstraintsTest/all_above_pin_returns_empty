@@ -1,0 +1,8 @@
+versions.props:
+com.example.*:*= 1.0.0
+
+versions.lock:
+com.example.core:module:1.0.1 (2 constraints: abcdef1)
+com.example.someArtifact:artifact:1.0.1 (2 constraints: abcdef1)
+
+new versions lock pins:

@@ -19,159 +19,277 @@ package com.palantir.gradle.versions;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.palantir.gradle.versions.lockstate.LockState;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 class CheckOverbroadConstraintsTest {
 
-    private static VersionsProps createVersionProps(String... lines) {
-        return VersionsProps.fromLines(List.of(lines), null);
+    private static final String basePath = "src/test/resources/overbroadConstraintsTest/";
+    private static final Optional<String> inCi = Optional.ofNullable(System.getenv("CI"));
+
+    @BeforeAll
+    public static void beforeAll() throws IOException {
+
+        if (!inCi.equals(Optional.of("true"))) {
+            deleteOldTests(Paths.get(basePath));
+        }
     }
 
-    private static LockState createLockState(String... productionLines) {
-        ConflictSafeLockFile lockReader = new ConflictSafeLockFile(null);
-        return LockState.from(lockReader.parseLines(Stream.of(productionLines)), lockReader.parseLines(Stream.empty()));
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("provideTestCases")
+    void newLinesCorrect(TestCase testCase) throws IOException {
+        if (inCi.equals(Optional.of("true"))) {
+            checkTestCaseInResources(testCase);
+        }
+        testCase.writeToFile();
     }
 
-    @Test
-    void no_missing_pins_returns_empty() {
-        VersionsProps versionsProps = createVersionProps("com.example.*:*= 1.0.0", "com.example.core:module = 1.0.1");
-        LockState lockState = createLockState(
-                "com.example.core:module:1.0.1 (2 constraints: abcdef1)",
-                "com.example.someArtifact:artifact:1.0.0 (2 constraints: abcdef1)");
-
-        Map<String, List<String>> oldToNewLines = CheckOverbroadConstraints.determineNewLines(versionsProps, lockState);
-        List<String> newLines =
-                oldToNewLines.values().stream().flatMap(Collection::stream).collect(Collectors.toList());
-
-        assertThat(newLines).isEmpty();
+    private static Stream<Arguments> provideTestCases() {
+        return Stream.of(
+                Arguments.of(testCase1()),
+                Arguments.of(testCase2()),
+                Arguments.of(testCase3()),
+                Arguments.of(testCase4()),
+                Arguments.of(testCase5()),
+                Arguments.of(testCase6()),
+                Arguments.of(testCase7()),
+                Arguments.of(testCase8()),
+                Arguments.of(testCase9()));
     }
 
-    @Test
-    void no_missing_pins_no_wildcards_returns_empty() {
-        VersionsProps versionsProps =
-                createVersionProps("com.example.someArtifact:artifact= 1.0.0", "com.example.core:module = 1.0.1");
-        LockState lockState = createLockState(
-                "com.example.core:module:1.0.1 (2 constraints: abcdef1)",
-                "com.example.someArtifact:artifact:1.0.0 (2 constraints: abcdef1)");
+    private void checkTestCaseInResources(TestCase testCase) throws IOException {
+        File baseDir = new File(basePath);
+        File[] allFiles = baseDir.listFiles();
 
-        Map<String, List<String>> oldToNewLines = CheckOverbroadConstraints.determineNewLines(versionsProps, lockState);
-        List<String> newLines =
-                oldToNewLines.values().stream().flatMap(Collection::stream).collect(Collectors.toList());
+        if (allFiles == null) {
+            throw new RuntimeException("Base directory does not exist or is not a directory.");
+        }
 
-        assertThat(newLines).isEmpty();
+        Set<String> baseDirFileNames =
+                Arrays.stream(allFiles).map(File::getName).collect(Collectors.toSet());
+
+        assertThat(baseDirFileNames.contains(testCase.fileName))
+                .as("%s not in resource directory. Run tests locally to fix.", testCase.fileName)
+                .isTrue();
+
+        File resourceFile = Arrays.stream(allFiles)
+                .filter(file -> file.getName().equals(testCase.fileName))
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException(
+                        String.format("%s found in file names but could not retrieve the file.", testCase.fileName)));
+
+        String actualContent =
+                Files.readString(resourceFile.toPath(), StandardCharsets.UTF_8).trim();
+
+        assertThat(actualContent)
+                .as(
+                        "Contents of file '%s' do not match the expected test case. Run tests locally to fix.",
+                        testCase.fileName)
+                .isEqualTo(testCase.fileContents().trim());
     }
 
-    @Test
-    void all_above_pin_returns_empty() {
-        VersionsProps versionsProps = createVersionProps("com.example.*:*= 1.0.0");
-        LockState lockState = createLockState(
-                "com.example.core:module:1.0.1 (2 constraints: abcdef1)",
-                "com.example.someArtifact:artifact:1.0.1 (2 constraints: abcdef1)");
-
-        Map<String, List<String>> oldToNewLines = CheckOverbroadConstraints.determineNewLines(versionsProps, lockState);
-        List<String> newLines =
-                oldToNewLines.values().stream().flatMap(Collection::stream).collect(Collectors.toList());
-
-        assertThat(newLines).isEmpty();
+    private static void deleteOldTests(Path path) throws IOException {
+        if (!Files.exists(path)) {
+            return;
+        }
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(path)) {
+            for (Path entry : stream) {
+                if (Files.isDirectory(entry)) {
+                    deleteOldTests(entry);
+                    Files.delete(entry);
+                } else {
+                    Files.delete(entry);
+                }
+            }
+        }
     }
 
-    @Test
-    void all_below_pin_returns_empty() {
-        VersionsProps versionsProps = createVersionProps("com.example.*:*= 1.0.0");
-        LockState lockState = createLockState(
-                "com.example.core:module:0.0.1 (2 constraints: abcdef1)",
-                "com.example.someArtifact:artifact:0.0.1 (2 constraints: abcdef1)");
-
-        Map<String, List<String>> oldToNewLines = CheckOverbroadConstraints.determineNewLines(versionsProps, lockState);
-        List<String> newLines =
-                oldToNewLines.values().stream().flatMap(Collection::stream).collect(Collectors.toList());
-
-        assertThat(newLines).isEmpty();
+    private static TestCase testCase1() {
+        return TestCase.builder("no_missing_pins_returns_empty")
+                .withVersionsProps("com.example.*:*= 1.0.0", "com.example.core:module = 1.0.1")
+                .withVersionsLock(
+                        "com.example.core:module:1.0.1 (2 constraints: abcdef1)",
+                        "com.example.someArtifact:artifact:1.0.0 (2 constraints: abcdef1)")
+                .build();
     }
 
-    @Test
-    void multiple_pins_all_same_returns_empty() {
-        VersionsProps versionsProps = createVersionProps("com.example.*:*= 1.0.0", "org.different.*:* = 2.0.0");
-        LockState lockState = createLockState(
-                "com.example.core:module:1.0.1 (2 constraints: abcdef1)",
-                "com.example.someArtifact:artifact:1.0.1 (2 constraints: abcdef1)",
-                "org.different:differentArtifact:2.0.1 (2 constraints: abcdef1)",
-                "org.different.someDifferentArtifact:artifact:2.0.1 (2 constraints: abcdef1)");
-
-        Map<String, List<String>> oldToNewLines = CheckOverbroadConstraints.determineNewLines(versionsProps, lockState);
-        List<String> newLines =
-                oldToNewLines.values().stream().flatMap(Collection::stream).collect(Collectors.toList());
-
-        assertThat(newLines).isEmpty();
+    private static TestCase testCase2() {
+        return TestCase.builder("no_missing_pins_no_wildcards_returns_empty")
+                .withVersionsProps("com.example.someArtifact:artifact= 1.0.0", "com.example.core:module = 1.0.1")
+                .withVersionsLock(
+                        "com.example.core:module:1.0.1 (2 constraints: abcdef1)",
+                        "com.example.someArtifact:artifact:1.0.0 (2 constraints: abcdef1)")
+                .build();
     }
 
-    @Test
-    void versions_props_missing_pins_are_generated() {
-        VersionsProps versionsProps = createVersionProps("com.example.*:*= 1.0.0");
-        LockState lockState = createLockState(
-                "com.example.core:module:1.0.1 (2 constraints: abcdef1)",
-                "com.example.someArtifact:artifact:1.0.0 (2 constraints: abcdef1)");
-
-        Map<String, List<String>> oldToNewLines = CheckOverbroadConstraints.determineNewLines(versionsProps, lockState);
-        List<String> newLines =
-                oldToNewLines.values().stream().flatMap(Collection::stream).collect(Collectors.toList());
-
-        assertThat(newLines).containsExactly("com.example.core:* = 1.0.1");
+    private static TestCase testCase3() {
+        return TestCase.builder("all_above_pin_returns_empty")
+                .withVersionsProps("com.example.*:*= 1.0.0")
+                .withVersionsLock(
+                        "com.example.core:module:1.0.1 (2 constraints: abcdef1)",
+                        "com.example.someArtifact:artifact:1.0.1 (2 constraints: abcdef1)")
+                .build();
     }
 
-    @Test
-    void suggests_star_if_possible() {
-        VersionsProps versionsProps = createVersionProps("org.example.*:* = 1.0.0");
-        LockState lockState = createLockState(
-                "org.example.moduleA:artifact-new:1.0.0 (2 constraints: abcdef1)",
-                "org.example.moduleB:artifact-core:2.0.0 (2 constraints: abcdef1)");
-
-        Map<String, List<String>> oldToNewLines = CheckOverbroadConstraints.determineNewLines(versionsProps, lockState);
-        List<String> newLines =
-                oldToNewLines.values().stream().flatMap(Collection::stream).collect(Collectors.toList());
-
-        assertThat(newLines).containsExactly("org.example.moduleB:* = 2.0.0");
+    private static TestCase testCase4() {
+        return TestCase.builder("all_below_pin_returns_empty")
+                .withVersionsProps("com.example.*:*= 1.0.0")
+                .withVersionsLock(
+                        "com.example.core:module:0.0.1 (2 constraints: abcdef1)",
+                        "com.example.someArtifact:artifact:0.0.1 (2 constraints: abcdef1)")
+                .build();
     }
 
-    @Test
-    void suggests_star_in_complex_situations() {
-        VersionsProps versionsProps = createVersionProps("com.example.*:* = 1.0.0");
-        LockState lockState = createLockState(
-                "com.example.core:artifact-random:1.0.0 (2 constraints: abcdef1)",
-                "com.example.module:artifact-platform-commons:2.0.0 (2 constraints: abcdef1)",
-                "com.example.module:artifact-platform-new:2.0.0 (2 constraints: abcdef1)",
-                "com.example.different:so-very-different:2.0.0 (2 constraints: abcdef1)",
-                "com.example.module:artifact-different:3.0.0 (2 constraints: abcdef1)",
-                "com.example.module:artifact-different-again:4.0.0 (2 constraints: abcdef1)");
-
-        Map<String, List<String>> oldToNewLines = CheckOverbroadConstraints.determineNewLines(versionsProps, lockState);
-        List<String> newLines =
-                oldToNewLines.values().stream().flatMap(Collection::stream).collect(Collectors.toList());
-
-        assertThat(newLines)
-                .containsExactlyInAnyOrder(
-                        "com.example.module:artifact-platform-* = 2.0.0",
-                        "com.example.different:* = 2.0.0",
-                        "com.example.module:artifact-different = 3.0.0",
-                        "com.example.module:artifact-different-* = 4.0.0");
+    private static TestCase testCase5() {
+        return TestCase.builder("multiple_pins_all_same_returns_empty")
+                .withVersionsProps("com.example.*:*= 1.0.0", "org.different.*:* = 2.0.0")
+                .withVersionsLock(
+                        "com.example.core:module:1.0.1 (2 constraints: abcdef1)",
+                        "com.example.someArtifact:artifact:1.0.1 (2 constraints: abcdef1)",
+                        "org.different:differentArtifact:2.0.1 (2 constraints: abcdef1)",
+                        "org.different.someDifferentArtifact:artifact:2.0.1 (2 constraints: abcdef1)")
+                .build();
     }
 
-    @Test
-    void suggest_double_star() {
-        VersionsProps versionsProps = createVersionProps("org.*:* = 1.0.0");
-        LockState lockState = createLockState(
-                "org.example.core:module:1.0.0 (2 constraints: abcdef1)",
-                "org.different.example:artifact:2.0.0 (2 constraints: abcdef1)");
+    private static TestCase testCase6() {
+        return TestCase.builder("versions_props_missing_pins_are_generated")
+                .withVersionsProps("com.example.*:*= 1.0.0")
+                .withVersionsLock(
+                        "com.example.core:module:1.0.1 (2 constraints: abcdef1)",
+                        "com.example.someArtifact:artifact:1.0.0 (2 constraints: abcdef1)")
+                .build();
+    }
 
-        Map<String, List<String>> oldToNewLines = CheckOverbroadConstraints.determineNewLines(versionsProps, lockState);
-        List<String> newLines =
-                oldToNewLines.values().stream().flatMap(Collection::stream).collect(Collectors.toList());
+    private static TestCase testCase7() {
+        return TestCase.builder("suggests_star_if_possible")
+                .withVersionsProps("com.example.*:*= 1.0.0")
+                .withVersionsLock(
+                        "com.example.moduleA:artifact-new:1.0.0 (2 constraints: abcdef1)",
+                        "com.example.moduleB:artifact-core:3.0.0 (2 constraints: abcdef1)")
+                .build();
+    }
 
-        assertThat(newLines).containsExactly("org.different.*:* = 2.0.0");
+    private static TestCase testCase8() {
+        return TestCase.builder("suggests_star_in_complex_situations")
+                .withVersionsProps("com.example.*:*= 1.0.0")
+                .withVersionsLock(
+                        "com.example.core:artifact-random:1.0.0 (2 constraints: abcdef1)",
+                        "com.example.module:artifact-platform-commons:2.0.0 (2 constraints: abcdef1)",
+                        "com.example.module:artifact-platform-new:2.0.0 (2 constraints: abcdef1)",
+                        "com.example.different:so-very-different:2.0.0 (2 constraints: abcdef1)",
+                        "com.example.module:artifact-different:3.0.0 (2 constraints: abcdef1)",
+                        "com.example.module:artifact-different-again:4.0.0 (2 constraints: abcdef1)")
+                .build();
+    }
+
+    private static TestCase testCase9() {
+        return TestCase.builder("suggest_double_star")
+                .withVersionsProps("com.*:* = 1.0.0")
+                .withVersionsLock(
+                        "com.example.core:module:1.0.0 (2 constraints: abcdef1)",
+                        "com.different.example:artifact:2.0.0 (2 constraints: abcdef1)")
+                .build();
+    }
+
+    public static final class TestCase {
+        private final String fileName;
+        private final VersionsProps versionsProps;
+        private final LockState lockState;
+        private final String propsLines;
+        private final String lockLines;
+
+        private TestCase(Builder builder) {
+            this.fileName = builder.fileName;
+            this.versionsProps = builder.versionsProps;
+            this.lockState = builder.lockState;
+            this.propsLines = builder.propsLines;
+            this.lockLines = builder.lockLines;
+        }
+
+        public static Builder builder(String testName) {
+            return new Builder(testName);
+        }
+
+        public List<String> newLines() {
+            Map<String, List<String>> oldToNewLines =
+                    CheckOverbroadConstraints.determineNewLines(versionsProps, lockState);
+            return oldToNewLines.values().stream().flatMap(Collection::stream).collect(Collectors.toList());
+        }
+
+        public String fileContents() {
+            return String.join(
+                    "\n",
+                    "versions.props:",
+                    propsLines,
+                    "",
+                    "versions.lock:",
+                    lockLines,
+                    "",
+                    "new versions lock pins:",
+                    String.join("\n", newLines()));
+        }
+
+        public void writeToFile() {
+            try (BufferedWriter writer = Files.newBufferedWriter(getOutputFilePath(), StandardCharsets.UTF_8)) {
+                writer.write(fileContents());
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        private Path getOutputFilePath() throws IOException {
+            Path outputPath = Paths.get(basePath + fileName);
+            Files.createDirectories(outputPath.getParent());
+            return outputPath;
+        }
+
+        // Builder class
+        public static final class Builder {
+            private final String fileName;
+            private VersionsProps versionsProps = VersionsProps.empty();
+            private LockState lockState = null;
+            private String propsLines = "";
+            private String lockLines = "";
+
+            private Builder(String fileName) {
+                this.fileName = fileName;
+            }
+
+            public Builder withVersionsProps(String... lines) {
+                this.propsLines = String.join("\n", lines);
+                this.versionsProps = VersionsProps.fromLines(Arrays.asList(lines), null);
+                return this;
+            }
+
+            public Builder withVersionsLock(String... lines) {
+                this.lockLines = String.join("\n", lines);
+                ConflictSafeLockFile lockReader = new ConflictSafeLockFile(null);
+                this.lockState = LockState.from(
+                        lockReader.parseLines(Arrays.stream(lines)), lockReader.parseLines(Stream.empty()));
+                return this;
+            }
+
+            public TestCase build() {
+                return new TestCase(this);
+            }
+        }
     }
 }
