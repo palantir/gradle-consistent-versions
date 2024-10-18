@@ -126,28 +126,28 @@ class CheckOverbroadConstraintsTest {
 
     @Test
     void test_suggests_star_if_possible() {
-        VersionsProps versionsProps = createVersionProps("org.junit.*:* = 5.10.2");
+        VersionsProps versionsProps = createVersionProps("org.example.*:* = 1.0.0");
         LockState lockState = createLockState(
-                "org.junit.jupiter:junit-jupiter:5.10.2 (2 constraints: abcdef1)",
-                "org.junit.platform:junit-platform-commons:1.10.2 (2 constraints: abcdef1)");
+                "org.example.moduleA:artifact-new:1.0.0 (2 constraints: abcdef1)",
+                "org.example.moduleB:artifact-core:2.0.0 (2 constraints: abcdef1)");
 
         Map<String, List<String>> oldToNewLines = CheckOverbroadConstraints.determineNewLines(versionsProps, lockState);
         List<String> newLines =
                 oldToNewLines.values().stream().flatMap(Collection::stream).collect(Collectors.toList());
 
-        assertThat(newLines).containsExactly("org.junit.platform:* = 1.10.2");
+        assertThat(newLines).containsExactly("org.example.moduleB:* = 2.0.0");
     }
 
     @Test
     void test_suggests_star_in_complex_situations() {
-        VersionsProps versionsProps = createVersionProps("org.junit.*:* = 5.10.2");
+        VersionsProps versionsProps = createVersionProps("com.example.*:* = 1.0.0");
         LockState lockState = createLockState(
-                "org.junit.jupiter:junit-jupiter:5.10.2 (2 constraints: abcdef1)",
-                "org.junit.platform:junit-platform-commons:1.10.2 (2 constraints: abcdef1)",
-                "org.junit.platform:junit-platform-new:1.10.2 (2 constraints: abcdef1)",
-                "org.junit.different:so-very-different:1.10.2 (2 constraints: abcdef1)",
-                "org.junit.platform:junit-different:1.09.1 (2 constraints: abcdef1)",
-                "org.junit.platform:junit-different-again:1.08.1 (2 constraints: abcdef1)");
+                "com.example.core:artifact-random:1.0.0 (2 constraints: abcdef1)",
+                "com.example.module:artifact-platform-commons:2.0.0 (2 constraints: abcdef1)",
+                "com.example.module:artifact-platform-new:2.0.0 (2 constraints: abcdef1)",
+                "com.example.different:so-very-different:2.0.0 (2 constraints: abcdef1)",
+                "com.example.module:artifact-different:3.0.0 (2 constraints: abcdef1)",
+                "com.example.module:artifact-different-again:4.0.0 (2 constraints: abcdef1)");
 
         Map<String, List<String>> oldToNewLines = CheckOverbroadConstraints.determineNewLines(versionsProps, lockState);
         List<String> newLines =
@@ -155,10 +155,10 @@ class CheckOverbroadConstraintsTest {
 
         assertThat(newLines)
                 .containsExactlyInAnyOrder(
-                        "org.junit.platform:junit-platform-* = 1.10.2",
-                        "org.junit.platform:junit-different = 1.09.1",
-                        "org.junit.platform:junit-different-* = 1.08.1",
-                        "org.junit.different:* = 1.10.2");
+                        "com.example.module:artifact-platform-* = 2.0.0",
+                        "com.example.different:* = 2.0.0",
+                        "com.example.module:artifact-different = 3.0.0",
+                        "com.example.module:artifact-different-* = 4.0.0");
     }
 
     @Test
