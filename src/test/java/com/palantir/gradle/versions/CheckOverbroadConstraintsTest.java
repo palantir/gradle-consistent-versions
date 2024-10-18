@@ -243,7 +243,7 @@ class CheckOverbroadConstraintsTest {
                     "versions.lock:",
                     lockLines,
                     "",
-                    "new versions lock pins:",
+                    "new pins (blank when no pins needed):",
                     String.join("\n", newLines()));
         }
 
