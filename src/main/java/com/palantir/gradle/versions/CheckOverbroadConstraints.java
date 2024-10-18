@@ -25,12 +25,16 @@ import com.palantir.gradle.versions.lockstate.LockState;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.file.RegularFileProperty;
@@ -77,17 +81,17 @@ public abstract class CheckOverbroadConstraints extends DefaultTask {
 
     private void checkOverbroadConstraints(VersionsProps versionsProps, LockState lockState) {
 
-        List<String> newLines = determineNewLines(versionsProps, lockState);
+        Map<String, List<String>> oldToNewLines = determineNewLines(versionsProps, lockState);
+        List<String> newLines =
+                oldToNewLines.values().stream().flatMap(Collection::stream).collect(Collectors.toList());
 
         if (newLines.isEmpty()) {
             return;
         }
 
         if (getShouldFix().get()) {
-            getLogger()
-                    .lifecycle("Adding pins to versions.props:\n"
-                            + newLines.stream().collect(Collectors.joining("\n")));
-            writeVersionsProps(getPropsFile().get().getAsFile(), newLines);
+            getLogger().lifecycle("Adding pins to versions.props:\n" + String.join("\n", newLines));
+            writeVersionsProps(getPropsFile().get().getAsFile(), oldToNewLines);
             return;
         }
 
@@ -102,12 +106,12 @@ public abstract class CheckOverbroadConstraints extends DefaultTask {
                         "",
                         "Run ./gradlew checkOverbroadConstraints --fix to add them.",
                         "See https://github.com/palantir/gradle-consistent-versions?tab=readme-ov-file#gradlew-checkoverbroadconstraints"
-                            + " for details"),
+                                + " for details"),
                 "./gradlew checkOverbroadConstraints --fix");
     }
 
     @VisibleForTesting
-    static List<String> determineNewLines(VersionsProps versionsProps, LockState lockState) {
+    static Map<String, List<String>> determineNewLines(VersionsProps versionsProps, LockState lockState) {
         Map<String, Line> lineByArtifact = lockState.allLines().stream()
                 .collect(Collectors.toMap(line -> line.identifier().toString(), line -> line));
         Set<String> artifacts = lineByArtifact.keySet();
@@ -115,15 +119,23 @@ public abstract class CheckOverbroadConstraints extends DefaultTask {
         Set<String> exactConstraints = versionsProps.getFuzzyResolver().exactMatches();
         Set<String> unmatchedArtifacts = new HashSet<>(Sets.difference(artifacts, exactConstraints));
 
-        // assumes globs are sorted by specificity
-        return versionsProps.getFuzzyResolver().globs().stream()
-                .flatMap(glob -> {
-                    Set<String> matchedByGlob =
-                            unmatchedArtifacts.stream().filter(glob::matches).collect(Collectors.toSet());
-                    unmatchedArtifacts.removeAll(matchedByGlob);
-                    return computeNewLines(getVersionPin(versionsProps, glob), matchedByGlob, lineByArtifact).stream();
-                })
-                .collect(Collectors.toList());
+        Map<String, List<String>> newLinesMap = new HashMap<>();
+
+        // Assumes globs are sorted by specificity
+        versionsProps.getFuzzyResolver().globs().forEach(glob -> {
+            Set<String> matchedByGlob =
+                    unmatchedArtifacts.stream().filter(glob::matches).collect(Collectors.toSet());
+
+            if (!matchedByGlob.isEmpty()) {
+                String versionPin = getVersionPin(versionsProps, glob);
+                List<String> newPins = computeNewLines(versionPin, matchedByGlob, lineByArtifact);
+
+                String oldLine = glob.getRawPattern();
+                newLinesMap.put(oldLine, newPins);
+            }
+        });
+
+        return newLinesMap;
     }
 
     private static String getVersionPin(VersionsProps versionsProps, Glob glob) {
@@ -132,17 +144,84 @@ public abstract class CheckOverbroadConstraints extends DefaultTask {
 
     private static List<String> computeNewLines(
             String pinnedVersion, Set<String> artifacts, Map<String, Line> lineByArtifact) {
-        return artifacts.stream()
+
+        List<String> fixed = artifacts.stream()
                 .map(lineByArtifact::get)
-                // Remove if the version is the pinnedVersion.
-                .filter(line -> !line.version().equals(pinnedVersion))
-                .map(line -> String.format("%s = %s", line.identifier(), line.version()))
+                .map(line -> makeUnique(
+                        line, artifacts.stream().map(lineByArtifact::get).collect(Collectors.toList())))
+                .distinct()
                 .collect(Collectors.toList());
+
+        if (fixed.size() == 1) {
+            return Collections.emptyList();
+        }
+
+        return fixed.stream().filter(line -> !line.endsWith(pinnedVersion)).collect(Collectors.toUnmodifiableList());
     }
 
-    private static void writeVersionsProps(File propsFile, List<String> newLines) {
-        List<String> lines = readVersionsPropsLines(propsFile);
-        String content = Stream.of(lines, newLines).flatMap(Collection::stream).collect(Collectors.joining("\n"));
+    public static String makeUnique(Line input, List<Line> lines) {
+        Set<String> pool = lines.stream()
+                .filter(line -> !line.version().equals(input.version()))
+                .map(line -> line.identifier().toString())
+                .collect(Collectors.toSet());
+        String toShrink = input.identifier().toString();
+
+        String shrank = IntStream.rangeClosed(1, toShrink.length())
+                .filter(i -> isAcceptablePrefixEnd(i, toShrink))
+                .mapToObj(i -> toShrink.substring(0, i))
+                .filter(prefix -> pool.stream().noneMatch(s -> s.startsWith(prefix)))
+                .findFirst()
+                .orElse(toShrink);
+
+        if (shrank.equals(toShrink)) {
+            return String.format("%s = %s", input.identifier(), input.version());
+        }
+
+        if (shrank.contains(":")) {
+            return String.format("%s = %s", shrank + "*", input.version());
+        }
+
+        return String.format("%s = %s", shrank + "*:*", input.version());
+    }
+
+    private static boolean isAcceptablePrefixEnd(int i, String target) {
+        if (i <= 0 || i > target.length()) {
+            return false;
+        }
+
+        char currentChar = target.charAt(i - 1);
+
+        if (i == target.length()) {
+            // Reached the end of the string
+            return true;
+        }
+
+        return !Character.isLetterOrDigit(currentChar);
+    }
+
+    private static void writeVersionsProps(File propsFile, Map<String, List<String>> oldToNewLines) {
+        List<String> existingLines = readVersionsPropsLines(propsFile);
+        List<String> updatedLines = new ArrayList<>();
+
+        for (String line : existingLines) {
+            updatedLines.add(line);
+
+            // Iterate through the map to check for matching "old line" prefixes
+            for (Map.Entry<String, List<String>> entry : oldToNewLines.entrySet()) {
+                String oldLinePrefix = entry.getKey();
+
+                if (line.startsWith(oldLinePrefix)) {
+                    List<String> newLines = entry.getValue();
+                    if (newLines != null && !newLines.isEmpty()) {
+                        updatedLines.addAll(newLines);
+                    }
+                    break;
+                }
+            }
+        }
+
+        String content = String.join(System.lineSeparator(), updatedLines);
+
         try {
             Files.writeString(propsFile.toPath(), content);
         } catch (IOException e) {

@@ -101,4 +101,30 @@ class CheckOverbroadConstraintsIntegrationSpec extends IntegrationSpec {
             com.fasterxml.jackson.core:jackson-annotations = 2.9.5
         """.stripIndent(true).trim()
     }
+
+    def 'Fixes are inserted in the correct locations'() {
+        when:
+        file('versions.props').text = """
+            com.random:random = 1.0.0
+            com.fasterxml.jackson.*:* = 2.9.3
+            # A random comment
+            org.different:artifact = 2.0.0
+        """.stripIndent(true)
+        file('versions.lock').text = """
+            com.random:random:1.0.0 (2 constraints: abcdef0)
+            org.different:artifact:2.0.0 (2 constraints: abcdef0)
+            com.fasterxml.jackson.core:jackson-annotations:2.9.5 (2 constraints: abcdef0)
+            com.fasterxml.jackson.core:jackson-core:2.9.3 (2 constraints: abcdef1)
+        """.stripIndent(true).trim()
+
+        then:
+        buildWithFixWorks()
+        file('versions.props').text.trim() == """
+            com.random:random = 1.0.0
+            com.fasterxml.jackson.*:* = 2.9.3
+            com.fasterxml.jackson.core:jackson-annotations = 2.9.5
+            # A random comment
+            org.different:artifact = 2.0.0
+        """.stripIndent(true).trim()
+    }
 }
