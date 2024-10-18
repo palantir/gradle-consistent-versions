@@ -38,7 +38,7 @@ class CheckOverbroadConstraintsTest {
     }
 
     @Test
-    void test_no_missing_pins_returns_empty() {
+    void no_missing_pins_returns_empty() {
         VersionsProps versionsProps = createVersionProps("com.example.*:*= 1.0.0", "com.example.core:module = 1.0.1");
         LockState lockState = createLockState(
                 "com.example.core:module:1.0.1 (2 constraints: abcdef1)",
@@ -52,7 +52,7 @@ class CheckOverbroadConstraintsTest {
     }
 
     @Test
-    void test_no_missing_pins_no_wildcards_returns_empty() {
+    void no_missing_pins_no_wildcards_returns_empty() {
         VersionsProps versionsProps =
                 createVersionProps("com.example.someArtifact:artifact= 1.0.0", "com.example.core:module = 1.0.1");
         LockState lockState = createLockState(
@@ -67,7 +67,7 @@ class CheckOverbroadConstraintsTest {
     }
 
     @Test
-    void test_all_above_pin_returns_empty() {
+    void all_above_pin_returns_empty() {
         VersionsProps versionsProps = createVersionProps("com.example.*:*= 1.0.0");
         LockState lockState = createLockState(
                 "com.example.core:module:1.0.1 (2 constraints: abcdef1)",
@@ -81,7 +81,7 @@ class CheckOverbroadConstraintsTest {
     }
 
     @Test
-    void test_all_below_pin_returns_empty() {
+    void all_below_pin_returns_empty() {
         VersionsProps versionsProps = createVersionProps("com.example.*:*= 1.0.0");
         LockState lockState = createLockState(
                 "com.example.core:module:0.0.1 (2 constraints: abcdef1)",
@@ -95,7 +95,7 @@ class CheckOverbroadConstraintsTest {
     }
 
     @Test
-    void test_multiple_pins_all_same_returns_empty() {
+    void multiple_pins_all_same_returns_empty() {
         VersionsProps versionsProps = createVersionProps("com.example.*:*= 1.0.0", "org.different.*:* = 2.0.0");
         LockState lockState = createLockState(
                 "com.example.core:module:1.0.1 (2 constraints: abcdef1)",
@@ -111,7 +111,7 @@ class CheckOverbroadConstraintsTest {
     }
 
     @Test
-    void test_versions_props_missing_pins_are_generated() {
+    void versions_props_missing_pins_are_generated() {
         VersionsProps versionsProps = createVersionProps("com.example.*:*= 1.0.0");
         LockState lockState = createLockState(
                 "com.example.core:module:1.0.1 (2 constraints: abcdef1)",
@@ -125,7 +125,7 @@ class CheckOverbroadConstraintsTest {
     }
 
     @Test
-    void test_suggests_star_if_possible() {
+    void suggests_star_if_possible() {
         VersionsProps versionsProps = createVersionProps("org.example.*:* = 1.0.0");
         LockState lockState = createLockState(
                 "org.example.moduleA:artifact-new:1.0.0 (2 constraints: abcdef1)",
@@ -139,7 +139,7 @@ class CheckOverbroadConstraintsTest {
     }
 
     @Test
-    void test_suggests_star_in_complex_situations() {
+    void suggests_star_in_complex_situations() {
         VersionsProps versionsProps = createVersionProps("com.example.*:* = 1.0.0");
         LockState lockState = createLockState(
                 "com.example.core:artifact-random:1.0.0 (2 constraints: abcdef1)",
@@ -162,7 +162,7 @@ class CheckOverbroadConstraintsTest {
     }
 
     @Test
-    void test_suggest_double_star() {
+    void suggest_double_star() {
         VersionsProps versionsProps = createVersionProps("org.*:* = 1.0.0");
         LockState lockState = createLockState(
                 "org.example.core:module:1.0.0 (2 constraints: abcdef1)",

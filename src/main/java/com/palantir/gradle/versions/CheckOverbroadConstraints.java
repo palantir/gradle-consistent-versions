@@ -183,7 +183,7 @@ public abstract class CheckOverbroadConstraints extends DefaultTask {
             return String.format("%s = %s", minimalLineIdentifier + "*", input.version());
         }
 
-        // Can wildcard in the group and name
+        // Can wildcard the package group and name
         return String.format("%s = %s", minimalLineIdentifier + "*:*", input.version());
     }
 
