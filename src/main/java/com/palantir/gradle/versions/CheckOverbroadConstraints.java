@@ -192,14 +192,12 @@ public abstract class CheckOverbroadConstraints extends DefaultTask {
             return false;
         }
 
-        char currentChar = target.charAt(index - 1);
-
         if (index == target.length()) {
             // Reached the end of the string
             return true;
         }
 
-        return !Character.isLetterOrDigit(currentChar);
+        return !Character.isLetterOrDigit(target.charAt(index - 1));
     }
 
     private static void writeVersionsProps(File propsFile, Map<String, List<String>> oldToNewLines) {
