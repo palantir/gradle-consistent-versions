@@ -48,6 +48,7 @@ import org.gradle.language.base.plugins.LifecycleBasePlugin;
 public abstract class CheckOverbroadConstraints extends DefaultTask {
 
     @Input
+    @Option(option = "fix", description = "Whether to apply the suggested fix to versions.props")
     public abstract Property<Boolean> getShouldFix();
 
     @InputFile
@@ -62,11 +63,6 @@ public abstract class CheckOverbroadConstraints extends DefaultTask {
         setDescription(
                 "Ensures matched versions in your versions.lock are pinned to avoid wasted dependency resolution.");
         getOutputs().upToDateWhen(_task -> true); // task has no outputs, this is needed for it to be up to date
-    }
-
-    @Option(option = "fix", description = "Whether to apply the suggested fix to versions.props")
-    public final void setShouldFixOption(boolean shouldFix) {
-        this.getShouldFix().set(shouldFix);
     }
 
     @TaskAction
