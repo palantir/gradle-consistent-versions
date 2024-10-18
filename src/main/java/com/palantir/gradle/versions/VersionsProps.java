@@ -51,10 +51,15 @@ public final class VersionsProps {
     }
 
     public static VersionsProps loadFromFile(Path path) {
+        List<String> lines = safeReadLines(path);
+        return fromLines(lines, path);
+    }
+
+    public static VersionsProps fromLines(List<String> lines, Path path) {
         FuzzyPatternResolver.Builder builder = FuzzyPatternResolver.builder();
         Map<String, String> versions = new HashMap<>();
         int lineNumber = 1;
-        for (String line : safeReadLines(path)) {
+        for (String line : lines) {
             Matcher constraint = CONSTRAINT.matcher(line);
             if (constraint.matches()) {
                 String key = constraint.group(1);

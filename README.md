@@ -50,6 +50,7 @@ Direct dependencies are specified in a top level `versions.props` file and then 
     1. versions.lock: compact representation of your prod classpath
     1. ./gradlew why
     1. ./gradlew checkUnusedConstraints
+    1. ./gradlew checkOverbroadConstraints
     1. getVersion
     1. BOMs
     1. Specifying exact versions
@@ -160,9 +161,40 @@ This is effectively just a more concise version of `dependencyInsight`:
 ./gradlew  dependencyInsight --configuration unifiedClasspath --dependency jackson-databind
 ```
 
-## ./gradlew checkUnusedConstraints
+### ./gradlew checkUnusedConstraints
 `checkUnusedConstraints` prevents unnecessary constraints from accruing in your `versions.props` file. Run
 `./gradlew checkUnusedConstraints --fix` to automatically remove any unused constraints from your props file.
+
+### ./gradlew checkOverbroadConstraints
+`checkOverbroadConstraints` prevents over-broad constants/`versions.props` pins. Run `./gradlew checkOverbroadConstraints --fix` 
+to automatically add the necessary constrains to your props file.
+
+Over-broad constraints are often caused by having a `*` entry in `version.props` (or generally a constraint) which is 
+"over-broad" - which is applying to more dependencies than it should.
+
+For example, given this `versions.props`:
+
+```properties
+org.junit.*:* = 5.10.2
+```
+
+And in `versions.lock` you see you have these two dependencies:
+
+```
+org.junit.jupiter:junit-jupiter:5.10.2
+org.junit.platform:junit-platform-commons:1.10.2
+```
+
+Since `5.10.2` > `1.10.2`, whenever Gradle tries to resolve `org.junit.platform:junit-platform-commons`, it first tries version `5.10.2` thanks to the `versions.props` pin. This returns a 404, and it falls back to trying the next constraint `1.10.2`, which works.
+
+However, that 404 can be very expensive. In particular, if you are hitting an Artifactory virtual repository, which is backed by many upstream Maven repositories, Artifactory will try each of these upstreams serially until it gets a 200. This can take many seconds. You can see this by appending `?trace` to the Artifactory url.
+
+The solution is break up the over-broad versions prop into non-overlapping pieces:
+
+```
+org.junit.jupiter:* = 5.10.2
+org.junit.platform:* = 1.10.2
+```
 
 ### getVersion
 If you want to use the resolved version of some dependency elsewhere in your Gradle files, gradle-consistent-versions offers the `getVersion(group, name, [configuration])` convenience function. For example:
