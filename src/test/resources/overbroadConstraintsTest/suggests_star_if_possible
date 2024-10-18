@@ -5,5 +5,5 @@ versions.lock:
 com.example.moduleA:artifact-new:1.0.0 (2 constraints: abcdef1)
 com.example.moduleB:artifact-core:3.0.0 (2 constraints: abcdef1)
 
-new versions lock pins:
+new pins (blank when no pins needed):
 com.example.moduleB:* = 3.0.0

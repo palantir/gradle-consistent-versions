@@ -8,4 +8,4 @@ com.example.someArtifact:artifact:1.0.1 (2 constraints: abcdef1)
 org.different:differentArtifact:2.0.1 (2 constraints: abcdef1)
 org.different.someDifferentArtifact:artifact:2.0.1 (2 constraints: abcdef1)
 
-new versions lock pins:
+new pins (blank when no pins needed):

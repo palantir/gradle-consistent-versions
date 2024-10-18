@@ -5,4 +5,4 @@ versions.lock:
 com.example.core:module:0.0.1 (2 constraints: abcdef1)
 com.example.someArtifact:artifact:0.0.1 (2 constraints: abcdef1)
 
-new versions lock pins:
+new pins (blank when no pins needed):

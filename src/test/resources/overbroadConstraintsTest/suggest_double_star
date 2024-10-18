@@ -5,5 +5,5 @@ versions.lock:
 com.example.core:module:1.0.0 (2 constraints: abcdef1)
 com.different.example:artifact:2.0.0 (2 constraints: abcdef1)
 
-new versions lock pins:
+new pins (blank when no pins needed):
 com.different.*:* = 2.0.0
