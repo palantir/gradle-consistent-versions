@@ -141,19 +141,19 @@ public abstract class CheckOverbroadConstraints extends DefaultTask {
     private static List<String> computeNewLines(
             String pinnedVersion, Set<String> artifacts, Map<String, Line> lineByArtifact) {
 
-        List<String> minimalWildcards = artifacts.stream()
+        List<String> minimalUnique = artifacts.stream()
                 .map(lineByArtifact::get)
                 .map(line -> makeUniqueWildcard(
                         line, artifacts.stream().map(lineByArtifact::get).collect(Collectors.toList())))
                 .distinct()
                 .collect(Collectors.toList());
 
-        if (minimalWildcards.size() == 1) {
+        if (minimalUnique.size() == 1) {
             return Collections.emptyList();
         }
 
         // Need to remove any versions already pinned
-        return minimalWildcards.stream()
+        return minimalUnique.stream()
                 .filter(line -> !line.endsWith(pinnedVersion))
                 .collect(Collectors.toUnmodifiableList());
     }
