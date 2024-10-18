@@ -145,53 +145,60 @@ public abstract class CheckOverbroadConstraints extends DefaultTask {
     private static List<String> computeNewLines(
             String pinnedVersion, Set<String> artifacts, Map<String, Line> lineByArtifact) {
 
-        List<String> fixed = artifacts.stream()
+        List<String> minimalWildcards = artifacts.stream()
                 .map(lineByArtifact::get)
-                .map(line -> makeUnique(
+                .map(line -> makeUniqueWildcard(
                         line, artifacts.stream().map(lineByArtifact::get).collect(Collectors.toList())))
                 .distinct()
                 .collect(Collectors.toList());
 
-        if (fixed.size() == 1) {
+        if (minimalWildcards.size() == 1) {
             return Collections.emptyList();
         }
 
-        return fixed.stream().filter(line -> !line.endsWith(pinnedVersion)).collect(Collectors.toUnmodifiableList());
+        // Need to remove any versions already pinned
+        return minimalWildcards.stream()
+                .filter(line -> !line.endsWith(pinnedVersion))
+                .collect(Collectors.toUnmodifiableList());
     }
 
-    public static String makeUnique(Line input, List<Line> lines) {
-        Set<String> pool = lines.stream()
+    public static String makeUniqueWildcard(Line input, List<Line> lines) {
+        Set<String> linesWithVersionDifferentFromInput = lines.stream()
                 .filter(line -> !line.version().equals(input.version()))
                 .map(line -> line.identifier().toString())
                 .collect(Collectors.toSet());
-        String toShrink = input.identifier().toString();
 
-        String shrank = IntStream.rangeClosed(1, toShrink.length())
-                .filter(i -> isAcceptablePrefixEnd(i, toShrink))
-                .mapToObj(i -> toShrink.substring(0, i))
-                .filter(prefix -> pool.stream().noneMatch(s -> s.startsWith(prefix)))
+        String lineIdentifier = input.identifier().toString();
+
+        String minimalLineIdentifier = IntStream.rangeClosed(1, lineIdentifier.length())
+                .filter(i -> isAcceptablePrefixEnd(i, lineIdentifier))
+                .mapToObj(i -> lineIdentifier.substring(0, i))
+                .filter(prefix -> linesWithVersionDifferentFromInput.stream().noneMatch(s -> s.startsWith(prefix)))
                 .findFirst()
-                .orElse(toShrink);
+                .orElse(lineIdentifier);
 
-        if (shrank.equals(toShrink)) {
+        // cannot make wildcard and must pin at full length
+        if (minimalLineIdentifier.equals(lineIdentifier)) {
             return String.format("%s = %s", input.identifier(), input.version());
         }
 
-        if (shrank.contains(":")) {
-            return String.format("%s = %s", shrank + "*", input.version());
+        // Can wildcard the package name
+        if (minimalLineIdentifier.contains(":")) {
+            return String.format("%s = %s", minimalLineIdentifier + "*", input.version());
         }
 
-        return String.format("%s = %s", shrank + "*:*", input.version());
+        // Can wildcard in the group and name
+        return String.format("%s = %s", minimalLineIdentifier + "*:*", input.version());
     }
 
-    private static boolean isAcceptablePrefixEnd(int i, String target) {
-        if (i <= 0 || i > target.length()) {
+    private static boolean isAcceptablePrefixEnd(int index, String target) {
+        if (index <= 0 || index > target.length()) {
             return false;
         }
 
-        char currentChar = target.charAt(i - 1);
+        char currentChar = target.charAt(index - 1);
 
-        if (i == target.length()) {
+        if (index == target.length()) {
             // Reached the end of the string
             return true;
         }
