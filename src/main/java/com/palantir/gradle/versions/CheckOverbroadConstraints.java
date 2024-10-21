@@ -32,6 +32,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -102,7 +103,7 @@ public abstract class CheckOverbroadConstraints extends DefaultTask {
                         "",
                         "Run ./gradlew checkOverbroadConstraints --fix to add them.",
                         "See https://github.com/palantir/gradle-consistent-versions?tab=readme-ov-file#gradlew-checkoverbroadconstraints"
-                                + " for details"),
+                            + " for details"),
                 "./gradlew checkOverbroadConstraints --fix");
     }
 
@@ -141,16 +142,23 @@ public abstract class CheckOverbroadConstraints extends DefaultTask {
     private static List<String> computeNewLines(
             String pinnedVersion, Set<String> artifacts, Map<String, Line> lineByArtifact) {
 
+        long uniqueVersionCount = artifacts.stream()
+                .map(lineByArtifact::get)
+                .map(Line::version)
+                .filter(Objects::nonNull)
+                .distinct()
+                .count();
+
+        if (uniqueVersionCount <= 1) {
+            return Collections.emptyList();
+        }
+
         List<String> minimalUnique = artifacts.stream()
                 .map(lineByArtifact::get)
                 .map(line -> makeUniqueWildcard(
                         line, artifacts.stream().map(lineByArtifact::get).collect(Collectors.toList())))
                 .distinct()
                 .collect(Collectors.toList());
-
-        if (minimalUnique.size() == 1) {
-            return Collections.emptyList();
-        }
 
         // Need to remove any versions already pinned
         return minimalUnique.stream()
@@ -169,6 +177,7 @@ public abstract class CheckOverbroadConstraints extends DefaultTask {
         String minimalLineIdentifier = IntStream.rangeClosed(1, lineIdentifier.length())
                 .filter(i -> isAcceptablePrefixEnd(i, lineIdentifier))
                 .mapToObj(i -> lineIdentifier.substring(0, i))
+                .filter(prefix -> prefix.contains(":"))
                 .filter(prefix -> linesWithVersionDifferentFromInput.stream().noneMatch(s -> s.startsWith(prefix)))
                 .findFirst()
                 .orElse(lineIdentifier);
@@ -179,12 +188,7 @@ public abstract class CheckOverbroadConstraints extends DefaultTask {
         }
 
         // Can wildcard the package name
-        if (minimalLineIdentifier.contains(":")) {
-            return String.format("%s = %s", minimalLineIdentifier + "*", input.version());
-        }
-
-        // Can wildcard the package group and name
-        return String.format("%s = %s", minimalLineIdentifier + "*:*", input.version());
+        return String.format("%s = %s", minimalLineIdentifier + "*", input.version());
     }
 
     private static boolean isAcceptablePrefixEnd(int index, String target) {
