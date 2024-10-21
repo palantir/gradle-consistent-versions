@@ -9,4 +9,4 @@ org.different.someDifferentArtifact:artifact:2.0.1 (2 constraints: abcdef1)
 org.different:differentArtifact:2.0.1 (2 constraints: abcdef1)
 
 versions.props diff:
-No difference
+<unchanged>

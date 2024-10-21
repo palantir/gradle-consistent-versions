@@ -6,4 +6,4 @@ com.example.core:module:0.0.1 (2 constraints: abcdef1)
 com.example.someArtifact:artifact:0.0.1 (2 constraints: abcdef1)
 
 versions.props diff:
-No difference
+<unchanged>

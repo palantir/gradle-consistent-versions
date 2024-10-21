@@ -218,15 +218,16 @@ class CheckOverbroadConstraintsTest {
             }
 
             return String.join(
-                            "\n",
-                            "versions.props",
-                            String.join("\n", propsLines),
-                            "",
-                            "versions.lock:",
-                            lockLines,
-                            "",
-                            "versions.props diff:\n")
-                    + diff;
+                    "\n",
+                    "versions.props",
+                    String.join("\n", propsLines),
+                    "",
+                    "versions.lock:",
+                    lockLines,
+                    "",
+                    "versions.props diff:",
+                    diff,
+                    "");
         }
 
         public void writeToFile() {
