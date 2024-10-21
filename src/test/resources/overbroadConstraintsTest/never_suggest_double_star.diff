@@ -2,8 +2,8 @@
 +++ never_suggest_double_star.diff
 @@ -1,5 +1,6 @@
  versions.lock:
- com.example.core:module:1.0.0 (2 constraints: abcdef1)
-com.different.example:artifact:2.0.0 (2 constraints: abcdef1)
+ com.different.example:artifact:2.0.0 (2 constraints: abcdef1)
+com.example.core:module:1.0.0 (2 constraints: abcdef1)
  
  versions.props diff:
 -com.*:* = 1.0.0

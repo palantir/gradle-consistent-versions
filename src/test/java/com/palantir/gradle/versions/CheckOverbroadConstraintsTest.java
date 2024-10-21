@@ -261,7 +261,7 @@ class CheckOverbroadConstraintsTest {
             }
 
             public Builder withVersionsLock(String... lines) {
-                this.lockLines = String.join("\n", lines);
+                this.lockLines = Arrays.stream(lines).sorted().collect(Collectors.joining("\n"));
                 ConflictSafeLockFile lockReader = new ConflictSafeLockFile(null);
                 this.lockState = LockState.from(
                         lockReader.parseLines(Arrays.stream(lines)), lockReader.parseLines(Stream.empty()));
