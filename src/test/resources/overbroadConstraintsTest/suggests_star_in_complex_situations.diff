@@ -1,18 +1,18 @@
---- suggests_star_in_complex_situations.diff
-+++ suggests_star_in_complex_situations.diff
-@@ -1,5 +1,9 @@
- versions.lock:
- com.example.core:artifact-random:1.0.0 (2 constraints: abcdef1)
+versions.props
+com.example.*:*= 1.0.0
+org.different.*:* = 2.0.0
+
+versions.lock:
+com.example.core:artifact-random:1.0.0 (2 constraints: abcdef1)
 com.example.different:so-very-different:2.0.0 (2 constraints: abcdef1)
 com.example.module:artifact-different-again:4.0.0 (2 constraints: abcdef1)
 com.example.module:artifact-different:3.0.0 (2 constraints: abcdef1)
 com.example.module:artifact-platform-commons:2.0.0 (2 constraints: abcdef1)
 com.example.module:artifact-platform-new:2.0.0 (2 constraints: abcdef1)
 org.different.unimportant:random:2.0.0 (2 constraints: abcdef1)
- 
- versions.props diff:
+
+versions.props diff:
 -com.example.*:*= 1.0.0
-org.different.*:* = 2.0.0
 +com.example.module:artifact-platform-* = 2.0.0
 +com.example.core:* = 1.0.0
 +com.example.different:* = 2.0.0

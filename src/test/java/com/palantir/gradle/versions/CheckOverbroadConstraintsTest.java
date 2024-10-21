@@ -29,7 +29,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -184,7 +183,7 @@ class CheckOverbroadConstraintsTest {
         private final String fileName;
         private final VersionsProps versionsProps;
         private final LockState lockState;
-        private final String propsLines;
+        private final List<String> propsLines;
         private final String lockLines;
 
         private TestCase(Builder builder) {
@@ -202,25 +201,32 @@ class CheckOverbroadConstraintsTest {
         public List<String> newPropsLines() {
             Map<String, List<String>> oldToNewLines =
                     CheckOverbroadConstraints.determineNewLines(versionsProps, lockState);
-            return CheckOverbroadConstraints.generateUpdatedPropsLines(
-                    oldToNewLines, Collections.singletonList(propsLines));
+            return CheckOverbroadConstraints.generateUpdatedPropsLines(oldToNewLines, propsLines);
         }
 
         public String fileContents() {
-            List<String> header = List.of("versions.lock:", lockLines, "", "versions.props diff:");
-            List<String> original = new ArrayList<>(header);
-            List<String> revised = new ArrayList<>(header);
-            original.add(propsLines);
-            revised.addAll(newPropsLines());
+            Patch<String> patch = DiffUtils.diff(propsLines, newPropsLines());
 
-            Patch<String> patch = DiffUtils.diff(original, revised);
+            String diff =
+                    DiffUtils.generateUnifiedDiff(fileName, fileName, propsLines, patch, Integer.MAX_VALUE).stream()
+                            // Skip the unified diff header
+                            .skip(3)
+                            .collect(Collectors.joining("\n"));
 
-            List<String> diff = DiffUtils.generateUnifiedDiff(fileName, fileName, original, patch, header.size());
             if (diff.isEmpty()) {
-                return String.join("\n", String.join("\n", header), "No difference");
-            } else {
-                return String.join("\n", diff);
+                diff = "No difference";
             }
+
+            return String.join(
+                            "\n",
+                            "versions.props",
+                            String.join("\n", propsLines),
+                            "",
+                            "versions.lock:",
+                            lockLines,
+                            "",
+                            "versions.props diff:\n")
+                    + diff;
         }
 
         public void writeToFile() {
@@ -247,7 +253,7 @@ class CheckOverbroadConstraintsTest {
             private final String fileName;
             private VersionsProps versionsProps = VersionsProps.empty();
             private LockState lockState = null;
-            private String propsLines = "";
+            private List<String> propsLines = new ArrayList<>();
             private String lockLines = "";
 
             private Builder(String fileName) {
@@ -255,7 +261,7 @@ class CheckOverbroadConstraintsTest {
             }
 
             public Builder withVersionsProps(String... lines) {
-                this.propsLines = String.join("\n", lines);
+                this.propsLines = Arrays.asList(lines);
                 this.versionsProps = VersionsProps.fromLines(Arrays.asList(lines), null);
                 return this;
             }
