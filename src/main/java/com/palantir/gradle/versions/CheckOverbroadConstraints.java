@@ -19,20 +19,20 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
 import com.palantir.gradle.failurereports.exceptions.ExceptionWithSuggestion;
-import com.palantir.gradle.versions.FuzzyPatternResolver.Glob;
 import com.palantir.gradle.versions.lockstate.Line;
 import com.palantir.gradle.versions.lockstate.LockState;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -124,8 +124,7 @@ public abstract class CheckOverbroadConstraints extends DefaultTask {
                     unmatchedArtifacts.stream().filter(glob::matches).collect(Collectors.toSet());
 
             if (!matchedByGlob.isEmpty()) {
-                String versionPin = getVersionPin(versionsProps, glob);
-                List<String> newPins = computeNewLines(versionPin, matchedByGlob, lineByArtifact);
+                List<String> newPins = computeNewLines(matchedByGlob, lineByArtifact);
 
                 String oldLine = glob.getRawPattern();
                 newLinesMap.put(oldLine, newPins);
@@ -135,12 +134,7 @@ public abstract class CheckOverbroadConstraints extends DefaultTask {
         return newLinesMap;
     }
 
-    private static String getVersionPin(VersionsProps versionsProps, Glob glob) {
-        return versionsProps.getFuzzyResolver().versions().get(glob.getRawPattern());
-    }
-
-    private static List<String> computeNewLines(
-            String pinnedVersion, Set<String> artifacts, Map<String, Line> lineByArtifact) {
+    private static List<String> computeNewLines(Set<String> artifacts, Map<String, Line> lineByArtifact) {
 
         long uniqueVersionCount = artifacts.stream()
                 .map(lineByArtifact::get)
@@ -153,17 +147,12 @@ public abstract class CheckOverbroadConstraints extends DefaultTask {
             return Collections.emptyList();
         }
 
-        List<String> minimalUnique = artifacts.stream()
+        return artifacts.stream()
                 .map(lineByArtifact::get)
                 .map(line -> makeUniqueWildcard(
                         line, artifacts.stream().map(lineByArtifact::get).collect(Collectors.toList())))
                 .distinct()
                 .collect(Collectors.toList());
-
-        // Need to remove any versions already pinned
-        return minimalUnique.stream()
-                .filter(line -> !line.endsWith(pinnedVersion))
-                .collect(Collectors.toUnmodifiableList());
     }
 
     public static String makeUniqueWildcard(Line input, List<Line> lines) {
@@ -206,24 +195,25 @@ public abstract class CheckOverbroadConstraints extends DefaultTask {
 
     private static void writeVersionsProps(File propsFile, Map<String, List<String>> oldToNewLines) {
         List<String> existingLines = readVersionsPropsLines(propsFile);
-        List<String> updatedLines = new ArrayList<>();
 
-        for (String line : existingLines) {
-            updatedLines.add(line);
+        List<String> updatedLines = existingLines.stream()
+                .flatMap(line -> {
+                    Optional<Entry<String, List<String>>> matchingEntry = oldToNewLines.entrySet().stream()
+                            .filter(entry -> line.startsWith(entry.getKey()))
+                            .findFirst();
 
-            // Iterate through the map to check for matching "old line" prefixes
-            for (Map.Entry<String, List<String>> entry : oldToNewLines.entrySet()) {
-                String oldLinePrefix = entry.getKey();
-
-                if (line.startsWith(oldLinePrefix)) {
-                    List<String> newLines = entry.getValue();
-                    if (newLines != null && !newLines.isEmpty()) {
-                        updatedLines.addAll(newLines);
+                    if (matchingEntry.isPresent()) {
+                        List<String> newLines = matchingEntry.get().getValue();
+                        if (newLines != null && !newLines.isEmpty()) {
+                            return newLines.stream();
+                        } else {
+                            return Stream.empty();
+                        }
+                    } else {
+                        return Stream.of(line);
                     }
-                    break;
-                }
-            }
-        }
+                })
+                .collect(Collectors.toList());
 
         String content = String.join(System.lineSeparator(), updatedLines);
 

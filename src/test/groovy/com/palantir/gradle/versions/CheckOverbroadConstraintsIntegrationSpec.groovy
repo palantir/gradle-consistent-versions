@@ -91,13 +91,14 @@ class CheckOverbroadConstraintsIntegrationSpec extends IntegrationSpec {
                 "Over-broad constraints often arise due to wildcards in versions.props",
                 "which apply to more dependencies than they should, this can lead to slow builds.",
                 "The following additional pins are recommended:",
+                "com.fasterxml.jackson.core:jackson-core = 2.9.3",
                 "com.fasterxml.jackson.core:jackson-annotations = 2.9.5",
                 "",
                 "Run ./gradlew checkOverbroadConstraints --fix to add them.",
                 "See https://github.com/palantir/gradle-consistent-versions?tab=readme-ov-file#gradlew-checkoverbroadconstraints for details"))
         buildWithFixWorks()
         file('versions.props').text.trim() == """
-            com.fasterxml.jackson.*:* = 2.9.3
+            com.fasterxml.jackson.core:jackson-core = 2.9.3
             com.fasterxml.jackson.core:jackson-annotations = 2.9.5
         """.stripIndent(true).trim()
     }
@@ -121,7 +122,7 @@ class CheckOverbroadConstraintsIntegrationSpec extends IntegrationSpec {
         buildWithFixWorks()
         file('versions.props').text.trim() == """
             com.random:random = 1.0.0
-            com.fasterxml.jackson.*:* = 2.9.3
+            com.fasterxml.jackson.core:jackson-core = 2.9.3
             com.fasterxml.jackson.core:jackson-annotations = 2.9.5
             # A random comment
             org.different:artifact = 2.0.0

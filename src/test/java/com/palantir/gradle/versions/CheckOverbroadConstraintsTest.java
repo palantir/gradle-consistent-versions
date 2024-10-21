@@ -201,7 +201,7 @@ class CheckOverbroadConstraintsTest {
     }
 
     private static TestCase testCase9() {
-        return TestCase.builder("suggest_double_star")
+        return TestCase.builder("never_suggest_double_star")
                 .withVersionsProps("com.*:* = 1.0.0")
                 .withVersionsLock(
                         "com.example.core:module:1.0.0 (2 constraints: abcdef1)",

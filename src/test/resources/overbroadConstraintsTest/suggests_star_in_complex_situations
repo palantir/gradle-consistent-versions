@@ -11,6 +11,7 @@ com.example.module:artifact-different-again:4.0.0 (2 constraints: abcdef1)
 
 new pins (blank when no pins needed):
 com.example.module:artifact-platform-* = 2.0.0
+com.example.core:* = 1.0.0
 com.example.different:* = 2.0.0
 com.example.module:artifact-different = 3.0.0
 com.example.module:artifact-different-* = 4.0.0

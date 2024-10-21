@@ -6,4 +6,5 @@ com.example.core:module:1.0.1 (2 constraints: abcdef1)
 com.example.someArtifact:artifact:1.0.0 (2 constraints: abcdef1)
 
 new pins (blank when no pins needed):
+com.example.someArtifact:* = 1.0.0
 com.example.core:* = 1.0.1
