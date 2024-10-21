@@ -62,7 +62,7 @@ public abstract class CheckOverbroadConstraints extends DefaultTask {
         setGroup(LifecycleBasePlugin.VERIFICATION_GROUP);
         setDescription(
                 "Ensures matched versions in your versions.lock are pinned to avoid wasted dependency resolution.");
-        getOutputs().upToDateWhen(_task -> true); // task has no outputs, this is needed for it to be up to date
+        getOutputs().upToDateWhen(_task -> false); // task has no outputs, this is needed for it to be up to date
     }
 
     @TaskAction
@@ -102,7 +102,7 @@ public abstract class CheckOverbroadConstraints extends DefaultTask {
                         "",
                         "Run ./gradlew checkOverbroadConstraints --fix to add them.",
                         "See https://github.com/palantir/gradle-consistent-versions?tab=readme-ov-file#gradlew-checkoverbroadconstraints"
-                                + " for details"),
+                            + " for details"),
                 "./gradlew checkOverbroadConstraints --fix");
     }
 
