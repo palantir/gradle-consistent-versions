@@ -214,7 +214,7 @@ class CheckOverbroadConstraintsTest {
                             .collect(Collectors.joining("\n"));
 
             if (diff.isEmpty()) {
-                diff = "No difference";
+                diff = "<unchanged>";
             }
 
             return String.join(
