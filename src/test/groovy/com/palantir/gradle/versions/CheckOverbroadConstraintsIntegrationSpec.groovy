@@ -106,7 +106,7 @@ class CheckOverbroadConstraintsIntegrationSpec extends IntegrationSpec {
     def 'Fixes are inserted in the correct locations'() {
         when:
         file('versions.props').text = """
-            com.random:random = 1.0.0
+            com.random:* = 1.0.0
             com.fasterxml.jackson.*:* = 2.9.3
             # A random comment
             org.different:artifact = 2.0.0
@@ -121,7 +121,7 @@ class CheckOverbroadConstraintsIntegrationSpec extends IntegrationSpec {
         then:
         buildWithFixWorks()
         file('versions.props').text.trim() == """
-            com.random:random = 1.0.0
+            com.random:* = 1.0.0
             com.fasterxml.jackson.core:jackson-core = 2.9.3
             com.fasterxml.jackson.core:jackson-annotations = 2.9.5
             # A random comment
