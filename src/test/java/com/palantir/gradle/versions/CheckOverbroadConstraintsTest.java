@@ -27,6 +27,7 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -45,12 +46,12 @@ import org.junit.jupiter.params.provider.MethodSource;
 class CheckOverbroadConstraintsTest {
 
     private static final String basePath = "src/test/resources/overbroadConstraintsTest/";
-    private static final Optional<String> inCi = Optional.ofNullable(System.getenv("CI"));
+    private static final boolean IN_CI =
+            Optional.ofNullable(System.getenv("CI")).equals(Optional.of("true"));
 
     @BeforeAll
-    public static void beforeAll() throws IOException {
-
-        if (!inCi.equals(Optional.of("true"))) {
+    static void beforeAll() throws IOException {
+        if (!IN_CI) {
             deleteOldTests(Paths.get(basePath));
         }
     }
@@ -58,23 +59,78 @@ class CheckOverbroadConstraintsTest {
     @ParameterizedTest(name = "{0}")
     @MethodSource("provideTestCases")
     void newLinesCorrect(TestCase testCase) throws IOException {
-        if (inCi.equals(Optional.of("true"))) {
+        if (IN_CI) {
             checkTestCaseInResources(testCase);
         }
         testCase.writeToFile();
     }
 
     private static Stream<Arguments> provideTestCases() {
-        return Stream.of(
-                Arguments.of(testCase1()),
-                Arguments.of(testCase2()),
-                Arguments.of(testCase3()),
-                Arguments.of(testCase4()),
-                Arguments.of(testCase5()),
-                Arguments.of(testCase6()),
-                Arguments.of(testCase7()),
-                Arguments.of(testCase8()),
-                Arguments.of(testCase9()));
+        Stream<TestCase> testCases = Stream.of(
+                TestCase.builder("no_missing_pins_returns_empty.diff")
+                        .withVersionsProps("com.example.*:*= 1.0.0", "com.example.core:module = 1.0.1")
+                        .withVersionsLock(
+                                "com.example.core:module:1.0.1 (2 constraints: abcdef1)",
+                                "com.example.someArtifact:artifact:1.0.0 (2 constraints: abcdef1)")
+                        .build(),
+                TestCase.builder("no_missing_pins_no_wildcards_returns_empty.diff")
+                        .withVersionsProps(
+                                "com.example.someArtifact:artifact= 1.0.0", "com.example.core:module = 1.0.1")
+                        .withVersionsLock(
+                                "com.example.core:module:1.0.1 (2 constraints: abcdef1)",
+                                "com.example.someArtifact:artifact:1.0.0 (2 constraints: abcdef1)")
+                        .build(),
+                TestCase.builder("all_above_pin_returns_empty.diff")
+                        .withVersionsProps("com.example.*:*= 1.0.0")
+                        .withVersionsLock(
+                                "com.example.core:module:1.0.1 (2 constraints: abcdef1)",
+                                "com.example.someArtifact:artifact:1.0.1 (2 constraints: abcdef1)")
+                        .build(),
+                TestCase.builder("all_below_pin_returns_empty.diff")
+                        .withVersionsProps("com.example.*:*= 1.0.0")
+                        .withVersionsLock(
+                                "com.example.core:module:0.0.1 (2 constraints: abcdef1)",
+                                "com.example.someArtifact:artifact:0.0.1 (2 constraints: abcdef1)")
+                        .build(),
+                TestCase.builder("multiple_pins_all_same_returns_empty.diff")
+                        .withVersionsProps("com.example.*:*= 1.0.0", "org.different.*:* = 2.0.0")
+                        .withVersionsLock(
+                                "com.example.core:module:1.0.1 (2 constraints: abcdef1)",
+                                "com.example.someArtifact:artifact:1.0.1 (2 constraints: abcdef1)",
+                                "org.different:differentArtifact:2.0.1 (2 constraints: abcdef1)",
+                                "org.different.someDifferentArtifact:artifact:2.0.1 (2 constraints: abcdef1)")
+                        .build(),
+                TestCase.builder("versions_props_missing_pins_are_generated.diff")
+                        .withVersionsProps("com.example.*:*= 1.0.0")
+                        .withVersionsLock(
+                                "com.example.core:module:1.0.1 (2 constraints: abcdef1)",
+                                "com.example.someArtifact:artifact:1.0.0 (2 constraints: abcdef1)")
+                        .build(),
+                TestCase.builder("suggests_star_if_possible.diff")
+                        .withVersionsProps("com.example.*:*= 1.0.0")
+                        .withVersionsLock(
+                                "com.example.moduleA:artifact-new:1.0.0 (2 constraints: abcdef1)",
+                                "com.example.moduleB:artifact-core:3.0.0 (2 constraints: abcdef1)")
+                        .build(),
+                TestCase.builder("suggests_star_in_complex_situations.diff")
+                        .withVersionsProps("com.example.*:*= 1.0.0", "org.different.*:* = 2.0.0")
+                        .withVersionsLock(
+                                "com.example.core:artifact-random:1.0.0 (2 constraints: abcdef1)",
+                                "com.example.module:artifact-platform-commons:2.0.0 (2 constraints: abcdef1)",
+                                "com.example.module:artifact-platform-new:2.0.0 (2 constraints: abcdef1)",
+                                "com.example.different:so-very-different:2.0.0 (2 constraints: abcdef1)",
+                                "com.example.module:artifact-different:3.0.0 (2 constraints: abcdef1)",
+                                "com.example.module:artifact-different-again:4.0.0 (2 constraints: abcdef1)",
+                                "org.different.unimportant:random:2.0.0 (2 constraints: abcdef1)")
+                        .build(),
+                TestCase.builder("never_suggest_double_star.diff")
+                        .withVersionsProps("com.*:* = 1.0.0")
+                        .withVersionsLock(
+                                "com.example.core:module:1.0.0 (2 constraints: abcdef1)",
+                                "com.different.example:artifact:2.0.0 (2 constraints: abcdef1)")
+                        .build());
+
+        return testCases.map(Arguments::of);
     }
 
     private void checkTestCaseInResources(TestCase testCase) throws IOException {
@@ -124,94 +180,6 @@ class CheckOverbroadConstraintsTest {
         }
     }
 
-    private static TestCase testCase1() {
-        return TestCase.builder("no_missing_pins_returns_empty.diff")
-                .withVersionsProps("com.example.*:*= 1.0.0", "com.example.core:module = 1.0.1")
-                .withVersionsLock(
-                        "com.example.core:module:1.0.1 (2 constraints: abcdef1)",
-                        "com.example.someArtifact:artifact:1.0.0 (2 constraints: abcdef1)")
-                .build();
-    }
-
-    private static TestCase testCase2() {
-        return TestCase.builder("no_missing_pins_no_wildcards_returns_empty.diff")
-                .withVersionsProps("com.example.someArtifact:artifact= 1.0.0", "com.example.core:module = 1.0.1")
-                .withVersionsLock(
-                        "com.example.core:module:1.0.1 (2 constraints: abcdef1)",
-                        "com.example.someArtifact:artifact:1.0.0 (2 constraints: abcdef1)")
-                .build();
-    }
-
-    private static TestCase testCase3() {
-        return TestCase.builder("all_above_pin_returns_empty.diff")
-                .withVersionsProps("com.example.*:*= 1.0.0")
-                .withVersionsLock(
-                        "com.example.core:module:1.0.1 (2 constraints: abcdef1)",
-                        "com.example.someArtifact:artifact:1.0.1 (2 constraints: abcdef1)")
-                .build();
-    }
-
-    private static TestCase testCase4() {
-        return TestCase.builder("all_below_pin_returns_empty.diff")
-                .withVersionsProps("com.example.*:*= 1.0.0")
-                .withVersionsLock(
-                        "com.example.core:module:0.0.1 (2 constraints: abcdef1)",
-                        "com.example.someArtifact:artifact:0.0.1 (2 constraints: abcdef1)")
-                .build();
-    }
-
-    private static TestCase testCase5() {
-        return TestCase.builder("multiple_pins_all_same_returns_empty.diff")
-                .withVersionsProps("com.example.*:*= 1.0.0", "org.different.*:* = 2.0.0")
-                .withVersionsLock(
-                        "com.example.core:module:1.0.1 (2 constraints: abcdef1)",
-                        "com.example.someArtifact:artifact:1.0.1 (2 constraints: abcdef1)",
-                        "org.different:differentArtifact:2.0.1 (2 constraints: abcdef1)",
-                        "org.different.someDifferentArtifact:artifact:2.0.1 (2 constraints: abcdef1)")
-                .build();
-    }
-
-    private static TestCase testCase6() {
-        return TestCase.builder("versions_props_missing_pins_are_generated.diff")
-                .withVersionsProps("com.example.*:*= 1.0.0")
-                .withVersionsLock(
-                        "com.example.core:module:1.0.1 (2 constraints: abcdef1)",
-                        "com.example.someArtifact:artifact:1.0.0 (2 constraints: abcdef1)")
-                .build();
-    }
-
-    private static TestCase testCase7() {
-        return TestCase.builder("suggests_star_if_possible.diff")
-                .withVersionsProps("com.example.*:*= 1.0.0")
-                .withVersionsLock(
-                        "com.example.moduleA:artifact-new:1.0.0 (2 constraints: abcdef1)",
-                        "com.example.moduleB:artifact-core:3.0.0 (2 constraints: abcdef1)")
-                .build();
-    }
-
-    private static TestCase testCase8() {
-        return TestCase.builder("suggests_star_in_complex_situations.diff")
-                .withVersionsProps("com.example.*:*= 1.0.0", "org.different.*:* = 2.0.0")
-                .withVersionsLock(
-                        "com.example.core:artifact-random:1.0.0 (2 constraints: abcdef1)",
-                        "com.example.module:artifact-platform-commons:2.0.0 (2 constraints: abcdef1)",
-                        "com.example.module:artifact-platform-new:2.0.0 (2 constraints: abcdef1)",
-                        "com.example.different:so-very-different:2.0.0 (2 constraints: abcdef1)",
-                        "com.example.module:artifact-different:3.0.0 (2 constraints: abcdef1)",
-                        "com.example.module:artifact-different-again:4.0.0 (2 constraints: abcdef1)",
-                        "org.different.unimportant:random:2.0.0 (2 constraints: abcdef1)")
-                .build();
-    }
-
-    private static TestCase testCase9() {
-        return TestCase.builder("never_suggest_double_star.diff")
-                .withVersionsProps("com.*:* = 1.0.0")
-                .withVersionsLock(
-                        "com.example.core:module:1.0.0 (2 constraints: abcdef1)",
-                        "com.different.example:artifact:2.0.0 (2 constraints: abcdef1)")
-                .build();
-    }
-
     public static final class TestCase {
         private final String fileName;
         private final VersionsProps versionsProps;
@@ -240,8 +208,8 @@ class CheckOverbroadConstraintsTest {
 
         public String fileContents() {
             List<String> header = List.of("versions.lock:", lockLines, "", "versions.props diff:");
-            List<String> original = new java.util.ArrayList<>(header);
-            List<String> revised = new java.util.ArrayList<>(header);
+            List<String> original = new ArrayList<>(header);
+            List<String> revised = new ArrayList<>(header);
             original.add(propsLines);
             revised.addAll(newPropsLines());
 
@@ -267,6 +235,11 @@ class CheckOverbroadConstraintsTest {
             Path outputPath = Paths.get(basePath + fileName);
             Files.createDirectories(outputPath.getParent());
             return outputPath;
+        }
+
+        @Override
+        public String toString() {
+            return fileName;
         }
 
         // Builder class
