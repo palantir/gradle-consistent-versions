@@ -24,15 +24,14 @@ import com.palantir.gradle.versions.lockstate.LockState;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -103,7 +102,7 @@ public abstract class CheckOverbroadConstraints extends DefaultTask {
                         "",
                         "Run ./gradlew checkOverbroadConstraints --fix to add them.",
                         "See https://github.com/palantir/gradle-consistent-versions?tab=readme-ov-file#gradlew-checkoverbroadconstraints"
-                            + " for details"),
+                                + " for details"),
                 "./gradlew checkOverbroadConstraints --fix");
     }
 
@@ -196,24 +195,7 @@ public abstract class CheckOverbroadConstraints extends DefaultTask {
     private static void writeVersionsProps(File propsFile, Map<String, List<String>> oldToNewLines) {
         List<String> existingLines = readVersionsPropsLines(propsFile);
 
-        List<String> updatedLines = existingLines.stream()
-                .flatMap(line -> {
-                    Optional<Entry<String, List<String>>> matchingEntry = oldToNewLines.entrySet().stream()
-                            .filter(entry -> line.startsWith(entry.getKey()))
-                            .findFirst();
-
-                    if (matchingEntry.isPresent()) {
-                        List<String> newLines = matchingEntry.get().getValue();
-                        if (newLines != null && !newLines.isEmpty()) {
-                            return newLines.stream();
-                        } else {
-                            return Stream.empty();
-                        }
-                    } else {
-                        return Stream.of(line);
-                    }
-                })
-                .collect(Collectors.toList());
+        List<String> updatedLines = generateUpdatedPropsLines(oldToNewLines, existingLines);
 
         String content = String.join(System.lineSeparator(), updatedLines);
 
@@ -222,6 +204,29 @@ public abstract class CheckOverbroadConstraints extends DefaultTask {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    @VisibleForTesting
+    static List<String> generateUpdatedPropsLines(Map<String, List<String>> oldToNewLines, List<String> existingLines) {
+        List<String> updatedLines = new ArrayList<>();
+
+        for (String line : existingLines) {
+            updatedLines.add(line);
+            // Iterate through the map to check for matching "old line" prefixes
+            for (Map.Entry<String, List<String>> entry : oldToNewLines.entrySet()) {
+                String oldLinePrefix = entry.getKey();
+
+                if (line.startsWith(oldLinePrefix)) {
+                    List<String> newLines = entry.getValue();
+                    if (newLines != null && !newLines.isEmpty()) {
+                        updatedLines.addAll(newLines);
+                        updatedLines.remove(line);
+                    }
+                    break;
+                }
+            }
+        }
+        return updatedLines;
     }
 
     private static List<String> readVersionsPropsLines(File propsFile) {
