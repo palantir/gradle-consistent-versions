@@ -30,6 +30,10 @@ class CheckOverbroadConstraintsIntegrationSpec extends IntegrationSpec {
         """.stripIndent(true)
         createFile('versions.props')
         createFile('versions.lock')
+
+        createFile('gradle.properties') << """
+            gcv.overbroad.constraints=true
+        """.stripIndent(true)
     }
 
     def buildSucceed() {
