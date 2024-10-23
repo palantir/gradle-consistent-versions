@@ -156,9 +156,9 @@ class CheckOverbroadConstraintsTest {
                 TestCase.builder("unequal_types_keeps_original.diff")
                         .withVersionsProps("com.example:* = 1.0.0")
                         .withVersionsLock(
-                                "com.example:moduleA:1.0.0 (2 constraints: abcdef1)",
-                                "com.example:moduleB:1.0.0 (2 constraints: abcdef1)",
-                                "com.example:moduleC:2.0.0 (2 constraints: abcdef1)")
+                                "com.example:moduleA-core:1.0.0 (2 constraints: abcdef1)",
+                                "com.example:moduleB-core:1.0.0 (2 constraints: abcdef1)",
+                                "com.example:moduleC-core:2.0.0 (2 constraints: abcdef1)")
                         .build(),
                 TestCase.builder("unequal_in_group_keeps_original.diff")
                         .withVersionsProps("com.example.*:* = 1.0.0")
