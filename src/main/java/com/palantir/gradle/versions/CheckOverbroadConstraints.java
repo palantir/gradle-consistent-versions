@@ -39,6 +39,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
+import one.util.streamex.StreamEx;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.provider.Property;
@@ -132,55 +133,12 @@ public abstract class CheckOverbroadConstraints extends DefaultTask {
 
         // If there is a majority version we want to use the original pin to pin that version. If there are is no clear
         // majority then we split the pins
-        newLinesMap.forEach((key, lines) -> {
-            Map<String, Long> versionCounts = lines.stream()
-                    .map(line -> Iterables.get(Splitter.on('=').split(line), 1).trim())
-                    .filter(version -> !version.isEmpty())
-                    .collect(Collectors.groupingBy(version -> version, Collectors.counting()));
-
-            if (versionCounts.isEmpty()) {
-                return;
-            }
-
-            long maxCount = Collections.max(versionCounts.values());
-            long numMax = versionCounts.values().stream()
-                    .filter(count -> count == maxCount)
-                    .count();
-
-            if (numMax > 1) {
-                return;
-            }
-
-            Optional<String> mostCommonVersion = versionCounts.entrySet().stream()
-                    .filter(entry -> entry.getValue() == maxCount)
-                    .map(Map.Entry::getKey)
-                    .findFirst();
-
-            if (mostCommonVersion.isEmpty()) {
-                return;
-            }
-
-            List<String> filteredLines = lines.stream()
-                    .filter(line -> {
-                        List<String> parts = Splitter.on('=')
-                                .trimResults()
-                                .omitEmptyStrings()
-                                .limit(2)
-                                .splitToList(line);
-                        return !(parts.size() > 1 && parts.get(1).trim().equals(mostCommonVersion.get()));
-                    })
-                    .collect(Collectors.toList());
-
-            filteredLines.add(
-                    0, key + " = " + versionsProps.getFuzzyResolver().versions().get(key));
-            newLinesMap.put(key, filteredLines);
-        });
+        newLinesMap.replaceAll((key, lines) -> removeMajorityPins(versionsProps, key, lines));
 
         return newLinesMap;
     }
 
     private static List<String> computeNewLines(Set<String> artifacts, Map<String, Line> lineByArtifact) {
-
         long uniqueVersionCount = artifacts.stream()
                 .map(lineByArtifact::get)
                 .map(Line::version)
@@ -198,6 +156,50 @@ public abstract class CheckOverbroadConstraints extends DefaultTask {
                         line, artifacts.stream().map(lineByArtifact::get).collect(Collectors.toList())))
                 .distinct()
                 .collect(Collectors.toList());
+    }
+
+    private static List<String> removeMajorityPins(
+            VersionsProps versionsProps, String originalPin, List<String> newPins) {
+        Map<String, Long> versionCounts = newPins.stream()
+                .map(line -> Iterables.get(Splitter.on('=').split(line), 1).trim())
+                .filter(version -> !version.isEmpty())
+                .collect(Collectors.groupingBy(version -> version, Collectors.counting()));
+
+        if (versionCounts.isEmpty()) {
+            return newPins;
+        }
+
+        long maxCount =
+                versionCounts.values().stream().mapToLong(Long::longValue).max().orElse(0);
+        long numMax = versionCounts.values().stream()
+                .filter(count -> count == maxCount)
+                .count();
+
+        if (numMax > 1) {
+            return newPins;
+        }
+
+        Optional<String> mostCommonVersion = versionCounts.entrySet().stream()
+                .filter(entry -> entry.getValue() == maxCount)
+                .map(Map.Entry::getKey)
+                .findFirst();
+
+        if (mostCommonVersion.isEmpty()) {
+            return newPins;
+        }
+
+        return StreamEx.of(newPins)
+                .remove(line -> {
+                    List<String> parts = Splitter.on('=')
+                            .trimResults()
+                            .omitEmptyStrings()
+                            .limit(2)
+                            .splitToList(line);
+                    return parts.size() > 1 && parts.get(1).equals(mostCommonVersion.get());
+                })
+                .prepend(originalPin + " = "
+                        + versionsProps.getFuzzyResolver().versions().get(originalPin))
+                .toList();
     }
 
     public static String makeUniqueWildcard(Line input, List<Line> lines) {

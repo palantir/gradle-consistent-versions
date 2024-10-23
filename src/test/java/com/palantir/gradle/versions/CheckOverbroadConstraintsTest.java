@@ -127,6 +127,45 @@ class CheckOverbroadConstraintsTest {
                         .withVersionsLock(
                                 "com.example.core:module:1.0.0 (2 constraints: abcdef1)",
                                 "com.different.example:artifact:2.0.0 (2 constraints: abcdef1)")
+                        .build(),
+                TestCase.builder("equal_types_unwraps_fully.diff")
+                        .withVersionsProps("com.example:* = 1.0.0")
+                        .withVersionsLock(
+                                "com.example:moduleA:1.0.0 (2 constraints: abcdef1)",
+                                "com.example:moduleB:1.0.0 (2 constraints: abcdef1)",
+                                "com.example:moduleC:2.0.0 (2 constraints: abcdef1)",
+                                "com.example:moduleD:2.0.0 (2 constraints: abcdef1)")
+                        .build(),
+                TestCase.builder("equal_types_unwraps_can_still_star.diff")
+                        .withVersionsProps("com.example:* = 1.0.0")
+                        .withVersionsLock(
+                                "com.example:moduleA-core:1.0.0 (2 constraints: abcdef1)",
+                                "com.example:moduleA-diff:1.0.0 (2 constraints: abcdef1)",
+                                "com.example:moduleB-core:2.0.0 (2 constraints: abcdef1)",
+                                "com.example:moduleB-diff:2.0.0 (2 constraints: abcdef1)")
+                        .build(),
+                TestCase.builder("equal_max_types_unwraps_fully.diff")
+                        .withVersionsProps("com.example:* = 1.0.0")
+                        .withVersionsLock(
+                                "com.example:moduleA:1.0.0 (2 constraints: abcdef1)",
+                                "com.example:moduleB:1.0.0 (2 constraints: abcdef1)",
+                                "com.example:moduleC:2.0.0 (2 constraints: abcdef1)",
+                                "com.example:moduleD:2.0.0 (2 constraints: abcdef1)",
+                                "com.example:moduleE:3.0.0 (2 constraints: abcdef1)")
+                        .build(),
+                TestCase.builder("unequal_types_keeps_original.diff")
+                        .withVersionsProps("com.example:* = 1.0.0")
+                        .withVersionsLock(
+                                "com.example:moduleA:1.0.0 (2 constraints: abcdef1)",
+                                "com.example:moduleB:1.0.0 (2 constraints: abcdef1)",
+                                "com.example:moduleC:2.0.0 (2 constraints: abcdef1)")
+                        .build(),
+                TestCase.builder("unequal_in_group_keeps_original.diff")
+                        .withVersionsProps("com.example.*:* = 1.0.0")
+                        .withVersionsLock(
+                                "com.example.core:module:1.0.0 (2 constraints: abcdef1)",
+                                "com.example.diff:module:1.0.0 (2 constraints: abcdef1)",
+                                "com.example.rand:module:2.0.0 (2 constraints: abcdef1)")
                         .build());
 
         return testCases.map(Arguments::of);
