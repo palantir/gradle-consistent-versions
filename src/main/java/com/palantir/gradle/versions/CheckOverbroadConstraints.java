@@ -85,6 +85,10 @@ public abstract class CheckOverbroadConstraints extends DefaultTask {
         List<String> newLines =
                 oldToNewLines.values().stream().flatMap(Collection::stream).collect(Collectors.toList());
 
+        // If an old line is in the newLines we are going to remove then re-add it so no need to add to the error
+        // message
+        newLines.removeIf(line -> oldToNewLines.keySet().stream().anyMatch(line::startsWith));
+
         if (newLines.isEmpty()) {
             return;
         }
@@ -112,6 +116,14 @@ public abstract class CheckOverbroadConstraints extends DefaultTask {
 
     @VisibleForTesting
     static Map<String, List<String>> determineNewLines(VersionsProps versionsProps, LockState lockState) {
+        // The general aim here is to match what a human would do to resolving the props. Generally the process is:
+        // 1. Get all wildcard props and determine if their locks have more than one version.
+        // 2. Generate new line that are as broad as possible while being unique - we add some style here by stopping
+        //    after a word is complete and never suggesting adding a wildcard to a group
+        // 3. Determine if there is a set of new line suggestions that are more common than the rest, if there is then
+        //    that version is removed from the new lines and the original constraint is used to cover that version.
+        // Looks at the output in src/test/resources/overbroadConstraintsTests to see example outputs
+
         Map<String, Line> lineByArtifact = lockState.allLines().stream()
                 .collect(Collectors.toMap(line -> line.identifier().toString(), line -> line));
 
@@ -131,9 +143,7 @@ public abstract class CheckOverbroadConstraints extends DefaultTask {
             }
         });
 
-        // If there is a majority version we want to use the original pin to pin that version. If there are is no clear
-        // majority then we split the pins
-        newLinesMap.replaceAll((key, lines) -> removeMajorityPins(versionsProps, key, lines));
+        newLinesMap.replaceAll((key, lines) -> removeMostCommonPins(versionsProps, key, lines));
 
         return newLinesMap;
     }
@@ -158,7 +168,7 @@ public abstract class CheckOverbroadConstraints extends DefaultTask {
                 .collect(Collectors.toList());
     }
 
-    private static List<String> removeMajorityPins(
+    private static List<String> removeMostCommonPins(
             VersionsProps versionsProps, String originalPin, List<String> newPins) {
         Map<String, Long> versionCounts = newPins.stream()
                 .map(line -> Iterables.get(Splitter.on('=').split(line), 1).trim())
@@ -176,6 +186,7 @@ public abstract class CheckOverbroadConstraints extends DefaultTask {
                 .count();
 
         if (numMax > 1) {
+            // There is no single most common version for pins
             return newPins;
         }
 
