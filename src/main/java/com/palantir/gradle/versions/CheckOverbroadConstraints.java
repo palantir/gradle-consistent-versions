@@ -102,7 +102,7 @@ public abstract class CheckOverbroadConstraints extends DefaultTask {
                         "",
                         "Run ./gradlew checkOverbroadConstraints --fix to add them.",
                         "See https://github.com/palantir/gradle-consistent-versions?tab=readme-ov-file#gradlew-checkoverbroadconstraints"
-                            + " for details"),
+                                + " for details"),
                 "./gradlew checkOverbroadConstraints --fix");
     }
 
@@ -189,7 +189,11 @@ public abstract class CheckOverbroadConstraints extends DefaultTask {
             return true;
         }
 
-        return !Character.isLetterOrDigit(target.charAt(index - 1));
+        if (target.charAt(index - 1) == ':') {
+            return true;
+        }
+
+        return !Character.isLetterOrDigit(target.charAt(index));
     }
 
     private static void writeVersionsProps(File propsFile, Map<String, List<String>> oldToNewLines) {

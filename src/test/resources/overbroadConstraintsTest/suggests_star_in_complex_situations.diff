@@ -13,8 +13,8 @@ org.different.unimportant:random:2.0.0 (2 constraints: abcdef1)
  versions.props diff:
 -com.example.*:*= 1.0.0
 org.different.*:* = 2.0.0
-+com.example.module:artifact-platform-* = 2.0.0
++com.example.module:artifact-platform* = 2.0.0
 +com.example.core:* = 1.0.0
 +com.example.different:* = 2.0.0
 +com.example.module:artifact-different = 3.0.0
-+com.example.module:artifact-different-* = 4.0.0
++com.example.module:artifact-different-again = 4.0.0
