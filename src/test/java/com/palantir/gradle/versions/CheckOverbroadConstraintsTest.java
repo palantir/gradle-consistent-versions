@@ -27,8 +27,8 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -45,12 +45,12 @@ import org.junit.jupiter.params.provider.MethodSource;
 class CheckOverbroadConstraintsTest {
 
     private static final String basePath = "src/test/resources/overbroadConstraintsTest/";
-    private static final Optional<String> inCi = Optional.ofNullable(System.getenv("CI"));
+    private static final boolean IN_CI =
+            Optional.ofNullable(System.getenv("CI")).equals(Optional.of("true"));
 
     @BeforeAll
-    public static void beforeAll() throws IOException {
-
-        if (!inCi.equals(Optional.of("true"))) {
+    static void beforeAll() throws IOException {
+        if (!IN_CI) {
             deleteOldTests(Paths.get(basePath));
         }
     }
@@ -58,23 +58,78 @@ class CheckOverbroadConstraintsTest {
     @ParameterizedTest(name = "{0}")
     @MethodSource("provideTestCases")
     void newLinesCorrect(TestCase testCase) throws IOException {
-        if (inCi.equals(Optional.of("true"))) {
+        if (IN_CI) {
             checkTestCaseInResources(testCase);
         }
         testCase.writeToFile();
     }
 
     private static Stream<Arguments> provideTestCases() {
-        return Stream.of(
-                Arguments.of(testCase1()),
-                Arguments.of(testCase2()),
-                Arguments.of(testCase3()),
-                Arguments.of(testCase4()),
-                Arguments.of(testCase5()),
-                Arguments.of(testCase6()),
-                Arguments.of(testCase7()),
-                Arguments.of(testCase8()),
-                Arguments.of(testCase9()));
+        Stream<TestCase> testCases = Stream.of(
+                TestCase.builder("no_missing_pins_returns_empty.diff")
+                        .withVersionsProps("com.example.*:*= 1.0.0", "com.example.core:module = 1.0.1")
+                        .withVersionsLock(
+                                "com.example.core:module:1.0.1 (2 constraints: abcdef1)",
+                                "com.example.someArtifact:artifact:1.0.0 (2 constraints: abcdef1)")
+                        .build(),
+                TestCase.builder("no_missing_pins_no_wildcards_returns_empty.diff")
+                        .withVersionsProps(
+                                "com.example.someArtifact:artifact= 1.0.0", "com.example.core:module = 1.0.1")
+                        .withVersionsLock(
+                                "com.example.core:module:1.0.1 (2 constraints: abcdef1)",
+                                "com.example.someArtifact:artifact:1.0.0 (2 constraints: abcdef1)")
+                        .build(),
+                TestCase.builder("all_above_pin_returns_empty.diff")
+                        .withVersionsProps("com.example.*:*= 1.0.0")
+                        .withVersionsLock(
+                                "com.example.core:module:1.0.1 (2 constraints: abcdef1)",
+                                "com.example.someArtifact:artifact:1.0.1 (2 constraints: abcdef1)")
+                        .build(),
+                TestCase.builder("all_below_pin_returns_empty.diff")
+                        .withVersionsProps("com.example.*:*= 1.0.0")
+                        .withVersionsLock(
+                                "com.example.core:module:0.0.1 (2 constraints: abcdef1)",
+                                "com.example.someArtifact:artifact:0.0.1 (2 constraints: abcdef1)")
+                        .build(),
+                TestCase.builder("multiple_pins_all_same_returns_empty.diff")
+                        .withVersionsProps("com.example.*:*= 1.0.0", "org.different.*:* = 2.0.0")
+                        .withVersionsLock(
+                                "com.example.core:module:1.0.1 (2 constraints: abcdef1)",
+                                "com.example.someArtifact:artifact:1.0.1 (2 constraints: abcdef1)",
+                                "org.different:differentArtifact:2.0.1 (2 constraints: abcdef1)",
+                                "org.different.someDifferentArtifact:artifact:2.0.1 (2 constraints: abcdef1)")
+                        .build(),
+                TestCase.builder("versions_props_missing_pins_are_generated.diff")
+                        .withVersionsProps("com.example.*:*= 1.0.0")
+                        .withVersionsLock(
+                                "com.example.core:module:1.0.1 (2 constraints: abcdef1)",
+                                "com.example.someArtifact:artifact:1.0.0 (2 constraints: abcdef1)")
+                        .build(),
+                TestCase.builder("suggests_star_if_possible.diff")
+                        .withVersionsProps("com.example.*:*= 1.0.0")
+                        .withVersionsLock(
+                                "com.example.moduleA:artifact-new:1.0.0 (2 constraints: abcdef1)",
+                                "com.example.moduleB:artifact-core:3.0.0 (2 constraints: abcdef1)")
+                        .build(),
+                TestCase.builder("suggests_star_in_complex_situations.diff")
+                        .withVersionsProps("com.example.*:*= 1.0.0", "org.different.*:* = 2.0.0")
+                        .withVersionsLock(
+                                "com.example.core:artifact-random:1.0.0 (2 constraints: abcdef1)",
+                                "com.example.module:artifact-platform-commons:2.0.0 (2 constraints: abcdef1)",
+                                "com.example.module:artifact-platform-new:2.0.0 (2 constraints: abcdef1)",
+                                "com.example.different:so-very-different:2.0.0 (2 constraints: abcdef1)",
+                                "com.example.module:artifact-different:3.0.0 (2 constraints: abcdef1)",
+                                "com.example.module:artifact-different-again:4.0.0 (2 constraints: abcdef1)",
+                                "org.different.unimportant:random:2.0.0 (2 constraints: abcdef1)")
+                        .build(),
+                TestCase.builder("never_suggest_double_star.diff")
+                        .withVersionsProps("com.*:* = 1.0.0")
+                        .withVersionsLock(
+                                "com.example.core:module:1.0.0 (2 constraints: abcdef1)",
+                                "com.different.example:artifact:2.0.0 (2 constraints: abcdef1)")
+                        .build());
+
+        return testCases.map(Arguments::of);
     }
 
     private void checkTestCaseInResources(TestCase testCase) throws IOException {
@@ -124,99 +179,11 @@ class CheckOverbroadConstraintsTest {
         }
     }
 
-    private static TestCase testCase1() {
-        return TestCase.builder("no_missing_pins_returns_empty.diff")
-                .withVersionsProps("com.example.*:*= 1.0.0", "com.example.core:module = 1.0.1")
-                .withVersionsLock(
-                        "com.example.core:module:1.0.1 (2 constraints: abcdef1)",
-                        "com.example.someArtifact:artifact:1.0.0 (2 constraints: abcdef1)")
-                .build();
-    }
-
-    private static TestCase testCase2() {
-        return TestCase.builder("no_missing_pins_no_wildcards_returns_empty.diff")
-                .withVersionsProps("com.example.someArtifact:artifact= 1.0.0", "com.example.core:module = 1.0.1")
-                .withVersionsLock(
-                        "com.example.core:module:1.0.1 (2 constraints: abcdef1)",
-                        "com.example.someArtifact:artifact:1.0.0 (2 constraints: abcdef1)")
-                .build();
-    }
-
-    private static TestCase testCase3() {
-        return TestCase.builder("all_above_pin_returns_empty.diff")
-                .withVersionsProps("com.example.*:*= 1.0.0")
-                .withVersionsLock(
-                        "com.example.core:module:1.0.1 (2 constraints: abcdef1)",
-                        "com.example.someArtifact:artifact:1.0.1 (2 constraints: abcdef1)")
-                .build();
-    }
-
-    private static TestCase testCase4() {
-        return TestCase.builder("all_below_pin_returns_empty.diff")
-                .withVersionsProps("com.example.*:*= 1.0.0")
-                .withVersionsLock(
-                        "com.example.core:module:0.0.1 (2 constraints: abcdef1)",
-                        "com.example.someArtifact:artifact:0.0.1 (2 constraints: abcdef1)")
-                .build();
-    }
-
-    private static TestCase testCase5() {
-        return TestCase.builder("multiple_pins_all_same_returns_empty.diff")
-                .withVersionsProps("com.example.*:*= 1.0.0", "org.different.*:* = 2.0.0")
-                .withVersionsLock(
-                        "com.example.core:module:1.0.1 (2 constraints: abcdef1)",
-                        "com.example.someArtifact:artifact:1.0.1 (2 constraints: abcdef1)",
-                        "org.different:differentArtifact:2.0.1 (2 constraints: abcdef1)",
-                        "org.different.someDifferentArtifact:artifact:2.0.1 (2 constraints: abcdef1)")
-                .build();
-    }
-
-    private static TestCase testCase6() {
-        return TestCase.builder("versions_props_missing_pins_are_generated.diff")
-                .withVersionsProps("com.example.*:*= 1.0.0")
-                .withVersionsLock(
-                        "com.example.core:module:1.0.1 (2 constraints: abcdef1)",
-                        "com.example.someArtifact:artifact:1.0.0 (2 constraints: abcdef1)")
-                .build();
-    }
-
-    private static TestCase testCase7() {
-        return TestCase.builder("suggests_star_if_possible.diff")
-                .withVersionsProps("com.example.*:*= 1.0.0")
-                .withVersionsLock(
-                        "com.example.moduleA:artifact-new:1.0.0 (2 constraints: abcdef1)",
-                        "com.example.moduleB:artifact-core:3.0.0 (2 constraints: abcdef1)")
-                .build();
-    }
-
-    private static TestCase testCase8() {
-        return TestCase.builder("suggests_star_in_complex_situations.diff")
-                .withVersionsProps("com.example.*:*= 1.0.0", "org.different.*:* = 2.0.0")
-                .withVersionsLock(
-                        "com.example.core:artifact-random:1.0.0 (2 constraints: abcdef1)",
-                        "com.example.module:artifact-platform-commons:2.0.0 (2 constraints: abcdef1)",
-                        "com.example.module:artifact-platform-new:2.0.0 (2 constraints: abcdef1)",
-                        "com.example.different:so-very-different:2.0.0 (2 constraints: abcdef1)",
-                        "com.example.module:artifact-different:3.0.0 (2 constraints: abcdef1)",
-                        "com.example.module:artifact-different-again:4.0.0 (2 constraints: abcdef1)",
-                        "org.different.unimportant:random:2.0.0 (2 constraints: abcdef1)")
-                .build();
-    }
-
-    private static TestCase testCase9() {
-        return TestCase.builder("never_suggest_double_star.diff")
-                .withVersionsProps("com.*:* = 1.0.0")
-                .withVersionsLock(
-                        "com.example.core:module:1.0.0 (2 constraints: abcdef1)",
-                        "com.different.example:artifact:2.0.0 (2 constraints: abcdef1)")
-                .build();
-    }
-
     public static final class TestCase {
         private final String fileName;
         private final VersionsProps versionsProps;
         private final LockState lockState;
-        private final String propsLines;
+        private final List<String> propsLines;
         private final String lockLines;
 
         private TestCase(Builder builder) {
@@ -234,25 +201,33 @@ class CheckOverbroadConstraintsTest {
         public List<String> newPropsLines() {
             Map<String, List<String>> oldToNewLines =
                     CheckOverbroadConstraints.determineNewLines(versionsProps, lockState);
-            return CheckOverbroadConstraints.generateUpdatedPropsLines(
-                    oldToNewLines, Collections.singletonList(propsLines));
+            return CheckOverbroadConstraints.generateUpdatedPropsLines(oldToNewLines, propsLines);
         }
 
         public String fileContents() {
-            List<String> header = List.of("versions.lock:", lockLines, "", "versions.props diff:");
-            List<String> original = new java.util.ArrayList<>(header);
-            List<String> revised = new java.util.ArrayList<>(header);
-            original.add(propsLines);
-            revised.addAll(newPropsLines());
+            Patch<String> patch = DiffUtils.diff(propsLines, newPropsLines());
 
-            Patch<String> patch = DiffUtils.diff(original, revised);
+            String diff =
+                    DiffUtils.generateUnifiedDiff(fileName, fileName, propsLines, patch, Integer.MAX_VALUE).stream()
+                            // Skip the unified diff header
+                            .skip(3)
+                            .collect(Collectors.joining("\n"));
 
-            List<String> diff = DiffUtils.generateUnifiedDiff(fileName, fileName, original, patch, header.size());
             if (diff.isEmpty()) {
-                return String.join("\n", String.join("\n", header), "No difference");
-            } else {
-                return String.join("\n", diff);
+                diff = "<unchanged>";
             }
+
+            return String.join(
+                    "\n",
+                    "versions.props",
+                    String.join("\n", propsLines),
+                    "",
+                    "versions.lock:",
+                    lockLines,
+                    "",
+                    "versions.props diff:",
+                    diff,
+                    "");
         }
 
         public void writeToFile() {
@@ -269,12 +244,17 @@ class CheckOverbroadConstraintsTest {
             return outputPath;
         }
 
+        @Override
+        public String toString() {
+            return fileName;
+        }
+
         // Builder class
         public static final class Builder {
             private final String fileName;
             private VersionsProps versionsProps = VersionsProps.empty();
             private LockState lockState = null;
-            private String propsLines = "";
+            private List<String> propsLines = new ArrayList<>();
             private String lockLines = "";
 
             private Builder(String fileName) {
@@ -282,13 +262,13 @@ class CheckOverbroadConstraintsTest {
             }
 
             public Builder withVersionsProps(String... lines) {
-                this.propsLines = String.join("\n", lines);
+                this.propsLines = Arrays.asList(lines);
                 this.versionsProps = VersionsProps.fromLines(Arrays.asList(lines), null);
                 return this;
             }
 
             public Builder withVersionsLock(String... lines) {
-                this.lockLines = String.join("\n", lines);
+                this.lockLines = Arrays.stream(lines).sorted().collect(Collectors.joining("\n"));
                 ConflictSafeLockFile lockReader = new ConflictSafeLockFile(null);
                 this.lockState = LockState.from(
                         lockReader.parseLines(Arrays.stream(lines)), lockReader.parseLines(Stream.empty()));

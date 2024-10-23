@@ -1,11 +1,11 @@
---- suggests_star_if_possible.diff
-+++ suggests_star_if_possible.diff
-@@ -1,5 +1,6 @@
- versions.lock:
- com.example.moduleA:artifact-new:1.0.0 (2 constraints: abcdef1)
+versions.props
+com.example.*:*= 1.0.0
+
+versions.lock:
+com.example.moduleA:artifact-new:1.0.0 (2 constraints: abcdef1)
 com.example.moduleB:artifact-core:3.0.0 (2 constraints: abcdef1)
- 
- versions.props diff:
+
+versions.props diff:
 -com.example.*:*= 1.0.0
 +com.example.moduleA:* = 1.0.0
 +com.example.moduleB:* = 3.0.0
