@@ -10,8 +10,8 @@ com.example:moduleE:3.0.0 (2 constraints: abcdef1)
 
 versions.props diff:
 -com.example:* = 1.0.0
-+com.example:moduleE = 3.0.0
-+com.example:moduleB = 1.0.0
 +com.example:moduleA = 1.0.0
-+com.example:moduleD = 2.0.0
++com.example:moduleB = 1.0.0
 +com.example:moduleC = 2.0.0
++com.example:moduleD = 2.0.0
++com.example:moduleE = 3.0.0

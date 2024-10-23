@@ -110,7 +110,7 @@ public abstract class CheckOverbroadConstraints extends DefaultTask {
                         "",
                         "Run ./gradlew checkOverbroadConstraints --fix to add them.",
                         "See https://github.com/palantir/gradle-consistent-versions?tab=readme-ov-file#gradlew-checkoverbroadconstraints"
-                            + " for details"),
+                                + " for details"),
                 "./gradlew checkOverbroadConstraints --fix");
     }
 
@@ -165,6 +165,7 @@ public abstract class CheckOverbroadConstraints extends DefaultTask {
                 .map(line -> makeUniqueWildcard(
                         line, artifacts.stream().map(lineByArtifact::get).collect(Collectors.toList())))
                 .distinct()
+                .sorted()
                 .collect(Collectors.toList());
     }
 
