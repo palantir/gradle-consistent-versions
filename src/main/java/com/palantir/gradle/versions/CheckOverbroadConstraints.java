@@ -16,7 +16,9 @@
 package com.palantir.gradle.versions;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 import com.palantir.gradle.failurereports.exceptions.ExceptionWithSuggestion;
 import com.palantir.gradle.versions.lockstate.Line;
@@ -32,6 +34,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -102,7 +105,7 @@ public abstract class CheckOverbroadConstraints extends DefaultTask {
                         "",
                         "Run ./gradlew checkOverbroadConstraints --fix to add them.",
                         "See https://github.com/palantir/gradle-consistent-versions?tab=readme-ov-file#gradlew-checkoverbroadconstraints"
-                            + " for details"),
+                                + " for details"),
                 "./gradlew checkOverbroadConstraints --fix");
     }
 
@@ -110,24 +113,67 @@ public abstract class CheckOverbroadConstraints extends DefaultTask {
     static Map<String, List<String>> determineNewLines(VersionsProps versionsProps, LockState lockState) {
         Map<String, Line> lineByArtifact = lockState.allLines().stream()
                 .collect(Collectors.toMap(line -> line.identifier().toString(), line -> line));
-        Set<String> artifacts = lineByArtifact.keySet();
 
         Set<String> exactConstraints = versionsProps.getFuzzyResolver().exactMatches();
-        Set<String> unmatchedArtifacts = new HashSet<>(Sets.difference(artifacts, exactConstraints));
+        Set<String> unmatchedArtifacts = new HashSet<>(Sets.difference(lineByArtifact.keySet(), exactConstraints));
 
         Map<String, List<String>> newLinesMap = new HashMap<>();
 
         // Assumes globs are sorted by specificity
         versionsProps.getFuzzyResolver().globs().forEach(glob -> {
-            Set<String> matchedByGlob =
+            Set<String> matchedArtifacts =
                     unmatchedArtifacts.stream().filter(glob::matches).collect(Collectors.toSet());
 
-            if (!matchedByGlob.isEmpty()) {
-                List<String> newPins = computeNewLines(matchedByGlob, lineByArtifact);
-
-                String oldLine = glob.getRawPattern();
-                newLinesMap.put(oldLine, newPins);
+            if (!matchedArtifacts.isEmpty()) {
+                List<String> newPins = computeNewLines(matchedArtifacts, lineByArtifact);
+                newLinesMap.put(glob.getRawPattern(), newPins);
             }
+        });
+
+        // If there is a majority version we want to use the original pin to pin that version. If there are is no clear
+        // majority then we split the pins
+        newLinesMap.forEach((key, lines) -> {
+            Map<String, Long> versionCounts = lines.stream()
+                    .map(line -> Iterables.get(Splitter.on('=').split(line), 1).trim())
+                    .filter(version -> !version.isEmpty())
+                    .collect(Collectors.groupingBy(version -> version, Collectors.counting()));
+
+            if (versionCounts.isEmpty()) {
+                return;
+            }
+
+            long maxCount = Collections.max(versionCounts.values());
+            long numMax = versionCounts.values().stream()
+                    .filter(count -> count == maxCount)
+                    .count();
+
+            if (numMax > 1) {
+                return;
+            }
+
+            Optional<String> mostCommonVersion = versionCounts.entrySet().stream()
+                    .filter(entry -> entry.getValue() == maxCount)
+                    .map(Map.Entry::getKey)
+                    .findFirst();
+
+            if (mostCommonVersion.isEmpty()) {
+                return;
+            }
+
+            List<String> filteredLines = lines.stream()
+                    .filter(line -> {
+                        List<String> parts = Splitter.on('=')
+                                .trimResults()
+                                .omitEmptyStrings()
+                                .limit(2)
+                                .splitToList(line);
+                        return !(parts.size() > 1 && parts.get(1).trim().equals(mostCommonVersion.get()));
+                    })
+                    .collect(Collectors.toList());
+
+            filteredLines.add(
+                    0, key + " = " + versionsProps.getFuzzyResolver().versions().get(key));
+            newLinesMap.put(key, filteredLines);
         });
 
         return newLinesMap;

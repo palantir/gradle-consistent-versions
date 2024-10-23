@@ -1,5 +1,5 @@
 versions.props
-com.example.*:*= 1.0.0
+com.example.*:* = 1.0.0
 com.example.core:module = 1.0.1
 
 versions.lock:

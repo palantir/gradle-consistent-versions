@@ -67,7 +67,7 @@ class CheckOverbroadConstraintsTest {
     private static Stream<Arguments> provideTestCases() {
         Stream<TestCase> testCases = Stream.of(
                 TestCase.builder("no_missing_pins_returns_empty.diff")
-                        .withVersionsProps("com.example.*:*= 1.0.0", "com.example.core:module = 1.0.1")
+                        .withVersionsProps("com.example.*:* = 1.0.0", "com.example.core:module = 1.0.1")
                         .withVersionsLock(
                                 "com.example.core:module:1.0.1 (2 constraints: abcdef1)",
                                 "com.example.someArtifact:artifact:1.0.0 (2 constraints: abcdef1)")
@@ -80,19 +80,19 @@ class CheckOverbroadConstraintsTest {
                                 "com.example.someArtifact:artifact:1.0.0 (2 constraints: abcdef1)")
                         .build(),
                 TestCase.builder("all_above_pin_returns_empty.diff")
-                        .withVersionsProps("com.example.*:*= 1.0.0")
+                        .withVersionsProps("com.example.*:* = 1.0.0")
                         .withVersionsLock(
                                 "com.example.core:module:1.0.1 (2 constraints: abcdef1)",
                                 "com.example.someArtifact:artifact:1.0.1 (2 constraints: abcdef1)")
                         .build(),
                 TestCase.builder("all_below_pin_returns_empty.diff")
-                        .withVersionsProps("com.example.*:*= 1.0.0")
+                        .withVersionsProps("com.example.*:* = 1.0.0")
                         .withVersionsLock(
                                 "com.example.core:module:0.0.1 (2 constraints: abcdef1)",
                                 "com.example.someArtifact:artifact:0.0.1 (2 constraints: abcdef1)")
                         .build(),
                 TestCase.builder("multiple_pins_all_same_returns_empty.diff")
-                        .withVersionsProps("com.example.*:*= 1.0.0", "org.different.*:* = 2.0.0")
+                        .withVersionsProps("com.example.*:* = 1.0.0", "org.different.*:* = 2.0.0")
                         .withVersionsLock(
                                 "com.example.core:module:1.0.1 (2 constraints: abcdef1)",
                                 "com.example.someArtifact:artifact:1.0.1 (2 constraints: abcdef1)",
@@ -100,19 +100,19 @@ class CheckOverbroadConstraintsTest {
                                 "org.different.someDifferentArtifact:artifact:2.0.1 (2 constraints: abcdef1)")
                         .build(),
                 TestCase.builder("versions_props_missing_pins_are_generated.diff")
-                        .withVersionsProps("com.example.*:*= 1.0.0")
+                        .withVersionsProps("com.example.*:* = 1.0.0")
                         .withVersionsLock(
                                 "com.example.core:module:1.0.1 (2 constraints: abcdef1)",
                                 "com.example.someArtifact:artifact:1.0.0 (2 constraints: abcdef1)")
                         .build(),
                 TestCase.builder("suggests_star_if_possible.diff")
-                        .withVersionsProps("com.example.*:*= 1.0.0")
+                        .withVersionsProps("com.example.*:* = 1.0.0")
                         .withVersionsLock(
                                 "com.example.moduleA:artifact-new:1.0.0 (2 constraints: abcdef1)",
                                 "com.example.moduleB:artifact-core:3.0.0 (2 constraints: abcdef1)")
                         .build(),
                 TestCase.builder("suggests_star_in_complex_situations.diff")
-                        .withVersionsProps("com.example.*:*= 1.0.0", "org.different.*:* = 2.0.0")
+                        .withVersionsProps("com.example.*:* = 1.0.0", "org.different.*:* = 2.0.0")
                         .withVersionsLock(
                                 "com.example.core:artifact-random:1.0.0 (2 constraints: abcdef1)",
                                 "com.example.module:artifact-platform-commons:2.0.0 (2 constraints: abcdef1)",

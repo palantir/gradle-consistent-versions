@@ -1,5 +1,5 @@
 versions.props
-com.example.*:*= 1.0.0
+com.example.*:* = 1.0.0
 org.different.*:* = 2.0.0
 
 versions.lock:
