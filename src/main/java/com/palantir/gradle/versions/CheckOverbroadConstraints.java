@@ -26,7 +26,6 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -300,8 +299,7 @@ public abstract class CheckOverbroadConstraints extends DefaultTask {
     private static List<String> readVersionsPropsLines(File propsFile) {
         try {
             String content = Files.readString(propsFile.toPath());
-            String[] lines = content.split("\\r?\\n", -1);
-            return Arrays.asList(lines);
+            return Splitter.on("\n").splitToList(content);
         } catch (IOException e) {
             throw new RuntimeException("Error reading " + propsFile.toPath(), e);
         }
