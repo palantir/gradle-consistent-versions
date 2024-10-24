@@ -130,7 +130,7 @@ public abstract class CheckOverbroadConstraints extends DefaultTask {
         Set<String> exactConstraints = versionsProps.getFuzzyResolver().exactMatches();
         Set<String> unmatchedArtifacts = new HashSet<>(Sets.difference(lineByArtifact.keySet(), exactConstraints));
 
-        Map<String, List<String>> fuzzyMatches = new HashMap<>();
+        Map<String, List<String>> newLinesMap = new HashMap<>();
 
         // Globs are sorted by specificity
         versionsProps.getFuzzyResolver().globs().forEach(glob -> {
@@ -140,7 +140,7 @@ public abstract class CheckOverbroadConstraints extends DefaultTask {
 
             if (!matchedArtifacts.isEmpty()) {
                 List<String> newPins = computeNewLines(matchedArtifacts, lineByArtifact);
-                fuzzyMatches.put(glob.getRawPattern(), newPins);
+                newLinesMap.put(glob.getRawPattern(), newPins);
 
                 // Remove the matched artifacts from unmatchedArtifacts to prevent further matching with less specific
                 // globs
@@ -148,9 +148,9 @@ public abstract class CheckOverbroadConstraints extends DefaultTask {
             }
         });
 
-        fuzzyMatches.replaceAll((key, lines) -> removeMostCommonPins(versionsProps, key, lines));
+        newLinesMap.replaceAll((key, lines) -> removeMostCommonPins(versionsProps, key, lines));
 
-        return fuzzyMatches;
+        return newLinesMap;
     }
 
     private static List<String> computeNewLines(Set<String> artifacts, Map<String, Line> lineByArtifact) {
