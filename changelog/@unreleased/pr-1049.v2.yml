@@ -1,6 +1,7 @@
 type: improvement
 improvement:
-  description: Add checkOverbroadConstraints task that verifies that there are no overly broad
-    version pins.
+  description: Add `checkOverbroadConstraints` task that verifies that there are no
+    overly broad version pins. It is not run by default, as it is in a testing phase,
+    but will become default in the future.
   links:
   - https://github.com/palantir/gradle-consistent-versions/pull/1049
