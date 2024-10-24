@@ -1,0 +1,13 @@
+versions.props
+com.example:* = 1.0.0
+
+versions.lock:
+com.example:moduleA-core:1.0.0 (2 constraints: abcdef1)
+com.example:moduleA-diff:1.0.0 (2 constraints: abcdef1)
+com.example:moduleB-core:2.0.0 (2 constraints: abcdef1)
+com.example:moduleB-diff:2.0.0 (2 constraints: abcdef1)
+
+versions.props diff:
+-com.example:* = 1.0.0
++com.example:moduleA* = 1.0.0
++com.example:moduleB* = 2.0.0
