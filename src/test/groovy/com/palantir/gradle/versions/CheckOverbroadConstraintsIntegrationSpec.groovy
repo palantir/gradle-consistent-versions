@@ -28,12 +28,8 @@ class CheckOverbroadConstraintsIntegrationSpec extends IntegrationSpec {
                 id 'com.palantir.versions-props'
             }
         """.stripIndent(true)
-        createFile('versions.props')
-        createFile('versions.lock')
-
-        createFile('gradle.properties') << """
-            gcv.overbroad.constraints=true
-        """.stripIndent(true)
+        file('versions.props')
+        file('versions.lock')
     }
 
     def buildSucceed() {
@@ -57,11 +53,12 @@ class CheckOverbroadConstraintsIntegrationSpec extends IntegrationSpec {
         runTasks('checkOverbroadConstraints')
     }
 
-    def 'Task should run as part of :check'() {
-        expect:
-        def result = runTasks('check', '-m')
-        result.output.contains(':checkOverbroadConstraints')
-    }
+//    Currently checkOverbroadConstraints is not running as part of check while for testing uncomment once re-added to check
+//    def 'Task should run as part of :check'() {
+//        expect:
+//        def result = runTasks('check', '-m')
+//        result.output.contains(':checkOverbroadConstraints')
+//    }
 
     def 'All versions are pinned'() {
         when:
@@ -82,6 +79,7 @@ class CheckOverbroadConstraintsIntegrationSpec extends IntegrationSpec {
         when:
         file('versions.props').text = """
             com.fasterxml.jackson.*:* = 2.9.3
+            
         """.stripIndent(true)
         file('versions.lock').text = """
             com.fasterxml.jackson.core:jackson-annotations:2.9.5 (2 constraints: abcdef0)
@@ -95,15 +93,15 @@ class CheckOverbroadConstraintsIntegrationSpec extends IntegrationSpec {
                 "Over-broad constraints often arise due to wildcards in versions.props",
                 "which apply to more dependencies than they should, this can lead to slow builds.",
                 "The following additional pins are recommended:",
-                "com.fasterxml.jackson.core:jackson-core = 2.9.3",
                 "com.fasterxml.jackson.core:jackson-annotations = 2.9.5",
+                "com.fasterxml.jackson.core:jackson-core = 2.9.3",
                 "",
                 "Run ./gradlew checkOverbroadConstraints --fix to add them.",
                 "See https://github.com/palantir/gradle-consistent-versions?tab=readme-ov-file#gradlew-checkoverbroadconstraints for details"))
         buildWithFixWorks()
         file('versions.props').text.trim() == """
-            com.fasterxml.jackson.core:jackson-core = 2.9.3
             com.fasterxml.jackson.core:jackson-annotations = 2.9.5
+            com.fasterxml.jackson.core:jackson-core = 2.9.3
         """.stripIndent(true).trim()
     }
 
@@ -126,8 +124,8 @@ class CheckOverbroadConstraintsIntegrationSpec extends IntegrationSpec {
         buildWithFixWorks()
         file('versions.props').text.trim() == """
             com.random:* = 1.0.0
-            com.fasterxml.jackson.core:jackson-core = 2.9.3
             com.fasterxml.jackson.core:jackson-annotations = 2.9.5
+            com.fasterxml.jackson.core:jackson-core = 2.9.3
             # A random comment
             org.different:artifact = 2.0.0
         """.stripIndent(true).trim()

@@ -29,6 +29,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -38,6 +39,7 @@ import java.util.stream.Stream;
 import org.assertj.core.util.diff.DiffUtils;
 import org.assertj.core.util.diff.Patch;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -62,6 +64,68 @@ class CheckOverbroadConstraintsTest {
             checkTestCaseInResources(testCase);
         }
         testCase.writeToFile();
+    }
+
+    @Test
+    void no_changes_same_as_old_with_new_line() {
+        List<String> propsLines = List.of("first", "second", "third", "");
+        Map<String, List<String>> oldToNewLines = Collections.emptyMap();
+
+        List<String> newPropsLines = CheckOverbroadConstraints.generateUpdatedPropsLines(oldToNewLines, propsLines);
+        assertThat(newPropsLines)
+                .as("No changes in old to new lines so new should be unchanged from old")
+                .isEqualTo(propsLines);
+    }
+
+    @Test
+    void all_changes_new_line_preserved() {
+        List<String> propsLines = List.of("first", "second", "third", "");
+        Map<String, List<String>> oldToNewLines = Map.of(
+                "first",
+                List.of("firstA", "firstB"),
+                "second",
+                List.of("secondA", "secondB"),
+                "third",
+                List.of("thirdA", "thirdB"));
+
+        List<String> expectedNewPropsLines = List.of("firstA", "firstB", "secondA", "secondB", "thirdA", "thirdB", "");
+
+        List<String> newPropsLines = CheckOverbroadConstraints.generateUpdatedPropsLines(oldToNewLines, propsLines);
+        assertThat(newPropsLines)
+                .as("All lines changed and in order, new line is preserved")
+                .isEqualTo(expectedNewPropsLines);
+    }
+
+    @Test
+    void all_changes_no_new_line() {
+        List<String> propsLines = List.of("first", "second", "third");
+        Map<String, List<String>> oldToNewLines = Map.of(
+                "first",
+                List.of("firstA", "firstB"),
+                "second",
+                List.of("secondA", "secondB"),
+                "third",
+                List.of("thirdA", "thirdB"));
+
+        List<String> expectedNewPropsLines = List.of("firstA", "firstB", "secondA", "secondB", "thirdA", "thirdB");
+
+        List<String> newPropsLines = CheckOverbroadConstraints.generateUpdatedPropsLines(oldToNewLines, propsLines);
+        assertThat(newPropsLines)
+                .as("All lines changed and in order, no new line is added")
+                .isEqualTo(expectedNewPropsLines);
+    }
+
+    @Test
+    void insert_in_the_middle_in_order() {
+        List<String> propsLines = List.of("first", "second", "third", "");
+        Map<String, List<String>> oldToNewLines = Map.of("second", List.of("secondA", "secondB"));
+
+        List<String> expectedNewPropsLines = List.of("first", "secondA", "secondB", "third", "");
+
+        List<String> newPropsLines = CheckOverbroadConstraints.generateUpdatedPropsLines(oldToNewLines, propsLines);
+        assertThat(newPropsLines)
+                .as("Inserts in middle of the list, new line is preserved")
+                .isEqualTo(expectedNewPropsLines);
     }
 
     private static Stream<Arguments> provideTestCases() {
@@ -240,7 +304,18 @@ class CheckOverbroadConstraintsTest {
         public List<String> newPropsLines() {
             Map<String, List<String>> oldToNewLines =
                     CheckOverbroadConstraints.determineNewLines(versionsProps, lockState);
-            return CheckOverbroadConstraints.generateUpdatedPropsLines(oldToNewLines, propsLines);
+            List<String> newPropsLines = CheckOverbroadConstraints.generateUpdatedPropsLines(oldToNewLines, propsLines);
+
+            // Ensure running a second time makes / suggests no changes
+            VersionsProps checkVersionProps = VersionsProps.fromLines(newPropsLines, null);
+            Map<String, List<String>> checkOldToNewLines =
+                    CheckOverbroadConstraints.determineNewLines(checkVersionProps, lockState);
+            assertThat(CheckOverbroadConstraints.generateUpdatedPropsLines(checkOldToNewLines, newPropsLines))
+                    .as(
+                            "running check over-broad constraints a second time should not make any changes to the props file")
+                    .isEqualTo(newPropsLines);
+
+            return newPropsLines;
         }
 
         public String fileContents() {
