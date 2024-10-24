@@ -17,7 +17,6 @@ package com.palantir.gradle.versions;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Splitter;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 import com.palantir.gradle.failurereports.exceptions.ExceptionWithSuggestion;
@@ -27,6 +26,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -38,7 +38,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import java.util.stream.Stream;
 import one.util.streamex.StreamEx;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.file.RegularFileProperty;
@@ -299,10 +298,12 @@ public abstract class CheckOverbroadConstraints extends DefaultTask {
     }
 
     private static List<String> readVersionsPropsLines(File propsFile) {
-        try (Stream<String> lines = Files.lines(propsFile.toPath())) {
-            return lines.collect(ImmutableList.toImmutableList());
+        try {
+            String content = Files.readString(propsFile.toPath());
+            String[] lines = content.split("\\r?\\n", -1);
+            return Arrays.asList(lines);
         } catch (IOException e) {
-            throw new RuntimeException("Error reading " + propsFile.toPath());
+            throw new RuntimeException("Error reading " + propsFile.toPath(), e);
         }
     }
 }

@@ -75,11 +75,10 @@ class CheckOverbroadConstraintsIntegrationSpec extends IntegrationSpec {
         buildSucceed()
     }
 
-    def 'Not all versions are pinned throws error and fix works'() {
+    def 'Not all versions are pinned throws error and fix works and no new line is added'() {
         when:
         file('versions.props').text = """
             com.fasterxml.jackson.*:* = 2.9.3
-            
         """.stripIndent(true)
         file('versions.lock').text = """
             com.fasterxml.jackson.core:jackson-annotations:2.9.5 (2 constraints: abcdef0)
@@ -99,19 +98,22 @@ class CheckOverbroadConstraintsIntegrationSpec extends IntegrationSpec {
                 "Run ./gradlew checkOverbroadConstraints --fix to add them.",
                 "See https://github.com/palantir/gradle-consistent-versions?tab=readme-ov-file#gradlew-checkoverbroadconstraints for details"))
         buildWithFixWorks()
-        file('versions.props').text.trim() == """
+        file('versions.props').text == """
             com.fasterxml.jackson.core:jackson-annotations = 2.9.5
             com.fasterxml.jackson.core:jackson-core = 2.9.3
-        """.stripIndent(true).trim()
+        """.stripIndent(true)
     }
 
-    def 'Fixes are inserted in the correct locations'() {
+    def 'Fixes are inserted in the correct locations new lines are maintained'() {
         when:
         file('versions.props').text = """
+
             com.random:* = 1.0.0
             com.fasterxml.jackson.*:* = 2.9.3
+            
             # A random comment
             org.different:artifact = 2.0.0
+            
         """.stripIndent(true)
         file('versions.lock').text = """
             com.random:random:1.0.0 (2 constraints: abcdef0)
@@ -122,12 +124,15 @@ class CheckOverbroadConstraintsIntegrationSpec extends IntegrationSpec {
 
         then:
         buildWithFixWorks()
-        file('versions.props').text.trim() == """
+        file('versions.props').text == """
+
             com.random:* = 1.0.0
             com.fasterxml.jackson.core:jackson-annotations = 2.9.5
             com.fasterxml.jackson.core:jackson-core = 2.9.3
+            
             # A random comment
             org.different:artifact = 2.0.0
-        """.stripIndent(true).trim()
+            
+        """.stripIndent(true)
     }
 }
