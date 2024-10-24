@@ -311,8 +311,8 @@ class CheckOverbroadConstraintsTest {
             Map<String, List<String>> checkOldToNewLines =
                     CheckOverbroadConstraints.determineNewLines(checkVersionProps, lockState);
             assertThat(CheckOverbroadConstraints.generateUpdatedPropsLines(checkOldToNewLines, newPropsLines))
-                    .as(
-                            "running check over-broad constraints a second time should not make any changes to the props file")
+                    .as("running check over-broad constraints a second time should not make any changes to the"
+                            + " props file")
                     .isEqualTo(newPropsLines);
 
             return newPropsLines;
