@@ -53,12 +53,11 @@ class CheckOverbroadConstraintsIntegrationSpec extends IntegrationSpec {
         runTasks('checkOverbroadConstraints')
     }
 
-//    Currently checkOverbroadConstraints is not running as part of check while for testing uncomment once re-added to check
-//    def 'Task should run as part of :check'() {
-//        expect:
-//        def result = runTasks('check', '-m')
-//        result.output.contains(':checkOverbroadConstraints')
-//    }
+    def 'Task should run as part of :check'() {
+        expect:
+        def result = runTasks('check', '-m')
+        result.output.contains(':checkOverbroadConstraints')
+    }
 
     def 'All versions are pinned'() {
         when:
