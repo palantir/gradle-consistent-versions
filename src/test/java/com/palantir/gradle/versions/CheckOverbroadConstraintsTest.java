@@ -74,7 +74,7 @@ class CheckOverbroadConstraintsTest {
         List<String> newPropsLines = CheckOverbroadConstraints.generateUpdatedPropsLines(oldToNewLines, propsLines);
         assertThat(newPropsLines)
                 .as("No changes in old to new lines so new should be unchanged from old")
-                .isEqualTo(propsLines);
+                .containsExactlyElementsOf(propsLines);
     }
 
     @Test
@@ -93,7 +93,7 @@ class CheckOverbroadConstraintsTest {
         List<String> newPropsLines = CheckOverbroadConstraints.generateUpdatedPropsLines(oldToNewLines, propsLines);
         assertThat(newPropsLines)
                 .as("All lines changed and in order, new line is preserved")
-                .isEqualTo(expectedNewPropsLines);
+                .containsExactlyElementsOf(expectedNewPropsLines);
     }
 
     @Test
@@ -112,7 +112,7 @@ class CheckOverbroadConstraintsTest {
         List<String> newPropsLines = CheckOverbroadConstraints.generateUpdatedPropsLines(oldToNewLines, propsLines);
         assertThat(newPropsLines)
                 .as("All lines changed and in order, no new line is added")
-                .isEqualTo(expectedNewPropsLines);
+                .containsExactlyElementsOf(expectedNewPropsLines);
     }
 
     @Test
@@ -125,7 +125,7 @@ class CheckOverbroadConstraintsTest {
         List<String> newPropsLines = CheckOverbroadConstraints.generateUpdatedPropsLines(oldToNewLines, propsLines);
         assertThat(newPropsLines)
                 .as("Inserts in middle of the list, new line is preserved")
-                .isEqualTo(expectedNewPropsLines);
+                .containsExactlyElementsOf(expectedNewPropsLines);
     }
 
     private static Stream<Arguments> provideTestCases() {
@@ -313,7 +313,7 @@ class CheckOverbroadConstraintsTest {
             assertThat(CheckOverbroadConstraints.generateUpdatedPropsLines(checkOldToNewLines, newPropsLines))
                     .as("running check over-broad constraints a second time should not make any changes to the"
                             + " props file")
-                    .isEqualTo(newPropsLines);
+                    .containsExactlyElementsOf(newPropsLines);
 
             return newPropsLines;
         }
