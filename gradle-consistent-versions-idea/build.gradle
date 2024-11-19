@@ -1,0 +1,3 @@
+apply plugin: 'java-gradle-plugin'
+apply plugin: 'groovy'
+apply plugin: 'com.palantir.external-publish-jar'
