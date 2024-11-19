@@ -9,3 +9,5 @@ buildscript {
 }
 apply plugin: 'com.palantir.jdks.settings'
 rootProject.name = 'gradle-consistent-versions'
+include 'gradle-consistent-versions-idea'
+

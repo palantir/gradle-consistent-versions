@@ -49,26 +49,8 @@ allprojects {
     version rootProject.version
 }
 
-sourceSets {
-    main {
-        groovy {
-            srcDirs = ['src/main/groovy', 'src/main/java']
-        }
-        java {
-            srcDirs = []
-        }
-    }
-    test {
-        groovy {
-            srcDirs = ['src/test/groovy', 'src/test/java']
-        }
-        java {
-            srcDirs = []
-        }
-    }
-}
-
 dependencies {
+    implementation project(':gradle-consistent-versions-idea')
     implementation 'com.google.guava:guava'
     implementation 'com.netflix.nebula:nebula-dependency-recommender'
     implementation 'com.palantir.gradle.failure-reports:gradle-failure-reports-exceptions'
