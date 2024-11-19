@@ -32,9 +32,7 @@ public class RequireConsistentVersionsIdeaPlugin implements Plugin<Project> {
             return;
         }
 
-        project.getPluginManager().withPlugin("idea", _ideaPlugin -> {
-            configureIntelliJImport(project);
-        });
+        configureIntelliJImport(project);
     }
 
     private static void configureIntelliJImport(Project project) {
@@ -42,13 +40,7 @@ public class RequireConsistentVersionsIdeaPlugin implements Plugin<Project> {
         // very hard to manage as the tasks feel disconnected from the Sync operation, and you can't remove them once
         // you've added them. For that reason, we accept that we have to resolve this configuration at
         // configuration-time, but only do it when part of an IDEA import.
-        project.getGradle().projectsEvaluated(_gradle -> {
-            ConfigureIdeaPluginXml.updateIdeaXmlFile(
-                    project.file(".idea/externalDependencies.xml"), MIN_IDEA_PLUGIN_VERSION, true);
-
-            // Still configure legacy idea if using intellij import
-            ConfigureIdeaPluginXml.updateIdeaXmlFile(
-                    project.file(project.getName() + ".ipr"), MIN_IDEA_PLUGIN_VERSION, false);
-        });
+        ConfigureIdeaPluginXml.updateIdeaXmlFile(
+                project.file(".idea/externalDependencies.xml"), MIN_IDEA_PLUGIN_VERSION, true);
     }
 }
