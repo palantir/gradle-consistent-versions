@@ -18,7 +18,6 @@ package com.palantir.gradle.versions
 
 import groovy.xml.XmlNodePrinter
 import groovy.xml.XmlParser
-import org.gradle.internal.impldep.com.google.common.collect.ImmutableMap
 import org.xml.sax.SAXException
 
 import javax.xml.parsers.ParserConfigurationException
@@ -38,7 +37,7 @@ class ConfigureIdeaPluginXml {
             if (!createIfAbsent) {
                 return;
             }
-            rootNode = new Node(null, "project", ImmutableMap.of("version", "4"));
+            rootNode = new Node(null, "project", [version: "4"]);
         }
 
         configureExternalDependencies(rootNode, minVersion)
