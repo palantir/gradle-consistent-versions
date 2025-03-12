@@ -38,10 +38,13 @@ final class GradleConfigurations {
      *
      * Note that we need to do a defensive copy here to guard against concurrent modification.
      * See https://github.com/palantir/gradle-consistent-versions/pull/812
+     * And even more defensive:
+     * https://github.com/palantir/gradle-consistent-versions/pull/1307
      */
     public static Set<Configuration> getResolvableConfigurations(Project project) {
         Set<String> legacyJavaConfigurations = getLegacyJavaConfigurations(project);
-        return project.getConfigurations().stream()
+        Set<Configuration> allConfigs = project.getConfigurations().stream().collect(ImmutableSet.toImmutableSet());
+        return allConfigs.stream()
                 .filter(Configuration::isCanBeResolved)
                 .filter(conf -> !legacyJavaConfigurations.contains(conf.getName()))
                 .filter(conf -> DEPRECATED_SOURCESET_SUFFIXES.stream()
