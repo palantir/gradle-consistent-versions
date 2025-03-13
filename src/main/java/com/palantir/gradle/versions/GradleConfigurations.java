@@ -43,8 +43,7 @@ final class GradleConfigurations {
      */
     public static Set<Configuration> getResolvableConfigurations(Project project) {
         Set<String> legacyJavaConfigurations = getLegacyJavaConfigurations(project);
-        Set<Configuration> allConfigs = project.getConfigurations().stream().collect(ImmutableSet.toImmutableSet());
-        return allConfigs.stream()
+        return ImmutableSet.copyOf(project.getConfigurations()).stream()
                 .filter(Configuration::isCanBeResolved)
                 .filter(conf -> !legacyJavaConfigurations.contains(conf.getName()))
                 .filter(conf -> DEPRECATED_SOURCESET_SUFFIXES.stream()
