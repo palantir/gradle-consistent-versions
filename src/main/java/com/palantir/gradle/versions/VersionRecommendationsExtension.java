@@ -37,6 +37,8 @@ public class VersionRecommendationsExtension {
 
     private final SetProperty<String> excludeConfigurations;
 
+    private final Object lock = new Object();
+
     @Inject
     public VersionRecommendationsExtension(Project project) {
         excludeConfigurations = project.getObjects().setProperty(String.class).empty();
@@ -44,11 +46,15 @@ public class VersionRecommendationsExtension {
     }
 
     public final void excludeConfigurations(String... configurations) {
-        excludeConfigurations.addAll(configurations);
+        synchronized (lock) {
+            excludeConfigurations.addAll(configurations);
+        }
     }
 
     public final void setExcludeConfigurations(String... configurations) {
-        excludeConfigurations.set(Lists.newArrayList(configurations));
+        synchronized (lock) {
+            excludeConfigurations.set(Lists.newArrayList(configurations));
+        }
     }
 
     final Provider<Set<String>> getExcludeConfigurations() {
