@@ -53,7 +53,7 @@ allprojects {
 }
 
 dependencies {
-    implementation project(':gradle-consistent-versions-idea')
+    implementation project(':gradle-idea-configuration-interop')
     implementation 'com.google.guava:guava'
     implementation 'com.netflix.nebula:nebula-dependency-recommender'
     implementation 'com.palantir.gradle.failure-reports:gradle-failure-reports-exceptions'
@@ -124,13 +124,6 @@ gradlePlugin {
             id = 'com.palantir.version-props-idea'
             implementationClass = 'com.palantir.gradle.versions.VersionsPropsIdeaPlugin'
             displayName = 'Plugin to collect repositories for use by the IDEA plugin.'
-            description = displayName
-            tags.set(['versions'])
-        }
-        requireConsistentVersionsIdeaPlugin {
-            id = 'com.palantir.consistent-versions-require-idea-plugin'
-            implementationClass = 'com.palantir.gradle.versions.RequireConsistentVersionsIdeaPlugin'
-            displayName = 'Plugin to ensure that the intellij plugin is added to the externalDependencies.xml.'
             description = displayName
             tags.set(['versions'])
         }
