@@ -53,13 +53,13 @@ allprojects {
 }
 
 dependencies {
-    implementation project(':gradle-idea-configuration-interop')
     implementation 'com.google.guava:guava'
     implementation 'com.netflix.nebula:nebula-dependency-recommender'
     implementation 'com.palantir.gradle.failure-reports:gradle-failure-reports-exceptions'
     implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-xml'
     implementation 'com.fasterxml.jackson.datatype:jackson-datatype-guava'
     implementation 'one.util:streamex'
+    implementation 'com.palantir.gradle.idea-configuration:gradle-idea-configuration'
 
     testImplementation platform('org.junit:junit-bom')
     testImplementation 'com.netflix.nebula:nebula-test'

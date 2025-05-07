@@ -16,6 +16,8 @@
 
 package com.palantir.gradle.versions;
 
+import com.palantir.gradle.ideaconfiguration.IdeaConfigurationExtension;
+import com.palantir.gradle.ideaconfiguration.IdeaConfigurationPlugin;
 import org.gradle.api.GradleException;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
@@ -33,7 +35,9 @@ public class ConsistentVersionsPlugin implements Plugin<Project> {
         project.getPluginManager().apply(GetVersionPlugin.class);
         project.getPluginManager().apply(VersionsPropsIdeaPlugin.class);
 
-        IdeaConfigurationInterop.configure(project);
+        project.getPluginManager().apply(IdeaConfigurationPlugin.class);
+        IdeaConfigurationExtension extension = project.getExtensions().getByType(IdeaConfigurationExtension.class);
+        extension.externalDependency("gradle-consistent-versions", "0.9.0");
 
         project.allprojects(proj -> {
             proj.getPluginManager().withPlugin("java", _plugin -> {
