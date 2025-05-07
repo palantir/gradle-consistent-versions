@@ -90,21 +90,21 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                 // using nebula in ':baz'
                 apply plugin: 'nebula.dependency-recommender'
             }
-        """.stripIndent()
+        """.stripIndent(true)
 
         addSubproject('foo', '''
             apply plugin: 'java'
             dependencies {
                 implementation 'org.slf4j:slf4j-api:1.7.24'
             }
-        '''.stripIndent())
+        '''.stripIndent(true))
 
         addSubproject('bar', '''
             apply plugin: 'java'
             dependencies {
                 implementation "org.slf4j:slf4j-api:${project.bar_version}"
             }
-        '''.stripIndent())
+        '''.stripIndent(true))
         file("gradle.properties") << "bar_version=1.7.11"
 
         addSubproject('baz', '''
@@ -115,7 +115,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
             dependencyRecommendations {
                 map recommendations: ['org.slf4j:slf4j-api': '1.7.20']
             }
-        '''.stripIndent())
+        '''.stripIndent(true))
 
         addSubproject('forced', '''
             apply plugin: 'java'
@@ -127,7 +127,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                     force "org.slf4j:slf4j-api:1.7.20"
                 }
             }
-        '''.stripIndent())
+        '''.stripIndent(true))
     }
 
     def '#gradleVersionNumber: cannot resolve without a root lock file'() {
@@ -168,21 +168,21 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                     propertiesFile file: rootProject.file('versions.props')
                 }
             }
-        """.stripIndent()
+        """.stripIndent(true)
 
         def fooProject = addSubproject('foo', '''
             apply plugin: 'java'
             dependencies {
                 implementation 'org.slf4j:slf4j-api'
             }
-        '''.stripIndent())
+        '''.stripIndent(true))
 
         addSubproject('bar', '''
             apply plugin: 'java'
             dependencies {
                 implementation 'ch.qos.logback:logback-classic:1.2.3' // brings in slf4j-api 1.7.25
             }
-        '''.stripIndent())
+        '''.stripIndent(true))
 
         buildFile << '''
             subprojects {
@@ -190,7 +190,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                     resolutionStrategy.activateDependencyLocking()
                 }
             }
-        '''.stripIndent()
+        '''.stripIndent(true)
 
         file('versions.props') << 'org.slf4j:slf4j-api = 1.7.24'
 
@@ -218,7 +218,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                     resolutionStrategy.activateDependencyLocking()
                 }
             }
-        '''.stripIndent()
+        '''.stripIndent(true)
 
         when: "I write locks"
         runTasks('resolveConfigurations', '--write-locks')
@@ -245,7 +245,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
             dependencyRecommendations {
                 map recommendations: ['org.slf4j:slf4j-api': '1.7.25']
             }
-        '''.stripIndent()
+        '''.stripIndent(true)
 
         then: "Resolution fails"
         def error = runTasksAndFail(':baz:resolveConfigurations')
@@ -264,7 +264,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
             dependencies {
                 implementation 'ch.qos.logback:logback-classic:1.2.3' // brings in slf4j-api 1.7.25
             }
-        '''.stripIndent()
+        '''.stripIndent(true)
 
         expect:
         runTasks('--write-locks')
@@ -310,17 +310,17 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
             allprojects {
                 group 'same'
             }
-        """.stripIndent()
+        """.stripIndent(true)
         settingsFile << "rootProject.name = 'foobar'\n"
         addSubproject("foobar", '''
             apply plugin: 'java-library'
-        '''.stripIndent())
+        '''.stripIndent(true))
         addSubproject("other", '''
             apply plugin: 'java-library'
             dependencies {
                 implementation project(':foobar')
             }
-        '''.stripIndent())
+        '''.stripIndent(true))
         // Otherwise the lack of a lock file will throw first
         file('versions.lock') << ""
 
@@ -341,7 +341,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
             allprojects {
                 group 'same'
             }
-        """.stripIndent()
+        """.stripIndent(true)
         // both projects will have name = 'a'
         addSubproject("foo:a")
         addSubproject("bar:a")
@@ -363,7 +363,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         buildFile << """
             apply plugin: 'java'    
             configurations.compileClasspath.resolutionStrategy.failOnVersionConflict()
-        """.stripIndent()
+        """.stripIndent(true)
         file('versions.lock').text = ''
 
         expect:
@@ -385,7 +385,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                     resolutionStrategy.failOnVersionConflict()
                 }
             }
-        """.stripIndent()
+        """.stripIndent(true)
         file('versions.lock').text = ''
 
         expect:
@@ -412,13 +412,13 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
             subprojects {
                 apply plugin: 'java'
             }
-        """.stripIndent()
+        """.stripIndent(true)
 
         addSubproject('foo', '''
             dependencies {
                 implementation 'org:a:1.0'
             }
-        '''.stripIndent())
+        '''.stripIndent(true))
 
         runTasks('--write-locks')
 
@@ -427,7 +427,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
             dependencies {
                 implementation 'org:b:1.0'
             }
-        """.stripIndent()
+        """.stripIndent(true)
 
         then: 'Check fails because locks are not up to date'
         def failure = runTasksAndFail(':check')
@@ -448,14 +448,14 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
 
         file('versions.lock') << """\
             org.slf4j:slf4j-api:1.7.11 (0 constraints: 0000000)
-        """.stripIndent()
+        """.stripIndent(true)
 
         addSubproject('foo', '''
             apply plugin: 'java'
             dependencies {
                 implementation 'org.slf4j:slf4j-api:1.7.20'
             }
-        '''.stripIndent())
+        '''.stripIndent(true))
 
         expect:
         runTasks('dependencies', '--configuration', 'unifiedClasspath')
@@ -482,14 +482,14 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
             subprojects {
                 apply plugin: 'java'
             }
-        """.stripIndent()
+        """.stripIndent(true)
 
         addSubproject('foo', '''
             dependencies {
                 implementation 'org:a:1.0'
                 implementation 'org:b:1.0'
             }
-        '''.stripIndent())
+        '''.stripIndent(true))
 
         runTasks('--write-locks')
 
@@ -498,7 +498,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
             dependencies {
                 implementation 'org:a:1.0'
             }
-        """.stripIndent()
+        """.stripIndent(true)
 
         then: 'Check fails because locks are not up to date'
         def failure = runTasksAndFail(':check')
@@ -522,7 +522,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
             dependencies {
                 implementation 'ch.qos.logback:logback-classic:1.2.3' // brings in slf4j-api 1.7.25
             }
-        '''.stripIndent()
+        '''.stripIndent(true)
 
         when:
         runTasks('--write-locks')
@@ -545,7 +545,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
             dependencies {
                 implementation 'ch.qos.logback:logback-classic:1.2.3' // brings in slf4j-api 1.7.25
             }
-        '''.stripIndent()
+        '''.stripIndent(true)
 
         when:
         runTasks('--write-locks')
@@ -569,7 +569,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                 implementation 'ch.qos.logback:logback-classic:1.2.3' // brings in slf4j-api 1.7.25
                 implementation 'org:another-direct-dependency:1.2.3' // brings in org:another-transitive-dependency:3.2.1
             }
-        '''.stripIndent()
+        '''.stripIndent(true)
 
         when:
         runTasks('--write-locks')
@@ -594,7 +594,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
             dependencies {
                 implementation project(':foo:bar')
             }
-        """.stripIndent())
+        """.stripIndent(true))
 
         // Need to make sure bar is evaluated after foo, so we're nesting it!
         def subdir = new File(projectDir, 'foo/bar')
@@ -602,7 +602,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         settingsFile << "include ':foo:bar'"
         new File(subdir, 'build.gradle') << """
             apply plugin: 'java-library'
-        """.stripIndent()
+        """.stripIndent(true)
 
         expect:
         runTasks('--write-locks')
@@ -620,7 +620,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
             dependencies {
                 implementation platform('org:platform:1.0')
             }
-        """.stripIndent()
+        """.stripIndent(true)
 
         when:
         runTasks('--write-locks')
@@ -684,7 +684,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                > Found dependencies whose dependents changed:
                  -org.slf4j:slf4j-api:1.7.20 (1 constraints: 3c05433b)
                  +org.slf4j:slf4j-api:1.7.11 (1 constraints: 3c05423b)
-            """.stripIndent()
+            """.stripIndent(true)
 
         where:
         gradleVersionNumber << GRADLE_VERSIONS
@@ -703,7 +703,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                 // convoluted, but the idea is to exclude a transitive
                 exclude group: 'org.slf4j', module: 'slf4j-api'
             }
-        """.stripIndent()
+        """.stripIndent(true)
 
         when:
         runTasks('--write-locks')
@@ -728,7 +728,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
             dependencies {
                 implementation project(path: ":bar", configuration: "fun") 
             }
-        """.stripIndent())
+        """.stripIndent(true))
 
         addSubproject("bar", """
             configurations {
@@ -738,7 +738,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
             dependencies {
                 fun 'ch.qos.logback:logback-classic:1.2.3'
             }
-        """.stripIndent())
+        """.stripIndent(true))
 
         // Make sure that we can still add dependencies to the original 'fun' configuration after resolving lock state.
         //
@@ -751,7 +751,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                     fun 'some:other-dep'
                 }
             }
-        """.stripIndent()
+        """.stripIndent(true)
 
         expect:
         runTasks('--write-locks', 'classes')
@@ -769,11 +769,11 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
             dependencies {
                 implementation project(":bar") 
             }
-        """.stripIndent())
+        """.stripIndent(true))
 
         addSubproject("bar", """
             apply plugin: 'java'
-        """.stripIndent())
+        """.stripIndent(true))
 
         expect:
         runTasks('--write-locks', 'classes')
@@ -792,7 +792,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                 implementation 'ch.qos.logback:logback-classic:1.2.3'
                 testImplementation 'org:test-dep-that-logs:1.0'
             }
-        """.stripIndent()
+        """.stripIndent(true)
 
         expect:
         runTasks('--write-locks')
@@ -803,7 +803,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
              
             [Test dependencies]
             org:test-dep-that-logs:1.0 (1 constraints: a5041a2c)
-        """.stripIndent()
+        """.stripIndent(true)
         file('versions.lock').text == expected
 
         where:
@@ -824,7 +824,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                 testImplementation 'junit:junit:4.10'
                 eteTestImplementation 'org:test-dep-that-logs:1.0'
             }
-        """.stripIndent()
+        """.stripIndent(true)
 
         expect:
         runTasks('--write-locks')
@@ -836,7 +836,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
             [Test dependencies]
             junit:junit:4.10 (1 constraints: d904fd30)
             org:test-dep-that-logs:1.0 (1 constraints: a5041a2c)
-        """.stripIndent()
+        """.stripIndent(true)
         file('versions.lock').text == expected
 
         where:
@@ -854,7 +854,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
             }
             
             versionsLock.testProject()
-        """.stripIndent()
+        """.stripIndent(true)
 
         expect:
         runTasks('--write-locks')
@@ -863,7 +863,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
              
             [Test dependencies]
             junit:junit:4.10 (1 constraints: d904fd30)
-        """.stripIndent()
+        """.stripIndent(true)
         file('versions.lock').text == expected
 
         where:
@@ -884,7 +884,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                     testImplementation 'ch.qos.logback:logback-classic'
                 }
             }
-        """.stripIndent()
+        """.stripIndent(true)
 
         expect:
         runTasks('--write-locks')
@@ -894,7 +894,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
             [Test dependencies]
             ch.qos.logback:logback-classic:1.2.3 (1 constraints: 0805f935)
             org.slf4j:slf4j-api:1.7.25 (1 constraints: 400d4d2a)
-        """.stripIndent()
+        """.stripIndent(true)
         file('versions.lock').text == expected
 
         where:
@@ -911,7 +911,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
             allprojects {
                 apply plugin: 'java'
             }
-        """.stripIndent()
+        """.stripIndent(true)
 
         String publish = """
             apply plugin: 'maven-publish'
@@ -922,26 +922,26 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                     from components.java
                 }
             }
-        """.stripIndent()
+        """.stripIndent(true)
 
         addSubproject('foo', """
             $publish
             dependencies {
                 implementation 'ch.qos.logback:logback-classic:1.2.3'
             }
-        """.stripIndent())
+        """.stripIndent(true))
 
         addSubproject('bar', """
             $publish
             dependencies {
                 implementation 'junit:junit:4.10'
             }
-        """.stripIndent())
+        """.stripIndent(true))
 
         if (GradleVersion.version(gradleVersionNumber) < GradleVersion.version("6.0")) {
             settingsFile << """
                 enableFeaturePreview('GRADLE_METADATA')
-            """.stripIndent()
+            """.stripIndent(true)
         }
 
         runTasks('--write-locks')
@@ -1018,24 +1018,24 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                     }
                 }
             }
-        """.stripIndent()
+        """.stripIndent(true)
 
         addSubproject('foo', """
             dependencies {
                 implementation 'ch.qos.logback:logback-classic:1.2.3'
             }
-        """.stripIndent())
+        """.stripIndent(true))
 
         addSubproject('bar', """
             dependencies {
                 implementation 'junit:junit:4.10'
             }
-        """.stripIndent())
+        """.stripIndent(true))
 
         if (GradleVersion.version(gradleVersionNumber) < GradleVersion.version("6.0")) {
             settingsFile << """
                 enableFeaturePreview('GRADLE_METADATA')
-            """.stripIndent()
+            """.stripIndent(true)
         }
 
         runTasks('--write-locks')
@@ -1098,7 +1098,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
             dependencies {
                 implementation "junit:junit:4.10@zip"
             }
-        """.stripIndent()
+        """.stripIndent(true)
 
         expect:
         runTasks("--write-locks")
@@ -1116,7 +1116,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                 implementation 'ch.qos.logback:logback-classic:1.2.3'
                 testImplementation 'org.slf4j:slf4j-api:1.7.25'
             }
-        """.stripIndent()
+        """.stripIndent(true)
 
         expect:
         runTasks("--write-locks")
@@ -1124,7 +1124,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
             # Run ./gradlew writeVersionsLocks to regenerate this file
             ch.qos.logback:logback-classic:1.2.3 (1 constraints: 0805f935)
             org.slf4j:slf4j-api:1.7.25 (2 constraints: 8012a437)
-        """.stripIndent()
+        """.stripIndent(true)
 
         where:
         gradleVersionNumber << GRADLE_VERSIONS
@@ -1138,11 +1138,11 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
             dependencies {
                 testImplementation 'org.slf4j:slf4j-api:1.7.25'
             }
-        """.stripIndent()
+        """.stripIndent(true)
 
         def lockFileContent = """\
             # Run ./gradlew writeVersionsLocks to regenerate this file
-        """.stripIndent()
+        """.stripIndent(true)
 
         file('versions.lock').text = lockFileContent
 

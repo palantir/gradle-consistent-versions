@@ -72,7 +72,7 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
                     }
                 }
             }
-        """.stripIndent()
+        """.stripIndent(true)
     }
 
     def '#gradleVersionNumber: star dependency constraint is injected for direct dependency'() {
@@ -81,14 +81,14 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
 
         file("versions.props") << """
             org.slf4j:* = 1.7.24
-        """.stripIndent()
+        """.stripIndent(true)
 
         def fooProject = addSubproject('foo', """
             apply plugin: 'java'
             dependencies {
                 implementation 'org.slf4j:slf4j-api'
             }
-        """.stripIndent())
+        """.stripIndent(true))
 
         expect:
         runTasks('resolveConfigurations', '--write-locks')
@@ -106,14 +106,14 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
         file("versions.props") << """
             org.slf4j:* = 1.7.21
             ch.qos.logback:logback-classic = 1.1.11  # brings in slf4j-api 1.7.22
-        """.stripIndent()
+        """.stripIndent(true)
 
         def fooProject = addSubproject('foo', """
             apply plugin: 'java'
             dependencies {
                 implementation 'ch.qos.logback:logback-classic'
             }
-        """.stripIndent())
+        """.stripIndent(true))
 
         expect:
         runTasks('resolveConfigurations', '--write-locks')
@@ -131,14 +131,14 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
         file("versions.props") << """
             org.slf4j:* = 1.7.25
             ch.qos.logback:logback-classic = 1.1.11  # brings in slf4j-api 1.7.22
-        """.stripIndent()
+        """.stripIndent(true)
 
         def fooProject = addSubproject('foo', """
             apply plugin: 'java'
             dependencies {
                 implementation 'ch.qos.logback:logback-classic'
             }
-        """.stripIndent())
+        """.stripIndent(true))
 
         expect:
         runTasks('resolveConfigurations', '--write-locks')
@@ -157,7 +157,7 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
             org:platform = 1.0
             # This shouldn't end up in the POM
             other:constraint = 1.0.0
-        """.stripIndent()
+        """.stripIndent(true)
 
         addSubproject('foo', """
             apply plugin: 'java-library'
@@ -172,7 +172,7 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
                     }
                 }
             }
-        """.stripIndent())
+        """.stripIndent(true))
 
         expect:
         runTasks('foo:generatePomFile')
@@ -205,11 +205,11 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
             dependencies {
                 implementation 'com.fasterxml.jackson.core:jackson-databind'
             }
-        '''.stripIndent()
+        '''.stripIndent(true)
         file('versions.props') << '''
             com.fasterxml.jackson.core:jackson-databind = 2.9.0
             com.fasterxml.jackson.*:* = 2.9.7
-        '''.stripIndent()
+        '''.stripIndent(true)
 
         when:
         runTasks('resolveConfigurations', '--write-locks')
@@ -276,7 +276,7 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
                     rootConfiguration 'org.slf4j:slf4j-api:1.7.25'
                 }
             }
-        """.stripIndent()
+        """.stripIndent(true)
         file('versions.props').delete()
 
         expect:
