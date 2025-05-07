@@ -1,6 +1,6 @@
 type: improvement
 improvement:
-  description: Allow gradle-consitent-version-idea-plugin idea plugin dependency configuration
-    via idea-configuration plugin
+  description: Allow `gradle-consistent-version-idea-plugin` idea plugin dependency configuration
+    via `idea-configuration plugin`
   links:
   - https://github.com/palantir/gradle-consistent-versions/pull/1322
