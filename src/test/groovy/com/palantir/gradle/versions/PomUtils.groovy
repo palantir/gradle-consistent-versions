@@ -34,6 +34,6 @@ final class PomUtils {
                 </dependencies>
               </dependencyManagement>
             </project>
-        """.stripIndent()
+        """.stripIndent(true)
     }
 }

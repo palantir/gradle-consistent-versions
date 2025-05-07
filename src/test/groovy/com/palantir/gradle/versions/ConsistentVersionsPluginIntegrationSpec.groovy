@@ -67,7 +67,7 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
                 // Parallel 'resolveConfigurations' sometimes breaks unless we force the root one to run first.
                 tasks.named("resolveConfigurations", { it.mustRunAfter ":resolveConfigurations" })
             }
-        """.stripIndent()
+        """.stripIndent(true)
     }
 
     def '#gradleVersionNumber: can write locks using --write-locks'() {
@@ -127,7 +127,7 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
             }
             
             task resolve { doLast { configurations.runtimeClasspath.resolve() } }
-        '''.stripIndent()
+        '''.stripIndent(true)
 
         file('versions.props') << 'org.slf4j:* = 1.7.25'
 
@@ -152,7 +152,7 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
             task demo {
                 doLast { println "demo=" + getVersion('org.slf4j:slf4j-api', configurations.compileClasspath) }
             }
-        '''.stripIndent()
+        '''.stripIndent(true)
 
         // Pretend we have a lock file
         file('versions.lock') << ''
@@ -179,7 +179,7 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
             task demo {
                 doLast { println "demo=" + getVersion('org.slf4j:slf4j-api') }
             }
-        '''.stripIndent()
+        '''.stripIndent(true)
 
         file('versions.props') << 'org.slf4j:* = 1.7.25'
 
@@ -199,19 +199,19 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
             dependencies {
                 implementation 'test-alignment:module-that-should-be-aligned-up:1.0'
             }
-        """.stripIndent())
+        """.stripIndent(true))
 
         addSubproject('bar', """
             apply plugin: 'java'
             dependencies {
                 implementation 'test-alignment:module-with-higher-version:1.1'
             }
-        """.stripIndent())
+        """.stripIndent(true))
 
         file('versions.props') << """
             # Just to create a platform around test-alignment:*
             test-alignment:* = 1.0
-        """.stripIndent()
+        """.stripIndent(true)
 
         when:
         runTasks('--write-locks')
@@ -221,7 +221,7 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
             # Run ./gradlew writeVersionsLocks to regenerate this file
             test-alignment:module-that-should-be-aligned-up:1.1 (1 constraints: a5041a2c)
             test-alignment:module-with-higher-version:1.1 (1 constraints: a6041b2c)
-        """.stripIndent()
+        """.stripIndent(true)
         file('versions.lock').text == expectedLock
 
         where:
@@ -237,11 +237,11 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
             dependencies {
                 implementation 'org.slf4j:slf4j-api'
             }
-        """.stripIndent())
+        """.stripIndent(true))
 
         file('versions.props') << """
             org.slf4j:* = 1.7.25
-        """.stripIndent()
+        """.stripIndent(true)
 
         when:
         runTasks('--write-locks')
@@ -250,7 +250,7 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         def expectedLock = """\
             # Run ./gradlew writeVersionsLocks to regenerate this file
             org.slf4j:slf4j-api:1.7.25 (1 constraints: 4105483b)
-        """.stripIndent()
+        """.stripIndent(true)
         file('versions.lock').text == expectedLock
 
         // Ensure that this is a required constraint
@@ -294,13 +294,13 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
                     configurations.other.resolve()
                 }
             }
-        """.stripIndent())
+        """.stripIndent(true))
 
         file('versions.props') << """
             org1:platform = 1.0
             org2:* = 1.0
             org.slf4j:slf4j-api = 1.7.25
-        """.stripIndent()
+        """.stripIndent(true)
 
         expect:
         runTasks('--write-locks')
@@ -310,7 +310,7 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
             org.slf4j:slf4j-api:1.7.25 (1 constraints: 4105483b)
             org1:platform:1.0 (1 constraints: a5041a2c)
             org2:platform:1.0 (1 constraints: a5041a2c)
-        """.stripIndent()
+        """.stripIndent(true)
 
         and: 'Ensure you can verify locks and resolve the actual locked configurations'
         runTasks('verifyLocks', 'resolveLockedConfigurations', 'resolveNonLockedConfiguration')
@@ -327,7 +327,7 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
             allprojects {
                 apply plugin: 'java'
             }
-        """.stripIndent()
+        """.stripIndent(true)
 
         String publish = """
             apply plugin: 'maven-publish'
@@ -336,7 +336,7 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
                     from components.java
                 }
             }
-        """.stripIndent()
+        """.stripIndent(true)
 
         addSubproject('foo', """
             apply plugin: 'java'
@@ -344,18 +344,18 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
             dependencies {
                 implementation 'ch.qos.logback:logback-classic'
             }
-        """.stripIndent())
+        """.stripIndent(true))
 
         file('versions.props') << """
             org.slf4j:* = 1.7.25
             ch.qos.logback:* = 1.1.11
             should:not-publish = 1.0
-        """.stripIndent()
+        """.stripIndent(true)
 
         if (GradleVersion.version(gradleVersionNumber) < GradleVersion.version("6.0")) {
             settingsFile << """
                 enableFeaturePreview('GRADLE_METADATA')
-            """.stripIndent()
+            """.stripIndent(true)
         }
 
         when:
@@ -416,7 +416,7 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
                     configurations.transitive.resolvedConfiguration
                 }
             }
-        """.stripIndent())
+        """.stripIndent(true))
 
         addSubproject('target', """
             apply plugin: 'java'
@@ -426,11 +426,11 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
                 // that copies over platform dependencies from rootConfiguration.
                 rootConfiguration platform("org:platform")
             }            
-        """.stripIndent())
+        """.stripIndent(true))
 
         file('versions.props') << """
             org:platform = 1.0
-        """.stripIndent()
+        """.stripIndent(true)
 
         // This is just for debugging
         buildFile << """
@@ -441,7 +441,7 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
                     }
                 }
             }
-        """.stripIndent()
+        """.stripIndent(true)
 
         runTasks('--write-locks')
 

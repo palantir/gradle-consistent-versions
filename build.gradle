@@ -16,7 +16,6 @@ buildscript {
         classpath 'com.palantir.gradle.consistentversions:gradle-consistent-versions:2.32.0'
         classpath 'com.palantir.baseline:gradle-baseline-java:6.5.0'
         classpath 'com.palantir.gradle.gitversion:gradle-git-version:3.2.0'
-        classpath 'com.palantir.gradle.gradleideaconfiguration:gradle-idea-configuration:0.1.0'
         classpath 'gradle.plugin.org.inferred:gradle-processors:3.7.0'
     }
 }
@@ -32,7 +31,6 @@ apply plugin: 'com.palantir.baseline'
 apply plugin: 'com.palantir.consistent-versions'
 apply plugin: 'com.palantir.git-version'
 apply plugin: 'com.palantir.gradle-plugin-testing'
-apply plugin: 'com.palantir.idea-configuration'
 apply plugin: 'com.palantir.jdks'
 apply plugin: 'org.inferred.processors'
 apply plugin: 'com.palantir.external-publish-jar'
@@ -143,11 +141,11 @@ project.ext.'gradle.publish.key' = System.env["GRADLE_KEY"]
 project.ext.'gradle.publish.secret' = System.env["GRADLE_SECRET"]
 
 javaVersions {
-    libraryTarget = 11
+    libraryTarget = 17
 }
 
 jdks {
-    daemonTarget = 17
+    daemonTarget = 21
 }
 
 gradleTestUtils {
