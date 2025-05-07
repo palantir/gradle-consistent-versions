@@ -47,20 +47,20 @@ class SlsPackagingCompatibilityIntegrationSpec extends IntegrationSpec {
                     maven { url "file:///${mavenRepo.getAbsolutePath()}" }
                 }
             }
-        """.stripIndent()
+        """.stripIndent(true)
     }
 
     def 'can consume recommended product dependencies project'() {
         setup:
         file("versions.props") << """
             org.slf4j:* = 1.7.24
-        """.stripIndent()
+        """.stripIndent(true)
 
         buildFile << """
             allprojects {
                 version = '1.0.0'
             }
-        """.stripIndent()
+        """.stripIndent(true)
 
         addSubproject('api', """
             apply plugin: 'java'
@@ -78,7 +78,7 @@ class SlsPackagingCompatibilityIntegrationSpec extends IntegrationSpec {
                     maximumVersion = '1.x.x'
                 }
             }
-        """.stripIndent())
+        """.stripIndent(true))
 
         addSubproject('service', """
             apply plugin: 'java'
@@ -88,7 +88,7 @@ class SlsPackagingCompatibilityIntegrationSpec extends IntegrationSpec {
                 // Gets picked up by the productDependenciesConfig which is runtimeClasspath
                 implementation project(':api')
             }
-        """.stripIndent())
+        """.stripIndent(true))
 
         expect:
         def wroteLocks = runTasks('--write-locks')
