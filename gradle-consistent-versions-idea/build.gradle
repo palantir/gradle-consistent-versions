@@ -1,8 +1,0 @@
-apply plugin: 'java-gradle-plugin'
-apply plugin: 'groovy'
-apply plugin: 'com.palantir.external-publish-jar'
-apply plugin: 'com.palantir.gradle-plugin-testing'
-
-gradleTestUtils {
-    gradleVersions = ['7.6.4', '8.8', '8.12.1']
-}
