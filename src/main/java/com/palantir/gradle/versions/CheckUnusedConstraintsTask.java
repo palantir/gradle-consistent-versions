@@ -124,8 +124,7 @@ public class CheckUnusedConstraintsTask extends DefaultTask {
         if (unusedConstraints.isEmpty()) {
             return;
         } else if (shouldFix.get()) {
-            getProject()
-                    .getLogger()
+            getLogger()
                     .lifecycle("Removing unused pins from versions.props:\n"
                             + unusedConstraints.stream()
                                     .map(name -> String.format(" - '%s'", name))
