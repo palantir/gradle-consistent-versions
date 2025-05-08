@@ -96,8 +96,7 @@ public final class LockStates {
                                 + constraintsStr.stream().collect(Collectors.joining(", ", "{", "}")));
                     }
                 })
-                .filter(Optional::isPresent)
-                .map(Optional::get)
+                .<String>mapMulti(Optional::ifPresent)
                 .collect(toList());
     }
 
