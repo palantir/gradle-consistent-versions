@@ -37,9 +37,7 @@ public class ConsistentVersionsPlugin implements Plugin<Project> {
 
         project.getPluginManager().apply(IdeaConfigurationPlugin.class);
         IdeaConfigurationExtension extension = project.getExtensions().getByType(IdeaConfigurationExtension.class);
-        extension
-                .getExternalDependencies()
-                .register("gradle-consistent-versions", dep -> dep.atLeastVersion("0.9.0"));
+        extension.getExternalDependencies().register("gradle-consistent-versions", dep -> dep.atLeastVersion("0.9.0"));
 
         project.allprojects(proj -> {
             proj.getPluginManager().withPlugin("java", _plugin -> {
