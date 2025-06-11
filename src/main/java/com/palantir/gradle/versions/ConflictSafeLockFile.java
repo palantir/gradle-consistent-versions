@@ -89,6 +89,7 @@ final class ConflictSafeLockFile {
                         matcher.group("hash")));
     }
 
+    @SuppressWarnings("for-rollout:ThrowSpecificExceptions")
     public void writeLocks(FullLockState fullLockState) {
         LockState lockState = LockStates.toLockState(fullLockState);
         try (BufferedWriter writer =
@@ -109,6 +110,7 @@ final class ConflictSafeLockFile {
         }
     }
 
+    @SuppressWarnings("for-rollout:ThrowSpecificExceptions")
     private static void writeLine(Line line, BufferedWriter writer) {
         try {
             writer.append(line.stringRepresentation());
