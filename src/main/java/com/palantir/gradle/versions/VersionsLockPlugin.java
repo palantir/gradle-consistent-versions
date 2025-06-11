@@ -95,6 +95,7 @@ import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.plugins.JavaPluginExtension;
 import org.gradle.api.provider.Property;
+import org.gradle.api.provider.Provider;
 import org.gradle.api.publish.Publication;
 import org.gradle.api.publish.PublishingExtension;
 import org.gradle.api.publish.ivy.IvyPublication;
@@ -260,6 +261,9 @@ public class VersionsLockPlugin implements Plugin<Project> {
         // we can't just have the task run the write locks code as we need to write the locks in afterEvaluate.
         project.getTasks()
                 .register(WRITE_VERSIONS_LOCKS_TASK, WriteVersionsLocksMarkerTask.class, writeVersionsLocks -> {
+                    Provider<Boolean> shouldWriteLocksProvider =
+                            project.provider(() -> VersionsLockPlugin.shouldWriteLocks(project));
+                    writeVersionsLocks.getShouldWriteLocks().set(shouldWriteLocksProvider);
                     writeVersionsLocks.getOutputs().upToDateWhen(_ignored -> false);
                 });
 

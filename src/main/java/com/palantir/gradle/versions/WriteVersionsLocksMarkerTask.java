@@ -18,14 +18,17 @@ package com.palantir.gradle.versions;
 
 import org.gradle.api.DefaultTask;
 import org.gradle.api.GradleException;
+import org.gradle.api.provider.Property;
+import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.TaskAction;
 
-public class WriteVersionsLocksMarkerTask extends DefaultTask {
+public abstract class WriteVersionsLocksMarkerTask extends DefaultTask {
+    @Input
+    public abstract Property<Boolean> getShouldWriteLocks();
+
     @TaskAction
     public final void checkWriteLocksShouldBeRunning() {
-        // Check that our task name matcher for writeVersionsLocks is actually matching up the Gradle one - if this
-        // task is running but we didn't actually write locks, error out.
-        if (!VersionsLockPlugin.shouldWriteLocks(getProject())) {
+        if (!getShouldWriteLocks().get()) {
             throw new GradleException("This `writeVersionsLocks` marker task has been run, but the versions.lock did "
                     + "not actually get written out at configuration time. Either there is another task "
                     + "dependency on this task, which is not supported (`writeVersionsLocks` must be run as a gradle "
