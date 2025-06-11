@@ -41,6 +41,7 @@ public final class GetVersionPlugin implements Plugin<Project> {
              * Groovy will invoke this method if they just supply one arg, e.g. 'com.google.guava:guava'. This is the
              * preferred signature because it's shortest.
              */
+            @SuppressWarnings("for-rollout:UnusedMethod")
             public String doCall(Object moduleVersion) {
                 return doCall(
                         moduleVersion,
@@ -59,6 +60,7 @@ public final class GetVersionPlugin implements Plugin<Project> {
             }
 
             /** This matches the signature of nebula's dependencyRecommendations.getRecommendedVersion. */
+            @SuppressWarnings("for-rollout:UnusedMethod")
             public String doCall(String group, String name) {
                 return getVersion(
                         project,
@@ -69,6 +71,7 @@ public final class GetVersionPlugin implements Plugin<Project> {
                                 .getByName(VersionsLockPlugin.UNIFIED_CLASSPATH_CONFIGURATION_NAME));
             }
 
+            @SuppressWarnings("for-rollout:UnusedMethod")
             public String doCall(String group, String name, Configuration configuration) {
                 return getVersion(project, group, name, configuration);
             }

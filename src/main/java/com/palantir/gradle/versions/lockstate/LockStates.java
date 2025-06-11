@@ -111,9 +111,9 @@ public final class LockStates {
     }
 
     private static String formatComponentIdentifier(ComponentIdentifier id) {
-        if (id instanceof ModuleComponentIdentifier) {
+        if (id instanceof ModuleComponentIdentifier moduleComponentIdentifier) {
             // We don't include the version, as conflicts in the version would show up on the line for that version.
-            return ((ModuleComponentIdentifier) id).getModuleIdentifier().toString();
+            return moduleComponentIdentifier.getModuleIdentifier().toString();
         }
         return id.getDisplayName();
     }
