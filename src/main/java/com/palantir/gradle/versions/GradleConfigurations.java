@@ -41,7 +41,6 @@ final class GradleConfigurations {
      * And even more defensive:
      * https://github.com/palantir/gradle-consistent-versions/pull/1307
      */
-    @SuppressWarnings("for-rollout:PreferredInterfaceType")
     public static Set<Configuration> getResolvableConfigurations(Project project) {
         Set<String> legacyJavaConfigurations = getLegacyJavaConfigurations(project);
         return ImmutableSet.copyOf(project.getConfigurations()).stream()
@@ -56,7 +55,6 @@ final class GradleConfigurations {
      * Get the legacy java configurations that should not be resolved. If the project does not have the java plugin
      * applied, this returns an empty set.
      */
-    @SuppressWarnings("for-rollout:PreferredInterfaceType")
     private static Set<String> getLegacyJavaConfigurations(Project project) {
         JavaPluginExtension javaConvention = project.getExtensions().findByType(JavaPluginExtension.class);
         if (javaConvention == null) {

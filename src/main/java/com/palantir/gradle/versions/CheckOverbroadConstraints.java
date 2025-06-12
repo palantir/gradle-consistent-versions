@@ -259,7 +259,6 @@ public abstract class CheckOverbroadConstraints extends DefaultTask {
         return !Character.isLetterOrDigit(target.charAt(index));
     }
 
-    @SuppressWarnings("for-rollout:ThrowSpecificExceptions")
     private static void writeVersionsProps(File propsFile, Map<String, List<String>> oldToNewLines) {
         List<String> existingLines = readVersionsPropsLines(propsFile);
 
@@ -297,7 +296,6 @@ public abstract class CheckOverbroadConstraints extends DefaultTask {
         return updatedLines;
     }
 
-    @SuppressWarnings("for-rollout:ThrowSpecificExceptions")
     private static List<String> readVersionsPropsLines(File propsFile) {
         try {
             String content = Files.readString(propsFile.toPath());

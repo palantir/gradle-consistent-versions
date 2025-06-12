@@ -163,7 +163,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
         }
     }
 
-    @SuppressWarnings({"for-rollout:StatementSwitchToExpressionSwitch", "for-rollout:ThrowSpecificExceptions"})
+    @SuppressWarnings("for-rollout:StatementSwitchToExpressionSwitch")
     static final Comparator<GcvScope> GCV_SCOPE_COMPARATOR = Comparator.comparing(scope -> {
         // Production takes priority over test when it comes to provenance.
         switch (scope) {
@@ -194,7 +194,6 @@ public class VersionsLockPlugin implements Plugin<Project> {
      */
     private final Usage internalUsage;
 
-    @SuppressWarnings("for-rollout:UnnecessarilyVisible")
     @Inject
     public VersionsLockPlugin(Gradle gradle, ObjectFactory objectFactory) {
         showStacktrace = gradle.getStartParameter().getShowStacktrace();
@@ -442,7 +441,6 @@ public class VersionsLockPlugin implements Plugin<Project> {
         unifiedClasspath.getDependencies().add(createDependencyOnProjectWithScope(project, GcvScope.TEST));
     }
 
-    @SuppressWarnings("for-rollout:PreferredInterfaceType")
     private static Map<String, String> capabilityFor(Project project, GcvScope scope) {
         // Note: don't reference project.group() here as it is mutable so could change throughout the build evaluation.
         return ImmutableMap.of(
@@ -486,7 +484,6 @@ public class VersionsLockPlugin implements Plugin<Project> {
             throw new GradleException("Must be applied only to root project");
         }
 
-        @SuppressWarnings("for-rollout:PreferredInterfaceType")
         Multimap<String, Project> coordinateDuplicates = LinkedHashMultimap.create();
         Set<Project> subprojectsLeft = new HashSet<>(project.getSubprojects());
         project.subprojects(subproject -> {
@@ -526,7 +523,6 @@ public class VersionsLockPlugin implements Plugin<Project> {
     }
 
     private static void checkForDuplicatesInSubprojects(Multimap<String, Project> coordinateDuplicates) {
-        @SuppressWarnings("for-rollout:PreferredInterfaceType")
         Map<String, Collection<Project>> duplicates =
                 ImmutableMap.copyOf(Maps.filterValues(coordinateDuplicates.asMap(), projects -> projects.size() > 1));
 
@@ -787,7 +783,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
      * @param directDependencyScopes the scope that we've attributed to each {@link ModuleIdentifier external module}
      *     that was being directly depend on (from some locked configuration).
      */
-    @SuppressWarnings({"for-rollout:StatementSwitchToExpressionSwitch", "for-rollout:ThrowSpecificExceptions"})
+    @SuppressWarnings("for-rollout:StatementSwitchToExpressionSwitch")
     private static FullLockState computeLockState(
             ResolutionResult resolutionResult, DirectDependencyScopes directDependencyScopes) {
         Map<ResolvedComponentResult, GcvScope> scopeCache = new HashMap<>();
@@ -878,7 +874,6 @@ public class VersionsLockPlugin implements Plugin<Project> {
                                         () -> new TreeSet<>(Comparator.comparing(VersionConstraint::toString)))))));
     }
 
-    @SuppressWarnings("for-rollout:ThrowSpecificExceptions")
     private static VersionConstraint getRequestedVersionConstraint(ComponentSelector requested) {
         if (requested instanceof ModuleComponentSelector moduleComponentSelector) {
             return moduleComponentSelector.getVersionConstraint();
@@ -953,7 +948,6 @@ public class VersionsLockPlugin implements Plugin<Project> {
                     locksConf.getDependencies().add(locksDependency);
                 });
 
-        @SuppressWarnings("for-rollout:PreferredInterfaceType")
         Set<Configuration> configurationsToLock = lockedConfigurations.allConfigurations();
         log.info("Configuring locks for {}. Locked configurations: {}", subproject.getPath(), configurationsToLock);
         configurationsToLock.forEach(conf -> {

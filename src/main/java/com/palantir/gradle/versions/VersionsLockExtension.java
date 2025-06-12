@@ -34,7 +34,6 @@ public class VersionsLockExtension {
     private final ScopeConfigurer testConfigurer;
     private final Property<Boolean> useJavaPluginDefaults;
 
-    @SuppressWarnings("for-rollout:UnnecessarilyVisible")
     @Inject
     public VersionsLockExtension(Project project) {
         this.project = project;
