@@ -41,9 +41,7 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         makePlatformPom(mavenRepo, "org", "platform", "1.0")
 
         buildFile << """
-            plugins {
-                id '${PLUGIN_NAME}'
-            }
+            apply plugin: '${PLUGIN_NAME}'
             allprojects {
                 tasks.register("resolveConfigurations", {
                     project.configurations.all { configuration ->
@@ -68,6 +66,9 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
                 tasks.named("resolveConfigurations", { it.mustRunAfter ":resolveConfigurations" })
             }
         """.stripIndent(true)
+
+        keepFiles = true
+        definePluginOutsideOfPluginBlock = true
     }
 
     def '#gradleVersionNumber: can write locks using --write-locks'() {
@@ -90,7 +91,7 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         gradleVersion = gradleVersionNumber
 
         when:
-        runTasks('writeVersionsLocks')
+        runTasksWithConfigurationCache('writeVersionsLocks')
 
         then:
         new File(projectDir, "versions.lock").exists()
@@ -105,7 +106,7 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         gradleVersion = gradleVersionNumber
 
         when:
-        runTasks('wVL')
+        runTasksWithConfigurationCache('wVL')
 
         then:
         new File(projectDir, "versions.lock").exists()

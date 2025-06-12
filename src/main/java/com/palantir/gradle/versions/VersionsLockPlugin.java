@@ -264,7 +264,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
                     Provider<Boolean> shouldWriteLocksProvider =
                             project.provider(() -> VersionsLockPlugin.shouldWriteLocks(project));
                     writeVersionsLocks.getShouldWriteLocks().set(shouldWriteLocksProvider);
-                    writeVersionsLocks.getOutputs().upToDateWhen(_ignored -> false);
+                    // upToDateWhen(_ignored -> false) is not configuration cacheable use doNotTrackState instead
+                    writeVersionsLocks.doNotTrackState("This task should always run.");
                 });
 
         // afterEvaluate is necessary to ensure all projects' dependencies have been configured, because we
