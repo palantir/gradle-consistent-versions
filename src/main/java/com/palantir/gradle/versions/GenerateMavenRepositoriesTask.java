@@ -60,7 +60,6 @@ public abstract class GenerateMavenRepositoriesTask extends DefaultTask {
         writeRepositoriesToXml();
     }
 
-    @SuppressWarnings("for-rollout:ThrowSpecificExceptions")
     private void writeRepositoriesToXml() {
         File file = getOutputFile().get().getAsFile();
         List<RepositoryConfig> repositories = getMavenRepositories().get().stream()

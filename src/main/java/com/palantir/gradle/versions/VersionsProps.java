@@ -98,7 +98,7 @@ public final class VersionsProps {
         return new VersionsProps(builder.build());
     }
 
-    @SuppressWarnings({"for-rollout:ThrowSpecificExceptions", "for-rollout:UnusedException"})
+    @SuppressWarnings("for-rollout:UnusedException")
     private static List<String> safeReadLines(Path file) {
         try {
             return Files.readAllLines(file);

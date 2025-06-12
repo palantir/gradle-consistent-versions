@@ -139,7 +139,6 @@ public class CheckUnusedConstraintsTask extends DefaultTask {
                 "./gradlew checkUnusedConstraints --fix");
     }
 
-    @SuppressWarnings("for-rollout:ThrowSpecificExceptions")
     private static void writeVersionsProps(File propsFile, Set<String> unusedConstraints) {
         List<String> lines = readVersionsPropsLines(propsFile);
         try (BufferedWriter writer0 =
@@ -155,7 +154,6 @@ public class CheckUnusedConstraintsTask extends DefaultTask {
         }
     }
 
-    @SuppressWarnings({"for-rollout:PreferredInterfaceType", "for-rollout:ThrowSpecificExceptions"})
     private static List<String> readVersionsPropsLines(File propsFile) {
         try (Stream<String> lines = Files.lines(propsFile.toPath())) {
             return lines.collect(ImmutableList.toImmutableList());
@@ -164,7 +162,6 @@ public class CheckUnusedConstraintsTask extends DefaultTask {
         }
     }
 
-    @SuppressWarnings({"for-rollout:CatchingUnchecked", "for-rollout:ThrowSpecificExceptions"})
     static Stream<String> getResolvedModuleIdentifiers(Project project, VersionRecommendationsExtension extension) {
         return GradleConfigurations.getResolvableConfigurations(project).stream()
                 .filter(configuration -> !extension.shouldExcludeConfiguration(configuration.getName()))

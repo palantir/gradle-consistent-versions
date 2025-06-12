@@ -74,9 +74,8 @@ final class GradleWorkarounds {
      *
      * <p>Pending fix: https://github.com/gradle/gradle/pull/10288
      */
-    @SuppressWarnings({"unchecked", "for-rollout:UnnecessarilyFullyQualified"})
+    @SuppressWarnings("unchecked")
     static <T> ListProperty<T> fixListProperty(ListProperty<T> property) {
-        @SuppressWarnings("for-rollout:UnnecessarilyFullyQualified")
         Class<?> propertyInternalClass = org.gradle.api.internal.provider.CollectionPropertyInternal.class;
         return (ListProperty<T>) Proxy.newProxyInstance(
                 GradleWorkarounds.class.getClassLoader(),
@@ -123,9 +122,7 @@ final class GradleWorkarounds {
         return category != null && category.equals("platform");
     }
 
-    @SuppressWarnings("for-rollout:UnnecessarilyFullyQualified")
     static boolean isFailOnVersionConflict(Configuration conf) {
-        @SuppressWarnings("for-rollout:UnnecessarilyFullyQualified")
         org.gradle.api.internal.artifacts.configurations.ConflictResolution conflictResolution =
                 ((org.gradle.api.internal.artifacts.configurations.ResolutionStrategyInternal)
                                 conf.getResolutionStrategy())

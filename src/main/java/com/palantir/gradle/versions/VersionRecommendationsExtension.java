@@ -37,7 +37,6 @@ public class VersionRecommendationsExtension {
 
     private final SetProperty<String> excludeConfigurations;
 
-    @SuppressWarnings("for-rollout:UnnecessarilyVisible")
     @Inject
     public VersionRecommendationsExtension(Project project) {
         excludeConfigurations = project.getObjects().setProperty(String.class).empty();
