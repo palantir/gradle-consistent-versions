@@ -42,7 +42,6 @@ public final class Validators {
         }
     }
 
-    @SuppressWarnings("for-rollout:DefaultLocale")
     private static String getInvalidFileLine(Path filePath, int lineNumber) {
         return String.format("%s:%d", filePath.getFileName().toString(), lineNumber);
     }
