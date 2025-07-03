@@ -24,11 +24,11 @@ import org.gradle.api.tasks.TaskAction;
 
 public abstract class WriteVersionsLocksMarkerTask extends DefaultTask {
     @Input
-    public abstract Property<Boolean> getShouldWriteLocks();
+    public abstract Property<Boolean> isDirectlyTriggeredByHuman();
 
     @TaskAction
     public final void checkWriteLocksShouldBeRunning() {
-        if (!getShouldWriteLocks().get()) {
+        if (!isDirectlyTriggeredByHuman().get()) {
             throw new GradleException("This `writeVersionsLocks` marker task has been run, but the versions.lock did "
                     + "not actually get written out at configuration time. Either there is another task "
                     + "dependency on this task, which is not supported (`writeVersionsLocks` must be run as a gradle "
