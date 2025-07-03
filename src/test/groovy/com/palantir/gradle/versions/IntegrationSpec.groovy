@@ -50,6 +50,12 @@ class IntegrationSpec extends IntegrationTestKitSpec {
         assert secondRun.output.contains('Configuration cache entry reused.'),
                 "Expected second run to reuse configuration cache, but output was: ${secondRun.output}"
 
+        File configCacheDir = new File(projectDir, ".gradle/configuration-cache")
+        if (configCacheDir.exists()) {
+            configCacheDir.deleteDir()
+        }
+        assert !configCacheDir.exists(), "Configuration cache directory was not deleted"
+
         return true
     }
 }
