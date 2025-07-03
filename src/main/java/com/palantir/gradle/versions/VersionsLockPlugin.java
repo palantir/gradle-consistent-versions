@@ -260,8 +260,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
         // we can't just have the task run the write locks code as we need to write the locks in afterEvaluate.
         project.getTasks()
                 .register(WRITE_VERSIONS_LOCKS_TASK, WriteVersionsLocksMarkerTask.class, writeVersionsLocks -> {
-                    writeVersionsLocks.getDirectlyTriggeredByHuman().set(VersionsLockPlugin.shouldWriteLocks(project));
-                    // upToDateWhen(_ignored -> false) is not configuration cacheable use doNotTrackState instead
+                    writeVersionsLocks.getShouldWriteLocks().set(VersionsLockPlugin.shouldWriteLocks(project));
                     writeVersionsLocks.doNotTrackState("This task should always run.");
                 });
 
