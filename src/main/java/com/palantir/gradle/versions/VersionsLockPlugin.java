@@ -261,7 +261,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
         // we can't just have the task run the write locks code as we need to write the locks in afterEvaluate.
         project.getTasks()
                 .register(WRITE_VERSIONS_LOCKS_TASK, WriteVersionsLocksMarkerTask.class, writeVersionsLocks -> {
-                    writeVersionsLocks.getOutputs().upToDateWhen(_ignored -> false);
+                    writeVersionsLocks.getShouldWriteLocks().set(VersionsLockPlugin.shouldWriteLocks(project));
+                    writeVersionsLocks.doNotTrackState("This task should always run.");
                 });
 
         // afterEvaluate is necessary to ensure all projects' dependencies have been configured, because we
