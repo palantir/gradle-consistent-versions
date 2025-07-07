@@ -19,6 +19,7 @@ package com.palantir.gradle.versions;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+import com.palantir.gradle.versions.ConsistentVersionsPlugin.GcvBuildPath;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -67,6 +68,8 @@ public class VersionsPropsPlugin implements Plugin<Project> {
         // must be 'compatible with' (or the same as) the one for the VersionsLockPlugin's own configurations.
         Usage gcvVersionsPropsUsage =
                 project.getObjects().named(Usage.class, ConsistentVersionsPlugin.CONSISTENT_VERSIONS_USAGE);
+        GcvBuildPath gcvBuildPath = project.getObjects()
+                .named(GcvBuildPath.class, project.getRootProject().getBuildTreePath());
         String gcvVersionsPropsCapability = "gcv:versions-props:0";
 
         VersionsProps versionsProps = getVersionsProps(project.getRootProject());
@@ -104,6 +107,7 @@ public class VersionsPropsPlugin implements Plugin<Project> {
             // Create "platform" configuration in root project, which will hold the versions props constraints
             project.getConfigurations().register(GCV_VERSIONS_PROPS_CONSTRAINTS_CONFIGURATION_NAME, conf -> {
                 conf.getAttributes().attribute(Usage.USAGE_ATTRIBUTE, gcvVersionsPropsUsage);
+                conf.getAttributes().attribute(GcvBuildPath.ATTRIBUTE, gcvBuildPath);
                 conf.getOutgoing().capability(gcvVersionsPropsCapability);
                 conf.setCanBeResolved(false);
                 conf.setCanBeConsumed(true);
@@ -125,7 +129,7 @@ public class VersionsPropsPlugin implements Plugin<Project> {
                     // Wire in the constraints from the main configuration.
                     conf.getDependencies()
                             .add(createDepOnRootConstraintsConfiguration(
-                                    project, gcvVersionsPropsUsage, gcvVersionsPropsCapability));
+                                    project, gcvVersionsPropsUsage, gcvVersionsPropsCapability, gcvBuildPath));
                 });
 
         project.getConfigurations().configureEach(conf -> {
@@ -142,11 +146,12 @@ public class VersionsPropsPlugin implements Plugin<Project> {
     }
 
     private static ProjectDependency createDepOnRootConstraintsConfiguration(
-            Project project, Usage usage, String capability) {
+            Project project, Usage usage, String capability, GcvBuildPath gcvBuildPath) {
         ProjectDependency projectDep =
                 ((ProjectDependency) project.getDependencies().create(project.getRootProject()));
         projectDep.capabilities(capabilities -> capabilities.requireCapability(capability));
-        projectDep.attributes(attrs -> attrs.attribute(Usage.USAGE_ATTRIBUTE, usage));
+        projectDep.attributes(
+                attrs -> attrs.attribute(Usage.USAGE_ATTRIBUTE, usage).attribute(GcvBuildPath.ATTRIBUTE, gcvBuildPath));
         return projectDep;
     }
 

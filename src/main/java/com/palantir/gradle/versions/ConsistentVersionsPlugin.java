@@ -19,8 +19,11 @@ package com.palantir.gradle.versions;
 import com.palantir.gradle.ideaconfiguration.IdeaConfigurationExtension;
 import com.palantir.gradle.ideaconfiguration.IdeaConfigurationPlugin;
 import org.gradle.api.GradleException;
+import org.gradle.api.Named;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
+import org.gradle.api.attributes.Attribute;
+import org.gradle.api.attributes.AttributesSchema;
 
 public class ConsistentVersionsPlugin implements Plugin<Project> {
     static final String CONSISTENT_VERSIONS_USAGE = "consistent-versions-usage";
@@ -30,6 +33,10 @@ public class ConsistentVersionsPlugin implements Plugin<Project> {
         if (!project.getRootProject().equals(project)) {
             throw new GradleException("Must be applied only to root project");
         }
+        project.allprojects(p -> {
+            AttributesSchema attributesSchema = p.getDependencies().getAttributesSchema();
+            attributesSchema.attribute(GcvBuildPath.ATTRIBUTE);
+        });
         project.getPluginManager().apply(VersionsLockPlugin.class);
         project.getPluginManager().apply(VersionsPropsPlugin.class);
         project.getPluginManager().apply(GetVersionPlugin.class);
@@ -44,5 +51,10 @@ public class ConsistentVersionsPlugin implements Plugin<Project> {
                 proj.getPluginManager().apply(FixLegacyJavaConfigurationsPlugin.class);
             });
         });
+    }
+
+    public interface GcvBuildPath extends Named {
+        Attribute<GcvBuildPath> ATTRIBUTE =
+                Attribute.of("com.palantir.consistent-versions.build-path", GcvBuildPath.class);
     }
 }
