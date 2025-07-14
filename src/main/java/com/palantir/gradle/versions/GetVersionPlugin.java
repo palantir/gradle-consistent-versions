@@ -51,6 +51,7 @@ public final class GetVersionPlugin implements Plugin<Project> {
             }
 
             /** Find a version from another configuration, e.g. from the gradle-docker plugin. */
+            @SuppressWarnings("for-rollout:FloggerArgumentToString")
             public String doCall(Object moduleVersion, Configuration configuration) {
                 List<String> strings = Splitter.on(':').splitToList(moduleVersion.toString());
                 Preconditions.checkState(
