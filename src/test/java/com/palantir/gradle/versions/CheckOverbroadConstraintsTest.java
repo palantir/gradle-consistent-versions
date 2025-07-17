@@ -344,6 +344,7 @@ class CheckOverbroadConstraintsTest {
                     "");
         }
 
+        @SuppressWarnings("for-rollout:PreferUncheckedIoException")
         public void writeToFile() {
             try (BufferedWriter writer = Files.newBufferedWriter(getOutputFilePath(), StandardCharsets.UTF_8)) {
                 writer.write(fileContents());

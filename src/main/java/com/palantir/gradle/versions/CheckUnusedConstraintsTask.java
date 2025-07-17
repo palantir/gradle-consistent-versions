@@ -139,6 +139,7 @@ public class CheckUnusedConstraintsTask extends DefaultTask {
                 "./gradlew checkUnusedConstraints --fix");
     }
 
+    @SuppressWarnings("for-rollout:PreferUncheckedIoException")
     private static void writeVersionsProps(File propsFile, Set<String> unusedConstraints) {
         List<String> lines = readVersionsPropsLines(propsFile);
         try (BufferedWriter writer0 =
@@ -154,6 +155,7 @@ public class CheckUnusedConstraintsTask extends DefaultTask {
         }
     }
 
+    @SuppressWarnings("for-rollout:PreferUncheckedIoException")
     private static List<String> readVersionsPropsLines(File propsFile) {
         try (Stream<String> lines = Files.lines(propsFile.toPath())) {
             return lines.collect(ImmutableList.toImmutableList());
