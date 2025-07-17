@@ -23,6 +23,7 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.util.HashSet;
@@ -139,7 +140,6 @@ public class CheckUnusedConstraintsTask extends DefaultTask {
                 "./gradlew checkUnusedConstraints --fix");
     }
 
-    @SuppressWarnings("for-rollout:PreferUncheckedIoException")
     private static void writeVersionsProps(File propsFile, Set<String> unusedConstraints) {
         List<String> lines = readVersionsPropsLines(propsFile);
         try (BufferedWriter writer0 =
@@ -151,16 +151,15 @@ public class CheckUnusedConstraintsTask extends DefaultTask {
                 }
             }
         } catch (IOException e) {
-            throw new RuntimeException("Error opening or creating " + propsFile.toPath(), e);
+            throw new UncheckedIOException("Error opening or creating " + propsFile.toPath(), e);
         }
     }
 
-    @SuppressWarnings("for-rollout:PreferUncheckedIoException")
     private static List<String> readVersionsPropsLines(File propsFile) {
         try (Stream<String> lines = Files.lines(propsFile.toPath())) {
             return lines.collect(ImmutableList.toImmutableList());
         } catch (IOException e) {
-            throw new RuntimeException("Error reading " + propsFile.toPath(), e);
+            throw new UncheckedIOException("Error reading " + propsFile.toPath(), e);
         }
     }
 

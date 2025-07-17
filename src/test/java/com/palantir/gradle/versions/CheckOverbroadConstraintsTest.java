@@ -22,6 +22,7 @@ import com.palantir.gradle.versions.lockstate.LockState;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
@@ -344,12 +345,11 @@ class CheckOverbroadConstraintsTest {
                     "");
         }
 
-        @SuppressWarnings("for-rollout:PreferUncheckedIoException")
         public void writeToFile() {
             try (BufferedWriter writer = Files.newBufferedWriter(getOutputFilePath(), StandardCharsets.UTF_8)) {
                 writer.write(fileContents());
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                throw new UncheckedIOException(e);
             }
         }
 
