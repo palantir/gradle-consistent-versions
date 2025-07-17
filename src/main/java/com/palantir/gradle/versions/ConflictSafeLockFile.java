@@ -23,6 +23,7 @@ import com.palantir.gradle.versions.lockstate.LockState;
 import com.palantir.gradle.versions.lockstate.LockStates;
 import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -89,7 +90,6 @@ final class ConflictSafeLockFile {
                         matcher.group("hash")));
     }
 
-    @SuppressWarnings("for-rollout:PreferUncheckedIoException")
     public void writeLocks(FullLockState fullLockState) {
         LockState lockState = LockStates.toLockState(fullLockState);
         try (BufferedWriter writer =
@@ -106,17 +106,16 @@ final class ConflictSafeLockFile {
                 lockState.testLinesByModuleIdentifier().values().forEach(line -> writeLine(line, writer));
             }
         } catch (IOException e) {
-            throw new RuntimeException("Failed to write lock file: " + lockfile, e);
+            throw new UncheckedIOException("Failed to write lock file: " + lockfile, e);
         }
     }
 
-    @SuppressWarnings("for-rollout:PreferUncheckedIoException")
     private static void writeLine(Line line, BufferedWriter writer) {
         try {
             writer.append(line.stringRepresentation());
             writer.newLine();
         } catch (IOException e) {
-            throw new RuntimeException("Failed writing line", e);
+            throw new UncheckedIOException("Failed writing line", e);
         }
     }
 }

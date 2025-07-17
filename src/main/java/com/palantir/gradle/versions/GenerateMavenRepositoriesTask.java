@@ -28,6 +28,7 @@ import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty;
 import com.fasterxml.jackson.datatype.guava.GuavaModule;
 import java.io.File;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.gradle.api.DefaultTask;
@@ -60,7 +61,6 @@ public abstract class GenerateMavenRepositoriesTask extends DefaultTask {
         writeRepositoriesToXml();
     }
 
-    @SuppressWarnings("for-rollout:PreferUncheckedIoException")
     private void writeRepositoriesToXml() {
         File file = getOutputFile().get().getAsFile();
         List<RepositoryConfig> repositories = getMavenRepositories().get().stream()
@@ -71,7 +71,7 @@ public abstract class GenerateMavenRepositoriesTask extends DefaultTask {
         try {
             XML_MAPPER.writerWithDefaultPrettyPrinter().writeValue(file, wrapped);
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new UncheckedIOException(e);
         }
     }
 

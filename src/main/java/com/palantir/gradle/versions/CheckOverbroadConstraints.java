@@ -24,6 +24,7 @@ import com.palantir.gradle.versions.lockstate.Line;
 import com.palantir.gradle.versions.lockstate.LockState;
 import java.io.File;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -259,7 +260,6 @@ public abstract class CheckOverbroadConstraints extends DefaultTask {
         return !Character.isLetterOrDigit(target.charAt(index));
     }
 
-    @SuppressWarnings("for-rollout:PreferUncheckedIoException")
     private static void writeVersionsProps(File propsFile, Map<String, List<String>> oldToNewLines) {
         List<String> existingLines = readVersionsPropsLines(propsFile);
 
@@ -270,7 +270,7 @@ public abstract class CheckOverbroadConstraints extends DefaultTask {
         try {
             Files.writeString(propsFile.toPath(), content);
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new UncheckedIOException(e);
         }
     }
 
@@ -297,13 +297,12 @@ public abstract class CheckOverbroadConstraints extends DefaultTask {
         return updatedLines;
     }
 
-    @SuppressWarnings("for-rollout:PreferUncheckedIoException")
     private static List<String> readVersionsPropsLines(File propsFile) {
         try {
             String content = Files.readString(propsFile.toPath());
             return Splitter.on("\n").splitToList(content);
         } catch (IOException e) {
-            throw new RuntimeException("Error reading " + propsFile.toPath(), e);
+            throw new UncheckedIOException("Error reading " + propsFile.toPath(), e);
         }
     }
 }
