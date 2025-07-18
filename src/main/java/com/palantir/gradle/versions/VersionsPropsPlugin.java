@@ -150,6 +150,7 @@ public class VersionsPropsPlugin implements Plugin<Project> {
         return projectDep;
     }
 
+    @SuppressWarnings({"for-rollout:GradleTypesAsFields", "for-rollout:NonAbstractGradleType"})
     private static void applyToRootProject(Project project) {
         project.getPluginManager().apply(LifecycleBasePlugin.class);
         project.getExtensions()

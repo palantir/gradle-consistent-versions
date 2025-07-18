@@ -46,13 +46,21 @@ import org.gradle.api.tasks.TaskAction;
 import org.gradle.api.tasks.options.Option;
 import org.gradle.language.base.plugins.LifecycleBasePlugin;
 
+@SuppressWarnings("for-rollout:NonAbstractGradleType")
 public class CheckUnusedConstraintsTask extends DefaultTask {
 
+    @SuppressWarnings("for-rollout:GradleTypesAsFields")
     private final Property<Boolean> shouldFailWithConfigurationOnDemandMessage =
             getProject().getObjects().property(Boolean.class);
+
+    @SuppressWarnings("for-rollout:GradleTypesAsFields")
     private final Property<Boolean> shouldFix = getProject().getObjects().property(Boolean.class);
+
+    @SuppressWarnings("for-rollout:GradleTypesAsFields")
     private final RegularFileProperty propsFileProperty =
             getProject().getObjects().fileProperty();
+
+    @SuppressWarnings("for-rollout:GradleTypesAsFields")
     private final SetProperty<String> classpath = getProject().getObjects().setProperty(String.class);
 
     public CheckUnusedConstraintsTask() {
