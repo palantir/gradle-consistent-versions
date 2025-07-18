@@ -204,6 +204,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
         return project.file("versions.lock").toPath();
     }
 
+    @SuppressWarnings({"for-rollout:GradleTypesAsFields", "for-rollout:NonAbstractGradleType"})
     @Override
     public final void apply(Project project) {
         checkPreconditions(project);
@@ -218,6 +219,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
             });
         });
 
+        @SuppressWarnings("for-rollout:ConfigurationAvoidanceRegistration")
         Configuration unifiedClasspath = project.getConfigurations()
                 .create(UNIFIED_CLASSPATH_CONFIGURATION_NAME, conf -> {
                     conf.setVisible(false).setCanBeConsumed(false);
@@ -940,6 +942,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
             ProjectDependency locksDependency,
             List<DependencyConstraint> publishableConstraints,
             LockedConfigurations lockedConfigurations) {
+        @SuppressWarnings("for-rollout:ConfigurationAvoidanceRegistration")
         Configuration locksConfiguration = subproject
                 .getConfigurations()
                 .create(LOCK_CONSTRAINTS_CONFIGURATION_NAME, locksConf -> {

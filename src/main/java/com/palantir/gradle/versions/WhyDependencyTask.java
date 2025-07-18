@@ -36,11 +36,18 @@ import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.TaskAction;
 import org.gradle.api.tasks.options.Option;
 
+@SuppressWarnings("for-rollout:NonAbstractGradleType")
 public class WhyDependencyTask extends DefaultTask {
 
+    @SuppressWarnings("for-rollout:GradleTypesAsFields")
     private final Property<String> hashOption;
+
+    @SuppressWarnings("for-rollout:GradleTypesAsFields")
     private final Property<String> dependencyOption;
+
+    @SuppressWarnings("for-rollout:GradleTypesAsFields")
     private final Property<FullLockState> fullLockState;
+
     private Path lockfile;
 
     public WhyDependencyTask() {
