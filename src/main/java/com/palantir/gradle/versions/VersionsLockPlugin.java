@@ -163,16 +163,12 @@ public class VersionsLockPlugin implements Plugin<Project> {
         }
     }
 
-    @SuppressWarnings("for-rollout:StatementSwitchToExpressionSwitch")
     static final Comparator<GcvScope> GCV_SCOPE_COMPARATOR = Comparator.comparing(scope -> {
         // Production takes priority over test when it comes to provenance.
-        switch (scope) {
-            case PRODUCTION:
-                return 0;
-            case TEST:
-                return 1;
-        }
-        throw new RuntimeException("Unexpected GcvScope: " + scope);
+        return switch (scope) {
+            case PRODUCTION -> 0;
+            case TEST -> 1;
+        };
     });
 
     private final ShowStacktrace showStacktrace;
@@ -786,7 +782,6 @@ public class VersionsLockPlugin implements Plugin<Project> {
      * @param directDependencyScopes the scope that we've attributed to each {@link ModuleIdentifier external module}
      *     that was being directly depend on (from some locked configuration).
      */
-    @SuppressWarnings("for-rollout:StatementSwitchToExpressionSwitch")
     private static FullLockState computeLockState(
             ResolutionResult resolutionResult, DirectDependencyScopes directDependencyScopes) {
         Map<ResolvedComponentResult, GcvScope> scopeCache = new HashMap<>();
@@ -797,16 +792,18 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 .forEach(component -> {
                     GcvScope scope = getScope(component, scopeCache, directDependencyScopes);
                     switch (scope) {
-                        case PRODUCTION:
+                        case PRODUCTION -> {
                             builder.putProductionDeps(
                                     MyModuleVersionIdentifier.copyOf(component.getModuleVersion()),
                                     extractDependents(component));
                             return;
-                        case TEST:
+                        }
+                        case TEST -> {
                             builder.putTestDeps(
                                     MyModuleVersionIdentifier.copyOf(component.getModuleVersion()),
                                     extractDependents(component));
                             return;
+                        }
                     }
                     throw new RuntimeException(String.format(
                             "Unexpected scope for component %s: %s", component.getModuleVersion(), scope));
