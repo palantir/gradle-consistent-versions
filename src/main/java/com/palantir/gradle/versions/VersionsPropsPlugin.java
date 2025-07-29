@@ -19,6 +19,7 @@ package com.palantir.gradle.versions;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+import com.palantir.gradle.versions.ConsistentVersionsPlugin.GcvAsGradleUsage;
 import com.palantir.gradle.versions.ConsistentVersionsPlugin.GcvBuildPath;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -46,11 +47,12 @@ import org.gradle.api.provider.Provider;
 import org.gradle.api.publish.PublishingExtension;
 import org.gradle.api.publish.VariantVersionMappingStrategy;
 import org.gradle.api.publish.maven.MavenPublication;
+import org.gradle.api.tasks.Nested;
 import org.gradle.api.tasks.TaskProvider;
 import org.gradle.language.base.plugins.LifecycleBasePlugin;
 import org.gradle.util.GradleVersion;
 
-public class VersionsPropsPlugin implements Plugin<Project> {
+public abstract class VersionsPropsPlugin implements Plugin<Project> {
     private static final Logger log = Logging.getLogger(VersionsPropsPlugin.class);
     private static final String ROOT_CONFIGURATION_NAME = "rootConfiguration";
     private static final GradleVersion MINIMUM_GRADLE_VERSION = GradleVersion.version("5.2");
@@ -59,17 +61,18 @@ public class VersionsPropsPlugin implements Plugin<Project> {
     private static final String GCV_VERSIONS_PROPS_CONSTRAINTS_CONFIGURATION_NAME = "gcvVersionsPropsConstraints";
     private static final String VERSION_PROPS_EXTENSION = "versionsProps";
 
+    // Shared across root project / other project
+    // This must be usable during VersionsLockPlugin's resolution of unifiedClasspath, so the usage
+    // must be 'compatible with' (or the same as) the one for the VersionsLockPlugin's own configurations.
+    private static final Usage GCV_VERSIONS_PROPS_USAGE = GcvAsGradleUsage.INSTANCE;
+
+    @Nested
+    public abstract GcvBuildPath getGcvBuildPath();
+
     @Override
     public final void apply(Project project) {
         checkPreconditions();
 
-        // Shared across root project / other project
-        // This must be usable during VersionsLockPlugin's resolution of unifiedClasspath, so the usage
-        // must be 'compatible with' (or the same as) the one for the VersionsLockPlugin's own configurations.
-        Usage gcvVersionsPropsUsage =
-                project.getObjects().named(Usage.class, ConsistentVersionsPlugin.CONSISTENT_VERSIONS_USAGE);
-        GcvBuildPath gcvBuildPath = project.getObjects()
-                .named(GcvBuildPath.class, project.getRootProject().getBuildTreePath());
         String gcvVersionsPropsCapability = "gcv:versions-props:0";
 
         VersionsProps versionsProps = getVersionsProps(project.getRootProject());
@@ -106,8 +109,8 @@ public class VersionsPropsPlugin implements Plugin<Project> {
 
             // Create "platform" configuration in root project, which will hold the versions props constraints
             project.getConfigurations().register(GCV_VERSIONS_PROPS_CONSTRAINTS_CONFIGURATION_NAME, conf -> {
-                conf.getAttributes().attribute(Usage.USAGE_ATTRIBUTE, gcvVersionsPropsUsage);
-                conf.getAttributes().attribute(GcvBuildPath.ATTRIBUTE, gcvBuildPath);
+                conf.getAttributes().attribute(Usage.USAGE_ATTRIBUTE, GCV_VERSIONS_PROPS_USAGE);
+                conf.getAttributes().attribute(GcvBuildPath.ATTRIBUTE, getGcvBuildPath());
                 conf.getOutgoing().capability(gcvVersionsPropsCapability);
                 conf.setCanBeResolved(false);
                 conf.setCanBeConsumed(true);
@@ -129,7 +132,7 @@ public class VersionsPropsPlugin implements Plugin<Project> {
                     // Wire in the constraints from the main configuration.
                     conf.getDependencies()
                             .add(createDepOnRootConstraintsConfiguration(
-                                    project, gcvVersionsPropsUsage, gcvVersionsPropsCapability, gcvBuildPath));
+                                    project, GCV_VERSIONS_PROPS_USAGE, gcvVersionsPropsCapability, getGcvBuildPath()));
                 });
 
         project.getConfigurations().configureEach(conf -> {

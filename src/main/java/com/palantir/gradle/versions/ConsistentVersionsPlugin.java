@@ -18,12 +18,17 @@ package com.palantir.gradle.versions;
 
 import com.palantir.gradle.ideaconfiguration.IdeaConfigurationExtension;
 import com.palantir.gradle.ideaconfiguration.IdeaConfigurationPlugin;
+import javax.inject.Inject;
 import org.gradle.api.GradleException;
 import org.gradle.api.Named;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.attributes.Attribute;
 import org.gradle.api.attributes.AttributesSchema;
+import org.gradle.api.attributes.Usage;
+import org.gradle.api.internal.GradleInternal;
+import org.gradle.api.invocation.Gradle;
+import org.gradle.util.GradleVersion;
 
 public class ConsistentVersionsPlugin implements Plugin<Project> {
     static final String CONSISTENT_VERSIONS_USAGE = "consistent-versions-usage";
@@ -53,8 +58,48 @@ public class ConsistentVersionsPlugin implements Plugin<Project> {
         });
     }
 
-    public interface GcvBuildPath extends Named {
-        Attribute<GcvBuildPath> ATTRIBUTE =
+    /**
+     * Whilst calculating the {@code unifiedClasspath} for a parent build, we don't want internal configurations from
+     * <em>child</em> builds - i.e. included builds - to be selected. We effectively want to consume the "published"
+     * variant i.e. if the included build were to be an external library we were to consume, what dependencies and jars
+     * do we get?
+     */
+    public abstract static class GcvBuildPath implements Named {
+        public static final Attribute<GcvBuildPath> ATTRIBUTE =
                 Attribute.of("com.palantir.consistent-versions.build-path", GcvBuildPath.class);
+
+        @Inject
+        protected abstract Gradle getGradle();
+
+        @Override
+        public final String getName() {
+            if (GradleVersion.current().compareTo(GradleVersion.version("8.3")) >= 0) {
+                return getGradle().getRootProject().getBuildTreePath();
+            } else {
+                return ((GradleInternal) getGradle()).getIdentityPath().getPath();
+            }
+        }
+    }
+
+    /**
+     * We don't want the consumable configurations we create to have any known usage, so we give them this usage.
+     * This is so that:
+     *
+     * <ul>
+     *   <li>they don't cause an ambiguity between the copied and the original {@code apiElements},
+     *       {@code runtimeElements} etc., when a resolution with a required usage is performed (such as by resolving a
+     *       {@code compileClasspath} or {@code runtimeClasspath} configuration)
+     *   <li>to avoid the configurations we create to calculate locks being resolved as an actual candidate in normal
+     *       resolution, when all other candidates didn't match, simply because it had completely distinct attributes
+     *       from the requested attributes.
+     * </ul>
+     */
+    public enum GcvAsGradleUsage implements Usage {
+        INSTANCE;
+
+        @Override
+        public final String getName() {
+            return CONSISTENT_VERSIONS_USAGE;
+        }
     }
 }
