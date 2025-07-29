@@ -19,7 +19,7 @@ package com.palantir.gradle.versions;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
-import com.palantir.gradle.versions.ConsistentVersionsPlugin.GcvAsGradleUsage;
+import com.palantir.gradle.versions.ConsistentVersionsPlugin.GcvAttributes;
 import com.palantir.gradle.versions.ConsistentVersionsPlugin.GcvBuildPath;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -61,13 +61,8 @@ public abstract class VersionsPropsPlugin implements Plugin<Project> {
     private static final String GCV_VERSIONS_PROPS_CONSTRAINTS_CONFIGURATION_NAME = "gcvVersionsPropsConstraints";
     private static final String VERSION_PROPS_EXTENSION = "versionsProps";
 
-    // Shared across root project / other project
-    // This must be usable during VersionsLockPlugin's resolution of unifiedClasspath, so the usage
-    // must be 'compatible with' (or the same as) the one for the VersionsLockPlugin's own configurations.
-    private static final Usage GCV_VERSIONS_PROPS_USAGE = GcvAsGradleUsage.INSTANCE;
-
     @Nested
-    public abstract GcvBuildPath getGcvBuildPath();
+    public abstract GcvAttributes getGcvAttributes();
 
     @Override
     public final void apply(Project project) {
@@ -109,8 +104,10 @@ public abstract class VersionsPropsPlugin implements Plugin<Project> {
 
             // Create "platform" configuration in root project, which will hold the versions props constraints
             project.getConfigurations().register(GCV_VERSIONS_PROPS_CONSTRAINTS_CONFIGURATION_NAME, conf -> {
-                conf.getAttributes().attribute(Usage.USAGE_ATTRIBUTE, GCV_VERSIONS_PROPS_USAGE);
-                conf.getAttributes().attribute(GcvBuildPath.ATTRIBUTE, getGcvBuildPath());
+                conf.getAttributes()
+                        .attribute(Usage.USAGE_ATTRIBUTE, getGcvAttributes().gradleUsageForGcv());
+                conf.getAttributes()
+                        .attribute(GcvBuildPath.ATTRIBUTE, getGcvAttributes().buildPath());
                 conf.getOutgoing().capability(gcvVersionsPropsCapability);
                 conf.setCanBeResolved(false);
                 conf.setCanBeConsumed(true);
@@ -132,7 +129,10 @@ public abstract class VersionsPropsPlugin implements Plugin<Project> {
                     // Wire in the constraints from the main configuration.
                     conf.getDependencies()
                             .add(createDepOnRootConstraintsConfiguration(
-                                    project, GCV_VERSIONS_PROPS_USAGE, gcvVersionsPropsCapability, getGcvBuildPath()));
+                                    project,
+                                    getGcvAttributes().gradleUsageForGcv(),
+                                    gcvVersionsPropsCapability,
+                                    getGcvAttributes().buildPath()));
                 });
 
         project.getConfigurations().configureEach(conf -> {
