@@ -42,8 +42,8 @@ public class ConsistentVersionsPlugin implements Plugin<Project> {
         if (!project.getRootProject().equals(project)) {
             throw new GradleException("Must be applied only to root project");
         }
-        project.allprojects(p -> {
-            AttributesSchema attributesSchema = p.getDependencies().getAttributesSchema();
+        project.allprojects(proj -> {
+            AttributesSchema attributesSchema = proj.getDependencies().getAttributesSchema();
             attributesSchema.attribute(GcvBuildPath.ATTRIBUTE);
         });
         project.getPluginManager().apply(VersionsLockPlugin.class);
