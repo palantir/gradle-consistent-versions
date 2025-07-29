@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<!--
+  ~ (c) Copyright 2025 Palantir Technologies Inc. All rights reserved.
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+
+<!DOCTYPE suppressions PUBLIC
+        "-//Checkstyle//DTD SuppressionFilter Configuration 1.2//EN"
+        "https://checkstyle.org/dtds/suppressions_1_2.dtd">
+
+<!-- IMPORTANT ECLIPSE NOTE: If you change this file, you must restart Eclipse
+ for your changes to take effect in its Checkstyle integration. -->
+
+<!-- custom-suppressions.xml allows users to specify suppressions that will not be overridden by
+     baselineUpdateConfig -->
+<suppressions>
+
+    <!-- To support versions of Gradle < 8.3, we need to reach into `GradleInternal` which is an internal Gradle type   -->
+    <suppress files="[/\\]src[/\\].*ConsistentVersionsPlugin.java" checks="IllegalImport" />
+
+</suppressions>
