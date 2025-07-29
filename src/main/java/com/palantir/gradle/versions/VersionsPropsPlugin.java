@@ -102,7 +102,7 @@ public abstract class VersionsPropsPlugin implements Plugin<Project> {
 
             // Create "platform" configuration in root project, which will hold the versions props constraints
             project.getConfigurations().register(GCV_VERSIONS_PROPS_CONSTRAINTS_CONFIGURATION_NAME, conf -> {
-                getGcvAttributes().configureGcvBaseAttributes(conf);
+                conf.attributes(getGcvAttributes()::configureGcvBaseAttributes);
                 conf.getOutgoing().capability(gcvVersionsPropsCapability);
                 conf.setCanBeResolved(false);
                 conf.setCanBeConsumed(true);
@@ -145,7 +145,7 @@ public abstract class VersionsPropsPlugin implements Plugin<Project> {
         ProjectDependency projectDep =
                 ((ProjectDependency) project.getDependencies().create(project.getRootProject()));
         projectDep.capabilities(capabilities -> capabilities.requireCapability(capability));
-        gcvAttributes.configureGcvBaseAttributes(projectDep);
+        projectDep.attributes(gcvAttributes::configureGcvBaseAttributes);
         return projectDep;
     }
 

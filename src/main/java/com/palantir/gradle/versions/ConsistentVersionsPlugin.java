@@ -26,7 +26,6 @@ import org.gradle.api.Project;
 import org.gradle.api.attributes.Attribute;
 import org.gradle.api.attributes.AttributeContainer;
 import org.gradle.api.attributes.AttributesSchema;
-import org.gradle.api.attributes.HasAttributes;
 import org.gradle.api.attributes.Usage;
 import org.gradle.api.internal.GradleInternal;
 import org.gradle.api.invocation.Gradle;
@@ -104,8 +103,7 @@ public class ConsistentVersionsPlugin implements Plugin<Project> {
             }
         }
 
-        public final void configureGcvBaseAttributes(HasAttributes hasAttributes) {
-            AttributeContainer attributes = hasAttributes.getAttributes();
+        public final void configureGcvBaseAttributes(AttributeContainer attributes) {
             attributes.attribute(Usage.USAGE_ATTRIBUTE, gradleUsageForGcv());
             attributes.attribute(GcvBuildPath.ATTRIBUTE, buildPath());
         }
