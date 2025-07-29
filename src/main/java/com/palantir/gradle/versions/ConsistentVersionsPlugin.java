@@ -18,6 +18,7 @@ package com.palantir.gradle.versions;
 
 import com.palantir.gradle.ideaconfiguration.IdeaConfigurationExtension;
 import com.palantir.gradle.ideaconfiguration.IdeaConfigurationPlugin;
+import java.util.Objects;
 import javax.inject.Inject;
 import org.gradle.api.GradleException;
 import org.gradle.api.Named;
@@ -79,6 +80,27 @@ public class ConsistentVersionsPlugin implements Plugin<Project> {
                 return ((GradleInternal) getGradle()).getIdentityPath().getPath();
             }
         }
+
+        @Override
+        public final String toString() {
+            return getName();
+        }
+
+        @Override
+        public final boolean equals(Object obj) {
+            if (this == obj) {
+                return true;
+            }
+            if (!(obj instanceof GcvBuildPath other)) {
+                return false;
+            }
+            return Objects.equals(getName(), other.getName());
+        }
+
+        @Override
+        public final int hashCode() {
+            return Objects.hashCode(getName());
+        }
     }
 
     /**
@@ -100,6 +122,11 @@ public class ConsistentVersionsPlugin implements Plugin<Project> {
         @Override
         public final String getName() {
             return CONSISTENT_VERSIONS_USAGE;
+        }
+
+        @Override
+        public String toString() {
+            return getName();
         }
     }
 }
