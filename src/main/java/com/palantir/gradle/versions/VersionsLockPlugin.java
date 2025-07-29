@@ -230,11 +230,7 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
         // Create "platform" configuration in root project, which will hold the strictConstraints
         NamedDomainObjectProvider<Configuration> gcvLocksConfiguration = project.getConfigurations()
                 .register("gcvLocks", conf -> {
-                    conf.getAttributes()
-                            .attribute(Usage.USAGE_ATTRIBUTE, getGcvAttributes().gradleUsageForGcv());
-                    conf.getAttributes()
-                            .attribute(
-                                    GcvBuildPath.ATTRIBUTE, getGcvAttributes().buildPath());
+                    getGcvAttributes().configureGcvBaseAttributes(conf);
                     conf.getOutgoing().capability(GCV_LOCKS_CAPABILITY);
                     conf.setCanBeResolved(false);
                     conf.setVisible(false);
@@ -244,10 +240,7 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
                 (ProjectDependency) project.getDependencies().create(project);
         locksDependency.capabilities(moduleDependencyCapabilitiesHandler ->
                 moduleDependencyCapabilitiesHandler.requireCapabilities(GCV_LOCKS_CAPABILITY));
-        locksDependency.attributes(attrs -> {
-            attrs.attribute(Usage.USAGE_ATTRIBUTE, getGcvAttributes().gradleUsageForGcv());
-            attrs.attribute(GcvBuildPath.ATTRIBUTE, getGcvAttributes().buildPath());
-        });
+        getGcvAttributes().configureGcvBaseAttributes(locksDependency);
 
         // This is a "marker" task that does nothing, it exists solely that we can detect if it has been run and so
         // write the versions lock task without running --write-locks code from any other gradle plugin. Unfortunately,
@@ -404,10 +397,7 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
             conf.setVisible(false).setCanBeResolved(false);
 
             // Make sure it can never be selected as part of normal resolution that declares a required usage.
-            conf.getAttributes()
-                    .attribute(Usage.USAGE_ATTRIBUTE, getGcvAttributes().gradleUsageForGcv());
-            conf.getAttributes()
-                    .attribute(GcvBuildPath.ATTRIBUTE, getGcvAttributes().buildPath());
+            getGcvAttributes().configureGcvBaseAttributes(conf);
 
             // Mark it as a GCV_SOURCE, so that when we resolve {@link #UNIFIED_CLASSPATH_CONFIGURATION_NAME}
             // it becomes selected (as the best matching configuration) for the user's normal inter-project dependencies
@@ -421,10 +411,7 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
             conf.setVisible(false); // needn't be visible from other projects
             conf.setCanBeConsumed(true);
             conf.setCanBeResolved(false);
-            conf.getAttributes()
-                    .attribute(Usage.USAGE_ATTRIBUTE, getGcvAttributes().gradleUsageForGcv());
-            conf.getAttributes()
-                    .attribute(GcvBuildPath.ATTRIBUTE, getGcvAttributes().buildPath());
+            getGcvAttributes().configureGcvBaseAttributes(conf);
             conf.getOutgoing().capability(capabilityFor(project, GcvScope.PRODUCTION));
         });
 
@@ -433,10 +420,7 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
             conf.setVisible(false); // needn't be visible from other projects
             conf.setCanBeConsumed(true);
             conf.setCanBeResolved(false);
-            conf.getAttributes()
-                    .attribute(Usage.USAGE_ATTRIBUTE, getGcvAttributes().gradleUsageForGcv());
-            conf.getAttributes()
-                    .attribute(GcvBuildPath.ATTRIBUTE, getGcvAttributes().buildPath());
+            getGcvAttributes().configureGcvBaseAttributes(conf);
             conf.getOutgoing().capability(capabilityFor(project, GcvScope.TEST));
         });
 
@@ -670,12 +654,8 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
                         ImmutableList.copyOf(copiedConf.getAllDependencyConstraints()));
             }
 
-            copiedConf
-                    .getAttributes()
-                    .attribute(Usage.USAGE_ATTRIBUTE, getGcvAttributes().gradleUsageForGcv());
-            copiedConf
-                    .getAttributes()
-                    .attribute(GcvBuildPath.ATTRIBUTE, getGcvAttributes().buildPath());
+            getGcvAttributes().configureGcvBaseAttributes(copiedConf);
+
             // Must set this because we depend on this configuration when resolving unifiedClasspath.
             copiedConf.setCanBeConsumed(true);
             // Since we only depend on these from the same project (via CONSISTENT_VERSIONS_PRODUCTION or

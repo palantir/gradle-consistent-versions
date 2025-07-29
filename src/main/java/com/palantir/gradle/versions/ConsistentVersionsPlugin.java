@@ -24,13 +24,16 @@ import org.gradle.api.Named;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.attributes.Attribute;
+import org.gradle.api.attributes.AttributeContainer;
 import org.gradle.api.attributes.AttributesSchema;
+import org.gradle.api.attributes.HasAttributes;
 import org.gradle.api.attributes.Usage;
 import org.gradle.api.internal.GradleInternal;
 import org.gradle.api.invocation.Gradle;
 import org.gradle.api.model.ObjectFactory;
 import org.gradle.util.GradleVersion;
 
+@SuppressWarnings("IllegalImport")
 public class ConsistentVersionsPlugin implements Plugin<Project> {
     static final String CONSISTENT_VERSIONS_USAGE = "consistent-versions-usage";
 
@@ -72,11 +75,11 @@ public class ConsistentVersionsPlugin implements Plugin<Project> {
          *
          * <ul>
          *   <li>they don't cause an ambiguity between the copied and the original {@code apiElements},
-         *       {@code runtimeElements} etc., when a resolution with a required usage is performed (such as by resolving a
-         *       {@code compileClasspath} or {@code runtimeClasspath} configuration)
-         *   <li>to avoid the configurations we create to calculate locks being resolved as an actual candidate in normal
-         *       resolution, when all other candidates didn't match, simply because it had completely distinct attributes
-         *       from the requested attributes.
+         *       {@code runtimeElements} etc., when a resolution with a required usage is performed (such as by
+         *       resolving a {@code compileClasspath} or {@code runtimeClasspath} configuration)
+         *   <li>to avoid the configurations we create to calculate locks being resolved as an actual candidate in
+         *       normal resolution, when all other candidates didn't match, simply because it had completely distinct
+         *       attributes from the requested attributes.
          * </ul>
          */
         public final Usage gradleUsageForGcv() {
@@ -100,11 +103,16 @@ public class ConsistentVersionsPlugin implements Plugin<Project> {
                 return ((GradleInternal) getGradle()).getIdentityPath().getPath();
             }
         }
+
+        public final void configureGcvBaseAttributes(HasAttributes hasAttributes) {
+            AttributeContainer attributes = hasAttributes.getAttributes();
+            attributes.attribute(Usage.USAGE_ATTRIBUTE, gradleUsageForGcv());
+            attributes.attribute(GcvBuildPath.ATTRIBUTE, buildPath());
+        }
     }
 
     public abstract static class GcvBuildPath implements Named {
         public static final Attribute<GcvBuildPath> ATTRIBUTE =
                 Attribute.of("com.palantir.consistent-versions.build-path", GcvBuildPath.class);
     }
-
 }
