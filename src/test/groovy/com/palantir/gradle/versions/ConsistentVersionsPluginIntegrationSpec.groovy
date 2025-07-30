@@ -483,9 +483,28 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
             }
             allprojects {
                 group 'com.palantir.included-build'
+                version '1.0.0'
                 
                 repositories {
                     maven { url "file:///${mavenRepo.getAbsolutePath()}" }
+                }
+            }
+            
+            subprojects {
+                apply plugin: 'java'
+                apply plugin: 'maven-publish'
+                publishing {
+                    repositories {
+                        maven {
+                            url = "${mavenRepo.absolutePath}"
+                        }
+                    }
+                    
+                    publications {
+                        maven(MavenPublication) {
+                            from components.java
+                        }
+                    }
                 }
             }
             
@@ -517,6 +536,24 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         // configure main build
         buildFile << """
             apply plugin: 'java'
+            
+            group 'com.palantir.main-build'
+            version '1.2.3'
+            
+            apply plugin: 'maven-publish'
+            publishing {
+                repositories {
+                    maven {
+                        url = "${mavenRepo.absolutePath}"
+                    }
+                }
+                
+                publications {
+                    maven(MavenPublication) {
+                        from components.java
+                    }
+                }
+            }
         
             dependencies {
                 implementation 'test-alignment:module-that-should-be-aligned-up'
@@ -554,6 +591,11 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
 
         then: 'build succeeds'
         runTasks('--write-locks')
+
+        println runTasks(
+                ':publishMavenPublicationToMavenRepository',
+                ':included-build:innerA:publishMavenPublicationToMavenRepository',
+                ':included-build:innerB:publishMavenPublicationToMavenRepository').output
 
         and: 'root build: dependency is bumped - there is a difference in resolution between Gradle versions hence why we do not compare contents directly'
         String rootVersionsLock = file("versions.lock").text
