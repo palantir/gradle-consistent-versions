@@ -21,7 +21,7 @@ import com.google.common.collect.ImmutableSet;
 import java.util.Set;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
-import org.gradle.api.plugins.JavaPluginConvention;
+import org.gradle.api.plugins.JavaPluginExtension;
 import org.gradle.api.tasks.SourceSet;
 
 final class GradleConfigurations {
@@ -38,10 +38,12 @@ final class GradleConfigurations {
      *
      * Note that we need to do a defensive copy here to guard against concurrent modification.
      * See https://github.com/palantir/gradle-consistent-versions/pull/812
+     * And even more defensive:
+     * https://github.com/palantir/gradle-consistent-versions/pull/1307
      */
     public static Set<Configuration> getResolvableConfigurations(Project project) {
         Set<String> legacyJavaConfigurations = getLegacyJavaConfigurations(project);
-        return project.getConfigurations().stream()
+        return ImmutableSet.copyOf(project.getConfigurations()).stream()
                 .filter(Configuration::isCanBeResolved)
                 .filter(conf -> !legacyJavaConfigurations.contains(conf.getName()))
                 .filter(conf -> DEPRECATED_SOURCESET_SUFFIXES.stream()
@@ -54,7 +56,7 @@ final class GradleConfigurations {
      * applied, this returns an empty set.
      */
     private static Set<String> getLegacyJavaConfigurations(Project project) {
-        JavaPluginConvention javaConvention = project.getConvention().findPlugin(JavaPluginConvention.class);
+        JavaPluginExtension javaConvention = project.getExtensions().findByType(JavaPluginExtension.class);
         if (javaConvention == null) {
             return ImmutableSet.of();
         }

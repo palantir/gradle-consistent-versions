@@ -21,7 +21,7 @@ import java.util.Set;
 import javax.inject.Inject;
 import org.gradle.api.Action;
 import org.gradle.api.Project;
-import org.gradle.api.plugins.JavaPluginConvention;
+import org.gradle.api.plugins.JavaPluginExtension;
 import org.gradle.api.provider.Property;
 import org.gradle.api.provider.SetProperty;
 import org.gradle.api.tasks.SourceSet;
@@ -64,8 +64,8 @@ public class VersionsLockExtension {
                 project.getPluginManager().hasPlugin("java"),
                 "The java plugin must be applied to consider this a test project: %s",
                 project);
-        project.getConvention()
-                .getPlugin(JavaPluginConvention.class)
+        project.getExtensions()
+                .getByType(JavaPluginExtension.class)
                 .getSourceSets()
                 .all(testConfigurer::from);
     }

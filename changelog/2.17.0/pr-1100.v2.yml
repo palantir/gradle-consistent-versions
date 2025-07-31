@@ -1,0 +1,6 @@
+type: fix
+fix:
+  description: Include stacktraces in error for "Could not compute lock state from
+    configuration"
+  links:
+  - https://github.com/palantir/gradle-consistent-versions/pull/1100

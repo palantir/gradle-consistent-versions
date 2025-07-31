@@ -48,7 +48,6 @@ import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -94,7 +93,7 @@ import org.gradle.api.logging.Logging;
 import org.gradle.api.logging.configuration.ShowStacktrace;
 import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.plugins.JavaPlugin;
-import org.gradle.api.plugins.JavaPluginConvention;
+import org.gradle.api.plugins.JavaPluginExtension;
 import org.gradle.api.provider.Property;
 import org.gradle.api.publish.Publication;
 import org.gradle.api.publish.PublishingExtension;
@@ -109,7 +108,7 @@ import org.immutables.value.Value;
 
 public class VersionsLockPlugin implements Plugin<Project> {
     private static final Logger log = Logging.getLogger(VersionsLockPlugin.class);
-    static final GradleVersion MINIMUM_GRADLE_VERSION = GradleVersion.version("6.1");
+    static final GradleVersion MINIMUM_GRADLE_VERSION = GradleVersion.version("7.6.4");
 
     /** Root project configuration that collects all the dependencies from each project. */
     static final String UNIFIED_CLASSPATH_CONFIGURATION_NAME = "unifiedClasspath";
@@ -166,13 +165,10 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
     static final Comparator<GcvScope> GCV_SCOPE_COMPARATOR = Comparator.comparing(scope -> {
         // Production takes priority over test when it comes to provenance.
-        switch (scope) {
-            case PRODUCTION:
-                return 0;
-            case TEST:
-                return 1;
-        }
-        throw new RuntimeException("Unexpected GcvScope: " + scope);
+        return switch (scope) {
+            case PRODUCTION -> 0;
+            case TEST -> 1;
+        };
     });
 
     private final ShowStacktrace showStacktrace;
@@ -204,6 +200,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
         return project.file("versions.lock").toPath();
     }
 
+    @SuppressWarnings({"for-rollout:GradleTypesAsFields", "for-rollout:NonAbstractGradleType"})
     @Override
     public final void apply(Project project) {
         checkPreconditions(project);
@@ -218,6 +215,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
             });
         });
 
+        @SuppressWarnings("for-rollout:ConfigurationAvoidanceRegistration")
         Configuration unifiedClasspath = project.getConfigurations()
                 .create(UNIFIED_CLASSPATH_CONFIGURATION_NAME, conf -> {
                     conf.setVisible(false).setCanBeConsumed(false);
@@ -260,8 +258,9 @@ public class VersionsLockPlugin implements Plugin<Project> {
         // write the versions lock task without running --write-locks code from any other gradle plugin. Unfortunately,
         // we can't just have the task run the write locks code as we need to write the locks in afterEvaluate.
         project.getTasks()
-                .register(WRITE_VERSIONS_LOCKS_TASK, WriteVersionsLocksMarkerTask.class, writeVersionsLock -> {
-                    writeVersionsLock.getOutputs().upToDateWhen(_ignored -> false);
+                .register(WRITE_VERSIONS_LOCKS_TASK, WriteVersionsLocksMarkerTask.class, writeVersionsLocks -> {
+                    writeVersionsLocks.getShouldWriteLocks().set(VersionsLockPlugin.shouldWriteLocks(project));
+                    writeVersionsLocks.doNotTrackState("This task should always run.");
                 });
 
         // afterEvaluate is necessary to ensure all projects' dependencies have been configured, because we
@@ -598,6 +597,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
      * {@link DependencySet}, and then amends their {@link ProjectDependency#getTargetConfiguration()} to point to the
      * copied configuration. It then eagerly configures any copied Configurations recursively.
      */
+    @SuppressWarnings("for-rollout:StringConcatToTextBlock")
     private void recursivelyCopyProjectDependenciesWithScope(
             Project currentProject,
             DependencySet dependencySet,
@@ -661,8 +661,6 @@ public class VersionsLockPlugin implements Plugin<Project> {
             copiedConf.getAttributes().attribute(Usage.USAGE_ATTRIBUTE, internalUsage);
             // Must set this because we depend on this configuration when resolving unifiedClasspath.
             copiedConf.setCanBeConsumed(true);
-            // But this should never be resolved! (it will most likely fail to given the usage above)
-            copiedConf.setCanBeResolved(false);
             // Since we only depend on these from the same project (via CONSISTENT_VERSIONS_PRODUCTION or
             // CONSISTENT_VERSIONS_TEST), we shouldn't allow them to be visible outside this project.
             copiedConf.setVisible(false);
@@ -761,12 +759,19 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 .map(a -> (UnresolvedDependencyResult) a)
                 .collect(Collectors.toList());
         if (!unresolved.isEmpty()) {
-            throw new GradleException(String.format(
-                    "Could not compute lock state from configuration '%s' due to unresolved dependencies:\n%s",
+            GradleException gradleException = new GradleException(String.format(
+                    "Could not compute lock state from configuration '%s' due to unresolved dependencies "
+                            + "(see suppressed exceptions below for full stacktraces):\n%s",
                     UNIFIED_CLASSPATH_CONFIGURATION_NAME,
                     unresolved.stream()
                             .map(this::formatUnresolvedDependencyResult)
                             .collect(Collectors.joining("\n"))));
+
+            unresolved.forEach(unresolvedDependencyResult -> {
+                gradleException.addSuppressed(unresolvedDependencyResult.getFailure());
+            });
+
+            throw gradleException;
         }
     }
 
@@ -787,16 +792,18 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 .forEach(component -> {
                     GcvScope scope = getScope(component, scopeCache, directDependencyScopes);
                     switch (scope) {
-                        case PRODUCTION:
+                        case PRODUCTION -> {
                             builder.putProductionDeps(
                                     MyModuleVersionIdentifier.copyOf(component.getModuleVersion()),
                                     extractDependents(component));
                             return;
-                        case TEST:
+                        }
+                        case TEST -> {
                             builder.putTestDeps(
                                     MyModuleVersionIdentifier.copyOf(component.getModuleVersion()),
                                     extractDependents(component));
                             return;
+                        }
                     }
                     throw new RuntimeException(String.format(
                             "Unexpected scope for component %s: %s", component.getModuleVersion(), scope));
@@ -868,8 +875,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
     }
 
     private static VersionConstraint getRequestedVersionConstraint(ComponentSelector requested) {
-        if (requested instanceof ModuleComponentSelector) {
-            return ((ModuleComponentSelector) requested).getVersionConstraint();
+        if (requested instanceof ModuleComponentSelector moduleComponentSelector) {
+            return moduleComponentSelector.getVersionConstraint();
         }
         throw new RuntimeException(String.format(
                 "Expecting a ModuleComponentSelector but found a %s: %s", requested.getClass(), requested));
@@ -932,6 +939,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
             ProjectDependency locksDependency,
             List<DependencyConstraint> publishableConstraints,
             LockedConfigurations lockedConfigurations) {
+        @SuppressWarnings("for-rollout:ConfigurationAvoidanceRegistration")
         Configuration locksConfiguration = subproject
                 .getConfigurations()
                 .create(LOCK_CONSTRAINTS_CONFIGURATION_NAME, locksConf -> {
@@ -985,17 +993,21 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 Collections2.transform(ext.getTestConfigurations(), project.getConfigurations()::getByName));
 
         if (ext.isUseJavaPluginDefaults() && project.getPluginManager().hasPlugin("java")) {
-            SourceSetContainer sourceSets = project.getConvention()
-                    .getPlugin(JavaPluginConvention.class)
-                    .getSourceSets();
+            SourceSetContainer sourceSets =
+                    project.getExtensions().getByType(JavaPluginExtension.class).getSourceSets();
 
             lockedConfigurations.addAllProductionConfigurations(
                     getConfigurationsForSourceSet(project, sourceSets.getByName(SourceSet.MAIN_SOURCE_SET_NAME)));
 
             // Use heuristic for test source sets.
             sourceSets
-                    .matching(sourceSet ->
-                            sourceSet.getName().toLowerCase(Locale.ROOT).endsWith("test"))
+                    .matching(sourceSet -> {
+                        String name = sourceSet.getName();
+                        return name.equals("test")
+                                || name.equals("testFixtures")
+                                || name.equals("jmh")
+                                || name.endsWith("Test");
+                    })
                     .forEach(sourceSet -> lockedConfigurations.addAllTestConfigurations(
                             getConfigurationsForSourceSet(project, sourceSet)));
         }
@@ -1127,12 +1139,12 @@ public class VersionsLockPlugin implements Plugin<Project> {
     }
 
     private static boolean isLibraryPublication(Project project, Publication publication) {
-        if (publication instanceof MavenPublication) {
-            MavenPublication mavenPublication = (MavenPublication) publication;
+        if (publication instanceof MavenPublication mavenPublication) {
+
             return mavenPublication.getArtifacts().stream().anyMatch(artifact -> "jar".equals(artifact.getExtension()));
         }
-        if (publication instanceof IvyPublication) {
-            IvyPublication ivyPublication = (IvyPublication) publication;
+        if (publication instanceof IvyPublication ivyPublication) {
+
             return ivyPublication.getArtifacts().stream().anyMatch(artifact -> "jar".equals(artifact.getExtension()));
         }
         log.warn(

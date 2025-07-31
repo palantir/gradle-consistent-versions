@@ -178,8 +178,8 @@ final class GradleWorkarounds {
             // configuration is propagated transitively in two ways: dependencies and string-based task dependencies.
             for (Configuration configuration : project.getConfigurations()) {
                 for (Dependency dependency : configuration.getDependencies()) {
-                    if (dependency instanceof ProjectDependency) {
-                        Project dependencyProject = ((ProjectDependency) dependency).getDependencyProject();
+                    if (dependency instanceof ProjectDependency projectDependency) {
+                        Project dependencyProject = projectDependency.getDependencyProject();
                         if (dependencyProject != rootProject) {
                             projectPathsToEval.add(dependencyProject.getPath());
                         }

@@ -1,0 +1,5 @@
+type: feature
+feature:
+  description: Support test fixtures.
+  links:
+  - https://github.com/palantir/gradle-consistent-versions/pull/1171

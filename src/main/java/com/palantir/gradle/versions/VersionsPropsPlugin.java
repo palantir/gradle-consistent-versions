@@ -92,6 +92,15 @@ public class VersionsPropsPlugin implements Plugin<Project> {
                     });
             project.getTasks().named("check").configure(task -> task.dependsOn(checkNoUnusedConstraints));
 
+            TaskProvider<CheckOverbroadConstraints> checkOverbroadConstraints = project.getTasks()
+                    .register("checkOverbroadConstraints", CheckOverbroadConstraints.class, task -> {
+                        task.getLockFile()
+                                .set(project.getLayout().getProjectDirectory().file("versions.lock"));
+                        task.getPropsFile()
+                                .set(project.getLayout().getProjectDirectory().file("versions.props"));
+                    });
+            project.getTasks().named("check").configure(task -> task.dependsOn(checkOverbroadConstraints));
+
             // Create "platform" configuration in root project, which will hold the versions props constraints
             project.getConfigurations().register(GCV_VERSIONS_PROPS_CONSTRAINTS_CONFIGURATION_NAME, conf -> {
                 conf.getAttributes().attribute(Usage.USAGE_ATTRIBUTE, gcvVersionsPropsUsage);
@@ -141,6 +150,7 @@ public class VersionsPropsPlugin implements Plugin<Project> {
         return projectDep;
     }
 
+    @SuppressWarnings({"for-rollout:GradleTypesAsFields", "for-rollout:NonAbstractGradleType"})
     private static void applyToRootProject(Project project) {
         project.getPluginManager().apply(LifecycleBasePlugin.class);
         project.getExtensions()

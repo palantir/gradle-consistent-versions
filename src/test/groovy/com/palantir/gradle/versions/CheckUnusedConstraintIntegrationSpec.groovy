@@ -38,15 +38,15 @@ class CheckUnusedConstraintIntegrationSpec extends IntegrationSpec {
             versionRecommendations {
                 excludeConfigurations 'compile', 'runtime', 'testCompile', 'testRuntime'
             }
-        """.stripIndent()
+        """.stripIndent(true)
         file('gradle.properties').text = """
         ignoreLockFile=true
-        """.stripIndent()
+        """.stripIndent(true)
         createFile('versions.props')
     }
 
     def buildSucceed() {
-        BuildResult result = runTasks( 'checkUnusedConstraints')
+        BuildResult result = runTasks('checkUnusedConstraints')
         result.task(':checkUnusedConstraints').outcome == TaskOutcome.SUCCESS
         result
     }
@@ -71,7 +71,7 @@ class CheckUnusedConstraintIntegrationSpec extends IntegrationSpec {
             dependencies {
                 implementation 'com.palantir.product:foo:1.0.0'
             }
-        """.stripIndent()
+        """.stripIndent(true)
         file("versions.props").text = ""
 
         // We're not producing a jar for this dependency, so artifact resolution would fail
@@ -93,11 +93,11 @@ class CheckUnusedConstraintIntegrationSpec extends IntegrationSpec {
         file('versions.props').text = """
             com.fasterxml.jackson.*:* = 2.9.3
             com.fasterxml.jackson.core:jackson-annotations = 2.9.5
-        """.stripIndent()
+        """.stripIndent(true)
         buildFile << """
         dependencies {
             implementation 'com.fasterxml.jackson.core:jackson-databind'
-        }""".stripIndent()
+        }""".stripIndent(true)
 
         then:
         buildSucceed()
@@ -108,12 +108,12 @@ class CheckUnusedConstraintIntegrationSpec extends IntegrationSpec {
         file('versions.props').text = """
             org.slf4j:slf4j-api = 1.7.25
             org.slf4j:* = 1.7.20
-        """.stripIndent()
+        """.stripIndent(true)
 
         buildFile << """
         dependencies {
             implementation 'org.slf4j:slf4j-api'
-        }""".stripIndent()
+        }""".stripIndent(true)
 
         then:
         buildAndFailWith('There are unused pins in your versions.props: \n[org.slf4j:*]')
@@ -126,13 +126,13 @@ class CheckUnusedConstraintIntegrationSpec extends IntegrationSpec {
         file('versions.props').text = """
             org.slf4j:slf4j-* = 1.7.25
             org.slf4j:* = 1.7.20
-        """.stripIndent()
+        """.stripIndent(true)
 
         buildFile << """
         dependencies {
             implementation 'org.slf4j:slf4j-api'
             implementation 'org.slf4j:slf4j-jdk14'
-        }""".stripIndent()
+        }""".stripIndent(true)
 
         then:
         buildAndFailWith('There are unused pins in your versions.props: \n[org.slf4j:*]')
@@ -154,12 +154,12 @@ class CheckUnusedConstraintIntegrationSpec extends IntegrationSpec {
         file('versions.props').text = """
             com.google.guava:guava-testlib = 23.0
             com.google.guava:guava = 22.0
-        """.stripIndent()
+        """.stripIndent(true)
         buildFile << """
         dependencies {
             implementation 'com.google.guava:guava'
             implementation 'com.google.guava:guava-testlib'
-        }""".stripIndent()
+        }""".stripIndent(true)
 
         then:
         buildSucceed()
@@ -177,6 +177,6 @@ class CheckUnusedConstraintIntegrationSpec extends IntegrationSpec {
             <description/>
             <dependencies/>
             </project>
-        """.stripIndent()
+        """.stripIndent(true)
     }
 }

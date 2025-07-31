@@ -78,7 +78,7 @@ class ConfigurationOnDemandSpec extends IntegrationSpec {
             versionRecommendations {
                 excludeConfigurations 'compile', 'runtime', 'testCompile', 'testRuntime'
             }
-        """.stripIndent()
+        """.stripIndent(true)
 
         file('versions.props').text = """
             com.example:dependency-of-upstream = 1.2.3
@@ -87,7 +87,7 @@ class ConfigurationOnDemandSpec extends IntegrationSpec {
             com.example:dependency-of-unrelated = 1.2.3
             # 1.0.0 is a minimum, we expect this to be locked to 1.1.0
             com.example:dep-with-version-bumped-by-unrelated = 1.0.0
-        """.stripIndent()
+        """.stripIndent(true)
 
         addSubproject("upstream", """
             plugins {
@@ -97,7 +97,7 @@ class ConfigurationOnDemandSpec extends IntegrationSpec {
             dependencies {
                 implementation 'com.example:dependency-of-upstream'
             }
-        """.stripIndent())
+        """.stripIndent(true))
 
         addSubproject("downstream1", """
             plugins {
@@ -108,7 +108,7 @@ class ConfigurationOnDemandSpec extends IntegrationSpec {
                 implementation project(':upstream')
                 implementation 'com.example:dependency-of-downstream1'
             }
-        """.stripIndent())
+        """.stripIndent(true))
 
         addSubproject("downstream2", """
             plugins {
@@ -120,7 +120,7 @@ class ConfigurationOnDemandSpec extends IntegrationSpec {
                 implementation 'com.example:dependency-of-downstream2'
                 implementation 'com.example:dep-with-version-bumped-by-unrelated'
             }
-        """.stripIndent())
+        """.stripIndent(true))
 
         addSubproject("unrelated", """
             plugins {
@@ -131,11 +131,11 @@ class ConfigurationOnDemandSpec extends IntegrationSpec {
                 implementation 'com.example:dependency-of-unrelated'
                 implementation 'com.example:dep-with-version-bumped-by-unrelated:1.1.0'
             }
-        """.stripIndent())
+        """.stripIndent(true))
 
         file("gradle.properties").text = """
             org.gradle.configureondemand=true
-        """.stripIndent()
+        """.stripIndent(true)
     }
 
     def '#gradleVersionNumber: can write locks'() {
@@ -243,13 +243,13 @@ class ConfigurationOnDemandSpec extends IntegrationSpec {
             dependencies {
                 implementation 'com.example:transitive-test-dep:1.0.0'
             }
-        """.stripIndent())
+        """.stripIndent(true))
         addSubproject("b", """
             plugins { id 'java' }
             dependencies {
                 implementation project(':a')
             }
-        """.stripIndent())
+        """.stripIndent(true))
         addSubproject("c", """
             plugins { id 'java' }
             dependencies {
@@ -260,13 +260,13 @@ class ConfigurationOnDemandSpec extends IntegrationSpec {
                     println project(':a').configurations.runtimeClasspath.files
                 }
             }
-        """.stripIndent())
+        """.stripIndent(true))
         addSubproject("u", """
             plugins { id 'java' }
             dependencies {
                 implementation 'com.example:transitive-test-dep:1.1.0'
             }
-        """.stripIndent())
+        """.stripIndent(true))
 
         when:
         runTasks('--write-locks')
@@ -288,23 +288,23 @@ class ConfigurationOnDemandSpec extends IntegrationSpec {
             dependencies {
                 implementation 'com.example:transitive-test-dep:1.0.0'
             }
-        """.stripIndent())
+        """.stripIndent(true))
         addSubproject("b", """
             tasks.register('foo') {
                 dependsOn ':a:writeClasspath'
             }
-        """.stripIndent())
+        """.stripIndent(true))
         addSubproject("c", """
             tasks.register('bar') {
                 dependsOn ':b:foo'
             }
-        """.stripIndent())
+        """.stripIndent(true))
         addSubproject("u", """
             plugins { id 'java' }
             dependencies {
                 implementation 'com.example:transitive-test-dep:1.1.0'
             }
-        """.stripIndent())
+        """.stripIndent(true))
 
         when:
         runTasks('--write-locks')

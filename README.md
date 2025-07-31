@@ -33,10 +33,10 @@ Direct dependencies are specified in a top level `versions.props` file and then 
     com.squareup.okhttp3:okhttp = 3.12.0
     ```
 
-4. Run **`./gradlew --write-locks`** and see your versions.lock file be automatically created. This file should be checked into your repo:
+4. Run **`./gradlew writeVersionsLocks`** and see your versions.lock file be automatically created. This file should be checked into your repo:
 
     ```bash
-    # Run ./gradlew --write-locks to regenerate this file. Blank lines are to minimize merge conflicts.
+    # Run ./gradlew writeVersionsLocks to regenerate this file.  Blank lines are to minimize merge conflicts.
     com.squareup.okhttp3:okhttp:3.12.0 (1 constraints: 38053b3b)
     com.squareup.okio:okio:1.15.0 (1 constraints: 810cbb09)
     ```
@@ -50,6 +50,7 @@ Direct dependencies are specified in a top level `versions.props` file and then 
     1. versions.lock: compact representation of your prod classpath
     1. ./gradlew why
     1. ./gradlew checkUnusedConstraints
+    1. ./gradlew checkOverbroadConstraints
     1. getVersion
     1. BOMs
     1. Specifying exact versions
@@ -137,14 +138,14 @@ com.jayway.awaitility:awaitility:1.6.5 (1 constraints: c615c1d2)
 ```
 
 The lockfile sources production dependencies from the _compileClasspath_ and _runtimeClasspath_ configurations, and
-test dependencies from the compile/runtime classpaths of any source set that ends in test (e.g. `test`, `integrationTest`,
-`eteTest`).
+test dependencies from the compile/runtime classpaths of any source set named `jmh` or whose name ends in "test"
+(e.g. `test`, `integrationTest`, `eteTest`).
 
 There is a `verifyLocks` task (automatically run as part of `check`) that will ensure `versions.lock` is still consistent
 with the current dependencies.
 
 ### ./gradlew why
-To understand why a particular version in your lockfile has been chosen, run `./gradlew why --hash a60c3ce8` to expand the constraints:
+To understand why a particular version in your lockfile has been chosen, run `./gradlew why --dependency <dependency>` to expand the constraints:
 ```
 > Task :why
 com.fasterxml.jackson.core:jackson-databind:2.9.8
@@ -160,12 +161,40 @@ This is effectively just a more concise version of `dependencyInsight`:
 ./gradlew  dependencyInsight --configuration unifiedClasspath --dependency jackson-databind
 ```
 
-You can check multiple dependencies at once by passing multiple comma-delimited hash values, e.g.
-`./gradlew why --hash a60c3ce8,400d4d2a`.
-
-## ./gradlew checkUnusedConstraints
+### ./gradlew checkUnusedConstraints
 `checkUnusedConstraints` prevents unnecessary constraints from accruing in your `versions.props` file. Run
 `./gradlew checkUnusedConstraints --fix` to automatically remove any unused constraints from your props file.
+
+### ./gradlew checkOverbroadConstraints
+`checkOverbroadConstraints` prevents over-broad constants/`versions.props` pins. Run `./gradlew checkOverbroadConstraints --fix` 
+to automatically add the necessary constrains to your props file.
+
+Over-broad constraints are often caused by having a `*` entry in `version.props` (or generally a constraint) which is 
+"over-broad" - which is applying to more dependencies than it should.
+
+For example, given this `versions.props`:
+
+```properties
+org.junit.*:* = 5.10.2
+```
+
+And in `versions.lock` you see you have these two dependencies:
+
+```
+org.junit.jupiter:junit-jupiter:5.10.2
+org.junit.platform:junit-platform-commons:1.10.2
+```
+
+Since `5.10.2` > `1.10.2`, whenever Gradle tries to resolve `org.junit.platform:junit-platform-commons`, it first tries version `5.10.2` thanks to the `versions.props` pin. This returns a 404, and it falls back to trying the next constraint `1.10.2`, which works.
+
+However, that 404 can be very expensive. In particular, if you are hitting an Artifactory virtual repository, which is backed by many upstream Maven repositories, Artifactory will try each of these upstreams serially until it gets a 200. This can take many seconds. You can see this by appending `?trace` to the Artifactory url.
+
+The solution is break up the over-broad versions prop into non-overlapping pieces:
+
+```
+org.junit.jupiter:* = 5.10.2
+org.junit.platform:* = 1.10.2
+```
 
 ### getVersion
 If you want to use the resolved version of some dependency elsewhere in your Gradle files, gradle-consistent-versions offers the `getVersion(group, name, [configuration])` convenience function. For example:

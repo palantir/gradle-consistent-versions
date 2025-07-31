@@ -18,10 +18,12 @@ package com.palantir.gradle.versions;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
+import com.palantir.gradle.failurereports.exceptions.ExceptionWithSuggestion;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.util.HashSet;
@@ -30,7 +32,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.gradle.api.DefaultTask;
-import org.gradle.api.GradleException;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.component.ModuleComponentIdentifier;
 import org.gradle.api.artifacts.result.ResolutionResult;
@@ -45,13 +46,21 @@ import org.gradle.api.tasks.TaskAction;
 import org.gradle.api.tasks.options.Option;
 import org.gradle.language.base.plugins.LifecycleBasePlugin;
 
+@SuppressWarnings("for-rollout:NonAbstractGradleType")
 public class CheckUnusedConstraintsTask extends DefaultTask {
 
+    @SuppressWarnings("for-rollout:GradleTypesAsFields")
     private final Property<Boolean> shouldFailWithConfigurationOnDemandMessage =
             getProject().getObjects().property(Boolean.class);
+
+    @SuppressWarnings("for-rollout:GradleTypesAsFields")
     private final Property<Boolean> shouldFix = getProject().getObjects().property(Boolean.class);
+
+    @SuppressWarnings("for-rollout:GradleTypesAsFields")
     private final RegularFileProperty propsFileProperty =
             getProject().getObjects().fileProperty();
+
+    @SuppressWarnings("for-rollout:GradleTypesAsFields")
     private final SetProperty<String> classpath = getProject().getObjects().setProperty(String.class);
 
     public CheckUnusedConstraintsTask() {
@@ -59,7 +68,7 @@ public class CheckUnusedConstraintsTask extends DefaultTask {
         shouldFix.set(false);
         setGroup(LifecycleBasePlugin.VERIFICATION_GROUP);
         setDescription("Ensures all versions in your versions.props correspond to an actual gradle dependency");
-        getOutputs().upToDateWhen(_task -> true); // task has no outputs, this is need for it to be up to date
+        getOutputs().upToDateWhen(_task -> true); // task has no outputs, this is needed for it to be up to date
     }
 
     final void setPropsFile(File propsFile) {
@@ -98,10 +107,12 @@ public class CheckUnusedConstraintsTask extends DefaultTask {
     @TaskAction
     public final void checkNoUnusedPin() {
         if (shouldFailWithConfigurationOnDemandMessage.get()) {
-            throw new GradleException("The gradle-consistent-versions checkUnusedConstraints task must have all "
-                    + "projects configured to work accurately, but due to Gradle configuration-on-demand, not all "
-                    + "projects were configured. Make your command work by including a task with no project name (such "
-                    + "as `./gradlew build` vs. `./gradlew :build`) or use --no-configure-on-demand.");
+            throw new ExceptionWithSuggestion(
+                    "The gradle-consistent-versions checkUnusedConstraints task must have all projects configured to"
+                            + " work accurately, but due to Gradle configuration-on-demand, not all projects were"
+                            + " configured. Make your command work by including a task with no project name (such as"
+                            + " `./gradlew build` vs. `./gradlew :build`) or use --no-configure-on-demand.",
+                    "./gradlew build");
         }
 
         Set<String> artifacts = getClasspath().get();
@@ -122,8 +133,7 @@ public class CheckUnusedConstraintsTask extends DefaultTask {
         if (unusedConstraints.isEmpty()) {
             return;
         } else if (shouldFix.get()) {
-            getProject()
-                    .getLogger()
+            getLogger()
                     .lifecycle("Removing unused pins from versions.props:\n"
                             + unusedConstraints.stream()
                                     .map(name -> String.format(" - '%s'", name))
@@ -132,10 +142,10 @@ public class CheckUnusedConstraintsTask extends DefaultTask {
             return;
         }
 
-        throw new RuntimeException("There are unused pins in your versions.props: \n"
-                + unusedConstraints
-                + "\n\n"
-                + "Run ./gradlew checkUnusedConstraints --fix to remove them.");
+        throw new ExceptionWithSuggestion(
+                "There are unused pins in your versions.props: \n" + unusedConstraints + "\n\n"
+                        + "Run ./gradlew checkUnusedConstraints --fix to remove them.",
+                "./gradlew checkUnusedConstraints --fix");
     }
 
     private static void writeVersionsProps(File propsFile, Set<String> unusedConstraints) {
@@ -149,7 +159,7 @@ public class CheckUnusedConstraintsTask extends DefaultTask {
                 }
             }
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new UncheckedIOException("Error opening or creating " + propsFile.toPath(), e);
         }
     }
 
@@ -157,7 +167,7 @@ public class CheckUnusedConstraintsTask extends DefaultTask {
         try (Stream<String> lines = Files.lines(propsFile.toPath())) {
             return lines.collect(ImmutableList.toImmutableList());
         } catch (IOException e) {
-            throw new RuntimeException("Error reading " + propsFile.toPath());
+            throw new UncheckedIOException("Error reading " + propsFile.toPath(), e);
         }
     }
 
@@ -178,7 +188,7 @@ public class CheckUnusedConstraintsTask extends DefaultTask {
                     } catch (Exception e) {
                         throw new RuntimeException(
                                 String.format(
-                                        "Error during resolution of the dependency graph of " + "configuration %s",
+                                        "Error during resolution of the dependency graph of configuration %s",
                                         configuration),
                                 e);
                     }

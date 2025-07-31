@@ -16,7 +16,6 @@
 
 package com.palantir.gradle.versions;
 
-import com.google.common.base.Preconditions;
 import com.palantir.gradle.versions.lockstate.FullLockState;
 import com.palantir.gradle.versions.lockstate.ImmutableLine;
 import com.palantir.gradle.versions.lockstate.Line;
@@ -24,6 +23,7 @@ import com.palantir.gradle.versions.lockstate.LockState;
 import com.palantir.gradle.versions.lockstate.LockStates;
 import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -36,7 +36,7 @@ import org.gradle.api.GradleException;
 
 final class ConflictSafeLockFile {
     private static final String HEADER_COMMENT =
-            "# Run ./gradlew --write-locks to regenerate this file. Blank lines are to minimize merge conflicts.";
+            "# Run ./gradlew writeVersionsLocks to regenerate this file. Blank lines are to minimize merge conflicts.";
     private static final Pattern LINE_PATTERN =
             Pattern.compile("(?<group>[^(:]+):(?<artifact>[^(:]+):(?<version>[^(:\\s]+)"
                     + "\\s+\\((?<num>\\d+) constraints: (?<hash>\\w+)\\)");
@@ -76,11 +76,10 @@ final class ConflictSafeLockFile {
                 .filter(line -> !line.isBlank())
                 .map(line -> {
                     Matcher matcher = LINE_PATTERN.matcher(line);
-                    Preconditions.checkState(
+                    Validators.checkResultOrThrow(
                             matcher.matches(),
-                            "Found unparseable line in dependency lock file '%s': %s",
-                            lockfile,
-                            line);
+                            String.format("Found unparseable line in dependency lock file '%s': %s", lockfile, line),
+                            lockfile);
                     return matcher;
                 })
                 .map(matcher -> ImmutableLine.of(
@@ -107,7 +106,7 @@ final class ConflictSafeLockFile {
                 lockState.testLinesByModuleIdentifier().values().forEach(line -> writeLine(line, writer));
             }
         } catch (IOException e) {
-            throw new RuntimeException("Failed to write lock file: " + lockfile, e);
+            throw new UncheckedIOException("Failed to write lock file: " + lockfile, e);
         }
     }
 
@@ -116,7 +115,7 @@ final class ConflictSafeLockFile {
             writer.append(line.stringRepresentation());
             writer.newLine();
         } catch (IOException e) {
-            throw new RuntimeException("Failed writing line", e);
+            throw new UncheckedIOException("Failed writing line", e);
         }
     }
 }
