@@ -631,7 +631,6 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                 '',
                 '',
                 '',
-                '# Run ./gradlew writeVersionsLocks to regenerate this file',
                 'org:platform:1.0 (1 constraints: a5041a2c)',
         ]
 
