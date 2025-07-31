@@ -1,5 +1,5 @@
-type: improvement
-improvement:
+type: break
+break:
   description: Add one blank line between each entry in `versions.lock` to minimise
     merge conflicts.
   links:
