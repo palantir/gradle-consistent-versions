@@ -1,5 +1,6 @@
 type: improvement
 improvement:
-  description: Add 3 blank lines between lock entries to minimize merge conflicts
+  description: Add one blank line between each entry in `versions.lock` to minimise
+    merge conflicts.
   links:
   - https://github.com/palantir/gradle-consistent-versions/pull/1001
