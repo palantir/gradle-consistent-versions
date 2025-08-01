@@ -30,6 +30,8 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 import com.google.common.collect.Streams;
+import com.palantir.gradle.versions.ConsistentVersionsPlugin.GcvAttributes;
+import com.palantir.gradle.versions.ConsistentVersionsPlugin.GcvBuildPath;
 import com.palantir.gradle.versions.internal.MyModuleIdentifier;
 import com.palantir.gradle.versions.internal.MyModuleVersionIdentifier;
 import com.palantir.gradle.versions.lockstate.Dependents;
@@ -91,7 +93,6 @@ import org.gradle.api.invocation.Gradle;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 import org.gradle.api.logging.configuration.ShowStacktrace;
-import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.plugins.JavaPluginExtension;
 import org.gradle.api.provider.Property;
@@ -99,6 +100,7 @@ import org.gradle.api.publish.Publication;
 import org.gradle.api.publish.PublishingExtension;
 import org.gradle.api.publish.ivy.IvyPublication;
 import org.gradle.api.publish.maven.MavenPublication;
+import org.gradle.api.tasks.Nested;
 import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.SourceSetContainer;
 import org.gradle.api.tasks.TaskProvider;
@@ -106,7 +108,7 @@ import org.gradle.language.base.plugins.LifecycleBasePlugin;
 import org.gradle.util.GradleVersion;
 import org.immutables.value.Value;
 
-public class VersionsLockPlugin implements Plugin<Project> {
+public abstract class VersionsLockPlugin implements Plugin<Project> {
     private static final Logger log = Logging.getLogger(VersionsLockPlugin.class);
     static final GradleVersion MINIMUM_GRADLE_VERSION = GradleVersion.version("7.6.4");
 
@@ -173,27 +175,12 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
     private final ShowStacktrace showStacktrace;
 
-    /**
-     * We don't want the consumable configurations we create ({@link #PLACEHOLDER_CONFIGURATION_NAME},
-     * {@link #CONSISTENT_VERSIONS_PRODUCTION}, {@link #CONSISTENT_VERSIONS_TEST}) and downstream collected
-     * {@link #recursivelyCopyProjectDependencies(Project, DependencySet) configurations that we copy} to have any known
-     * usage, so we give them this usage. This is so that:
-     *
-     * <ul>
-     *   <li>they don't cause an ambiguity between the copied and the original {@code apiElements},
-     *       {@code runtimeElements} etc., when a resolution with a required usage is performed (such as by resolving a
-     *       {@code compileClasspath} or {@code runtimeClasspath} configuration)
-     *   <li>to avoid {@link #PLACEHOLDER_CONFIGURATION_NAME} being resolved as an actual candidate in normal
-     *       resolution, when all other candidates didn't match, simply because it had completely distinct attributes
-     *       from the requested attributes.
-     * </ul>
-     */
-    private final Usage internalUsage;
+    @Nested
+    public abstract GcvAttributes getGcvAttributes();
 
     @Inject
-    public VersionsLockPlugin(Gradle gradle, ObjectFactory objectFactory) {
+    public VersionsLockPlugin(Gradle gradle) {
         showStacktrace = gradle.getStartParameter().getShowStacktrace();
-        internalUsage = objectFactory.named(Usage.class, ConsistentVersionsPlugin.CONSISTENT_VERSIONS_USAGE);
     }
 
     static Path getRootLockFile(Project project) {
@@ -222,6 +209,9 @@ public class VersionsLockPlugin implements Plugin<Project> {
 
                     // Attributes declared here will become required attributes when resolving this configuration
                     conf.getAttributes().attribute(GCV_USAGE_ATTRIBUTE, GcvUsage.GCV_SOURCE);
+                    conf.getAttributes()
+                            .attribute(
+                                    GcvBuildPath.ATTRIBUTE, getGcvAttributes().buildPath());
                 });
 
         project.allprojects(subproject -> {
@@ -240,7 +230,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
         // Create "platform" configuration in root project, which will hold the strictConstraints
         NamedDomainObjectProvider<Configuration> gcvLocksConfiguration = project.getConfigurations()
                 .register("gcvLocks", conf -> {
-                    conf.getAttributes().attribute(Usage.USAGE_ATTRIBUTE, internalUsage);
+                    conf.attributes(getGcvAttributes()::configureGcvBaseAttributes);
                     conf.getOutgoing().capability(GCV_LOCKS_CAPABILITY);
                     conf.setCanBeResolved(false);
                     conf.setVisible(false);
@@ -250,9 +240,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
                 (ProjectDependency) project.getDependencies().create(project);
         locksDependency.capabilities(moduleDependencyCapabilitiesHandler ->
                 moduleDependencyCapabilitiesHandler.requireCapabilities(GCV_LOCKS_CAPABILITY));
-        locksDependency.attributes(attrs -> {
-            attrs.attribute(Usage.USAGE_ATTRIBUTE, internalUsage);
-        });
+        locksDependency.attributes(getGcvAttributes()::configureGcvBaseAttributes);
 
         // This is a "marker" task that does nothing, it exists solely that we can detect if it has been run and so
         // write the versions lock task without running --write-locks code from any other gradle plugin. Unfortunately,
@@ -409,7 +397,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
             conf.setVisible(false).setCanBeResolved(false);
 
             // Make sure it can never be selected as part of normal resolution that declares a required usage.
-            conf.getAttributes().attribute(Usage.USAGE_ATTRIBUTE, internalUsage);
+            conf.attributes(getGcvAttributes()::configureGcvBaseAttributes);
 
             // Mark it as a GCV_SOURCE, so that when we resolve {@link #UNIFIED_CLASSPATH_CONFIGURATION_NAME}
             // it becomes selected (as the best matching configuration) for the user's normal inter-project dependencies
@@ -423,7 +411,7 @@ public class VersionsLockPlugin implements Plugin<Project> {
             conf.setVisible(false); // needn't be visible from other projects
             conf.setCanBeConsumed(true);
             conf.setCanBeResolved(false);
-            conf.getAttributes().attribute(Usage.USAGE_ATTRIBUTE, internalUsage);
+            conf.attributes(getGcvAttributes()::configureGcvBaseAttributes);
             conf.getOutgoing().capability(capabilityFor(project, GcvScope.PRODUCTION));
         });
 
@@ -432,12 +420,18 @@ public class VersionsLockPlugin implements Plugin<Project> {
             conf.setVisible(false); // needn't be visible from other projects
             conf.setCanBeConsumed(true);
             conf.setCanBeResolved(false);
-            conf.getAttributes().attribute(Usage.USAGE_ATTRIBUTE, internalUsage);
+            conf.attributes(getGcvAttributes()::configureGcvBaseAttributes);
             conf.getOutgoing().capability(capabilityFor(project, GcvScope.TEST));
         });
 
-        unifiedClasspath.getDependencies().add(createDependencyOnProjectWithScope(project, GcvScope.PRODUCTION));
-        unifiedClasspath.getDependencies().add(createDependencyOnProjectWithScope(project, GcvScope.TEST));
+        unifiedClasspath
+                .getDependencies()
+                .add(createDependencyOnProjectWithScope(
+                        project, GcvScope.PRODUCTION, getGcvAttributes().buildPath()));
+        unifiedClasspath
+                .getDependencies()
+                .add(createDependencyOnProjectWithScope(
+                        project, GcvScope.TEST, getGcvAttributes().buildPath()));
     }
 
     private static Map<String, String> capabilityFor(Project project, GcvScope scope) {
@@ -464,12 +458,14 @@ public class VersionsLockPlugin implements Plugin<Project> {
     }
 
     /** Create a dependency requiring capabilities for the listed scope. */
-    private static Dependency createDependencyOnProjectWithScope(Project project, GcvScope scope) {
+    private static Dependency createDependencyOnProjectWithScope(
+            Project project, GcvScope scope, GcvBuildPath gcvBuildPath) {
         ProjectDependency projectDependency =
                 (ProjectDependency) project.getDependencies().create(project);
         projectDependency.capabilities(moduleDependencyCapabilitiesHandler ->
                 moduleDependencyCapabilitiesHandler.requireCapabilities(capabilityFor(project, scope)));
-        projectDependency.attributes(attr -> attr.attribute(GCV_SCOPE_ATTRIBUTE, scope));
+        projectDependency.attributes(
+                attr -> attr.attribute(GCV_SCOPE_ATTRIBUTE, scope).attribute(GcvBuildPath.ATTRIBUTE, gcvBuildPath));
         return projectDependency;
     }
 
@@ -658,7 +654,8 @@ public class VersionsLockPlugin implements Plugin<Project> {
                         ImmutableList.copyOf(copiedConf.getAllDependencyConstraints()));
             }
 
-            copiedConf.getAttributes().attribute(Usage.USAGE_ATTRIBUTE, internalUsage);
+            copiedConf.attributes(getGcvAttributes()::configureGcvBaseAttributes);
+
             // Must set this because we depend on this configuration when resolving unifiedClasspath.
             copiedConf.setCanBeConsumed(true);
             // Since we only depend on these from the same project (via CONSISTENT_VERSIONS_PRODUCTION or

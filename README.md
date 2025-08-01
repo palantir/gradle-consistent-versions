@@ -46,12 +46,12 @@ Direct dependencies are specified in a top level `versions.props` file and then 
 1. [Motivation](#motivation)
     1. An evolution of `nebula.dependency-recommender`
 1. [Concepts](#concepts)
-    1. versions.props: lower bounds for dependencies
-    1. versions.lock: compact representation of your prod classpath
-    1. ./gradlew why
-    1. ./gradlew checkUnusedConstraints
-    1. ./gradlew checkOverbroadConstraints
-    1. getVersion
+    1. `versions.props`: lower bounds for dependencies
+    1. `versions.lock`: compact representation of your prod classpath
+    1. `./gradlew why`
+    1. `./gradlew checkUnusedConstraints`
+    1. `./gradlew checkOverbroadConstraints`
+    1. `getVersion`
     1. BOMs
     1. Specifying exact versions
     1. Downgrading things
@@ -98,7 +98,7 @@ Unfortunately, failOnVersionConflict means developers often pick conflict resolu
 
 ## Concepts
 
-### versions.props: lower bounds for dependencies
+### `versions.props`: lower bounds for dependencies
 Specify versions for your direct dependencies in a single root-level `versions.props` file. Think of these versions as the _minimum_ versions your project requires.
 
 ```
@@ -119,7 +119,7 @@ This has the side effect that a line referring specifically to a jar is independ
 [virtual platform]: https://docs.gradle.org/current/userguide/dependency_version_alignment.html
 
 
-### versions.lock: compact representation of your prod classpath
+### `versions.lock`: compact representation of your prod classpath
 When you run `./gradlew --write-locks`, the plugin will automatically write a new file: `versions.lock` which contains a version for every single one of your transitive dependencies.
 
 Notably, this lockfile is a _compact_ representation of your dependency graph as it just has one line per dependency (unlike nebula lock files which spanned thousands of lines).
@@ -144,7 +144,7 @@ test dependencies from the compile/runtime classpaths of any source set named `j
 There is a `verifyLocks` task (automatically run as part of `check`) that will ensure `versions.lock` is still consistent
 with the current dependencies.
 
-### ./gradlew why
+### `./gradlew why`
 To understand why a particular version in your lockfile has been chosen, run `./gradlew why --dependency <dependency>` to expand the constraints:
 ```
 > Task :why
@@ -161,11 +161,11 @@ This is effectively just a more concise version of `dependencyInsight`:
 ./gradlew  dependencyInsight --configuration unifiedClasspath --dependency jackson-databind
 ```
 
-### ./gradlew checkUnusedConstraints
+### `./gradlew checkUnusedConstraints`
 `checkUnusedConstraints` prevents unnecessary constraints from accruing in your `versions.props` file. Run
 `./gradlew checkUnusedConstraints --fix` to automatically remove any unused constraints from your props file.
 
-### ./gradlew checkOverbroadConstraints
+### `./gradlew checkOverbroadConstraints`
 `checkOverbroadConstraints` prevents over-broad constants/`versions.props` pins. Run `./gradlew checkOverbroadConstraints --fix` 
 to automatically add the necessary constrains to your props file.
 
@@ -196,7 +196,7 @@ org.junit.jupiter:* = 5.10.2
 org.junit.platform:* = 1.10.2
 ```
 
-### getVersion
+### `getVersion`
 If you want to use the resolved version of some dependency elsewhere in your Gradle files, gradle-consistent-versions offers the `getVersion(group, name, [configuration])` convenience function. For example:
 
 ```gradle
@@ -373,6 +373,21 @@ To exclude a configuration from receiving the constraints, you can add it to `ex
     versionRecommendations {
         excludeConfigurations 'zinc'
     }
+
+### Included Builds
+You can use `gradle-consistent-versions` in an included build as well as the root build. They are entirely independent, that is:
+* GCV constraints in the inner build have **no** effect on the parent build unless there is a dependency from the parent build on a project of the inner build, but even then it stems from what dependencies the project dependency has.
+* GCV constraints in a parent build have **no** effect on the inner build.
+
+#### How does it work?
+
+A lot of the internal configurations and dependencies used within `gradle-consistent-versions` are done with Gradle variants. These are selected via Gradle attributes and/or capabilities. In addition to fencing off internal configurations and dependencies for usage in `gradle-consistent-versions` only, we encode a unique identifier for each build in the build tree e.g. select variants that are for GCV and are in the root build.
+
+> [!CAUTION]
+> As plugin versions for builds are independent, ensure both builds are at *least* `2.37.0`. Earlier versions of `gradle-consistent-versions` do not have the attributes required to separate different build roots from each other. This is especially relevant where the parent build is on `2.36.0` and below regardless of the version of `gradle-consistent-versions` in the included build.   
+
+#### Gradle Support
+Included builds have gotten better support as Gradle versions have been released. Your mileage may vary on Gradle 7 and may not produce the right constraints/lock files in parent builds.
 
 ## Migration
 Using a combination of automation and some elbow grease, we've migrated ~150 projects from `nebula.dependency-recommender` to `com.palantir.consistent-version`:

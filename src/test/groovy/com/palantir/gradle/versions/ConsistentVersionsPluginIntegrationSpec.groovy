@@ -452,4 +452,158 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         where:
         gradleVersionNumber << GRADLE_VERSIONS
     }
+
+
+    def "#gradleVersionNumber: works with included builds"() {
+        setup:
+        gradleVersion = gradleVersionNumber
+
+        // add included build
+        def includedBuild = directory("included-build")
+        settingsFile << """
+            includeBuild '${includedBuild.name}'
+        """.stripIndent(true)
+
+        // configure the included build
+        file("settings.gradle", includedBuild) << """
+            rootProject.name = 'included-build'
+            
+            include 'innerA'
+            include 'innerB'
+        """.stripIndent(true)
+
+        file ("build.gradle", includedBuild) << """
+            buildscript {
+                repositories {
+                    mavenCentral()
+                }
+            }            
+            plugins {
+                id '${PLUGIN_NAME}'
+            }
+            allprojects {
+                group 'com.palantir.included-build'
+                version '1.0.0'
+                
+                repositories {
+                    maven { url "file:///${mavenRepo.getAbsolutePath()}" }
+                }
+            }
+            
+            subprojects {
+                apply plugin: 'java'
+                apply plugin: 'maven-publish'
+                publishing {
+                    repositories {
+                        maven {
+                            url = "${mavenRepo.absolutePath}"
+                        }
+                    }
+                    
+                    publications {
+                        maven(MavenPublication) {
+                            from components.java
+                        }
+                    }
+                }
+            }
+            
+        """.stripIndent(true)
+        def innerA = directory("innerA", includedBuild)
+        file("build.gradle", innerA) << """
+            apply plugin: 'java'
+            
+            dependencies {
+                implementation 'org.slf4j:slf4j-api'
+                runtimeOnly 'ch.qos.logback:logback-classic:1.1.11' // brings in slf4j-api 1.7.22
+            }
+        """.stripIndent(true)
+
+        def innerB = directory("innerB", includedBuild)
+        file("build.gradle", innerB) << """
+            apply plugin: 'java'
+            
+            dependencies {
+                implementation 'test-alignment:module-with-higher-version'
+            }
+        """.stripIndent(true)
+
+        file('versions.props', includedBuild) << """
+            org.slf4j:slf4j-api = 1.7.25
+            test-alignment:* = 1.1
+        """.stripIndent(true)
+
+        // configure main build
+        buildFile << """
+            apply plugin: 'java'
+            
+            group 'com.palantir.main-build'
+            version '1.2.3'
+            
+            apply plugin: 'maven-publish'
+            publishing {
+                repositories {
+                    maven {
+                        url = "${mavenRepo.absolutePath}"
+                    }
+                }
+                
+                publications {
+                    maven(MavenPublication) {
+                        from components.java
+                    }
+                }
+            }
+        
+            dependencies {
+                implementation 'test-alignment:module-that-should-be-aligned-up'
+            }
+        """.stripIndent(true)
+
+        file('versions.props') << """
+            test-alignment:* = 1.0
+        """.stripIndent(true)
+
+        expect:
+        runTasks('--write-locks')
+
+        and: 'inner versions lock is expected'
+        file("versions.lock", includedBuild).text == """\
+            # Run ./gradlew writeVersionsLocks to regenerate this file
+            ch.qos.logback:logback-classic:1.1.11 (1 constraints: 36052a3b)
+            org.slf4j:slf4j-api:1.7.25 (2 constraints: 7d12a137)
+            test-alignment:module-with-higher-version:1.1 (1 constraints: a6041b2c)
+        """.stripIndent(true)
+
+        and: 'root build: versions lock is expected'
+        file("versions.lock").text == """\
+            # Run ./gradlew writeVersionsLocks to regenerate this file
+            test-alignment:module-that-should-be-aligned-up:1.0 (1 constraints: a5041a2c)
+        """.stripIndent(true)
+
+        when: 'we add a dependencies on the inner build'
+        buildFile << """
+            dependencies {
+              implementation 'com.palantir.included-build:innerA'
+              implementation 'com.palantir.included-build:innerB'
+            }
+        """.stripIndent(true)
+
+        then: 'build succeeds'
+        runTasks('--write-locks')
+
+        println runTasks(
+                ':publishMavenPublicationToMavenRepository',
+                ':included-build:innerA:publishMavenPublicationToMavenRepository',
+                ':included-build:innerB:publishMavenPublicationToMavenRepository').output
+
+        and: 'root build: dependency is bumped - there is a difference in resolution between Gradle versions hence why we do not compare contents directly'
+        String rootVersionsLock = file("versions.lock").text
+        rootVersionsLock.contains "ch.qos.logback:logback-classic:1.1.11 (1 constraints: 36052a3b)"
+        rootVersionsLock.contains "test-alignment:module-that-should-be-aligned-up:1.1 (1 constraints: a5041a2c)"
+        rootVersionsLock.contains "test-alignment:module-with-higher-version:1.1 (1 constraints: a6041b2c)"
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
+    }
 }
