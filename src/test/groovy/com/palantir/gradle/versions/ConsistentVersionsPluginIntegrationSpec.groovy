@@ -462,7 +462,7 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         def includedBuild = directory("included-build")
         settingsFile << """
             includeBuild '${includedBuild.name}'
-        """
+        """.stripIndent(true)
 
         // configure the included build
         file("settings.gradle", includedBuild) << """
@@ -470,7 +470,7 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
             
             include 'innerA'
             include 'innerB'
-        """
+        """.stripIndent(true)
 
         file ("build.gradle", includedBuild) << """
             buildscript {
@@ -517,7 +517,7 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
                 implementation 'org.slf4j:slf4j-api'
                 runtimeOnly 'ch.qos.logback:logback-classic:1.1.11' // brings in slf4j-api 1.7.22
             }
-        """
+        """.stripIndent(true)
 
         def innerB = directory("innerB", includedBuild)
         file("build.gradle", innerB) << """
@@ -526,7 +526,7 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
             dependencies {
                 implementation 'test-alignment:module-with-higher-version'
             }
-        """
+        """.stripIndent(true)
 
         file('versions.props', includedBuild) << """
             org.slf4j:slf4j-api = 1.7.25
