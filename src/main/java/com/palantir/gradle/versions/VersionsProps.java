@@ -102,7 +102,7 @@ public final class VersionsProps {
         try {
             return Files.readAllLines(file);
         } catch (IOException e) {
-            throw new RuntimeException("Error reading " + file);
+            throw new RuntimeException("Error reading " + file, e);
         }
     }
 
