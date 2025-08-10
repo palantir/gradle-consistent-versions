@@ -19,6 +19,7 @@ package com.palantir.gradle.versions;
 import com.google.common.base.CharMatcher;
 import com.google.common.collect.Sets;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
@@ -102,7 +103,7 @@ public final class VersionsProps {
         try {
             return Files.readAllLines(file);
         } catch (IOException e) {
-            throw new RuntimeException("Error reading " + file);
+            throw new UncheckedIOException("Error reading " + file, e);
         }
     }
 
