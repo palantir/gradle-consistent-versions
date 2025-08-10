@@ -3,6 +3,7 @@ com.google.guava:guava = 33.4.8-jre
 com.netflix.nebula:nebula-dependency-recommender = 13.0.1
 org.assertj:* = 3.27.4
 org.immutables:value = 2.11.2
+org.junit.jupiter:* = 5.13.4
 org.junit.platform:* = 1.13.4
 org.junit:junit-bom = 5.13.4
 org.mockito:mockito-core = 5.18.0
