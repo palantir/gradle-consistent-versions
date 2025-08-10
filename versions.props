@@ -1,15 +1,15 @@
 com.fasterxml.jackson.*:* = 2.19.2
-com.google.guava:guava = 31.1-jre
+com.google.guava:guava = 33.4.8-jre
 com.netflix.nebula:nebula-dependency-recommender = 11.0.0
-org.assertj:* = 3.23.1
-org.immutables:value = 2.8.8
+org.assertj:* = 3.27.4
+org.immutables:value = 2.11.2
 org.junit.jupiter:* = 5.13.4
 org.junit.platform:* = 1.13.4
 org.junit:junit-bom = 5.13.4
-org.mockito:mockito-core = 4.8.0
+org.mockito:mockito-core = 5.18.0
 com.netflix.nebula:nebula-test = 10.6.2
 com.palantir.gradle.failure-reports:* = 1.2.0
-one.util:streamex = 0.8.3
+one.util:streamex = 0.8.4
 com.palantir.gradle.idea-configuration:gradle-idea-configuration = 0.3.0
 
 # Unnecessary once we have lock files
