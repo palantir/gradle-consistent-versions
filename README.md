@@ -166,10 +166,10 @@ This is effectively just a more concise version of `dependencyInsight`:
 `./gradlew checkUnusedConstraints --fix` to automatically remove any unused constraints from your props file.
 
 ### `./gradlew checkOverbroadConstraints`
-`checkOverbroadConstraints` prevents over-broad constants/`versions.props` pins. Run `./gradlew checkOverbroadConstraints --fix` 
+`checkOverbroadConstraints` prevents over-broad constants/`versions.props` pins. Run `./gradlew checkOverbroadConstraints --fix`
 to automatically add the necessary constrains to your props file.
 
-Over-broad constraints are often caused by having a `*` entry in `version.props` (or generally a constraint) which is 
+Over-broad constraints are often caused by having a `*` entry in `version.props` (or generally a constraint) which is
 "over-broad" - which is applying to more dependencies than it should.
 
 For example, given this `versions.props`:
@@ -197,11 +197,12 @@ org.junit.platform:* = 1.10.2
 ```
 
 ### `getVersion`
-If you want to use the resolved version of some dependency elsewhere in your Gradle files, gradle-consistent-versions offers the `getVersion(group, name, [configuration])` convenience function. For example:
+If you want to use the resolved version of some dependency elsewhere in your Gradle files, gradle-consistent-versions offers the `getVersion` function. For example:
 
 ```gradle
-task demo {
+task printGuavaVersion {
     doLast {
+        println "We chose guava " + getVersion('com.google.guava:guava')
         println "We chose guava " + getVersion('com.google.guava', 'guava')
     }
 }
@@ -212,8 +213,9 @@ This function may not be invoked at [Gradle Configuration time](https://docs.gra
 By default, this function resolve the `unifiedClasspath` configuration to supply a version, but you can always supply a different configuration if you want to:
 
 ```gradle
-task printSparkVersion {
+task printGuavaVersion {
     doLast {
+        println "Using spark version: " + getVersion('org.apache.spark:spark-sql_2.11', configurations.spark)
         println "Using spark version: " + getVersion('org.apache.spark', 'spark-sql_2.11', configurations.spark)
     }
 }
@@ -384,7 +386,7 @@ You can use `gradle-consistent-versions` in an included build as well as the roo
 A lot of the internal configurations and dependencies used within `gradle-consistent-versions` are done with Gradle variants. These are selected via Gradle attributes and/or capabilities. In addition to fencing off internal configurations and dependencies for usage in `gradle-consistent-versions` only, we encode a unique identifier for each build in the build tree e.g. select variants that are for GCV and are in the root build.
 
 > [!CAUTION]
-> As plugin versions for builds are independent, ensure both builds are at *least* `2.37.0`. Earlier versions of `gradle-consistent-versions` do not have the attributes required to separate different build roots from each other. This is especially relevant where the parent build is on `2.36.0` and below regardless of the version of `gradle-consistent-versions` in the included build.   
+> As plugin versions for builds are independent, ensure both builds are at *least* `2.37.0`. Earlier versions of `gradle-consistent-versions` do not have the attributes required to separate different build roots from each other. This is especially relevant where the parent build is on `2.36.0` and below regardless of the version of `gradle-consistent-versions` in the included build.
 
 #### Gradle Support
 Included builds have gotten better support as Gradle versions have been released. Your mileage may vary on Gradle 7 and may not produce the right constraints/lock files in parent builds.
