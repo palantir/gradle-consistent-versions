@@ -56,6 +56,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.UUID;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -634,7 +635,21 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
             // Without this, they'd just be propagated to the copiedConf and probably never run!
             causeWithDependenciesActionsToRun(targetConf);
 
-            Configuration copiedConf = targetConf.copyRecursive();
+            Configuration resolvable = currentProject
+                    .getConfigurations()
+                    .register(
+                            targetConfiguration + "GcvResolvable"
+                                    + UUID.randomUUID().toString().substring(0, 8),
+                            conf -> {
+                                conf.setCanBeResolved(true);
+                                conf.setCanBeConsumed(false);
+                                conf.extendsFrom(targetConf);
+                                conf.setVisible(false);
+                            })
+                    .get();
+
+            Configuration copiedConf = resolvable.copyRecursive();
+
             copiedConf.setDescription(String.format(
                     "Copy of the '%s' configuration that can be resolved by com.palantir.consistent-versions"
                             + " without resolving the '%s' configuration itself.",
