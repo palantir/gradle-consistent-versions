@@ -256,9 +256,7 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         then:
         def expectedLock = """\
             # Run ./gradlew writeVersionsLocks to regenerate this file. Blank lines are to minimize merge conflicts.
-            
-            
-            
+
             org.slf4j:slf4j-api:1.7.25 (1 constraints: 4105483b)
         """.stripIndent(true)
         file('versions.lock').text == expectedLock

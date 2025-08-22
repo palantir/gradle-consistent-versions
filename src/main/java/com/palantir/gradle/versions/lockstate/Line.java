@@ -46,8 +46,8 @@ public interface Line extends Serializable {
 
     @Lazy
     default String stringRepresentation() {
-        // Three blank lines to avoid conflicts with automated upgrades
-        return "\n\n\n" + lockLine();
+        // One blank line to avoid conflicts with automated upgrades
+        return "\n" + lockLine();
     }
 
     default String lockLine() {
