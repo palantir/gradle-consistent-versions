@@ -66,7 +66,7 @@ class ConflictSafeLockFileTest {
 
     @Test
     void ensure_we_dont_break_renovate_bot_unintentionally() throws IOException {
-        // renovate-bot supports upgrade GCV but uses this regex to determine if GCV is being used:
+        // renovate-bot supports upgrading GCV but uses this regex to determine if GCV is being used:
         // https://github.com/renovatebot/renovate/blob/f94c2d3ce7a86f3ef168d5db118bbea41def573e/
         // lib/modules/manager/gradle/extract/consistent-versions-plugin.ts#L12
         // If this is changed, renovate-bot will break. Breaking is an option if we need to - we just shouldn't
