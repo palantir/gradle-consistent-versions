@@ -76,6 +76,8 @@ class ConflictSafeLockFileTest {
 
         String firstLine = Files.readAllLines(CURRENT_SAMPLE_LOCK_FILE).get(0);
 
-        assertThat(firstLine).matches(renovateBotHeadfilePattern);
+        // javascript's regex `match` function renovate uses is like Java's `Pattern#find` in that it doesn't
+        // need to match the whole string.
+        assertThat(renovateBotHeadfilePattern.matcher(firstLine).find()).isTrue();
     }
 }
