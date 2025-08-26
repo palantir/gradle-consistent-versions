@@ -92,6 +92,10 @@ final class ConflictSafeLockFile {
 
     public void writeLocks(FullLockState fullLockState) {
         LockState lockState = LockStates.toLockState(fullLockState);
+        writeLocks(lockState);
+    }
+
+    public void writeLocks(LockState lockState) {
         try (BufferedWriter writer =
                 Files.newBufferedWriter(lockfile, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)) {
             writer.append(HEADER_COMMENT);
