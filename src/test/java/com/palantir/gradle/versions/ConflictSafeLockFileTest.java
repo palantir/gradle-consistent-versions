@@ -30,13 +30,14 @@ import org.junit.jupiter.api.io.TempDir;
 class ConflictSafeLockFileTest {
 
     private static final Path CURRENT_SAMPLE_LOCK_FILE = Paths.get("src/test/resources/sample-versions-current.lock");
+    private static final Path PRE_BLANK_LINES_SAMPLE_LOCK_FILE =
+            Paths.get("src/test/resources/sample-versions-pre-blank-lines.lock");
 
     @Test
     void should_parse_a_lock_file_pre_blanks_lines_successfully() {
-        ConflictSafeLockFile file =
-                new ConflictSafeLockFile(Paths.get("src/test/resources/sample-versions-pre-blank-lines.lock"));
+        ConflictSafeLockFile preBlankLinesFile = new ConflictSafeLockFile(PRE_BLANK_LINES_SAMPLE_LOCK_FILE);
 
-        LockState locks = file.readLocks();
+        LockState locks = preBlankLinesFile.readLocks();
 
         assertThat(locks.productionLinesByModuleIdentifier()).hasSize(27);
         assertThat(locks.testLinesByModuleIdentifier()).hasSize(16);
@@ -44,9 +45,9 @@ class ConflictSafeLockFileTest {
 
     @Test
     void should_parse_a_lock_file_post_blanks_lines_successfully() {
-        ConflictSafeLockFile file = new ConflictSafeLockFile(CURRENT_SAMPLE_LOCK_FILE);
+        ConflictSafeLockFile currentFile = new ConflictSafeLockFile(CURRENT_SAMPLE_LOCK_FILE);
 
-        LockState locks = file.readLocks();
+        LockState locks = currentFile.readLocks();
 
         assertThat(locks.productionLinesByModuleIdentifier()).hasSize(27);
         assertThat(locks.testLinesByModuleIdentifier()).hasSize(16);
@@ -54,14 +55,27 @@ class ConflictSafeLockFileTest {
 
     @Test
     void should_preserve_exact_content_when_reading_and_writing_current_sample_lock_file(@TempDir Path tempDir) {
-        ConflictSafeLockFile originalFile = new ConflictSafeLockFile(CURRENT_SAMPLE_LOCK_FILE);
-        LockState lockState = originalFile.readLocks();
+        ConflictSafeLockFile currentFile = new ConflictSafeLockFile(CURRENT_SAMPLE_LOCK_FILE);
+        LockState lockState = currentFile.readLocks();
 
-        Path expectedContentPath = tempDir.resolve("output.lock");
+        Path expectedContentPath = tempDir.resolve("expected.lock");
         ConflictSafeLockFile outputLockFile = new ConflictSafeLockFile(expectedContentPath);
         outputLockFile.writeLocks(lockState);
 
         assertThat(CURRENT_SAMPLE_LOCK_FILE).hasSameTextualContentAs(expectedContentPath);
+    }
+
+    @Test
+    void can_migrate_from_pre_blank_lines_to_post_blanks_lines(@TempDir Path tempDir) {
+        ConflictSafeLockFile preBlankLinesFile = new ConflictSafeLockFile(PRE_BLANK_LINES_SAMPLE_LOCK_FILE);
+        LockState lockState = preBlankLinesFile.readLocks();
+
+        Path migratedLockFilePath = tempDir.resolve("migrated.lock");
+        ConflictSafeLockFile migratedLockFile = new ConflictSafeLockFile(migratedLockFilePath);
+
+        migratedLockFile.writeLocks(lockState);
+
+        assertThat(migratedLockFilePath).hasSameTextualContentAs(CURRENT_SAMPLE_LOCK_FILE);
     }
 
     @Test
