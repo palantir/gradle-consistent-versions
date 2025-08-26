@@ -51,7 +51,6 @@ public interface Line extends Serializable {
     }
 
     default String lockLine() {
-        return group() + ':' + name() + ':' + version() + " (" + numDependents() + " constraints: " + dependentsHash()
-                + ')';
+        return "%s:%s:%s (%s constraints: %s)".formatted(group(), name(), version(), numDependents(), dependentsHash());
     }
 }
