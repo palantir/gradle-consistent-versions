@@ -54,10 +54,10 @@ class ConflictSafeLockFileTest {
         ConflictSafeLockFile originalFile = new ConflictSafeLockFile(CURRENT_SAMPLE_LOCK_FILE);
         LockState lockState = originalFile.readLocks();
 
-        Path outputFile = tempDir.resolve("output.lock");
-        ConflictSafeLockFile outputLockFile = new ConflictSafeLockFile(outputFile);
+        Path expectedContentPath = tempDir.resolve("output.lock");
+        ConflictSafeLockFile outputLockFile = new ConflictSafeLockFile(expectedContentPath);
         outputLockFile.writeLocks(lockState);
 
-        assertThat(CURRENT_SAMPLE_LOCK_FILE).hasSameTextualContentAs(outputFile);
+        assertThat(CURRENT_SAMPLE_LOCK_FILE).hasSameTextualContentAs(expectedContentPath);
     }
 }
