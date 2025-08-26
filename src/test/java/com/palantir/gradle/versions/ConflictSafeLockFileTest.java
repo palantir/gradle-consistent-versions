@@ -19,8 +19,11 @@ package com.palantir.gradle.versions;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.palantir.gradle.versions.lockstate.LockState;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -59,5 +62,20 @@ class ConflictSafeLockFileTest {
         outputLockFile.writeLocks(lockState);
 
         assertThat(CURRENT_SAMPLE_LOCK_FILE).hasSameTextualContentAs(expectedContentPath);
+    }
+
+    @Test
+    void ensure_we_dont_break_renovate_bot_unintentionally() throws IOException {
+        // renovate-bot supports upgrade GCV but uses this regex to determine if GCV is being used:
+        // https://github.com/renovatebot/renovate/blob/f94c2d3ce7a86f3ef168d5db118bbea41def573e/
+        // lib/modules/manager/gradle/extract/consistent-versions-plugin.ts#L12
+        // If this is changed, renovate-bot will break. Breaking is an option if we need to - we just shouldn't
+        // do it unintentionally and probably try to PR a fix.
+        Pattern renovateBotHeadfilePattern = Pattern.compile(
+                "^# Run \\./gradlew (?:--write-locks|writeVersionsLock|writeVersionsLocks) to regenerate this file");
+
+        String firstLine = Files.readAllLines(CURRENT_SAMPLE_LOCK_FILE).get(0);
+
+        assertThat(firstLine).matches(renovateBotHeadfilePattern);
     }
 }
