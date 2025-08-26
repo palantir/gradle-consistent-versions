@@ -806,6 +806,8 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
             
             org.slf4j:slf4j-api:1.7.25 (2 constraints: 7917e690)
 
+
+
             [Test dependencies]
             
             org:test-dep-that-logs:1.0 (1 constraints: a5041a2c)
@@ -841,6 +843,8 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
             
             org.slf4j:slf4j-api:1.7.25 (2 constraints: 7917e690)
 
+
+
             [Test dependencies]
             
             junit:junit:4.10 (1 constraints: d904fd30)
@@ -871,6 +875,8 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         def expected = """\
             # Run ./gradlew writeVersionsLocks to regenerate this file. Blank lines are to minimize merge conflicts.
              
+
+
             [Test dependencies]
             
             junit:junit:4.10 (1 constraints: d904fd30)
@@ -902,6 +908,8 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         def expected = """\
             # Run ./gradlew writeVersionsLocks to regenerate this file. Blank lines are to minimize merge conflicts.
              
+
+
             [Test dependencies]
             
             ch.qos.logback:logback-classic:1.2.3 (1 constraints: 0805f935)

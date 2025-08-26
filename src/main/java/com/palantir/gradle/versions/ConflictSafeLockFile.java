@@ -100,6 +100,10 @@ final class ConflictSafeLockFile {
             lockState.productionLinesByModuleIdentifier().values().forEach(line -> writeLine(line, writer));
 
             if (!lockState.testLinesByModuleIdentifier().isEmpty()) {
+                // Extra spaces before Test Deps marker to make it more obvious when scrolling down
+                // now there are blank lines between every line
+                writer.newLine();
+                writer.newLine();
                 writer.newLine();
                 writer.write(TEST_DEPENDENCIES_MARKER);
                 writer.newLine();
