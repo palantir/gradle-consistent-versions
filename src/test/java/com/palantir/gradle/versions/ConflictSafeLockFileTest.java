@@ -33,24 +33,55 @@ class ConflictSafeLockFileTest {
     private static final Path PRE_BLANK_LINES_SAMPLE_LOCK_FILE =
             Paths.get("src/test/resources/sample-versions-pre-blank-lines.lock");
 
+    @TempDir
+    Path tempDir;
+
     @Test
-    void should_parse_a_lock_file_pre_blanks_lines_successfully() {
-        ConflictSafeLockFile preBlankLinesFile = new ConflictSafeLockFile(PRE_BLANK_LINES_SAMPLE_LOCK_FILE);
+    void should_parse_a_lock_file_pre_blanks_lines_successfully() throws IOException {
+        Path preBlankLinesFilePath = tempDir.resolve("pre-blanks-lines.lock");
+        Files.writeString(
+                preBlankLinesFilePath,
+                """
+            # Run ./gradlew writeVersionsLocks to regenerate this file
+            aopalliance:aopalliance:1.0 (1 constraints: 170a83ac)
+            ch.qos.logback:logback-core:1.2.3 (4 constraints: 5e330891)
+            com.fasterxml.jackson.module:jackson-module-parameter-names:2.9.3 (1 constraints: 880ec14f)
+
+            [Test dependencies]
+            com.palantir.conjure.java.api:test-utils:2.2.0 (1 constraints: 6b122d13)
+            junit:junit:4.12 (4 constraints: 4734a44f)
+            """);
+
+        ConflictSafeLockFile preBlankLinesFile = new ConflictSafeLockFile(preBlankLinesFilePath);
 
         LockState locks = preBlankLinesFile.readLocks();
 
-        assertThat(locks.productionLinesByModuleIdentifier()).hasSize(27);
-        assertThat(locks.testLinesByModuleIdentifier()).hasSize(16);
+        assertThat(locks.productionLinesByModuleIdentifier()).hasSize(3);
+        assertThat(locks.testLinesByModuleIdentifier()).hasSize(2);
     }
 
     @Test
     void should_parse_a_lock_file_post_blanks_lines_successfully() {
-        ConflictSafeLockFile currentFile = new ConflictSafeLockFile(CURRENT_SAMPLE_LOCK_FILE);
+        Path preBlankLinesFilePath = tempDir.resolve("current.lock");
+        Files.writeString(
+                preBlankLinesFilePath,
+                """
+            # Run ./gradlew writeVersionsLocks to regenerate this file
+            aopalliance:aopalliance:1.0 (1 constraints: 170a83ac)
+            ch.qos.logback:logback-core:1.2.3 (4 constraints: 5e330891)
+            com.fasterxml.jackson.module:jackson-module-parameter-names:2.9.3 (1 constraints: 880ec14f)
 
-        LockState locks = currentFile.readLocks();
+            [Test dependencies]
+            com.palantir.conjure.java.api:test-utils:2.2.0 (1 constraints: 6b122d13)
+            junit:junit:4.12 (4 constraints: 4734a44f)
+            """);
 
-        assertThat(locks.productionLinesByModuleIdentifier()).hasSize(27);
-        assertThat(locks.testLinesByModuleIdentifier()).hasSize(16);
+        ConflictSafeLockFile preBlankLinesFile = new ConflictSafeLockFile(preBlankLinesFilePath);
+
+        LockState locks = preBlankLinesFile.readLocks();
+
+        assertThat(locks.productionLinesByModuleIdentifier()).hasSize(3);
+        assertThat(locks.testLinesByModuleIdentifier()).hasSize(2);
     }
 
     @Test
@@ -66,8 +97,22 @@ class ConflictSafeLockFileTest {
     }
 
     @Test
-    void can_migrate_from_pre_blank_lines_to_post_blanks_lines(@TempDir Path tempDir) {
-        ConflictSafeLockFile preBlankLinesFile = new ConflictSafeLockFile(PRE_BLANK_LINES_SAMPLE_LOCK_FILE);
+    void can_migrate_from_pre_blank_lines_to_post_blanks_lines() throws IOException {
+        Path preBlankLinesFilePath = tempDir.resolve("pre-blank-lines.lock");
+        Files.writeString(
+                preBlankLinesFilePath,
+                """
+            # Run ./gradlew writeVersionsLocks to regenerate this file
+            aopalliance:aopalliance:1.0 (1 constraints: 170a83ac)
+            ch.qos.logback:logback-core:1.2.3 (4 constraints: 5e330891)
+            com.fasterxml.jackson.module:jackson-module-parameter-names:2.9.3 (1 constraints: 880ec14f)
+
+            [Test dependencies]
+            com.palantir.conjure.java.api:test-utils:2.2.0 (1 constraints: 6b122d13)
+            junit:junit:4.12 (4 constraints: 4734a44f)
+            """);
+
+        ConflictSafeLockFile preBlankLinesFile = new ConflictSafeLockFile(preBlankLinesFilePath);
         LockState lockState = preBlankLinesFile.readLocks();
 
         Path migratedLockFilePath = tempDir.resolve("migrated.lock");
@@ -75,7 +120,25 @@ class ConflictSafeLockFileTest {
 
         migratedLockFile.writeLocks(lockState);
 
-        assertThat(migratedLockFilePath).hasSameTextualContentAs(CURRENT_SAMPLE_LOCK_FILE);
+        assertThat(migratedLockFilePath)
+                .hasContent(
+                        """
+            # Run ./gradlew writeVersionsLocks to regenerate this file
+
+            aopalliance:aopalliance:1.0 (1 constraints: 170a83ac)
+
+            ch.qos.logback:logback-core:1.2.3 (4 constraints: 5e330891)
+
+            com.fasterxml.jackson.module:jackson-module-parameter-names:2.9.3 (1 constraints: 880ec14f)
+
+
+
+            [Test dependencies]
+
+            com.palantir.conjure.java.api:test-utils:2.2.0 (1 constraints: 6b122d13)
+
+            junit:junit:4.12 (4 constraints: 4734a44f)
+            """);
     }
 
     @Test
