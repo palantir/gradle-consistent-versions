@@ -66,7 +66,7 @@ public final class LockStates {
 
         Line line = ImmutableLine.of(
                 component.getGroup(), component.getName(), component.getVersion(), all.size(), hash.toString());
-        log.info("{}: {}", line.stringRepresentation(), all);
+        log.info("{}: {}", line.lockLine(), all);
         return line;
     }
 

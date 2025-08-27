@@ -35,7 +35,8 @@ import java.util.stream.Stream;
 import org.gradle.api.GradleException;
 
 final class ConflictSafeLockFile {
-    private static final String HEADER_COMMENT = "# Run ./gradlew writeVersionsLocks to regenerate this file";
+    private static final String HEADER_COMMENT =
+            "# Run ./gradlew writeVersionsLocks to regenerate this file. Blank lines are to minimize merge conflicts.";
     private static final Pattern LINE_PATTERN =
             Pattern.compile("(?<group>[^(:]+):(?<artifact>[^(:]+):(?<version>[^(:\\s]+)"
                     + "\\s+\\((?<num>\\d+) constraints: (?<hash>\\w+)\\)");
@@ -49,16 +50,14 @@ final class ConflictSafeLockFile {
 
     /** Reads and returns the {@link LockState}. */
     public LockState readLocks() {
-        try (Stream<String> linesStream = Files.lines(lockfile)) {
+        try (Stream<String> linesStream = Files.lines(lockfile).filter(line -> !line.isBlank())) {
             List<String> lines =
                     linesStream.filter(line -> !line.trim().startsWith("#")).collect(Collectors.toList());
             int testDependenciesPosition = lines.indexOf(TEST_DEPENDENCIES_MARKER);
             Stream<String> productionDeps;
             Stream<String> testDeps;
-            if (testDependenciesPosition >= 0) {
-                productionDeps = lines
-                        .subList(0, testDependenciesPosition - 1) // skip blank line before marker
-                        .stream();
+            if (testDependenciesPosition >= 0 && testDependenciesPosition + 1 < lines.size()) {
+                productionDeps = lines.subList(0, testDependenciesPosition).stream();
                 testDeps = lines.subList(testDependenciesPosition + 1, lines.size()).stream();
             } else {
                 productionDeps = lines.stream().filter(line -> !line.trim().startsWith("#"));
@@ -74,6 +73,7 @@ final class ConflictSafeLockFile {
 
     public Stream<Line> parseLines(Stream<String> stringStream) {
         return stringStream
+                .filter(line -> !line.isBlank())
                 .map(line -> {
                     Matcher matcher = LINE_PATTERN.matcher(line);
                     Validators.checkResultOrThrow(
@@ -92,6 +92,10 @@ final class ConflictSafeLockFile {
 
     public void writeLocks(FullLockState fullLockState) {
         LockState lockState = LockStates.toLockState(fullLockState);
+        writeLocks(lockState);
+    }
+
+    public void writeLocks(LockState lockState) {
         try (BufferedWriter writer =
                 Files.newBufferedWriter(lockfile, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)) {
             writer.append(HEADER_COMMENT);
@@ -100,6 +104,10 @@ final class ConflictSafeLockFile {
             lockState.productionLinesByModuleIdentifier().values().forEach(line -> writeLine(line, writer));
 
             if (!lockState.testLinesByModuleIdentifier().isEmpty()) {
+                // Extra spaces before Test Deps marker to make it more obvious when scrolling down
+                // now there are blank lines between every line
+                writer.newLine();
+                writer.newLine();
                 writer.newLine();
                 writer.write(TEST_DEPENDENCIES_MARKER);
                 writer.newLine();
