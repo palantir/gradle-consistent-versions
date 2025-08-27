@@ -575,15 +575,19 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
 
         and: 'inner versions lock is expected'
         file("versions.lock", includedBuild).text == """\
-            # Run ./gradlew writeVersionsLocks to regenerate this file
+            # Run ./gradlew writeVersionsLocks to regenerate this file. Blank lines are to minimize merge conflicts.
+            
             ch.qos.logback:logback-classic:1.1.11 (1 constraints: 36052a3b)
+            
             org.slf4j:slf4j-api:1.7.25 (2 constraints: 7d12a137)
+            
             test-alignment:module-with-higher-version:1.1 (1 constraints: a6041b2c)
         """.stripIndent(true)
 
         and: 'root build: versions lock is expected'
         file("versions.lock").text == """\
-            # Run ./gradlew writeVersionsLocks to regenerate this file
+            # Run ./gradlew writeVersionsLocks to regenerate this file. Blank lines are to minimize merge conflicts.
+            
             test-alignment:module-that-should-be-aligned-up:1.0 (1 constraints: a5041a2c)
         """.stripIndent(true)
 
