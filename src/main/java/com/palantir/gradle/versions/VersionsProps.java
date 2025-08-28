@@ -52,6 +52,10 @@ public final class VersionsProps {
     }
 
     public static VersionsProps loadFromFile(Path path) {
+        if (!Files.exists(path)) {
+            return VersionsProps.empty();
+        }
+
         List<String> lines = safeReadLines(path);
         return fromLines(lines, path);
     }
