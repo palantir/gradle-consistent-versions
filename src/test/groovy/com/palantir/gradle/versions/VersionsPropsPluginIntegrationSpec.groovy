@@ -286,6 +286,21 @@ class VersionsPropsPluginIntegrationSpec extends IntegrationSpec {
         gradleVersionNumber << GRADLE_VERSIONS
     }
 
+    def '#gradleVersionNumber: build succeeds without versions.props or versions.lock'() {
+        setup:
+        gradleVersion = gradleVersionNumber
+
+        addSubproject('foo', """
+            apply plugin: 'java'
+        """.stripIndent(true))
+
+        expect:
+        runTasks('build')
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
+    }
+
     boolean verifyLockfile(File projectDir, String... lines) {
         // Gradle 7+ only uses a single lockfile per project:
         // https://docs.gradle.org/current/userguide/upgrading_version_6.html#locking_single

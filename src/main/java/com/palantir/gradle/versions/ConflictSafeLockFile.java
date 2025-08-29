@@ -50,6 +50,10 @@ final class ConflictSafeLockFile {
 
     /** Reads and returns the {@link LockState}. */
     public LockState readLocks() {
+        if (!Files.exists(lockfile)) {
+            return LockState.from(Stream.empty(), Stream.empty());
+        }
+
         try (Stream<String> linesStream = Files.lines(lockfile).filter(line -> !line.isBlank())) {
             List<String> lines =
                     linesStream.filter(line -> !line.trim().startsWith("#")).collect(Collectors.toList());
