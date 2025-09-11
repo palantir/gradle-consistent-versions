@@ -179,6 +179,7 @@ final class GradleWorkarounds {
             for (Configuration configuration : project.getConfigurations()) {
                 for (Dependency dependency : configuration.getDependencies()) {
                     if (dependency instanceof ProjectDependency projectDependency) {
+                        @SuppressWarnings("for-rollout:deprecation")
                         Project dependencyProject = projectDependency.getDependencyProject();
                         if (dependencyProject != rootProject) {
                             projectPathsToEval.add(dependencyProject.getPath());

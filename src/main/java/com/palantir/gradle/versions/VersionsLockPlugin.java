@@ -601,6 +601,7 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
             DirectDependencyScopes.Builder dependencyScopes,
             GcvScope scope) {
         dependencySet.withType(ProjectDependency.class).all(projectDependency -> {
+            @SuppressWarnings("for-rollout:deprecation")
             Project projectDep = projectDependency.getDependencyProject();
 
             String targetConfiguration = projectDependency.getTargetConfiguration();
@@ -695,11 +696,13 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
         conf.getIncoming().getDependencies();
     }
 
+    @SuppressWarnings("for-rollout:deprecation")
     private static Configuration getTargetConfiguration(DependencySet depSet, ProjectDependency projectDependency) {
         String targetConfiguration = Preconditions.checkNotNull(
                 projectDependency.getTargetConfiguration(),
                 "Expected dependency to have a targetConfiguration: %s",
                 formatProjectDependency(projectDependency));
+        @SuppressWarnings("for-rollout:deprecation")
         Configuration targetConf =
                 projectDependency.getDependencyProject().getConfigurations().getByName(targetConfiguration);
         Preconditions.checkNotNull(
@@ -710,7 +713,9 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
         return targetConf;
     }
 
+    @SuppressWarnings("for-rollout:deprecation")
     private static Configuration findConfigurationUsingCapabilities(ProjectDependency projectDependency) {
+        @SuppressWarnings("for-rollout:deprecation")
         Set<Configuration> confs = projectDependency.getDependencyProject().getConfigurations().stream()
                 .filter(conf ->
                         conf.getOutgoing().getCapabilities().containsAll(projectDependency.getRequestedCapabilities()))
@@ -730,6 +735,7 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
         return Iterables.getOnlyElement(confs);
     }
 
+    @SuppressWarnings("for-rollout:deprecation")
     private static String formatProjectDependency(ProjectDependency dep) {
         StringBuilder builder = new StringBuilder();
         builder.append(dep.getDependencyProject());
