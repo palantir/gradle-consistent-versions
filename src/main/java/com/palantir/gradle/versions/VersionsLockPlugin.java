@@ -93,7 +93,6 @@ import org.gradle.api.invocation.Gradle;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 import org.gradle.api.logging.configuration.ShowStacktrace;
-import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.plugins.JavaPluginExtension;
 import org.gradle.api.provider.Property;
 import org.gradle.api.publish.Publication;
@@ -959,27 +958,29 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
             VersionsLockPlugin.ensureNoFailOnVersionConflict(conf);
         });
 
-        NamedDomainObjectProvider<Configuration> publishConstraints = subproject
-                .getConfigurations()
-                .register("gcvPublishConstraints", conf -> {
-                    conf.setDescription("Publishable constraints from the GCV versions.lock file");
-                    conf.setCanBeResolved(false);
-                    conf.setCanBeConsumed(false);
-                    conf.getDependencyConstraints().addAll(publishableConstraints);
-                });
+        log.info(publishableConstraints.toString());
 
-        // Enrich the configurations being published as part of the java component (components.java)
-        // with constraints generated from the lock file.
-        subproject.getPluginManager().withPlugin("java", _plugin -> {
-            subproject
-                    .getConfigurations()
-                    .named(JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME)
-                    .configure(conf -> conf.extendsFrom(publishConstraints.get()));
-            subproject
-                    .getConfigurations()
-                    .named(JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME)
-                    .configure(conf -> conf.extendsFrom(publishConstraints.get()));
-        });
+        //        NamedDomainObjectProvider<Configuration> publishConstraints = subproject
+        //                .getConfigurations()
+        //                .register("gcvPublishConstraints", conf -> {
+        //                    conf.setDescription("Publishable constraints from the GCV versions.lock file");
+        //                    conf.setCanBeResolved(false);
+        //                    conf.setCanBeConsumed(false);
+        //                    conf.getDependencyConstraints().addAll(publishableConstraints);
+        //                });
+        //
+        //        // Enrich the configurations being published as part of the java component (components.java)
+        //        // with constraints generated from the lock file.
+        //        subproject.getPluginManager().withPlugin("java", _plugin -> {
+        //            subproject
+        //                    .getConfigurations()
+        //                    .named(JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME)
+        //                    .configure(conf -> conf.extendsFrom(publishConstraints.get()));
+        //            subproject
+        //                    .getConfigurations()
+        //                    .named(JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME)
+        //                    .configure(conf -> conf.extendsFrom(publishConstraints.get()));
+        //        });
     }
 
     private static LockedConfigurations computeConfigurationsToLock(Project project, VersionsLockExtension ext) {
