@@ -185,7 +185,6 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
     public final void apply(Project project) {
         checkPreconditions(project);
         project.getPluginManager().apply(LifecycleBasePlugin.class);
-        project.getPluginManager().apply(SameVersionConstraintsPlugin.class);
 
         project.allprojects(p -> {
             AttributesSchema attributesSchema = p.getDependencies().getAttributesSchema();
