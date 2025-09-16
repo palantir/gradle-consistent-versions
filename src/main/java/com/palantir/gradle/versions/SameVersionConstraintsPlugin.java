@@ -1,18 +1,20 @@
-package com.palantir.gradle.versions; /*
-                                       * (c) Copyright 2025 Palantir Technologies Inc. All rights reserved.
-                                       *
-                                       * Licensed under the Apache License, Version 2.0 (the "License");
-                                       * you may not use this file except in compliance with the License.
-                                       * You may obtain a copy of the License at
-                                       *
-                                       *     http://www.apache.org/licenses/LICENSE-2.0
-                                       *
-                                       * Unless required by applicable law or agreed to in writing, software
-                                       * distributed under the License is distributed on an "AS IS" BASIS,
-                                       * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-                                       * See the License for the specific language governing permissions and
-                                       * limitations under the License.
-                                       */
+/*
+ * (c) Copyright 2025 Palantir Technologies Inc. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.palantir.gradle.versions;
 
 import java.util.Map;
 import java.util.Set;
@@ -37,7 +39,6 @@ import org.gradle.api.logging.Logging;
  */
 public class SameVersionConstraintsPlugin implements Plugin<Project> {
     private static final Logger log = Logging.getLogger(SameVersionConstraintsPlugin.class);
-    private static final String CONSTRAINTS_CONFIG_NAME = "sameVersionConstraints";
 
     @Override
     public void apply(Project project) {
@@ -75,11 +76,12 @@ public class SameVersionConstraintsPlugin implements Plugin<Project> {
 
     /**
      * Configures each project to include constraints for all sibling modules.
+     * This approach adds constraints that will appear in the published GMM.
      */
     private void configureSameVersionConstraints(Set<Project> projects) {
         projects.forEach(project -> {
             // Create a configuration to hold the constraints
-            Configuration constraintsConfig = project.getConfigurations().maybeCreate(CONSTRAINTS_CONFIG_NAME);
+            Configuration constraintsConfig = project.getConfigurations().maybeCreate("sameVersionConstraints");
             constraintsConfig.setVisible(false);
             constraintsConfig.setCanBeConsumed(false);
             constraintsConfig.setCanBeResolved(false);
@@ -93,8 +95,8 @@ public class SameVersionConstraintsPlugin implements Plugin<Project> {
                     constraintsConfig
                             .getDependencyConstraints()
                             .add(project.getDependencies().getConstraints().create(siblingGav, constraint -> {
-                                // Use strictly to enforce exact version matching
-                                constraint.version(v -> v.strictly(String.valueOf(sibling.getVersion())));
+                                // Use require to set minimum version that allows upgrades
+                                constraint.version(v -> v.require(String.valueOf(sibling.getVersion())));
                                 constraint.because("All modules from the same repository must use the same version");
                             }));
                 }
@@ -121,10 +123,9 @@ public class SameVersionConstraintsPlugin implements Plugin<Project> {
         if (config != null) {
             config.extendsFrom(constraintsConfig);
             log.debug(
-                    "Configuration '{}' in project {} now extends from {}",
+                    "Configuration '{}' in project {} now extends from sameVersionConstraints",
                     configName,
-                    project.getName(),
-                    CONSTRAINTS_CONFIG_NAME);
+                    project.getName());
         }
     }
 
@@ -133,9 +134,7 @@ public class SameVersionConstraintsPlugin implements Plugin<Project> {
      * Supports both standard publishing and Palantir's external-publish-jar plugin.
      */
     private boolean isPublishedLibrary(Project project) {
-        // Check for Palantir's external publish plugin
         return project.getPlugins().hasPlugin("com.palantir.external-publish-jar")
-                || project.getPlugins().hasPlugin("com.palantir.publish-jar")
                 || project.getPlugins().hasPlugin("java-library")
                 || project.getPlugins().hasPlugin("java");
     }
