@@ -72,7 +72,7 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
         """
     }
 
-    def "#gradleVersionNumber: published constraints are derived from lock file (with local constraints without platform constraints)"() {
+    def "#gradleVersionNumber: published constraints with local constraints only"() {
         setup:
         // Test with local constraints enabled
         file('gradle.properties') << 'com.palantir.gradle.versions.publishLocalConstraints = true'
@@ -128,10 +128,6 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
                 group: 'ch.qos.logback',
                 module: 'logback-classic',
                 version: [requires: '1.2.3'])
-        def slf4jDep = new MetadataFile.Dependency(
-                group: 'org.slf4j',
-                module: 'slf4j-api',
-                version: [requires: '1.7.25'])
         def fooDep = new MetadataFile.Dependency(
                 group: 'com.palantir.published-constraints',
                 module: 'foo',
@@ -175,7 +171,254 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
         gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    def "#gradleVersionNumber: published constraints are derived from lock file (without local constraints without platform constraints)"() {
+    def "#gradleVersionNumber: published constraints with platform constraints only"() {
+        setup:
+        // Test with platform constraints enabled
+        file('gradle.properties') << 'com.palantir.gradle.versions.publishPlatformConstraints = true'
+        gradleVersion = gradleVersionNumber
+
+        buildFile << """
+            allprojects {
+                apply plugin: 'java'
+            }
+        """.stripIndent(true)
+
+        String publish = """
+            apply plugin: 'maven-publish'
+            group = 'com.palantir.same-group'
+            version = '2.0.0'
+            publishing.publications {
+                maven(MavenPublication) {
+                    from components.java
+                }
+            }
+        """.stripIndent(true)
+
+        addSubproject('service-a', """
+            $publish
+            dependencies {
+                implementation 'ch.qos.logback:logback-classic:1.2.3'
+            }
+        """.stripIndent(true))
+
+        addSubproject('service-b', """
+            $publish
+            dependencies {
+                implementation 'junit:junit:4.10'
+            }
+        """.stripIndent(true))
+
+        if (GradleVersion.version(gradleVersionNumber) < GradleVersion.version("6.0")) {
+            settingsFile << """
+                enableFeaturePreview('GRADLE_METADATA')
+            """.stripIndent(true)
+        }
+
+        runTasks('--write-locks')
+
+        when:
+        runTasks('generatePomFileForMavenPublication', 'generateMetadataFileForMavenPublication')
+
+        def junitDep = new MetadataFile.Dependency(
+                group: 'junit',
+                module: 'junit',
+                version: [requires: '4.10'])
+        def logbackDep = new MetadataFile.Dependency(
+                group: 'ch.qos.logback',
+                module: 'logback-classic',
+                version: [requires: '1.2.3'])
+        def serviceAConstraint = new MetadataFile.Dependency(
+                group: 'com.palantir.same-group',
+                module: 'service-a',
+                version: [requires: '[2.0.0,)'])
+        def serviceBConstraint = new MetadataFile.Dependency(
+                group: 'com.palantir.same-group',
+                module: 'service-b',
+                version: [requires: '[2.0.0,)'])
+
+        then: "service-a's metadata file has platform constraints but no local project constraints"
+        def serviceAMetadataFilename = new File(projectDir, "service-a/build/publications/maven/module.json")
+        def serviceAMetadata = new ObjectMapper().readValue(serviceAMetadataFilename, MetadataFile)
+
+        serviceAMetadata.variants == [
+                new MetadataFile.Variant(
+                        name: 'runtimeElements',
+                        dependencies: [logbackDep],
+                        dependencyConstraints: [serviceBConstraint]),
+                new MetadataFile.Variant(
+                        name: 'apiElements',
+                        dependencies: null,
+                        dependencyConstraints: [serviceBConstraint])
+        ] as Set
+
+        and: "service-b's metadata file has platform constraints but no local project constraints"
+        def serviceBMetadataFilename = new File(projectDir, "service-b/build/publications/maven/module.json")
+        def serviceBMetadata = new ObjectMapper().readValue(serviceBMetadataFilename, MetadataFile)
+
+        serviceBMetadata.variants == [
+                new MetadataFile.Variant(
+                        name: 'runtimeElements',
+                        dependencies: [junitDep],
+                        dependencyConstraints: [serviceAConstraint]),
+                new MetadataFile.Variant(
+                        name: 'apiElements',
+                        dependencies: null,
+                        dependencyConstraints: [serviceAConstraint]),
+        ] as Set
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
+    }
+
+    def "#gradleVersionNumber: published constraints with both platform and local constraints"() {
+        setup:
+        // Test with both constraints enabled
+        file('gradle.properties') << '''
+            com.palantir.gradle.versions.publishPlatformConstraints = true
+            com.palantir.gradle.versions.publishLocalConstraints = true
+        '''.stripIndent()
+        gradleVersion = gradleVersionNumber
+
+        buildFile << """
+            allprojects {
+                apply plugin: 'java'
+            }
+        """.stripIndent(true)
+
+        String publish = """
+            apply plugin: 'maven-publish'
+            group = 'com.palantir.combined'
+            version = '3.0.0'
+            publishing.publications {
+                maven(MavenPublication) {
+                    from components.java
+                }
+            }
+        """.stripIndent(true)
+
+        addSubproject('api', """
+            $publish
+            dependencies {
+                implementation 'ch.qos.logback:logback-classic:1.2.3'
+            }
+        """.stripIndent(true))
+
+        addSubproject('impl', """
+            $publish
+            dependencies {
+                implementation 'junit:junit:4.10'
+            }
+        """.stripIndent(true))
+
+        addSubproject('util', """
+            $publish
+            dependencies {
+                implementation 'org.slf4j:slf4j-api:1.7.25'
+            }
+        """.stripIndent(true))
+
+        if (GradleVersion.version(gradleVersionNumber) < GradleVersion.version("6.0")) {
+            settingsFile << """
+                enableFeaturePreview('GRADLE_METADATA')
+            """.stripIndent(true)
+        }
+
+        runTasks('--write-locks')
+
+        when:
+        runTasks('generatePomFileForMavenPublication', 'generateMetadataFileForMavenPublication')
+
+        def junitDep = new MetadataFile.Dependency(
+                group: 'junit',
+                module: 'junit',
+                version: [requires: '4.10'])
+        def logbackDep = new MetadataFile.Dependency(
+                group: 'ch.qos.logback',
+                module: 'logback-classic',
+                version: [requires: '1.2.3'])
+        def slf4jDep = new MetadataFile.Dependency(
+                group: 'org.slf4j',
+                module: 'slf4j-api',
+                version: [requires: '1.7.25'])
+
+        // Platform constraints (same version)
+        def apiPlatformConstraint = new MetadataFile.Dependency(
+                group: 'com.palantir.combined',
+                module: 'api',
+                version: [requires: '[3.0.0,)'])
+        def implPlatformConstraint = new MetadataFile.Dependency(
+                group: 'com.palantir.combined',
+                module: 'impl',
+                version: [requires: '[3.0.0,)'])
+        def utilPlatformConstraint = new MetadataFile.Dependency(
+                group: 'com.palantir.combined',
+                module: 'util',
+                version: [requires: '[3.0.0,)'])
+
+        // Local constraints (exact version)
+        def apiLocalConstraint = new MetadataFile.Dependency(
+                group: 'com.palantir.combined',
+                module: 'api',
+                version: [requires: '3.0.0'])
+        def implLocalConstraint = new MetadataFile.Dependency(
+                group: 'com.palantir.combined',
+                module: 'impl',
+                version: [requires: '3.0.0'])
+        def utilLocalConstraint = new MetadataFile.Dependency(
+                group: 'com.palantir.combined',
+                module: 'util',
+                version: [requires: '3.0.0'])
+
+        then: "api's metadata file has both platform and local constraints"
+        def apiMetadataFilename = new File(projectDir, "api/build/publications/maven/module.json")
+        def apiMetadata = new ObjectMapper().readValue(apiMetadataFilename, MetadataFile)
+
+        apiMetadata.variants == [
+                new MetadataFile.Variant(
+                        name: 'runtimeElements',
+                        dependencies: [logbackDep],
+                        dependencyConstraints: [implPlatformConstraint, utilPlatformConstraint, implLocalConstraint, utilLocalConstraint] as Set),
+                new MetadataFile.Variant(
+                        name: 'apiElements',
+                        dependencies: null,
+                        dependencyConstraints: [implPlatformConstraint, utilPlatformConstraint, implLocalConstraint, utilLocalConstraint] as Set)
+        ] as Set
+
+        and: "impl's metadata file has both platform and local constraints"
+        def implMetadataFilename = new File(projectDir, "impl/build/publications/maven/module.json")
+        def implMetadata = new ObjectMapper().readValue(implMetadataFilename, MetadataFile)
+
+        implMetadata.variants == [
+                new MetadataFile.Variant(
+                        name: 'runtimeElements',
+                        dependencies: [junitDep],
+                        dependencyConstraints: [apiPlatformConstraint, utilPlatformConstraint, apiLocalConstraint, utilLocalConstraint] as Set),
+                new MetadataFile.Variant(
+                        name: 'apiElements',
+                        dependencies: null,
+                        dependencyConstraints: [apiPlatformConstraint, utilPlatformConstraint, apiLocalConstraint, utilLocalConstraint] as Set),
+        ] as Set
+
+        and: "util's metadata file has both platform and local constraints"
+        def utilMetadataFilename = new File(projectDir, "util/build/publications/maven/module.json")
+        def utilMetadata = new ObjectMapper().readValue(utilMetadataFilename, MetadataFile)
+
+        utilMetadata.variants == [
+                new MetadataFile.Variant(
+                        name: 'runtimeElements',
+                        dependencies: [slf4jDep],
+                        dependencyConstraints: [apiPlatformConstraint, implPlatformConstraint, apiLocalConstraint, implLocalConstraint] as Set),
+                new MetadataFile.Variant(
+                        name: 'apiElements',
+                        dependencies: null,
+                        dependencyConstraints: [apiPlatformConstraint, implPlatformConstraint, apiLocalConstraint, implLocalConstraint] as Set),
+        ] as Set
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
+    }
+
+    def "#gradleVersionNumber: published constraints without any constraints enabled"() {
         setup:
         gradleVersion = gradleVersionNumber
 
@@ -222,12 +465,8 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
                 group: 'ch.qos.logback',
                 module: 'logback-classic',
                 version: [requires: '1.2.3'])
-        def slf4jDep = new MetadataFile.Dependency(
-                group: 'org.slf4j',
-                module: 'slf4j-api',
-                version: [requires: '1.7.25'])
 
-        then: "foo's metadata file has the right dependency constraints"
+        then: "foo's metadata file has no constraints"
         def fooMetadataFilename = new File(projectDir, "foo/build/publications/maven/module.json")
         def fooMetadata = new ObjectMapper().readValue(fooMetadataFilename, MetadataFile)
 
@@ -242,7 +481,7 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
                         dependencyConstraints: null),
         ] as Set
 
-        and: "bar's metadata file has the right dependency constraints"
+        and: "bar's metadata file has no constraints"
         def barMetadataFilename = new File(projectDir, "bar/build/publications/maven/module.json")
         def barMetadata = new ObjectMapper().readValue(barMetadataFilename, MetadataFile)
 
