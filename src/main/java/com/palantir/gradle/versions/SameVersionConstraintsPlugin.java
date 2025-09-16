@@ -18,9 +18,11 @@ package com.palantir.gradle.versions;
 import com.google.common.collect.ImmutableList;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.gradle.api.Action;
 import org.gradle.api.Named;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
@@ -36,6 +38,8 @@ import org.gradle.api.publish.maven.MavenPublication;
 
 public class SameVersionConstraintsPlugin implements Plugin<Project> {
     private static final Logger log = Logging.getLogger(SameVersionConstraintsPlugin.class);
+    private static final String PUBLISH_LOCAL_CONSTRAINTS_PROPERTY =
+            "com.palantir.gradle.versions.publishLocalConstraints";
 
     @Override
     public final void apply(Project root) {
@@ -50,7 +54,6 @@ public class SameVersionConstraintsPlugin implements Plugin<Project> {
                     .filter(entry -> entry.getValue().size() > 1)
                     .forEach(entry -> {
                         String group = entry.getKey();
-                        // deterministic order for stability
                         Set<Project> projects = entry.getValue().stream()
                                 .sorted(Comparator.comparing(Project::getPath))
                                 .collect(Collectors.toCollection(LinkedHashSet::new));
@@ -63,7 +66,48 @@ public class SameVersionConstraintsPlugin implements Plugin<Project> {
 
                         configureGroup(projects);
                     });
+
+            // Add GCV publishable constraints if enabled
+            if (shouldPublishLocalConstraints(root)) {
+                root.getAllprojects().forEach(this::configureGcvPublishableConstraints);
+            }
         });
+    }
+
+    private void configureGcvPublishableConstraints(Project project) {
+        List<DependencyConstraint> localProjectConstraints = constructPublishableConstraintsFromLocalProjects(
+                project, project.getDependencies().getConstraints()::create);
+
+        if (!localProjectConstraints.isEmpty()) {
+            Configuration publishConstraints = project.getConfigurations().maybeCreate("gcvPublishConstraints");
+            publishConstraints.setDescription("Publishable constraints from the GCV versions.lock file");
+            publishConstraints.setCanBeResolved(false);
+            publishConstraints.setCanBeConsumed(false);
+            publishConstraints.getDependencyConstraints().addAll(localProjectConstraints);
+
+            // Enrich the configurations being published as part of the java component
+            project.getPluginManager().withPlugin("java", _plugin -> {
+                extendConfiguration(project, JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME, publishConstraints);
+                extendConfiguration(project, JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME, publishConstraints);
+            });
+        }
+    }
+
+    private static List<DependencyConstraint> constructPublishableConstraintsFromLocalProjects(
+            Project currentProject, DependencyConstraintCreator constraintCreator) {
+        return currentProject.getRootProject().getAllprojects().stream()
+                .filter(project -> !currentProject.equals(project))
+                .filter(SameVersionConstraintsPlugin::isJavaLibrary)
+                .map(libraryProject -> constraintCreator.create(
+                        libraryProject,
+                        constraint -> constraint.because("Library published from the same project: "
+                                + currentProject.getRootProject().getName())))
+                .collect(Collectors.toList());
+    }
+
+    private static boolean shouldPublishLocalConstraints(Project project) {
+        return project.hasProperty(PUBLISH_LOCAL_CONSTRAINTS_PROPERTY)
+                && "true".equals(project.property(PUBLISH_LOCAL_CONSTRAINTS_PROPERTY));
     }
 
     private Map<String, Set<Project>> discoverProjectsByGroup(Project root) {
@@ -166,5 +210,11 @@ public class SameVersionConstraintsPlugin implements Plugin<Project> {
                 publication.getClass().getName(),
                 project.getName());
         return true;
+    }
+
+    // Add this functional interface at the top of the class or as a nested interface
+    @FunctionalInterface
+    interface DependencyConstraintCreator {
+        DependencyConstraint create(Object dependencyNotation, Action<? super DependencyConstraint> configureAction);
     }
 }
