@@ -999,11 +999,11 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                 new MetadataFile.Variant(
                         name: 'runtimeElements',
                         dependencies: [logbackDep],
-                        dependencyConstraints: [barDep, junitDep, logbackDep, slf4jDep]),
+                        dependencyConstraints: [barDep]),
                 new MetadataFile.Variant(
                         name: 'apiElements',
                         dependencies: null,
-                        dependencyConstraints: [barDep, junitDep, logbackDep, slf4jDep])
+                        dependencyConstraints: [barDep])
         ] as Set
 
         and: "bar's metadata file has the right dependency constraints"
@@ -1014,11 +1014,11 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                 new MetadataFile.Variant(
                         name: 'runtimeElements',
                         dependencies: [junitDep],
-                        dependencyConstraints: [fooDep, junitDep, logbackDep, slf4jDep]),
+                        dependencyConstraints: [fooDep]),
                 new MetadataFile.Variant(
                         name: 'apiElements',
                         dependencies: null,
-                        dependencyConstraints: [fooDep, junitDep, logbackDep, slf4jDep]),
+                        dependencyConstraints: [fooDep]),
         ] as Set
 
         where:
@@ -1085,11 +1085,11 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                 new MetadataFile.Variant(
                         name: 'apiElements',
                         dependencies: null,
-                        dependencyConstraints: [junitDep, logbackDep, slf4jDep]),
+                        dependencyConstraints: null),
                 new MetadataFile.Variant(
                         name: 'runtimeElements',
                         dependencies: [logbackDep],
-                        dependencyConstraints: [junitDep, logbackDep, slf4jDep]),
+                        dependencyConstraints: null),
         ] as Set
 
         and: "bar's metadata file has the right dependency constraints"
@@ -1100,11 +1100,11 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                 new MetadataFile.Variant(
                         name: 'apiElements',
                         dependencies: null,
-                        dependencyConstraints: [junitDep, logbackDep, slf4jDep]),
+                        dependencyConstraints: null),
                 new MetadataFile.Variant(
                         name: 'runtimeElements',
                         dependencies: [junitDep],
-                        dependencyConstraints: [junitDep, logbackDep, slf4jDep]),
+                        dependencyConstraints: null),
         ] as Set
 
         where:
