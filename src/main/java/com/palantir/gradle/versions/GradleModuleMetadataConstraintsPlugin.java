@@ -16,9 +16,11 @@
 package com.palantir.gradle.versions;
 
 import com.google.common.collect.ImmutableList;
+import com.palantir.gradle.versions.lockstate.LockState;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.gradle.api.Named;
@@ -52,9 +54,7 @@ public class GradleModuleMetadataConstraintsPlugin implements Plugin<Project> {
                 configureSameVersionGroups(root);
             }
 
-            if (shouldPublishLocalConstraints(root)) {
-                root.getAllprojects().forEach(this::configurePublishableConstraints);
-            }
+            configurePublishableConstraints(root);
         });
     }
 
@@ -101,21 +101,35 @@ public class GradleModuleMetadataConstraintsPlugin implements Plugin<Project> {
         applyConstraintsToJavaConfigurations(project, constraints);
     }
 
-    private void configurePublishableConstraints(Project project) {
-        List<DependencyConstraint> constraints = createLocalProjectConstraints(project);
+    private void configurePublishableConstraints(Project rootProject) {
+        List<DependencyConstraint> lockDeps = constructPublishableConstraintsFromLockFile(rootProject);
 
-        if (constraints.isEmpty()) {
-            return;
-        }
+        rootProject.getAllprojects().forEach(project -> {
+            List<DependencyConstraint> constraints = createLocalProjectConstraints(project);
 
-        Configuration publishConstraints = createConstraintsConfiguration(
-                project, GCV_CONSTRAINTS_CONFIG, "Publishable constraints from the GCV versions.lock file");
-        publishConstraints.getDependencyConstraints().addAll(constraints);
+            ImmutableList<DependencyConstraint> publishableConstraintsForSubproject =
+                    ImmutableList.<DependencyConstraint>builder()
+                            .addAll(constraints)
+                            .addAll(lockDeps)
+                            .build();
 
-        applyConstraintsToJavaConfigurations(project, publishConstraints);
+            if (publishableConstraintsForSubproject.isEmpty()) {
+                return;
+            }
+
+            Configuration publishConstraints = createConstraintsConfiguration(
+                    project, GCV_CONSTRAINTS_CONFIG, "Publishable constraints from the GCV versions.lock file");
+            publishConstraints.getDependencyConstraints().addAll(publishableConstraintsForSubproject);
+
+            applyConstraintsToJavaConfigurations(project, publishConstraints);
+        });
     }
 
     private List<DependencyConstraint> createLocalProjectConstraints(Project currentProject) {
+        if (!shouldPublishLocalConstraints(currentProject.getRootProject())) {
+            return ImmutableList.of();
+        }
+
         String reason = "Library published from the same project: "
                 + currentProject.getRootProject().getName();
 
@@ -127,6 +141,23 @@ public class GradleModuleMetadataConstraintsPlugin implements Plugin<Project> {
                         .getConstraints()
                         .create(library, constraint -> constraint.because(reason)))
                 .toList();
+    }
+
+    private static List<DependencyConstraint> constructPublishableConstraintsFromLockFile(Project rootProject) {
+        LockState lockState =
+                new ConflictSafeLockFile(rootProject.file("versions.lock").toPath()).readLocks();
+        // We only publish the production locks.
+        return lockState.productionLinesByModuleIdentifier().entrySet().stream()
+                .map(e -> e.getKey() + ":" + e.getValue().version())
+                .map(notation -> rootProject.getDependencies().getConstraints().create(notation, constraint -> {
+                    constraint.version(v -> {
+                        String version = Objects.requireNonNull(constraint.getVersion());
+                        v.require(version);
+                    });
+                    constraint.because("Computed from com.palantir.consistent-versions' versions.lock in "
+                            + rootProject.getName());
+                }))
+                .collect(Collectors.toList());
     }
 
     private DependencyConstraint createConstraint(Project project, Project sibling) {

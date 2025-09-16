@@ -54,6 +54,7 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
             }
             plugins {
                 id '${PLUGIN_NAME}'
+                id 'com.palantir.versions-lock'
             }
             allprojects {
                 repositories {
@@ -136,6 +137,10 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
                 group: 'com.palantir.published-constraints',
                 module: 'bar',
                 version: [requires: '1.2.3'])
+        def slf4jDep = new MetadataFile.Dependency(
+                group: 'org.slf4j',
+                module: 'slf4j-api',
+                version: [requires: '1.7.25'])
 
         then: "foo's metadata file has the right dependency constraints"
         def fooMetadataFilename = new File(projectDir, "foo/build/publications/maven/module.json")
@@ -145,11 +150,11 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
                 new MetadataFile.Variant(
                         name: 'runtimeElements',
                         dependencies: [logbackDep],
-                        dependencyConstraints: [barDep]),
+                        dependencyConstraints: [barDep, junitDep, logbackDep, slf4jDep]),
                 new MetadataFile.Variant(
                         name: 'apiElements',
                         dependencies: null,
-                        dependencyConstraints: [barDep])
+                        dependencyConstraints: [barDep, junitDep, logbackDep, slf4jDep])
         ] as Set
 
         and: "bar's metadata file has the right dependency constraints"
@@ -160,11 +165,11 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
                 new MetadataFile.Variant(
                         name: 'runtimeElements',
                         dependencies: [junitDep],
-                        dependencyConstraints: [fooDep]),
+                        dependencyConstraints: [fooDep, junitDep, logbackDep, slf4jDep]),
                 new MetadataFile.Variant(
                         name: 'apiElements',
                         dependencies: null,
-                        dependencyConstraints: [fooDep]),
+                        dependencyConstraints: [fooDep, junitDep, logbackDep, slf4jDep]),
         ] as Set
 
         where:
