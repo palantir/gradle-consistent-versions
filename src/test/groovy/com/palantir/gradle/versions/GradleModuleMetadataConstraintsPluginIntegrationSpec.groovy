@@ -33,6 +33,7 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
     static def PLUGIN_NAME = "com.palantir.gradle-module-metadata-constraints-plugin"
 
     void setup() {
+        System.properties.setProperty('ignoreMutableProjectStateWarnings', 'true')
         File mavenRepo = generateMavenRepo(
                 "ch.qos.logback:logback-classic:1.2.3 -> org.slf4j:slf4j-api:1.7.25",
                 "org.slf4j:slf4j-api:1.7.11",
@@ -54,7 +55,6 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
             }
             plugins {
                 id '${PLUGIN_NAME}'
-                id 'com.palantir.versions-lock'
             }
             allprojects {
                 repositories {
@@ -150,11 +150,11 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
                 new MetadataFile.Variant(
                         name: 'runtimeElements',
                         dependencies: [logbackDep],
-                        dependencyConstraints: [barDep, junitDep, logbackDep, slf4jDep]),
+                        dependencyConstraints: [logbackDep, slf4jDep]),
                 new MetadataFile.Variant(
                         name: 'apiElements',
                         dependencies: null,
-                        dependencyConstraints: [barDep, junitDep, logbackDep, slf4jDep])
+                        dependencyConstraints: [logbackDep, slf4jDep])
         ] as Set
 
         and: "bar's metadata file has the right dependency constraints"
@@ -165,11 +165,11 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
                 new MetadataFile.Variant(
                         name: 'runtimeElements',
                         dependencies: [junitDep],
-                        dependencyConstraints: [fooDep, junitDep, logbackDep, slf4jDep]),
+                        dependencyConstraints: [junitDep]),
                 new MetadataFile.Variant(
                         name: 'apiElements',
                         dependencies: null,
-                        dependencyConstraints: [fooDep, junitDep, logbackDep, slf4jDep]),
+                        dependencyConstraints: [junitDep]),
         ] as Set
 
         where:

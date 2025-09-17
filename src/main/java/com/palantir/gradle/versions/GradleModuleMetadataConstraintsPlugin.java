@@ -28,6 +28,9 @@ import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.DependencyConstraint;
+import org.gradle.api.artifacts.ModuleIdentifier;
+import org.gradle.api.artifacts.ModuleVersionIdentifier;
+import org.gradle.api.artifacts.result.ResolvedComponentResult;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 import org.gradle.api.plugins.JavaPlugin;
@@ -43,11 +46,13 @@ public class GradleModuleMetadataConstraintsPlugin implements Plugin<Project> {
     private static final String PUBLISH_PLATFORM_CONSTRAINTS_PROPERTY =
             "com.palantir.gradle.versions.publishPlatformConstraints";
     private static final String CONSTRAINTS_CONFIG = "sameVersionConstraints";
-    private static final String GCV_CONSTRAINTS_CONFIG = "gcvPublishConstraints";
+    //    private static final String GCV_CONSTRAINTS_CONFIG = "gcvPublishConstraints";
 
     @Override
     public void apply(Project root) {
         validateRootProject(root);
+
+        root.getPluginManager().apply(VersionsLockPlugin.class);
 
         root.getGradle().projectsEvaluated(_gradle -> {
             if (shouldPublishPlatformConstraints(root)) {
@@ -117,11 +122,53 @@ public class GradleModuleMetadataConstraintsPlugin implements Plugin<Project> {
                 return;
             }
 
-            Configuration publishConstraints = createConstraintsConfiguration(
-                    project, GCV_CONSTRAINTS_CONFIG, "Publishable constraints from the GCV versions.lock file");
-            publishConstraints.getDependencyConstraints().addAll(publishableConstraintsForSubproject);
+            project.getPluginManager().withPlugin("java", _plugin -> {
+                // Filter constraints for each relevant configuration pair
+                Set<ModuleIdentifier> compileModules = project
+                        .getConfigurations()
+                        .getByName(JavaPlugin.COMPILE_CLASSPATH_CONFIGURATION_NAME)
+                        .getIncoming()
+                        .getResolutionResult()
+                        .getAllComponents()
+                        .stream()
+                        .map(ResolvedComponentResult::getModuleVersion)
+                        .filter(Objects::nonNull)
+                        .map(ModuleVersionIdentifier::getModule)
+                        .collect(Collectors.toSet());
 
-            applyConstraintsToJavaConfigurations(project, publishConstraints);
+                Set<ModuleIdentifier> runtimeModules = project
+                        .getConfigurations()
+                        .getByName(JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME)
+                        .getIncoming()
+                        .getResolutionResult()
+                        .getAllComponents()
+                        .stream()
+                        .map(ResolvedComponentResult::getModuleVersion)
+                        .filter(Objects::nonNull)
+                        .map(ModuleVersionIdentifier::getModule)
+                        .collect(Collectors.toSet());
+
+                List<DependencyConstraint> filteredApiConstraints = publishableConstraintsForSubproject.stream()
+                        .filter(constraint -> compileModules.contains(constraint.getModule()))
+                        .toList();
+
+                List<DependencyConstraint> filteredRuntimeConstraints = publishableConstraintsForSubproject.stream()
+                        .filter(constraint -> runtimeModules.contains(constraint.getModule()))
+                        .toList();
+
+                // Create custom configurations for constraints
+                Configuration apiConstraintsConfig = createConstraintsConfiguration(
+                        project, "gcvApiPublishConstraints", "Filtered API constraints for publishing");
+                apiConstraintsConfig.getDependencyConstraints().addAll(filteredApiConstraints);
+
+                Configuration runtimeConstraintsConfig = createConstraintsConfiguration(
+                        project, "gcvRuntimePublishConstraints", "Filtered runtime constraints for publishing");
+                runtimeConstraintsConfig.getDependencyConstraints().addAll(filteredRuntimeConstraints);
+
+                // Attach via extendsFrom
+                extendConfiguration(project, JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME, apiConstraintsConfig);
+                extendConfiguration(project, JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME, runtimeConstraintsConfig);
+            });
         });
     }
 
