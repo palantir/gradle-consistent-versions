@@ -922,10 +922,13 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    def "#gradleVersionNumber: published constraints are derived from lock file (with local constraints)"() {
+    def "#gradleVersionNumber: published constraints are derived from lock file (with local constraints and with filtering)"() {
         setup:
         // Test with local constraints enabled
-        file('gradle.properties') << 'com.palantir.gradle.versions.publishLocalConstraints = true'
+        file('gradle.properties') << '''
+            com.palantir.gradle.versions.publishLocalConstraints = true
+            com.palantir.gradle.versions.filterLockFileConstraints = true
+        '''
         gradleVersion = gradleVersionNumber
 
         buildFile << """
@@ -999,11 +1002,11 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                 new MetadataFile.Variant(
                         name: 'runtimeElements',
                         dependencies: [logbackDep],
-                        dependencyConstraints: [barDep, junitDep, logbackDep, slf4jDep]),
+                        dependencyConstraints: [barDep, logbackDep, slf4jDep]),
                 new MetadataFile.Variant(
                         name: 'apiElements',
                         dependencies: null,
-                        dependencyConstraints: [barDep, junitDep, logbackDep, slf4jDep])
+                        dependencyConstraints: [barDep, logbackDep, slf4jDep])
         ] as Set
 
         and: "bar's metadata file has the right dependency constraints"
@@ -1014,18 +1017,113 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
                 new MetadataFile.Variant(
                         name: 'runtimeElements',
                         dependencies: [junitDep],
-                        dependencyConstraints: [fooDep, junitDep, logbackDep, slf4jDep]),
+                        dependencyConstraints: [fooDep, junitDep]),
                 new MetadataFile.Variant(
                         name: 'apiElements',
                         dependencies: null,
-                        dependencyConstraints: [fooDep, junitDep, logbackDep, slf4jDep]),
+                        dependencyConstraints: [fooDep, junitDep]),
         ] as Set
 
         where:
         gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    def "#gradleVersionNumber: published constraints are derived from lock file (without local constraints)"() {
+    def "#gradleVersionNumber: published constraints are derived from lock file (without local constraints and with filtering)"() {
+        setup:
+        // Test with local constraints enabled
+        file('gradle.properties') << 'com.palantir.gradle.versions.filterLockFileConstraints = true'
+        gradleVersion = gradleVersionNumber
+
+        buildFile << """
+            allprojects {
+                apply plugin: 'java'
+            }
+        """.stripIndent(true)
+
+        String publish = """
+            apply plugin: 'maven-publish'
+            group = 'com.palantir.published-constraints'
+            version = '1.2.3'
+            publishing.publications {
+                maven(MavenPublication) {
+                    from components.java
+                }
+            }
+        """.stripIndent(true)
+
+        addSubproject('foo', """
+            $publish
+            dependencies {
+                implementation 'ch.qos.logback:logback-classic:1.2.3'
+            }
+        """.stripIndent(true))
+
+        addSubproject('bar', """
+            $publish
+            dependencies {
+                implementation 'junit:junit:4.10'
+            }
+        """.stripIndent(true))
+
+        if (GradleVersion.version(gradleVersionNumber) < GradleVersion.version("6.0")) {
+            settingsFile << """
+                enableFeaturePreview('GRADLE_METADATA')
+            """.stripIndent(true)
+        }
+
+        runTasks('--write-locks')
+
+        when:
+        runTasks('generatePomFileForMavenPublication', 'generateMetadataFileForMavenPublication')
+
+        def junitDep = new MetadataFile.Dependency(
+                group: 'junit',
+                module: 'junit',
+                version: [requires: '4.10'])
+        def logbackDep = new MetadataFile.Dependency(
+                group: 'ch.qos.logback',
+                module: 'logback-classic',
+                version: [requires: '1.2.3'])
+        def slf4jDep = new MetadataFile.Dependency(
+                group: 'org.slf4j',
+                module: 'slf4j-api',
+                version: [requires: '1.7.25'])
+
+        then: "foo's metadata file has the right dependency constraints"
+        def fooMetadataFilename = new File(projectDir, "foo/build/publications/maven/module.json")
+        def fooMetadata = new ObjectMapper().readValue(fooMetadataFilename, MetadataFile)
+
+        fooMetadata.variants == [
+                new MetadataFile.Variant(
+                        name: 'runtimeElements',
+                        dependencies: [logbackDep],
+                        dependencyConstraints: [logbackDep, slf4jDep]),
+                new MetadataFile.Variant(
+                        name: 'apiElements',
+                        dependencies: null,
+                        dependencyConstraints: [logbackDep, slf4jDep])
+        ] as Set
+
+        and: "bar's metadata file has the right dependency constraints"
+        def barMetadataFilename = new File(projectDir, "bar/build/publications/maven/module.json")
+        def barMetadata = new ObjectMapper().readValue(barMetadataFilename, MetadataFile)
+
+        barMetadata.variants == [
+                new MetadataFile.Variant(
+                        name: 'runtimeElements',
+                        dependencies: [junitDep],
+                        dependencyConstraints: [junitDep]),
+                new MetadataFile.Variant(
+                        name: 'apiElements',
+                        dependencies: null,
+                        dependencyConstraints: [junitDep]),
+        ] as Set
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
+    }
+
+    def "#gradleVersionNumber: published constraints are derived from lock file (without local constraints and without filtering)"() {
         setup:
         gradleVersion = gradleVersionNumber
 

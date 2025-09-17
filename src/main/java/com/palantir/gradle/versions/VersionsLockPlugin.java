@@ -74,6 +74,7 @@ import org.gradle.api.artifacts.DependencyConstraint;
 import org.gradle.api.artifacts.DependencySet;
 import org.gradle.api.artifacts.ExternalModuleDependency;
 import org.gradle.api.artifacts.ModuleIdentifier;
+import org.gradle.api.artifacts.ModuleVersionIdentifier;
 import org.gradle.api.artifacts.ProjectDependency;
 import org.gradle.api.artifacts.VersionConstraint;
 import org.gradle.api.artifacts.component.ComponentSelector;
@@ -133,6 +134,7 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
             new TaskNameMatcher(WRITE_VERSIONS_LOCKS_TASK);
     private static final String PUBLISH_LOCAL_CONSTRAINTS_PROPERTY =
             "com.palantir.gradle.versions.publishLocalConstraints";
+    private static final String FILTER_LOCK_FILE_CONSTRAINTS = "com.palantir.gradle.versions.filterLockFileConstraints";
 
     public enum GcvUsage implements Named {
         /**
@@ -917,22 +919,18 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
             Map<Project, LockedConfigurations> lockedConfigurations,
             ProjectDependency locksDependency) {
 
-        List<DependencyConstraint> publishableConstraints = constructPublishableConstraintsFromLockFile(
+        List<DependencyConstraint> lockFileConstraints = constructPublishableConstraintsFromLockFile(
                 rootProject, gradleLockfile, rootProject.getDependencies().getConstraints()::create);
 
         rootProject.allprojects(subproject -> {
             // Avoid including the current project as a constraint -- it must already be present to provide constraints
             List<DependencyConstraint> localProjectConstraints = constructPublishableConstraintsFromLocalProjects(
                     subproject, rootProject.getDependencies().getConstraints()::create);
-            ImmutableList<DependencyConstraint> publishableConstraintsForSubproject =
-                    ImmutableList.<DependencyConstraint>builder()
-                            .addAll(localProjectConstraints)
-                            .addAll(publishableConstraints)
-                            .build();
             configureUsingConstraints(
                     subproject,
                     locksDependency,
-                    publishableConstraintsForSubproject,
+                    lockFileConstraints,
+                    localProjectConstraints,
                     lockedConfigurations.get(subproject));
         });
     }
@@ -940,8 +938,10 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
     private static void configureUsingConstraints(
             Project subproject,
             ProjectDependency locksDependency,
-            List<DependencyConstraint> publishableConstraints,
+            List<DependencyConstraint> lockFileConstraints,
+            List<DependencyConstraint> localProjectConstraints,
             LockedConfigurations lockedConfigurations) {
+
         @SuppressWarnings("for-rollout:ConfigurationAvoidanceRegistration")
         Configuration locksConfiguration = subproject
                 .getConfigurations()
@@ -959,27 +959,78 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
             VersionsLockPlugin.ensureNoFailOnVersionConflict(conf);
         });
 
-        NamedDomainObjectProvider<Configuration> publishConstraints = subproject
+        NamedDomainObjectProvider<Configuration> apiPublishConstraints = subproject
                 .getConfigurations()
-                .register("gcvPublishConstraints", conf -> {
-                    conf.setDescription("Publishable constraints from the GCV versions.lock file");
+                .register("gcvApiPublishConstraints", conf -> {
+                    conf.setDescription("Filtered API constraints from the GCV versions.lock file");
                     conf.setCanBeResolved(false);
                     conf.setCanBeConsumed(false);
-                    conf.getDependencyConstraints().addAll(publishableConstraints);
                 });
 
-        // Enrich the configurations being published as part of the java component (components.java)
-        // with constraints generated from the lock file.
+        NamedDomainObjectProvider<Configuration> runtimePublishConstraints = subproject
+                .getConfigurations()
+                .register("gcvRuntimePublishConstraints", conf -> {
+                    conf.setDescription("Filtered runtime constraints from the GCV versions.lock file");
+                    conf.setCanBeResolved(false);
+                    conf.setCanBeConsumed(false);
+                });
+
         subproject.getPluginManager().withPlugin("java", _plugin -> {
+            Set<ModuleIdentifier> compileModules =
+                    getModulesInClasspath(subproject, JavaPlugin.COMPILE_CLASSPATH_CONFIGURATION_NAME);
+            Set<ModuleIdentifier> runtimeModules =
+                    getModulesInClasspath(subproject, JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME);
+
+            apiPublishConstraints.configure(conf -> {
+                addConstraintsToConfig(subproject, conf, compileModules, lockFileConstraints, localProjectConstraints);
+            });
+
+            runtimePublishConstraints.configure(conf -> {
+                addConstraintsToConfig(subproject, conf, runtimeModules, lockFileConstraints, localProjectConstraints);
+            });
+
             subproject
                     .getConfigurations()
                     .named(JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME)
-                    .configure(conf -> conf.extendsFrom(publishConstraints.get()));
+                    .configure(conf -> conf.extendsFrom(apiPublishConstraints.get()));
             subproject
                     .getConfigurations()
                     .named(JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME)
-                    .configure(conf -> conf.extendsFrom(publishConstraints.get()));
+                    .configure(conf -> conf.extendsFrom(runtimePublishConstraints.get()));
         });
+    }
+
+    private static void addConstraintsToConfig(
+            Project project,
+            Configuration config,
+            Set<ModuleIdentifier> allowedModules,
+            List<DependencyConstraint> lockFileConstraints,
+            List<DependencyConstraint> localProjectConstraints) {
+
+        lockFileConstraints.stream()
+                .filter(c -> {
+                    if (filterLockFileConstraints(project)) {
+                        return allowedModules.contains(c.getModule());
+                    }
+                    return true;
+                })
+                .forEach(config.getDependencyConstraints()::add);
+
+        localProjectConstraints.forEach(config.getDependencyConstraints()::add);
+    }
+
+    private static Set<ModuleIdentifier> getModulesInClasspath(Project project, String configurationName) {
+        return project
+                .getConfigurations()
+                .getByName(configurationName)
+                .getIncoming()
+                .getResolutionResult()
+                .getAllComponents()
+                .stream()
+                .map(ResolvedComponentResult::getModuleVersion)
+                .filter(Objects::nonNull)
+                .map(ModuleVersionIdentifier::getModule)
+                .collect(Collectors.toSet());
     }
 
     private static LockedConfigurations computeConfigurationsToLock(Project project, VersionsLockExtension ext) {
@@ -1105,6 +1156,11 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
     private static boolean publishLocalConstraints(Project project) {
         return project.hasProperty(PUBLISH_LOCAL_CONSTRAINTS_PROPERTY)
                 && "true".equals(project.property(PUBLISH_LOCAL_CONSTRAINTS_PROPERTY));
+    }
+
+    private static boolean filterLockFileConstraints(Project project) {
+        return project.hasProperty(FILTER_LOCK_FILE_CONSTRAINTS)
+                && "true".equals(project.property(FILTER_LOCK_FILE_CONSTRAINTS));
     }
 
     private static boolean isJavaLibrary(Project project) {
