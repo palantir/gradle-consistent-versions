@@ -97,6 +97,7 @@ import org.gradle.api.logging.configuration.ShowStacktrace;
 import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.plugins.JavaPluginExtension;
 import org.gradle.api.provider.Property;
+import org.gradle.api.provider.Provider;
 import org.gradle.api.publish.Publication;
 import org.gradle.api.publish.PublishingExtension;
 import org.gradle.api.publish.ivy.IvyPublication;
@@ -971,8 +972,7 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
 
                         if (filterLockFileConstraints(subproject)) {
                             conf.getDependencyConstraints()
-                                    .addAllLater(subproject.provider(
-                                            () -> filterConstraintsByUsage(subproject, lockFileConstraints)));
+                                    .addAllLater(filterConstraintsByUsage(subproject, lockFileConstraints));
                         } else {
                             conf.getDependencyConstraints().addAll(lockFileConstraints);
                         }
@@ -990,29 +990,29 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
         });
     }
 
-    private static Collection<DependencyConstraint> filterConstraintsByUsage(
+    private static Provider<Collection<DependencyConstraint>> filterConstraintsByUsage(
             Project project, List<DependencyConstraint> constraints) {
 
-        Set<ModuleIdentifier> usedModules = new HashSet<>();
+        NamedDomainObjectProvider<Configuration> compileClasspath =
+                project.getConfigurations().named(JavaPlugin.COMPILE_CLASSPATH_CONFIGURATION_NAME);
+        NamedDomainObjectProvider<Configuration> runtimeClasspath =
+                project.getConfigurations().named(JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME);
 
-        Stream.of(JavaPlugin.COMPILE_CLASSPATH_CONFIGURATION_NAME, JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME)
-                .forEach(configName -> {
-                    project
-                            .getConfigurations()
-                            .getByName(configName)
-                            .getIncoming()
-                            .getResolutionResult()
-                            .getAllComponents()
-                            .stream()
-                            .map(ResolvedComponentResult::getModuleVersion)
-                            .filter(Objects::nonNull)
-                            .map(ModuleVersionIdentifier::getModule)
-                            .forEach(usedModules::add);
-                });
+        return compileClasspath.zip(runtimeClasspath, (compile, runtime) -> {
+            Set<ModuleIdentifier> usedModules = new HashSet<>();
 
-        return constraints.stream()
-                .filter(c -> usedModules.contains(c.getModule()))
-                .collect(Collectors.toList());
+            Stream.of(compile, runtime).forEach(config -> {
+                config.getIncoming().getResolutionResult().getAllComponents().stream()
+                        .map(ResolvedComponentResult::getModuleVersion)
+                        .filter(Objects::nonNull)
+                        .map(ModuleVersionIdentifier::getModule)
+                        .forEach(usedModules::add);
+            });
+
+            return constraints.stream()
+                    .filter(c -> usedModules.contains(c.getModule()))
+                    .collect(Collectors.toList());
+        });
     }
 
     private static LockedConfigurations computeConfigurationsToLock(Project project, VersionsLockExtension ext) {
