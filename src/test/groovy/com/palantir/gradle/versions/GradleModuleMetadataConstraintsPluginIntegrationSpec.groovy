@@ -33,7 +33,6 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
     static def PLUGIN_NAME = "com.palantir.gradle-module-metadata-constraints-plugin"
 
     void setup() {
-        System.properties.setProperty('ignoreMutableProjectStateWarnings', 'true')
         File mavenRepo = generateMavenRepo(
                 "ch.qos.logback:logback-classic:1.2.3 -> org.slf4j:slf4j-api:1.7.25",
                 "org.slf4j:slf4j-api:1.7.11",
@@ -150,11 +149,11 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
                 new MetadataFile.Variant(
                         name: 'runtimeElements',
                         dependencies: [logbackDep],
-                        dependencyConstraints: [logbackDep, slf4jDep]),
+                        dependencyConstraints: [barDep, logbackDep, slf4jDep]),
                 new MetadataFile.Variant(
                         name: 'apiElements',
                         dependencies: null,
-                        dependencyConstraints: [logbackDep, slf4jDep])
+                        dependencyConstraints: [barDep, logbackDep, slf4jDep])
         ] as Set
 
         and: "bar's metadata file has the right dependency constraints"
@@ -165,11 +164,11 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
                 new MetadataFile.Variant(
                         name: 'runtimeElements',
                         dependencies: [junitDep],
-                        dependencyConstraints: [junitDep]),
+                        dependencyConstraints: [fooDep, junitDep]),
                 new MetadataFile.Variant(
                         name: 'apiElements',
                         dependencies: null,
-                        dependencyConstraints: [junitDep]),
+                        dependencyConstraints: [fooDep, junitDep]),
         ] as Set
 
         where:
@@ -232,6 +231,10 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
                 group: 'ch.qos.logback',
                 module: 'logback-classic',
                 version: [requires: '1.2.3'])
+        def slf4jDep = new MetadataFile.Dependency(
+                group: 'org.slf4j',
+                module: 'slf4j-api',
+                version: [requires: '1.7.25'])
         def serviceAConstraint = new MetadataFile.Dependency(
                 group: 'com.palantir.same-group',
                 module: 'service-a',
@@ -241,7 +244,7 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
                 module: 'service-b',
                 version: [requires: '[2.0.0,)'])
 
-        then: "service-a's metadata file has platform constraints but no local project constraints"
+        then: "service-a's metadata file has platform constraints and filtered lock file constraints"
         def serviceAMetadataFilename = new File(projectDir, "service-a/build/publications/maven/module.json")
         def serviceAMetadata = new ObjectMapper().readValue(serviceAMetadataFilename, MetadataFile)
 
@@ -249,14 +252,14 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
                 new MetadataFile.Variant(
                         name: 'runtimeElements',
                         dependencies: [logbackDep],
-                        dependencyConstraints: [serviceBConstraint]),
+                        dependencyConstraints: [serviceBConstraint, logbackDep, slf4jDep] as Set),
                 new MetadataFile.Variant(
                         name: 'apiElements',
                         dependencies: null,
-                        dependencyConstraints: [serviceBConstraint])
+                        dependencyConstraints: [serviceBConstraint, logbackDep, slf4jDep] as Set)
         ] as Set
 
-        and: "service-b's metadata file has platform constraints but no local project constraints"
+        and: "service-b's metadata file has platform constraints and filtered lock file constraints"
         def serviceBMetadataFilename = new File(projectDir, "service-b/build/publications/maven/module.json")
         def serviceBMetadata = new ObjectMapper().readValue(serviceBMetadataFilename, MetadataFile)
 
@@ -264,11 +267,11 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
                 new MetadataFile.Variant(
                         name: 'runtimeElements',
                         dependencies: [junitDep],
-                        dependencyConstraints: [serviceAConstraint]),
+                        dependencyConstraints: [serviceAConstraint, junitDep] as Set),
                 new MetadataFile.Variant(
                         name: 'apiElements',
                         dependencies: null,
-                        dependencyConstraints: [serviceAConstraint]),
+                        dependencyConstraints: [serviceAConstraint, junitDep] as Set),
         ] as Set
 
         where:
@@ -374,7 +377,7 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
                 module: 'util',
                 version: [requires: '3.0.0'])
 
-        then: "api's metadata file has both platform and local constraints"
+        then: "api's metadata file has both platform and local constraints plus filtered lock constraints"
         def apiMetadataFilename = new File(projectDir, "api/build/publications/maven/module.json")
         def apiMetadata = new ObjectMapper().readValue(apiMetadataFilename, MetadataFile)
 
@@ -382,14 +385,14 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
                 new MetadataFile.Variant(
                         name: 'runtimeElements',
                         dependencies: [logbackDep],
-                        dependencyConstraints: [implPlatformConstraint, utilPlatformConstraint, implLocalConstraint, utilLocalConstraint] as Set),
+                        dependencyConstraints: [implPlatformConstraint, utilPlatformConstraint, implLocalConstraint, utilLocalConstraint, logbackDep, slf4jDep] as Set),
                 new MetadataFile.Variant(
                         name: 'apiElements',
                         dependencies: null,
-                        dependencyConstraints: [implPlatformConstraint, utilPlatformConstraint, implLocalConstraint, utilLocalConstraint] as Set)
+                        dependencyConstraints: [implPlatformConstraint, utilPlatformConstraint, implLocalConstraint, utilLocalConstraint, logbackDep, slf4jDep] as Set)
         ] as Set
 
-        and: "impl's metadata file has both platform and local constraints"
+        and: "impl's metadata file has both platform and local constraints plus filtered lock constraints"
         def implMetadataFilename = new File(projectDir, "impl/build/publications/maven/module.json")
         def implMetadata = new ObjectMapper().readValue(implMetadataFilename, MetadataFile)
 
@@ -397,14 +400,14 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
                 new MetadataFile.Variant(
                         name: 'runtimeElements',
                         dependencies: [junitDep],
-                        dependencyConstraints: [apiPlatformConstraint, utilPlatformConstraint, apiLocalConstraint, utilLocalConstraint] as Set),
+                        dependencyConstraints: [apiPlatformConstraint, utilPlatformConstraint, apiLocalConstraint, utilLocalConstraint, junitDep] as Set),
                 new MetadataFile.Variant(
                         name: 'apiElements',
                         dependencies: null,
-                        dependencyConstraints: [apiPlatformConstraint, utilPlatformConstraint, apiLocalConstraint, utilLocalConstraint] as Set),
+                        dependencyConstraints: [apiPlatformConstraint, utilPlatformConstraint, apiLocalConstraint, utilLocalConstraint, junitDep] as Set),
         ] as Set
 
-        and: "util's metadata file has both platform and local constraints"
+        and: "util's metadata file has both platform and local constraints plus filtered lock constraints"
         def utilMetadataFilename = new File(projectDir, "util/build/publications/maven/module.json")
         def utilMetadata = new ObjectMapper().readValue(utilMetadataFilename, MetadataFile)
 
@@ -412,18 +415,18 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
                 new MetadataFile.Variant(
                         name: 'runtimeElements',
                         dependencies: [slf4jDep],
-                        dependencyConstraints: [apiPlatformConstraint, implPlatformConstraint, apiLocalConstraint, implLocalConstraint] as Set),
+                        dependencyConstraints: [apiPlatformConstraint, implPlatformConstraint, apiLocalConstraint, implLocalConstraint, slf4jDep] as Set),
                 new MetadataFile.Variant(
                         name: 'apiElements',
                         dependencies: null,
-                        dependencyConstraints: [apiPlatformConstraint, implPlatformConstraint, apiLocalConstraint, implLocalConstraint] as Set),
+                        dependencyConstraints: [apiPlatformConstraint, implPlatformConstraint, apiLocalConstraint, implLocalConstraint, slf4jDep] as Set),
         ] as Set
 
         where:
         gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    def "#gradleVersionNumber: published constraints without any constraints enabled"() {
+    def "#gradleVersionNumber: published constraints without any constraints enabled (but with filtered lock constraints)"() {
         setup:
         gradleVersion = gradleVersionNumber
 
@@ -470,8 +473,12 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
                 group: 'ch.qos.logback',
                 module: 'logback-classic',
                 version: [requires: '1.2.3'])
+        def slf4jDep = new MetadataFile.Dependency(
+                group: 'org.slf4j',
+                module: 'slf4j-api',
+                version: [requires: '1.7.25'])
 
-        then: "foo's metadata file has no constraints"
+        then: "foo's metadata file has filtered lock file constraints only"
         def fooMetadataFilename = new File(projectDir, "foo/build/publications/maven/module.json")
         def fooMetadata = new ObjectMapper().readValue(fooMetadataFilename, MetadataFile)
 
@@ -479,14 +486,14 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
                 new MetadataFile.Variant(
                         name: 'apiElements',
                         dependencies: null,
-                        dependencyConstraints: null),
+                        dependencyConstraints: [logbackDep, slf4jDep] as Set),
                 new MetadataFile.Variant(
                         name: 'runtimeElements',
                         dependencies: [logbackDep],
-                        dependencyConstraints: null),
+                        dependencyConstraints: [logbackDep, slf4jDep] as Set),
         ] as Set
 
-        and: "bar's metadata file has no constraints"
+        and: "bar's metadata file has filtered lock file constraints only"
         def barMetadataFilename = new File(projectDir, "bar/build/publications/maven/module.json")
         def barMetadata = new ObjectMapper().readValue(barMetadataFilename, MetadataFile)
 
@@ -494,11 +501,11 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
                 new MetadataFile.Variant(
                         name: 'apiElements',
                         dependencies: null,
-                        dependencyConstraints: null),
+                        dependencyConstraints: [junitDep] as Set),
                 new MetadataFile.Variant(
                         name: 'runtimeElements',
                         dependencies: [junitDep],
-                        dependencyConstraints: null),
+                        dependencyConstraints: [junitDep] as Set),
         ] as Set
 
         where:

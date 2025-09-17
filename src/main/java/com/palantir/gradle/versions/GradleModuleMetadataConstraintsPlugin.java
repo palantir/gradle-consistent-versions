@@ -42,11 +42,9 @@ public class GradleModuleMetadataConstraintsPlugin implements Plugin<Project> {
     private static final Logger log = Logging.getLogger(GradleModuleMetadataConstraintsPlugin.class);
     private static final String PUBLISH_LOCAL_CONSTRAINTS_PROPERTY =
             "com.palantir.gradle.versions.publishLocalConstraints";
-    // needs a better name
     private static final String PUBLISH_PLATFORM_CONSTRAINTS_PROPERTY =
             "com.palantir.gradle.versions.publishPlatformConstraints";
     private static final String CONSTRAINTS_CONFIG = "sameVersionConstraints";
-    //    private static final String GCV_CONSTRAINTS_CONFIG = "gcvPublishConstraints";
 
     @Override
     public void apply(Project root) {
@@ -54,11 +52,28 @@ public class GradleModuleMetadataConstraintsPlugin implements Plugin<Project> {
 
         root.getPluginManager().apply(VersionsLockPlugin.class);
 
-        root.getGradle().projectsEvaluated(_gradle -> {
+        // Setup configurations early for all projects
+        root.allprojects(project -> {
+            project.getPluginManager().withPlugin("java", _plugin -> {
+                // Create configurations early during configuration phase
+                Configuration apiConstraintsConfig = createConstraintsConfiguration(
+                        project, "gcvApiPublishConstraints", "Filtered API constraints for publishing");
+                Configuration runtimeConstraintsConfig = createConstraintsConfiguration(
+                        project, "gcvRuntimePublishConstraints", "Filtered runtime constraints for publishing");
+
+                // Extend configurations immediately
+                extendConfiguration(project, JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME, apiConstraintsConfig);
+                extendConfiguration(project, JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME, runtimeConstraintsConfig);
+            });
+        });
+
+        // Configure same-version groups after project evaluation
+        root.afterEvaluate(_root -> {
             if (shouldPublishPlatformConstraints(root)) {
                 configureSameVersionGroups(root);
             }
 
+            // Configure publishable constraints for all projects
             configurePublishableConstraints(root);
         });
     }
@@ -95,21 +110,33 @@ public class GradleModuleMetadataConstraintsPlugin implements Plugin<Project> {
     }
 
     private void configureSameVersionConstraints(Project project, List<Project> siblings) {
-        Configuration constraints = createConstraintsConfiguration(
-                project, CONSTRAINTS_CONFIG, "Same-version constraints for modules in the same group");
+        Configuration constraints = project.getConfigurations().maybeCreate(CONSTRAINTS_CONFIG);
+        constraints.setDescription("Same-version constraints for modules in the same group");
+        constraints.setCanBeResolved(false);
+        constraints.setCanBeConsumed(false);
+        constraints.setVisible(false);
 
         siblings.stream()
                 .filter(sibling -> !sibling.equals(project))
                 .map(sibling -> createConstraint(project, sibling))
                 .forEach(constraints.getDependencyConstraints()::add);
 
-        applyConstraintsToJavaConfigurations(project, constraints);
+        // Only apply to existing configurations if Java plugin is present
+        if (project.getPluginManager().hasPlugin("java")) {
+            extendConfiguration(project, JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME, constraints);
+            extendConfiguration(project, JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME, constraints);
+        }
     }
 
     private void configurePublishableConstraints(Project rootProject) {
         List<DependencyConstraint> lockDeps = constructPublishableConstraintsFromLockFile(rootProject);
 
         rootProject.getAllprojects().forEach(project -> {
+            // Only process Java projects
+            if (!project.getPluginManager().hasPlugin("java")) {
+                return;
+            }
+
             List<DependencyConstraint> constraints = createLocalProjectConstraints(project);
 
             ImmutableList<DependencyConstraint> publishableConstraintsForSubproject =
@@ -122,54 +149,55 @@ public class GradleModuleMetadataConstraintsPlugin implements Plugin<Project> {
                 return;
             }
 
-            project.getPluginManager().withPlugin("java", _plugin -> {
-                // Filter constraints for each relevant configuration pair
-                Set<ModuleIdentifier> compileModules = project
-                        .getConfigurations()
-                        .getByName(JavaPlugin.COMPILE_CLASSPATH_CONFIGURATION_NAME)
-                        .getIncoming()
-                        .getResolutionResult()
-                        .getAllComponents()
-                        .stream()
-                        .map(ResolvedComponentResult::getModuleVersion)
-                        .filter(Objects::nonNull)
-                        .map(ModuleVersionIdentifier::getModule)
-                        .collect(Collectors.toSet());
-
-                Set<ModuleIdentifier> runtimeModules = project
-                        .getConfigurations()
-                        .getByName(JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME)
-                        .getIncoming()
-                        .getResolutionResult()
-                        .getAllComponents()
-                        .stream()
-                        .map(ResolvedComponentResult::getModuleVersion)
-                        .filter(Objects::nonNull)
-                        .map(ModuleVersionIdentifier::getModule)
-                        .collect(Collectors.toSet());
-
-                List<DependencyConstraint> filteredApiConstraints = publishableConstraintsForSubproject.stream()
-                        .filter(constraint -> compileModules.contains(constraint.getModule()))
-                        .toList();
-
-                List<DependencyConstraint> filteredRuntimeConstraints = publishableConstraintsForSubproject.stream()
-                        .filter(constraint -> runtimeModules.contains(constraint.getModule()))
-                        .toList();
-
-                // Create custom configurations for constraints
-                Configuration apiConstraintsConfig = createConstraintsConfiguration(
-                        project, "gcvApiPublishConstraints", "Filtered API constraints for publishing");
-                apiConstraintsConfig.getDependencyConstraints().addAll(filteredApiConstraints);
-
-                Configuration runtimeConstraintsConfig = createConstraintsConfiguration(
-                        project, "gcvRuntimePublishConstraints", "Filtered runtime constraints for publishing");
-                runtimeConstraintsConfig.getDependencyConstraints().addAll(filteredRuntimeConstraints);
-
-                // Attach via extendsFrom
-                extendConfiguration(project, JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME, apiConstraintsConfig);
-                extendConfiguration(project, JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME, runtimeConstraintsConfig);
-            });
+            // Populate the pre-created configurations with filtered constraints
+            populateConstraintConfigurations(project, constraints, lockDeps);
         });
+    }
+
+    private void populateConstraintConfigurations(
+            Project project, List<DependencyConstraint> local, List<DependencyConstraint> lock) {
+        // Get the modules from compile and runtime classpaths
+        Set<ModuleIdentifier> compileModules = project
+                .getConfigurations()
+                .getByName(JavaPlugin.COMPILE_CLASSPATH_CONFIGURATION_NAME)
+                .getIncoming()
+                .getResolutionResult()
+                .getAllComponents()
+                .stream()
+                .map(ResolvedComponentResult::getModuleVersion)
+                .filter(Objects::nonNull)
+                .map(ModuleVersionIdentifier::getModule)
+                .collect(Collectors.toSet());
+
+        Set<ModuleIdentifier> runtimeModules = project
+                .getConfigurations()
+                .getByName(JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME)
+                .getIncoming()
+                .getResolutionResult()
+                .getAllComponents()
+                .stream()
+                .map(ResolvedComponentResult::getModuleVersion)
+                .filter(Objects::nonNull)
+                .map(ModuleVersionIdentifier::getModule)
+                .collect(Collectors.toSet());
+
+        // Filter constraints
+        List<DependencyConstraint> filteredApiLockConstraints = lock.stream()
+                .filter(constraint -> compileModules.contains(constraint.getModule()))
+                .toList();
+
+        List<DependencyConstraint> filteredRuntimeLockConstraints = lock.stream()
+                .filter(constraint -> runtimeModules.contains(constraint.getModule()))
+                .toList();
+
+        // Add to the pre-created configurations
+        Configuration apiConstraintsConfig = project.getConfigurations().getByName("gcvApiPublishConstraints");
+        apiConstraintsConfig.getDependencyConstraints().addAll(filteredApiLockConstraints);
+        apiConstraintsConfig.getDependencyConstraints().addAll(local);
+
+        Configuration runtimeConstraintsConfig = project.getConfigurations().getByName("gcvRuntimePublishConstraints");
+        runtimeConstraintsConfig.getDependencyConstraints().addAll(filteredRuntimeLockConstraints);
+        runtimeConstraintsConfig.getDependencyConstraints().addAll(local);
     }
 
     private List<DependencyConstraint> createLocalProjectConstraints(Project currentProject) {
@@ -224,13 +252,6 @@ public class GradleModuleMetadataConstraintsPlugin implements Plugin<Project> {
         config.setCanBeConsumed(false);
         config.setVisible(false);
         return config;
-    }
-
-    private void applyConstraintsToJavaConfigurations(Project project, Configuration constraints) {
-        project.getPluginManager().withPlugin("java", _plugin -> {
-            extendConfiguration(project, JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME, constraints);
-            extendConfiguration(project, JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME, constraints);
-        });
     }
 
     private void extendConfiguration(Project project, String configName, Configuration constraints) {
