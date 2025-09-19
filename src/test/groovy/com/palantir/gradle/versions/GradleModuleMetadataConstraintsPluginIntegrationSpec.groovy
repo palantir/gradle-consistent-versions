@@ -33,19 +33,6 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
     static def PLUGIN_NAME = "com.palantir.gradle-module-metadata-constraints-plugin"
 
     void setup() {
-        File mavenRepo = generateMavenRepo(
-                "ch.qos.logback:logback-classic:1.2.3 -> org.slf4j:slf4j-api:1.7.25",
-                "org.slf4j:slf4j-api:1.7.11",
-                "org.slf4j:slf4j-api:1.7.20",
-                "org.slf4j:slf4j-api:1.7.24",
-                "org.slf4j:slf4j-api:1.7.25",
-                "junit:junit:4.10",
-                "org:test-dep-that-logs:1.0 -> org.slf4j:slf4j-api:1.7.11",
-                "org:another-transitive-dependency:3.2.1",
-                "org:another-direct-dependency:1.2.3 -> org:another-transitive-dependency:3.2.1",
-        )
-        makePlatformPom(mavenRepo, "org", "platform", "1.0")
-
         buildFile << """
             buildscript {
                 repositories {
@@ -54,20 +41,6 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
             }
             plugins {
                 id '${PLUGIN_NAME}'
-            }
-            allprojects {
-                repositories {
-                    maven { url "file:///${mavenRepo.getAbsolutePath()}" }
-                }
-                
-                task resolveConfigurations {
-                    doLast {
-                        if (pluginManager.hasPlugin('java')) {
-                            configurations.compileClasspath.resolve()
-                            configurations.runtimeClasspath.resolve()
-                        }
-                    }
-                }
             }
         """
     }
