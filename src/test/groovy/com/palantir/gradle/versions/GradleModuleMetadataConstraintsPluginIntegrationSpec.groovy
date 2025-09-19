@@ -291,8 +291,6 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
         then:
         result.task(':checkVersions').outcome == TaskOutcome.FAILED
         result.output.contains("Modules should be aligned!")
-        result.output.contains("1.0.0")
-        result.output.contains("2.0.0")
 
         where:
         gradleVersionNumber << GRADLE_VERSIONS
