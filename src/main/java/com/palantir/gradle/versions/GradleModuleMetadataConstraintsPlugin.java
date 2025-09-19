@@ -4,21 +4,14 @@
  */
 package com.palantir.gradle.versions;
 
-import com.google.common.collect.ImmutableList;
-import com.palantir.gradle.versions.lockstate.LockState;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
-import org.gradle.api.artifacts.DependencyConstraint;
-import org.gradle.api.artifacts.ModuleIdentifier;
-import org.gradle.api.artifacts.ModuleVersionIdentifier;
-import org.gradle.api.artifacts.result.ResolvedComponentResult;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 import org.gradle.api.plugins.JavaPlugin;
@@ -32,7 +25,8 @@ import org.gradle.api.publish.maven.MavenPublication;
 public class GradleModuleMetadataConstraintsPlugin implements Plugin<Project> {
     private static final Logger log = Logging.getLogger(GradleModuleMetadataConstraintsPlugin.class);
 
-    private static final String PUBLISH_LOCAL_CONSTRAINTS = "com.palantir.gradle.versions.publishLocalConstraints";
+    //    private static final String PUBLISH_LOCAL_CONSTRAINTS =
+    // "com.palantir.gradle.versions.publishLocalConstraints";
     private static final String PUBLISH_PLATFORM_CONSTRAINTS =
             "com.palantir.gradle.versions.publishPlatformConstraints";
     private static final String CONSTRAINTS_CONFIG = "sameVersionConstraints";
@@ -60,7 +54,6 @@ public class GradleModuleMetadataConstraintsPlugin implements Plugin<Project> {
             if ("true".equals(root.findProperty(PUBLISH_PLATFORM_CONSTRAINTS))) {
                 addSameVersionConstraints(root);
             }
-            addPublishableConstraints(root);
         });
     }
 
@@ -104,89 +97,6 @@ public class GradleModuleMetadataConstraintsPlugin implements Plugin<Project> {
                 extendConfig(project, JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME, constraints.getName());
             }
         });
-    }
-
-    /**
-     * Adds dependency constraints for publishing, from lock file and optionally local projects.
-     */
-    private void addPublishableConstraints(Project root) {
-        LockState lockState =
-                new ConflictSafeLockFile(root.file("versions.lock").toPath()).readLocks();
-        List<DependencyConstraint> lockConstraints = lockState.productionLinesByModuleIdentifier().entrySet().stream()
-                .map(e -> root.getDependencies()
-                        .getConstraints()
-                        .create(e.getKey() + ":" + e.getValue().version(), c -> {
-                            c.version(v -> v.require(Objects.requireNonNull(c.getVersion())));
-                            c.because("From versions.lock in " + root.getName());
-                        }))
-                .toList();
-
-        root.getAllprojects().stream()
-                .filter(p -> p.getPluginManager().hasPlugin("java"))
-                .forEach(project -> {
-                    List<DependencyConstraint> localConstraints = ImmutableList.of();
-                    if ("true".equals(root.findProperty(PUBLISH_LOCAL_CONSTRAINTS))) {
-                        localConstraints = getLocalConstraints(root, project);
-                    }
-
-                    if (localConstraints.isEmpty() && lockConstraints.isEmpty()) {
-                        return;
-                    }
-
-                    Set<ModuleIdentifier> compileModules =
-                            getModules(project, JavaPlugin.COMPILE_CLASSPATH_CONFIGURATION_NAME);
-                    Set<ModuleIdentifier> runtimeModules =
-                            getModules(project, JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME);
-
-                    Configuration apiConfig = project.getConfigurations().getByName(API_CONSTRAINTS_CONFIG);
-                    addConstraintsToConfig(apiConfig, compileModules, lockConstraints, localConstraints);
-
-                    Configuration runtimeConfig = project.getConfigurations().getByName(RUNTIME_CONSTRAINTS_CONFIG);
-                    addConstraintsToConfig(runtimeConfig, runtimeModules, lockConstraints, localConstraints);
-                });
-    }
-
-    private void addConstraintsToConfig(
-            Configuration config,
-            Set<ModuleIdentifier> allowedModules,
-            List<DependencyConstraint> lockConstraints,
-            List<DependencyConstraint> localConstraints) {
-        lockConstraints.stream()
-                .filter(c -> allowedModules.contains(c.getModule()))
-                .forEach(c -> {
-                    config.getDependencyConstraints().add(c);
-                });
-        localConstraints.forEach(c -> {
-            config.getDependencyConstraints().add(c);
-        });
-    }
-
-    private List<DependencyConstraint> getLocalConstraints(Project root, Project project) {
-        String reason = "Library published from same project: " + root.getName();
-        return root.getAllprojects().stream()
-                .filter(lib -> !project.equals(lib))
-                .filter(this::isJavaLibrary)
-                .map(lib -> project.getDependencies().getConstraints().create(lib, c -> {
-                    c.because(reason);
-                }))
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Utility: Get all modules present in a configuration's resolved classpath.
-     */
-    private Set<ModuleIdentifier> getModules(Project project, String configName) {
-        return project
-                .getConfigurations()
-                .getByName(configName)
-                .getIncoming()
-                .getResolutionResult()
-                .getAllComponents()
-                .stream()
-                .map(ResolvedComponentResult::getModuleVersion)
-                .filter(Objects::nonNull)
-                .map(ModuleVersionIdentifier::getModule)
-                .collect(Collectors.toSet());
     }
 
     /**
