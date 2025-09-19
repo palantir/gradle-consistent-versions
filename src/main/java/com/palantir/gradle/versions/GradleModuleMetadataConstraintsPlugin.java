@@ -35,6 +35,8 @@ public class GradleModuleMetadataConstraintsPlugin implements Plugin<Project> {
             throw new IllegalStateException("Plugin must be applied to the root project");
         }
 
+        root.getPluginManager().apply(VersionsLockPlugin.class);
+
         root.afterEvaluate(_ignored -> {
             if ("true".equals(root.findProperty(PUBLISH_PLATFORM_CONSTRAINTS))) {
                 addSameVersionConstraints(root);
