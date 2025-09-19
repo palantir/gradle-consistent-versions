@@ -20,6 +20,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import nebula.test.dependencies.DependencyGraph
 import nebula.test.dependencies.GradleDependencyGenerator
 import org.gradle.testkit.runner.BuildResult
+import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
 import org.gradle.util.GradleVersion
 import spock.lang.Unroll
@@ -86,11 +87,11 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
         def serviceAConstraint = new MetadataFile.Dependency(
                 group: 'com.palantir.same-group',
                 module: 'service-a',
-                version: [strictly: '2.0.0', requires: '2.0.0'])
+                version: [requires: '2.0.0'])
         def serviceBConstraint = new MetadataFile.Dependency(
                 group: 'com.palantir.same-group',
                 module: 'service-b',
-                version: [strictly: '2.0.0', requires: '2.0.0'])
+                version: [requires: '2.0.0'])
 
         then: "service-a's metadata file has platform constraints and filtered lock file constraints"
         def serviceAMetadataFilename = new File(projectDir, "service-a/build/publications/maven/module.json")
