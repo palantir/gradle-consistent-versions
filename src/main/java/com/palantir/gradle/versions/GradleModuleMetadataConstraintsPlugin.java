@@ -87,7 +87,7 @@ public abstract class GradleModuleMetadataConstraintsPlugin implements Plugin<Pr
             constraintsConfig
                     .getDependencyConstraints()
                     .add(project.getDependencies().getConstraints().create(gav, constraint -> {
-                        constraint.version(v -> v.require(sibling.getVersion().toString()));
+                        constraint.version(v -> v.strictly(sibling.getVersion().toString()));
                         constraint.because("All modules in group must use the same version");
                     }));
         });
