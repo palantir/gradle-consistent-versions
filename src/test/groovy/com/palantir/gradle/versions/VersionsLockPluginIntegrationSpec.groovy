@@ -1135,7 +1135,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
 
     def "#gradleVersionNumber: published constraints are derived from lock file (without local constraints and with filtering)"() {
         setup:
-        // Test with local constraints enabled
+        // Test with filtering of lock file constraints enabled
         file('gradle.properties') << 'com.palantir.gradle.versions.filterLockFileConstraints = true'
         gradleVersion = gradleVersionNumber
 
