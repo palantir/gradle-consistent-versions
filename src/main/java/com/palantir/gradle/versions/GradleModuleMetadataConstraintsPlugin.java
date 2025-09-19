@@ -15,81 +15,78 @@ import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 import org.gradle.api.plugins.JavaPlugin;
-import org.gradle.api.publish.PublishingExtension;
-import org.gradle.api.publish.ivy.IvyPublication;
-import org.gradle.api.publish.maven.MavenPublication;
 
 /**
- * Gradle plugin to align and publish dependency constraints for Java projects.
+ * Gradle plugin that enforces version alignment for projects within the same group.
+ * When multiple projects share the same group ID, this plugin ensures they all
+ * publish with the same version to maintain consistency.
  */
-public class GradleModuleMetadataConstraintsPlugin implements Plugin<Project> {
+public abstract class GradleModuleMetadataConstraintsPlugin implements Plugin<Project> {
     private static final Logger log = Logging.getLogger(GradleModuleMetadataConstraintsPlugin.class);
 
-    private static final String PUBLISH_PLATFORM_CONSTRAINTS =
+    private static final String PUBLISH_PLATFORM_CONSTRAINTS_PROPERTY =
             "com.palantir.gradle.versions.publishPlatformConstraints";
-    private static final String CONSTRAINTS_CONFIG = "sameVersionConstraints";
+    private static final String VERSION_ALIGNMENT_CONFIG_NAME = "sameVersionConstraints";
+    private static final String VERSION_ALIGNMENT_REASON = "All modules in group must use the same version";
 
     @Override
-    public void apply(Project root) {
-        if (!root.equals(root.getRootProject())) {
-            throw new IllegalStateException("Plugin must be applied to the root project");
+    public final void apply(Project rootProject) {
+        if (!rootProject.equals(rootProject.getRootProject())) {
+            throw new IllegalStateException(
+                    "GradleModuleMetadataConstraintsPlugin must be applied to the root project");
         }
 
-        root.afterEvaluate(_ignored -> {
-            if ("true".equals(root.findProperty(PUBLISH_PLATFORM_CONSTRAINTS))) {
-                addSameVersionConstraints(root);
+        rootProject.afterEvaluate(_ignored -> {
+            if ("true".equals(rootProject.findProperty(PUBLISH_PLATFORM_CONSTRAINTS_PROPERTY))) {
+                enforceVersionAlignmentAcrossGroups(rootProject);
             }
         });
     }
 
     /**
-     * For groups with multiple Java projects, add constraints to keep their versions aligned.
+     * Groups all publishable Java projects by their group ID and applies version
+     * constraints to groups with multiple projects.
      */
-    private void addSameVersionConstraints(Project root) {
-        Map<String, Set<Project>> projectsByGroup = root.getAllprojects().stream()
-                .filter(this::isJavaLibrary)
+    private void enforceVersionAlignmentAcrossGroups(Project rootProject) {
+        Map<String, Set<Project>> projectsByGroup = rootProject.getAllprojects().stream()
+                .filter(VersionsLockPlugin::isJavaLibrary)
                 .collect(Collectors.groupingBy(p -> String.valueOf(p.getGroup()), Collectors.toSet()));
 
-        projectsByGroup.values().stream().filter(group -> group.size() > 1).forEach(this::alignGroupVersions);
+        projectsByGroup.values().stream()
+                .filter(group -> group.size() > 1)
+                .forEach(this::applyVersionConstraintsToGroup);
     }
 
-    private void alignGroupVersions(Set<Project> group) {
-        List<Project> projects =
-                group.stream().sorted(Comparator.comparing(Project::getPath)).toList();
-        String groupId = projects.get(0).getGroup().toString();
+    /**
+     * Applies version constraints to ensure all projects in a group use the same version.
+     * Each project gets constraints that force it to align with its siblings' versions.
+     */
+    private void applyVersionConstraintsToGroup(Set<Project> projectGroup) {
+        List<Project> sortedProjects = projectGroup.stream()
+                .sorted(Comparator.comparing(Project::getPath))
+                .toList();
+
+        String groupId = sortedProjects.get(0).getGroup().toString();
 
         log.lifecycle(
-                "Aligning group '{}' for modules: {}",
+                "Aligning version for group '{}', modules: {}",
                 groupId,
-                projects.stream().map(Project::getName).collect(Collectors.toList()));
+                sortedProjects.stream().map(Project::getName).collect(Collectors.toList()));
 
-        projects.forEach(project -> {
-            Configuration constraints =
-                    createConstraintsConfig(project, CONSTRAINTS_CONFIG, "Align sibling modules to same version");
-
-            projects.stream().filter(sibling -> !sibling.equals(project)).forEach(sibling -> {
-                String gav = sibling.getGroup() + ":" + sibling.getName();
-                constraints
-                        .getDependencyConstraints()
-                        .add(project.getDependencies().getConstraints().create(gav, c -> {
-                            c.version(v -> v.strictly(sibling.getVersion().toString()));
-                            c.because("Align modules from same group");
-                        }));
-            });
-
-            if (project.getPluginManager().hasPlugin("java")) {
-                extendConfig(project, JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME, constraints.getName());
-                extendConfig(project, JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME, constraints.getName());
-            }
+        sortedProjects.forEach(project -> {
+            Configuration constraintsConfig = createConstraintsConfiguration(project);
+            addSiblingVersionConstraints(project, sortedProjects, constraintsConfig);
+            applyConstraintsToJavaProject(project, constraintsConfig);
         });
     }
 
     /**
-     * Utility: Create a configuration for dependency constraints.
+     * Creates a configuration for holding version alignment constraints.
+     * This configuration is not consumable or resolvable - it only holds constraints.
      */
-    private Configuration createConstraintsConfig(Project project, String name, String description) {
-        Configuration config = project.getConfigurations().maybeCreate(name);
-        config.setDescription(description);
+    private Configuration createConstraintsConfiguration(Project project) {
+        Configuration config = project.getConfigurations().maybeCreate(VERSION_ALIGNMENT_CONFIG_NAME);
+        config.setDescription("Enforces version alignment for modules within the same group");
         config.setCanBeResolved(false);
         config.setCanBeConsumed(false);
         config.setVisible(false);
@@ -97,46 +94,36 @@ public class GradleModuleMetadataConstraintsPlugin implements Plugin<Project> {
     }
 
     /**
-     * Utility: Extend a configuration with another.
+     * Adds strict version constraints for all sibling projects in the same group.
      */
-    private void extendConfig(Project project, String baseConfig, String constraintsConfig) {
-        project.getConfigurations().named(baseConfig).configure(conf -> {
-            conf.extendsFrom(project.getConfigurations().getByName(constraintsConfig));
+    private void addSiblingVersionConstraints(
+            Project project, List<Project> allGroupProjects, Configuration constraintsConfig) {
+        allGroupProjects.stream().filter(sibling -> !sibling.equals(project)).forEach(sibling -> {
+            String gav = sibling.getGroup() + ":" + sibling.getName();
+            constraintsConfig
+                    .getDependencyConstraints()
+                    .add(project.getDependencies().getConstraints().create(gav, constraint -> {
+                        constraint.version(v -> v.strictly(sibling.getVersion().toString()));
+                        constraint.because(VERSION_ALIGNMENT_REASON);
+                    }));
         });
     }
 
     /**
-     * Determines if the project is a Java library (publishes a JAR).
+     * Applies the constraints configuration to Java project configurations
+     * (API and runtime elements) so they're included in published metadata.
      */
-    private boolean isJavaLibrary(Project project) {
-        // Nebula creates publications lazily, so we check for it explicitly
-        if (project.getPluginManager().hasPlugin("nebula.maven-publish")) {
-            log.debug("Project '{}' is a library (nebula.maven-publish)", project.getDisplayName());
-            return true;
+    private void applyConstraintsToJavaProject(Project project, Configuration constraintsConfig) {
+        if (!project.getPluginManager().hasPlugin("java")) {
+            return;
         }
 
-        PublishingExtension publishing = project.getExtensions().findByType(PublishingExtension.class);
-        if (publishing == null) {
-            log.debug("Project '{}' is not a library (no publishing)", project.getDisplayName());
-            return false;
-        }
+        project.getConfigurations()
+                .named(JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME)
+                .configure(conf -> conf.extendsFrom(constraintsConfig));
 
-        return publishing.getPublications().stream().anyMatch(this::hasJarArtifact);
-    }
-
-    /**
-     * Determines if a publication (Maven or Ivy) includes a JAR artifact.
-     */
-    private boolean hasJarArtifact(Object publication) {
-        if (publication instanceof MavenPublication maven) {
-            return maven.getArtifacts().stream().anyMatch(a -> "jar".equals(a.getExtension()));
-        }
-        if (publication instanceof IvyPublication ivy) {
-            return ivy.getArtifacts().stream().anyMatch(a -> "jar".equals(a.getExtension()));
-        }
-        log.warn(
-                "Unknown publication type '{}', assuming it's a library",
-                publication.getClass().getName());
-        return true;
+        project.getConfigurations()
+                .named(JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME)
+                .configure(conf -> conf.extendsFrom(constraintsConfig));
     }
 }
