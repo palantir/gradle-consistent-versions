@@ -128,6 +128,13 @@ gradlePlugin {
             description = displayName
             tags.set(['versions'])
         }
+        gradleModuleMetadataConstraintsPlugin {
+            id = 'com.palantir.gradle-module-metadata-constraints-plugin'
+            implementationClass = 'com.palantir.gradle.versions.GradleModuleMetadataConstraintsPlugin'
+            displayName = 'Plugin to apply constraints to the Gradle Module Metadata.'
+            description = displayName
+            tags.set(['versions'])
+        }
     }
 }
 
