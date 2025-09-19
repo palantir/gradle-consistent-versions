@@ -25,30 +25,15 @@ import org.gradle.api.publish.maven.MavenPublication;
 public class GradleModuleMetadataConstraintsPlugin implements Plugin<Project> {
     private static final Logger log = Logging.getLogger(GradleModuleMetadataConstraintsPlugin.class);
 
-    //    private static final String PUBLISH_LOCAL_CONSTRAINTS =
-    // "com.palantir.gradle.versions.publishLocalConstraints";
     private static final String PUBLISH_PLATFORM_CONSTRAINTS =
             "com.palantir.gradle.versions.publishPlatformConstraints";
     private static final String CONSTRAINTS_CONFIG = "sameVersionConstraints";
-    private static final String API_CONSTRAINTS_CONFIG = "gcvApiPublishConstraints";
-    private static final String RUNTIME_CONSTRAINTS_CONFIG = "gcvRuntimePublishConstraints";
 
     @Override
     public void apply(Project root) {
         if (!root.equals(root.getRootProject())) {
             throw new IllegalStateException("Plugin must be applied to the root project");
         }
-
-        root.getPluginManager().apply(VersionsLockPlugin.class);
-
-        root.allprojects(project -> {
-            project.getPluginManager().withPlugin("java", _ignored -> {
-                createConstraintsConfig(project, API_CONSTRAINTS_CONFIG, "API constraints for publishing");
-                createConstraintsConfig(project, RUNTIME_CONSTRAINTS_CONFIG, "Runtime constraints for publishing");
-                extendConfig(project, JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME, API_CONSTRAINTS_CONFIG);
-                extendConfig(project, JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME, RUNTIME_CONSTRAINTS_CONFIG);
-            });
-        });
 
         root.afterEvaluate(_ignored -> {
             if ("true".equals(root.findProperty(PUBLISH_PLATFORM_CONSTRAINTS))) {

@@ -30,8 +30,6 @@ import static com.palantir.gradle.versions.PomUtils.makePlatformPom
 @Unroll
 class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSpec {
 
-    static def PLUGIN_NAME = "com.palantir.gradle-module-metadata-constraints-plugin"
-
     void setup() {
         buildFile << """
             buildscript {
@@ -40,7 +38,8 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
                 }
             }
             plugins {
-                id '${PLUGIN_NAME}'
+                id 'com.palantir.versions-lock'
+                id 'com.palantir.gradle-module-metadata-constraints-plugin'
             }
         """
     }
