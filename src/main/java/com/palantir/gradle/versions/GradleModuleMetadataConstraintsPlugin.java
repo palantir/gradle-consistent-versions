@@ -40,10 +40,15 @@ public abstract class GradleModuleMetadataConstraintsPlugin implements Plugin<Pr
         }
 
         rootProject.afterEvaluate(_ignored -> {
-            if ("true".equals(rootProject.findProperty(PUBLISH_PLATFORM_CONSTRAINTS_PROPERTY))) {
+            if (publishPlatformConstraints(rootProject)) {
                 enforceVersionAlignmentAcrossGroups(rootProject);
             }
         });
+    }
+
+    public static boolean publishPlatformConstraints(Project project) {
+        return project.hasProperty(PUBLISH_PLATFORM_CONSTRAINTS_PROPERTY)
+                && "true".equals(project.property(PUBLISH_PLATFORM_CONSTRAINTS_PROPERTY));
     }
 
     private void enforceVersionAlignmentAcrossGroups(Project rootProject) {
