@@ -147,8 +147,8 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
             // BOM project v2
             dependencies {
                 constraints {
-                    api platform(project(':service-a'))
-                    api platform(project(':service-b'))
+                    api project(':service-a')
+                    api project(':service-b')
                 }
             }
             
