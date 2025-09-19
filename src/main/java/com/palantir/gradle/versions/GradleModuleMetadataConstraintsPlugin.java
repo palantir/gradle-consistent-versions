@@ -29,8 +29,6 @@ public abstract class GradleModuleMetadataConstraintsPlugin implements Plugin<Pr
 
     private static final String PUBLISH_PLATFORM_CONSTRAINTS_PROPERTY =
             "com.palantir.gradle.versions.publishPlatformConstraints";
-    private static final String VERSION_ALIGNMENT_CONFIG_NAME = "acrossGroupVersionConstraints";
-    private static final String VERSION_ALIGNMENT_REASON = "All modules in group must use the same version";
 
     @Override
     public final void apply(Project rootProject) {
@@ -74,7 +72,7 @@ public abstract class GradleModuleMetadataConstraintsPlugin implements Plugin<Pr
     }
 
     private Configuration createConstraintsConfiguration(Project project) {
-        Configuration config = project.getConfigurations().maybeCreate(VERSION_ALIGNMENT_CONFIG_NAME);
+        Configuration config = project.getConfigurations().maybeCreate("acrossGroupVersionConstraints");
         config.setDescription("Enforces version alignment for modules within the same group");
         config.setCanBeResolved(false);
         config.setCanBeConsumed(false);
@@ -90,7 +88,7 @@ public abstract class GradleModuleMetadataConstraintsPlugin implements Plugin<Pr
                     .getDependencyConstraints()
                     .add(project.getDependencies().getConstraints().create(gav, constraint -> {
                         constraint.version(v -> v.require(sibling.getVersion().toString()));
-                        constraint.because(VERSION_ALIGNMENT_REASON);
+                        constraint.because("All modules in group must use the same version");
                     }));
         });
     }
