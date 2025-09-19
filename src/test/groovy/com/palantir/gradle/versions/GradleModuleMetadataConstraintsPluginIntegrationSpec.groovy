@@ -157,12 +157,13 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
         runTasks('publish')
 
         // Create consumer project that directly depends on newer version
-        File consumerProject = createConsumerProject("""
+        //language=gradle
+        File consumerProject = createConsumerProject('''
             dependencies {
                 implementation 'com.palantir:service-b:2.0.0'
                 implementation 'com.external:some-library:1.0.0'  // pulls in service-a:1.0.0
             }
-        """)
+        '''.stripIndent(true))
 
         when:
         def result = GradleRunner.create()
@@ -194,12 +195,13 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
         runTasks('publish')
 
         // Create consumer project that depends on older version, but external lib pulls newer
-        File consumerProject = createConsumerProject("""
+        //language=gradle
+        File consumerProject = createConsumerProject('''
             dependencies {
                 implementation 'com.palantir:service-b:1.0.0'  // directly depends on old version
                 implementation 'com.external:some-other-library:1.0.0'  // pulls in service-c:2.0.0
             }
-        """)
+        '''.stripIndent(true))
 
         when:
         def result = GradleRunner.create()
@@ -231,13 +233,14 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
         runTasks('publish')
 
         // Create consumer project with complex dependency graph
-        File consumerProject = createConsumerProject("""
+        //language=gradle
+        File consumerProject = createConsumerProject('''
             dependencies {
                 implementation 'com.palantir:service-a:1.0.0'
                 implementation 'com.palantir:service-b:1.0.0'
                 implementation 'com.external:some-other-library:1.0.0'  // pulls in service-c:2.0.0
             }
-        """)
+        '''.stripIndent(true))
 
         when:
         def result = GradleRunner.create()
@@ -269,12 +272,13 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
         runTasks('publish')
 
         // Create consumer project with mixed versions
-        File consumerProject = createConsumerProject("""
+        //language=gradle
+        File consumerProject = createConsumerProject('''
             dependencies {
                 implementation 'com.palantir:service-b:1.0.0'
                 implementation 'com.external:some-other-library:1.0.0'  // pulls in service-c:2.0.0
             }
-        """)
+        '''.stripIndent(true))
 
         when:
         def result = GradleRunner.create()
