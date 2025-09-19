@@ -153,7 +153,6 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
             '''.stripIndent(true)
         }
 
-        // Publish the modules at 2.0.0
         runTasks('--write-locks')
         runTasks('publish')
 
@@ -191,7 +190,6 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
             '''.stripIndent(true)
         }
 
-        // Publish the modules at 2.0.0
         runTasks('--write-locks')
         runTasks('publish')
 
@@ -229,7 +227,6 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
             '''.stripIndent(true)
         }
 
-        // Publish the modules at 2.0.0
         runTasks('--write-locks')
         runTasks('publish')
 
@@ -268,7 +265,6 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
             '''.stripIndent(true)
         }
 
-        // Publish the modules
         runTasks('--write-locks')
         runTasks('publish')
 
