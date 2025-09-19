@@ -32,28 +32,28 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
 
     void setup() {
         //language=gradle
-        buildFile << """
+        buildFile << '''
             plugins {
+                id 'com.palantir.versions-lock'
                 id 'com.palantir.gradle-module-metadata-constraints-plugin'
             }
-        """
+        '''
     }
 
     def "#gradleVersionNumber: published constraints with platform constraints only"() {
         setup:
         // Test with platform constraints enabled
-        file('gradle.properties') << '''
-            com.palantir.gradle.versions.publishPlatformConstraints = true
-        '''
+        file('gradle.properties') << 'com.palantir.gradle.versions.publishPlatformConstraints = true'
         gradleVersion = gradleVersionNumber
 
-        buildFile << """
+        //language=gradle
+        buildFile << '''
             allprojects {
                 apply plugin: 'java'
             }
-        """.stripIndent(true)
+        '''.stripIndent(true)
 
-        String publish = """
+        String publish = '''
             apply plugin: 'maven-publish'
             group = 'com.palantir.same-group'
             version = '2.0.0'
@@ -62,7 +62,7 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
                     from components.java
                 }
             }
-        """.stripIndent(true)
+        '''.stripIndent(true)
 
         addSubproject('service-a', """
             $publish
@@ -73,9 +73,9 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
         """.stripIndent(true))
 
         if (GradleVersion.version(gradleVersionNumber) < GradleVersion.version("6.0")) {
-            settingsFile << """
+            settingsFile << '''
                 enableFeaturePreview('GRADLE_METADATA')
-            """.stripIndent(true)
+            '''.stripIndent(true)
         }
 
         runTasks('--write-locks')
@@ -131,6 +131,12 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
         setupVersionAlignmentTest()
         file('gradle.properties') << 'com.palantir.gradle.versions.publishPlatformConstraints = true'
 
+        if (GradleVersion.version(gradleVersionNumber) < GradleVersion.version("6.0")) {
+            settingsFile << '''
+                enableFeaturePreview('GRADLE_METADATA')
+            '''.stripIndent(true)
+        }
+
         when:
         def result = runTasks(':consumer-test:checkVersions')
 
@@ -146,6 +152,12 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
         setup:
         setupVersionAlignmentTest()
         file('gradle.properties') << 'com.palantir.gradle.versions.publishPlatformConstraints = false'
+
+        if (GradleVersion.version(gradleVersionNumber) < GradleVersion.version("6.0")) {
+            settingsFile << '''
+                enableFeaturePreview('GRADLE_METADATA')
+            '''.stripIndent(true)
+        }
 
         when:
         def result = runTasksAndFail(':consumer-test:checkVersions')
@@ -163,17 +175,17 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
         // Simulate a real scenario: external repo has older versions and a dependency that uses them
         File externalRepo = generateMavenRepo(
                 // Old versions of our modules (simulating previously published versions)
-                "com.mycompany:module-a:1.0.0",
-                "com.mycompany:module-b:1.0.0",
+                "com.palantir:module-a:1.0.0",
+                "com.palantir:module-b:1.0.0",
                 // External library that depends on just module-a:1.0.0
                 // This is the problematic dependency that would cause version skew
-                "com.external:some-library:1.0.0 -> com.mycompany:module-a:1.0.0"
+                "com.external:some-library:1.0.0 -> com.palantir:module-a:1.0.0"
         )
 
         //language=gradle
         buildFile << """
             allprojects {
-                group = 'com.mycompany'
+                group = 'com.palantir'
                 version = '2.0.0'
                 
                 repositories {
@@ -223,7 +235,7 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
                 maven { 
                     url "file:///${localRepo.absolutePath}"
                     content {
-                        includeGroup 'com.mycompany'
+                        includeGroup 'com.palantir'
                     }
                 }
                 // Repository with external dependencies
@@ -233,7 +245,7 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
             }
             
             dependencies {
-                testAlignment 'com.mycompany:module-b:2.0.0'
+                testAlignment 'com.palantir:module-b:2.0.0'
                 testAlignment 'com.external:some-library:1.0.0'
             }
             
@@ -242,7 +254,7 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
                 doLast {
                     def resolved = [:]
                     configurations.testAlignment.resolvedConfiguration.resolvedArtifacts.each { 
-                        if (it.moduleVersion.id.group == 'com.mycompany') {
+                        if (it.moduleVersion.id.group == 'com.palantir') {
                             resolved[it.moduleVersion.id.module] = it.moduleVersion.id.version
                         }
                     }
