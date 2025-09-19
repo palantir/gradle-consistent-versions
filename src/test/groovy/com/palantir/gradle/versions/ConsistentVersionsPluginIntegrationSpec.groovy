@@ -372,6 +372,10 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
                 group: 'ch.qos.logback',
                 module: 'logback-classic',
                 version: [requires: '1.1.11'])
+        def slf4jDep = new MetadataFile.Dependency(
+                group: 'org.slf4j',
+                module: 'slf4j-api',
+                version: [requires: '1.7.25'])
 
         then: "foo's metadata file has the right dependency constraints"
         def fooMetadataFilename = new File(projectDir, "foo/build/publications/maven/module.json")
@@ -381,11 +385,11 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
                 new MetadataFile.Variant(
                         name: 'apiElements',
                         dependencies: null,
-                        dependencyConstraints: null),
+                        dependencyConstraints: [logbackDep, slf4jDep]),
                 new MetadataFile.Variant(
                         name: 'runtimeElements',
                         dependencies: [logbackDep],
-                        dependencyConstraints: null),
+                        dependencyConstraints: [logbackDep, slf4jDep]),
         ] as Set
 
         where:
