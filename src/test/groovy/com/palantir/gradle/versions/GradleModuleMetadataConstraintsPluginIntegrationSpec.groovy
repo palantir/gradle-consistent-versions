@@ -29,11 +29,15 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
     File repo
 
     void setup() {
-        // Setup external repository with older versions
+        // Setup external repository with older versions of all services
         repo = generateMavenRepo(
                 "com.palantir:service-a:1.0.0",
                 "com.palantir:service-b:1.0.0",
-                "com.external:some-library:1.0.0 -> com.palantir:service-a:1.0.0"
+                "com.palantir:service-c:1.0.0",
+                // External library that depends on older service-a
+                "com.external:some-library:1.0.0 -> com.palantir:service-a:1.0.0",
+                // External library that depends on newer service-c (2.0.0 will be published later)
+                "com.external:some-other-library:1.0.0 -> com.palantir:service-c:2.0.0"
         )
 
         //language=gradle
@@ -74,9 +78,10 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
         // Create service subprojects
         addSubproject('service-a', '// Service A')
         addSubproject('service-b', '// Service B')
+        addSubproject('service-c', '// Service C')
     }
 
-    def "#gradleVersionNumber: published constraints with platform constraints only"() {
+    def "#gradleVersionNumber: published constraints with platform constraints include all services"() {
         setup:
         file('gradle.properties') << 'com.palantir.gradle.versions.publishPlatformConstraints = true'
 
@@ -99,8 +104,12 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
                 group: 'com.palantir',
                 module: 'service-b',
                 version: [requires: '2.0.0'])
+        def serviceCConstraint = new MetadataFile.Dependency(
+                group: 'com.palantir',
+                module: 'service-c',
+                version: [requires: '2.0.0'])
 
-        then: "service-a's metadata file has platform constraints"
+        then: "service-a's metadata file has platform constraints for all other services"
         def serviceAMetadataFilename = new File(projectDir, "service-a/build/publications/maven/module.json")
         def serviceAMetadata = new ObjectMapper().readValue(serviceAMetadataFilename, MetadataFile)
 
@@ -108,14 +117,14 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
                 new MetadataFile.Variant(
                         name: 'runtimeElements',
                         dependencies: null,
-                        dependencyConstraints: [serviceBConstraint] as Set),
+                        dependencyConstraints: [serviceBConstraint, serviceCConstraint] as Set),
                 new MetadataFile.Variant(
                         name: 'apiElements',
                         dependencies: null,
-                        dependencyConstraints: [serviceBConstraint] as Set)
+                        dependencyConstraints: [serviceBConstraint, serviceCConstraint] as Set)
         ] as Set
 
-        and: "service-b's metadata file has platform constraints"
+        and: "service-b's metadata file has platform constraints for all other services"
         def serviceBMetadataFilename = new File(projectDir, "service-b/build/publications/maven/module.json")
         def serviceBMetadata = new ObjectMapper().readValue(serviceBMetadataFilename, MetadataFile)
 
@@ -123,18 +132,18 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
                 new MetadataFile.Variant(
                         name: 'runtimeElements',
                         dependencies: null,
-                        dependencyConstraints: [serviceAConstraint] as Set),
+                        dependencyConstraints: [serviceAConstraint, serviceCConstraint] as Set),
                 new MetadataFile.Variant(
                         name: 'apiElements',
                         dependencies: null,
-                        dependencyConstraints: [serviceAConstraint] as Set),
+                        dependencyConstraints: [serviceAConstraint, serviceCConstraint] as Set),
         ] as Set
 
         where:
         gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    def '#gradleVersionNumber: publishPlatformConstraints=true prevents version skew between modules'() {
+    def '#gradleVersionNumber: publishPlatformConstraints=true prevents version skew when consumer uses newer version'() {
         setup:
         file('gradle.properties') << 'com.palantir.gradle.versions.publishPlatformConstraints = true'
 
@@ -144,12 +153,17 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
             '''.stripIndent(true)
         }
 
-        // Publish the modules
+        // Publish the modules at 2.0.0
         runTasks('--write-locks')
         runTasks('publish')
 
-        // Create consumer project
-        File consumerProject = createConsumerProject()
+        // Create consumer project that directly depends on newer version
+        File consumerProject = createConsumerProject("""
+            dependencies {
+                implementation 'com.palantir:service-b:2.0.0'
+                implementation 'com.external:some-library:1.0.0'  // pulls in service-a:1.0.0
+            }
+        """)
 
         when:
         def result = GradleRunner.create()
@@ -160,8 +174,85 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
                 .build()
 
         then:
-        result.tasks(TaskOutcome.SUCCESS).path.contains(':checkVersions')
-        result.output.contains("SUCCESS: Both modules aligned to version 2.0.0")
+        result.task(':checkVersions').outcome == TaskOutcome.SUCCESS
+        result.output.contains("SUCCESS: All modules aligned to version 2.0.0")
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
+    }
+
+    def '#gradleVersionNumber: publishPlatformConstraints=true prevents version skew when external library bumps version'() {
+        setup:
+        file('gradle.properties') << 'com.palantir.gradle.versions.publishPlatformConstraints = true'
+
+        if (GradleVersion.version(gradleVersionNumber) < GradleVersion.version("6.0")) {
+            settingsFile << '''
+                enableFeaturePreview('GRADLE_METADATA')
+            '''.stripIndent(true)
+        }
+
+        // Publish the modules at 2.0.0
+        runTasks('--write-locks')
+        runTasks('publish')
+
+        // Create consumer project that depends on older version, but external lib pulls newer
+        File consumerProject = createConsumerProject("""
+            dependencies {
+                implementation 'com.palantir:service-b:1.0.0'  // directly depends on old version
+                implementation 'com.external:some-other-library:1.0.0'  // pulls in service-c:2.0.0
+            }
+        """)
+
+        when:
+        def result = GradleRunner.create()
+                .withProjectDir(consumerProject)
+                .withArguments('checkVersions')
+                .withPluginClasspath()
+                .withGradleVersion(gradleVersionNumber)
+                .build()
+
+        then:
+        result.task(':checkVersions').outcome == TaskOutcome.SUCCESS
+        result.output.contains("SUCCESS: All modules aligned to version 2.0.0")
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
+    }
+
+    def '#gradleVersionNumber: publishPlatformConstraints=true aligns all platform modules when any is bumped'() {
+        setup:
+        file('gradle.properties') << 'com.palantir.gradle.versions.publishPlatformConstraints = true'
+
+        if (GradleVersion.version(gradleVersionNumber) < GradleVersion.version("6.0")) {
+            settingsFile << '''
+                enableFeaturePreview('GRADLE_METADATA')
+            '''.stripIndent(true)
+        }
+
+        // Publish the modules at 2.0.0
+        runTasks('--write-locks')
+        runTasks('publish')
+
+        // Create consumer project with complex dependency graph
+        File consumerProject = createConsumerProject("""
+            dependencies {
+                implementation 'com.palantir:service-a:1.0.0'
+                implementation 'com.palantir:service-b:1.0.0'
+                implementation 'com.external:some-other-library:1.0.0'  // pulls in service-c:2.0.0
+            }
+        """)
+
+        when:
+        def result = GradleRunner.create()
+                .withProjectDir(consumerProject)
+                .withArguments('checkVersions')
+                .withPluginClasspath()
+                .withGradleVersion(gradleVersionNumber)
+                .build()
+
+        then:
+        result.task(':checkVersions').outcome == TaskOutcome.SUCCESS
+        result.output.contains("SUCCESS: All modules aligned to version 2.0.0")
 
         where:
         gradleVersionNumber << GRADLE_VERSIONS
@@ -181,8 +272,13 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
         runTasks('--write-locks')
         runTasks('publish')
 
-        // Create consumer project
-        File consumerProject = createConsumerProject()
+        // Create consumer project with mixed versions
+        File consumerProject = createConsumerProject("""
+            dependencies {
+                implementation 'com.palantir:service-b:1.0.0'
+                implementation 'com.external:some-other-library:1.0.0'  // pulls in service-c:2.0.0
+            }
+        """)
 
         when:
         def result = GradleRunner.create()
@@ -193,14 +289,16 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
                 .buildAndFail()
 
         then:
-        result.tasks(TaskOutcome.FAILED).path.contains(':checkVersions')
-        result.output.contains("Modules should be aligned! Got: [2.0.0, 1.0.0]")
+        result.task(':checkVersions').outcome == TaskOutcome.FAILED
+        result.output.contains("Modules should be aligned!")
+        result.output.contains("1.0.0")
+        result.output.contains("2.0.0")
 
         where:
         gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    private File createConsumerProject() {
+    private File createConsumerProject(String dependenciesBlock) {
         File consumerProject = File.createTempDir('consumer-project', '')
         consumerProject.deleteOnExit()
         consumerProject.mkdirs()
@@ -219,10 +317,7 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
                 }
             }
             
-            dependencies {
-                implementation 'com.palantir:service-b:2.0.0'
-                implementation 'com.external:some-library:1.0.0'
-            }
+            ${dependenciesBlock}
             
             tasks.register('checkVersions') {
                 doLast {
@@ -234,9 +329,9 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
                     }
                     
                     def versions = resolved.values() as Set
-                    assert versions.size() == 1 : "Modules should be aligned! Got: \${versions}"
+                    assert versions.size() == 1 : "Modules should be aligned! Got: \${versions.sort()}"
                     assert versions.first() == '2.0.0' : "Should align to latest version, got: \${versions.first()}"
-                    println "SUCCESS: Both modules aligned to version 2.0.0"
+                    println "SUCCESS: All modules aligned to version 2.0.0"
                 }
             }
         """.stripIndent(true)
