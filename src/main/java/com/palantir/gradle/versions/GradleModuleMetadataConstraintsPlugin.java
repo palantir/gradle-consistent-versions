@@ -39,9 +39,9 @@ public abstract class GradleModuleMetadataConstraintsPlugin implements Plugin<Pr
                     "GradleModuleMetadataConstraintsPlugin must be applied to the root project");
         }
 
-        rootProject.afterEvaluate(_ignored -> {
-            if (publishPlatformConstraints(rootProject)) {
-                enforceVersionAlignmentAcrossGroups(rootProject);
+        rootProject.afterEvaluate(project -> {
+            if (publishPlatformConstraints(project)) {
+                enforceVersionAlignmentAcrossGroups(project);
             }
         });
     }
