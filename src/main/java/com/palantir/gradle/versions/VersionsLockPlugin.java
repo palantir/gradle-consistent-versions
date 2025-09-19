@@ -942,7 +942,6 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
             List<DependencyConstraint> lockFileConstraints,
             List<DependencyConstraint> localProjectConstraints,
             LockedConfigurations lockedConfigurations) {
-
         @SuppressWarnings("for-rollout:ConfigurationAvoidanceRegistration")
         Configuration locksConfiguration = subproject
                 .getConfigurations()
@@ -960,6 +959,8 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
             VersionsLockPlugin.ensureNoFailOnVersionConflict(conf);
         });
 
+        // Enrich the configurations being published as part of the java component (components.java)
+        // with constraints generated from the lock file.
         subproject.getPluginManager().withPlugin("java", _plugin -> {
             NamedDomainObjectProvider<Configuration> publishConstraints = subproject
                     .getConfigurations()
@@ -967,15 +968,9 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
                         conf.setDescription("Publishable constraints from the GCV versions.lock file");
                         conf.setCanBeResolved(false);
                         conf.setCanBeConsumed(false);
-
                         conf.getDependencyConstraints().addAll(localProjectConstraints);
-
-                        if (filterLockFileConstraints(subproject)) {
-                            conf.getDependencyConstraints()
-                                    .addAllLater(filterConstraintsByUsage(subproject, lockFileConstraints));
-                        } else {
-                            conf.getDependencyConstraints().addAll(lockFileConstraints);
-                        }
+                        conf.getDependencyConstraints()
+                                .addAllLater(maybeFilterConstraintsByUsage(subproject, lockFileConstraints));
                     });
 
             subproject
@@ -990,7 +985,7 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
         });
     }
 
-    private static Provider<Collection<DependencyConstraint>> filterConstraintsByUsage(
+    private static Provider<Collection<DependencyConstraint>> maybeFilterConstraintsByUsage(
             Project project, List<DependencyConstraint> constraints) {
 
         NamedDomainObjectProvider<Configuration> compileClasspath =
@@ -999,18 +994,19 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
                 project.getConfigurations().named(JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME);
 
         return compileClasspath.zip(runtimeClasspath, (compile, runtime) -> {
-            Set<ModuleIdentifier> usedModules = new HashSet<>();
+            if (!filterLockFileConstraints(project)) {
+                return constraints;
+            }
 
-            Stream.of(compile, runtime).forEach(config -> {
-                config.getIncoming().getResolutionResult().getAllComponents().stream()
-                        .map(ResolvedComponentResult::getModuleVersion)
-                        .filter(Objects::nonNull)
-                        .map(ModuleVersionIdentifier::getModule)
-                        .forEach(usedModules::add);
-            });
+            Set<ModuleIdentifier> usedModules = Stream.of(compile, runtime)
+                    .flatMap(config -> config.getIncoming().getResolutionResult().getAllComponents().stream())
+                    .map(ResolvedComponentResult::getModuleVersion)
+                    .filter(Objects::nonNull)
+                    .map(ModuleVersionIdentifier::getModule)
+                    .collect(Collectors.toSet());
 
             return constraints.stream()
-                    .filter(c -> usedModules.contains(c.getModule()))
+                    .filter(constraint -> usedModules.contains(constraint.getModule()))
                     .collect(Collectors.toList());
         });
     }
