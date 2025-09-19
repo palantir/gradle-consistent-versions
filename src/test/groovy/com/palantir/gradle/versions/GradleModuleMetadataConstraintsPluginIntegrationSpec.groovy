@@ -86,11 +86,11 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
         def serviceAConstraint = new MetadataFile.Dependency(
                 group: 'com.palantir.same-group',
                 module: 'service-a',
-                version: [requires: '[2.0.0,)'])
+                version: [strictly: '2.0.0', requires: '2.0.0'])
         def serviceBConstraint = new MetadataFile.Dependency(
                 group: 'com.palantir.same-group',
                 module: 'service-b',
-                version: [requires: '[2.0.0,)'])
+                version: [strictly: '2.0.0', requires: '2.0.0'])
 
         then: "service-a's metadata file has platform constraints and filtered lock file constraints"
         def serviceAMetadataFilename = new File(projectDir, "service-a/build/publications/maven/module.json")
@@ -175,11 +175,11 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
         // Simulate a real scenario: external repo has older versions and a dependency that uses them
         File externalRepo = generateMavenRepo(
                 // Old versions of our modules (simulating previously published versions)
-                "com.palantir:module-a:1.0.0",
-                "com.palantir:module-b:1.0.0",
-                // External library that depends on just module-a:1.0.0
+                "com.palantir:service-a:1.0.0",
+                "com.palantir:service-b:1.0.0",
+                // External library that depends on just service-a:1.0.0
                 // This is the problematic dependency that would cause version skew
-                "com.external:some-library:1.0.0 -> com.palantir:module-a:1.0.0"
+                "com.external:some-library:1.0.0 -> com.palantir:service-a:1.0.0"
         )
 
         //language=gradle
@@ -214,8 +214,8 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
             }
         """
 
-        addSubproject('module-a', producerBuildGradle)
-        addSubproject('module-b', producerBuildGradle)
+        addSubproject('service-a', producerBuildGradle)
+        addSubproject('service-b', producerBuildGradle)
 
         // Consumer subproject that will test the published artifacts
         //language=gradle
@@ -245,12 +245,12 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
             }
             
             dependencies {
-                testAlignment 'com.palantir:module-b:2.0.0'
+                testAlignment 'com.palantir:service-b:2.0.0'
                 testAlignment 'com.external:some-library:1.0.0'
             }
             
             tasks.register('checkVersions') {
-                dependsOn ':module-a:publish', ':module-b:publish'
+                dependsOn ':service-a:publish', ':service-b:publish'
                 doLast {
                     def resolved = [:]
                     configurations.testAlignment.resolvedConfiguration.resolvedArtifacts.each { 
@@ -271,6 +271,6 @@ class GradleModuleMetadataConstraintsPluginIntegrationSpec extends IntegrationSp
         """)
 
         runTasks('--write-locks')
-        runTasks(':module-a:publish', ':module-b:publish')
+        runTasks(':service-a:publish', ':service-b:publish')
     }
 }

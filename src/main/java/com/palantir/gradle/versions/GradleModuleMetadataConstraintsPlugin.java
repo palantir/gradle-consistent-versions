@@ -72,7 +72,7 @@ public class GradleModuleMetadataConstraintsPlugin implements Plugin<Project> {
                 constraints
                         .getDependencyConstraints()
                         .add(project.getDependencies().getConstraints().create(gav, c -> {
-                            c.version(v -> v.require("[" + sibling.getVersion() + ",)"));
+                            c.version(v -> v.strictly(sibling.getVersion().toString()));
                             c.because("Align modules from same group");
                         }));
             });
