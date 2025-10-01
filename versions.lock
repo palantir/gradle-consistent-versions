@@ -12,15 +12,15 @@ com.fasterxml.jackson.datatype:jackson-datatype-guava:2.19.2 (1 constraints: 400
 
 com.fasterxml.woodstox:woodstox-core:7.1.1 (1 constraints: 3d174926)
 
-com.google.errorprone:error_prone_annotations:2.36.0 (2 constraints: 820f2aa1)
+com.google.errorprone:error_prone_annotations:2.41.0 (2 constraints: 7e0f1fa1)
 
 com.google.guava:failureaccess:1.0.3 (1 constraints: 160ae3b4)
 
-com.google.guava:guava:33.4.8-jre (5 constraints: e566484a)
+com.google.guava:guava:33.5.0-jre (5 constraints: de66274a)
 
 com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava (1 constraints: bd17c918)
 
-com.google.j2objc:j2objc-annotations:3.0.0 (1 constraints: 150aeab4)
+com.google.j2objc:j2objc-annotations:3.1 (1 constraints: b809f1a0)
 
 com.netflix.nebula:nebula-dependency-recommender:11.0.0 (1 constraints: 34052c3b)
 
@@ -64,7 +64,7 @@ org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.3.50 (1 constraints: e010efd2)
 
 org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.3.50 (1 constraints: 58113be1)
 
-org.jspecify:jspecify:1.0.0 (1 constraints: 130ae0b4)
+org.jspecify:jspecify:1.0.0 (7 constraints: 5370d26f)
 
 
 
@@ -74,9 +74,9 @@ cglib:cglib-nodep:3.2.2 (1 constraints: 490ded24)
 
 com.netflix.nebula:nebula-test:10.6.2 (2 constraints: d61de72d)
 
-com.palantir.gradle.plugintesting:configuration-cache-spec:0.11.0 (1 constraints: 3405263b)
+com.palantir.gradle.plugintesting:configuration-cache-spec:0.12.0 (1 constraints: 3505293b)
 
-com.palantir.gradle.plugintesting:plugin-testing-core:0.11.0 (1 constraints: 3405263b)
+com.palantir.gradle.plugintesting:plugin-testing-core:0.12.0 (1 constraints: 3505293b)
 
 junit:junit:4.13.2 (2 constraints: ca1e3ab9)
 
@@ -96,19 +96,19 @@ org.hamcrest:hamcrest-core:1.3 (1 constraints: cc05fe3f)
 
 org.junit:junit-bom:5.13.4 (1 constraints: 3f054e3b)
 
-org.junit.jupiter:junit-jupiter:5.13.4 (2 constraints: c1103aef)
+org.junit.jupiter:junit-jupiter:6.0.0 (2 constraints: c1103aef)
 
-org.junit.jupiter:junit-jupiter-api:5.13.4 (6 constraints: 3f5589a1)
+org.junit.jupiter:junit-jupiter-api:6.0.0 (6 constraints: 63540877)
 
-org.junit.jupiter:junit-jupiter-engine:5.13.4 (2 constraints: 7d17a564)
+org.junit.jupiter:junit-jupiter-engine:6.0.0 (2 constraints: 4617224d)
 
-org.junit.jupiter:junit-jupiter-params:5.13.4 (3 constraints: 3b2e71aa)
+org.junit.jupiter:junit-jupiter-params:6.0.0 (3 constraints: cd2d9856)
 
-org.junit.platform:junit-platform-commons:1.13.4 (3 constraints: 782ad891)
+org.junit.platform:junit-platform-commons:6.0.0 (3 constraints: 122add44)
 
-org.junit.platform:junit-platform-engine:1.13.4 (5 constraints: 734a41d4)
+org.junit.platform:junit-platform-engine:6.0.0 (5 constraints: 0d4a4861)
 
-org.junit.platform:junit-platform-launcher:1.13.4 (2 constraints: 7a0e8171)
+org.junit.platform:junit-platform-launcher:6.0.0 (2 constraints: 7a0e8171)
 
 org.junit.vintage:junit-vintage-engine:5.13.4 (1 constraints: 4409c29e)
 
