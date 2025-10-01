@@ -201,7 +201,7 @@ class VirtualPlatformSettingsPluginIntegrationSpec extends IntegrationSpec {
                             runtimeResolved[it.moduleVersion.id.module] = it.moduleVersion.id.version
                         }
                     }
-                    
+
                     def runtimeVersions = runtimeResolved.values() as Set
                     assert runtimeVersions.size() == 1 : "Runtime modules should be aligned! Got: \${runtimeResolved}"
                     assert runtimeVersions.first() == '2.0.0' : "Should align to latest version, got: \${runtimeVersions.first()}"
