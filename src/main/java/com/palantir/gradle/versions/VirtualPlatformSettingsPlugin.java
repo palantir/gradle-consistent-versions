@@ -20,7 +20,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import org.gradle.api.Plugin;
-import org.gradle.api.Project;
 import org.gradle.api.artifacts.ComponentMetadataDetails;
 import org.gradle.api.artifacts.DependencyConstraintMetadata;
 import org.gradle.api.initialization.Settings;
@@ -39,22 +38,20 @@ public class VirtualPlatformSettingsPlugin implements Plugin<Settings> {
     public final void apply(Settings settings) {
         settings.getGradle().allprojects(project -> {
             log.debug("Configuring virtual platform rules for project {}", project.getPath());
-
             project.getBuildscript().getDependencies().getComponents().all(this::discoverAndAssignPlatform);
-
-            project.getDependencies().getComponents().all(this::discoverAndAssignPlatform);
         });
 
         // After all projects are evaluated, configure buildscript resolutionStrategy
         settings.getGradle().projectsEvaluated(gradle -> {
-            gradle.getRootProject().getAllprojects().forEach(this::configureBuildscriptResolutionStrategy);
+            gradle.allprojects(project -> {
+                project.getBuildscript().getDependencies().getComponents().all(this::tryAssignComponentToPlatform);
+            });
         });
     }
 
     private void discoverAndAssignPlatform(ComponentMetadataDetails component) {
         component.allVariants(variant -> variant.withDependencyConstraints(
                 constraints -> constraints.forEach(constraint -> discoverPlatform(component, constraint))));
-        tryAssignComponentToPlatform(component);
     }
 
     private void discoverPlatform(ComponentMetadataDetails component, DependencyConstraintMetadata constraint) {
@@ -88,30 +85,6 @@ public class VirtualPlatformSettingsPlugin implements Plugin<Settings> {
             log.debug("Assigning component {} to virtual platform {}", component.getId(), platformNotation);
             component.belongsTo(platformNotation);
         });
-    }
-
-    private void configureBuildscriptResolutionStrategy(Project project) {
-        project.getBuildscript();
-        project.getBuildscript().getConfigurations();
-        if (project.getBuildscript().getConfigurations().findByName("classpath") == null) {
-            return;
-        }
-        project.getBuildscript()
-                .getConfigurations()
-                .getByName("classpath")
-                .getResolutionStrategy()
-                .eachDependency(details -> {
-                    String group = details.getRequested().getGroup();
-                    if (discoveredPlatforms.containsKey(group)) {
-                        String forcedVersion = discoveredPlatforms.get(group);
-                        log.debug(
-                                "Forcing {}:{} to version {} on buildscript classpath",
-                                group,
-                                details.getRequested().getName(),
-                                forcedVersion);
-                        details.useVersion(forcedVersion);
-                    }
-                });
     }
 
     private static int compareVersions(String v1, String v2) {
