@@ -1107,7 +1107,7 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
                 && "true".equals(project.property(PUBLISH_LOCAL_CONSTRAINTS_PROPERTY));
     }
 
-    private static boolean isJavaLibrary(Project project) {
+    static boolean isJavaLibrary(Project project) {
         if (project.getPluginManager().hasPlugin("nebula.maven-publish")) {
             // 'nebula.maven-publish' creates publications lazily which causes inconsistencies based
             // on ordering.

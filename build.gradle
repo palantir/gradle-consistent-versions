@@ -128,6 +128,20 @@ gradlePlugin {
             description = displayName
             tags.set(['versions'])
         }
+        addVirtualPlatformPlugin {
+            id = 'com.palantir.add-virtual-platform-plugin'
+            implementationClass = 'com.palantir.gradle.versions.AddVirtualPlatformPlugin'
+            displayName = 'Plugin to apply virtual platform constraints to the Gradle Module Metadata.'
+            description = displayName
+            tags.set(['versions'])
+        }
+        virtualPlatformSettingsPlugin {
+            id = 'com.palantir.virtual-platform-settings'
+            implementationClass = 'com.palantir.gradle.versions.VirtualPlatformSettingsPlugin'
+            displayName = 'Settings plugin to automatically assign components to virtual platforms'
+            description = displayName
+            tags.set(['versions'])
+        }
     }
 }
 
