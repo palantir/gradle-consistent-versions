@@ -148,6 +148,8 @@ class VirtualPlatformSettingsPluginIntegrationSpec extends IntegrationSpec {
         result.task(':checkRuntimeVersions').outcome == TaskOutcome.SUCCESS
         result.output.contains("SUCCESS: Runtime dependencies aligned to version 2.0.0")
 
+        println result.output
+
         where:
         gradleVersionNumber << GRADLE_VERSIONS
     }

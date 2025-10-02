@@ -16,79 +16,87 @@
 
 package com.palantir.gradle.versions;
 
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
 import org.gradle.api.Plugin;
-import org.gradle.api.artifacts.ComponentMetadataDetails;
-import org.gradle.api.artifacts.DependencyConstraintMetadata;
+import org.gradle.api.artifacts.ComponentMetadataContext;
+import org.gradle.api.artifacts.ComponentMetadataRule;
+import org.gradle.api.artifacts.ModuleVersionIdentifier;
 import org.gradle.api.initialization.Settings;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
+import org.gradle.api.plugins.JavaPlugin;
 
 public class VirtualPlatformSettingsPlugin implements Plugin<Settings> {
 
     private static final Logger log = Logging.getLogger(VirtualPlatformSettingsPlugin.class);
     private static final String VIRTUAL_PLATFORM_MODULE = "palantir-virtual-platform";
 
-    private final Map<String, String> discoveredPlatforms = new ConcurrentHashMap<>();
-
     @Override
     public final void apply(Settings settings) {
+
         settings.getGradle().allprojects(project -> {
-            log.debug("Configuring virtual platform rules for project {}", project.getPath());
-            project.getBuildscript().getDependencies().getComponents().all(this::discoverPlatform);
-            project.getDependencies().getComponents().all(this::discoverPlatform);
-        });
+            project.getPluginManager().apply(JavaPlugin.class);
+            project.getConfigurations()
+                    .getByName("runtimeClasspath")
+                    .getIncoming()
+                    .beforeResolve(_beforeResolve -> {
+                        System.out.println("before");
+                    });
+            project.getConfigurations()
+                    .getByName("runtimeClasspath")
+                    .getIncoming()
+                    .afterResolve(_beforeResolve -> {
+                        System.out.println("after");
+                    });
+            //            project.getDependencies().getComponents().all(this::discoverPlatform);
 
-        // After all projects are evaluated, configure buildscript resolutionStrategy
-        settings.getGradle().projectsEvaluated(gradle -> {
-            gradle.allprojects(project -> {
-                project.getBuildscript().getDependencies().getComponents().all(this::tryAssignComponentToPlatform);
-                project.getDependencies().getComponents().all(this::tryAssignComponentToPlatform);
-            });
+            project.getDependencies().getComponents().all(ConsistentErrorPronePlatformRule.class);
         });
     }
 
-    private void discoverPlatform(ComponentMetadataDetails component) {
-        component.allVariants(variant -> variant.withDependencyConstraints(
-                constraints -> constraints.forEach(constraint -> discoverPlatform(component, constraint))));
-    }
+    //    private void discoverPlatform(ComponentMetadataDetails component) {
+    //        component.allVariants(variant -> variant.withDependencyConstraints(
+    //                constraints -> constraints.forEach(constraint -> discoverPlatform(component, constraint))));
+    //    }
+    //
+    //    private void discoverPlatform(ComponentMetadataDetails component, DependencyConstraintMetadata constraint) {
+    //
+    //        if (!VIRTUAL_PLATFORM_MODULE.equals(constraint.getName())) {
+    //            return;
+    //        }
+    //
+    //        String platformNotation = component.getId().getGroup() + ":_:2.0.0";
+    //        log.error("Assigning component {} to virtual platform {}", component.getId(), platformNotation);
+    //        component.belongsTo(platformNotation, true);
+    //    }
 
-    private void discoverPlatform(ComponentMetadataDetails component, DependencyConstraintMetadata constraint) {
+    static final class ConsistentErrorPronePlatformRule implements ComponentMetadataRule {
+        private static final String GROUP = "com.palantir";
 
-        if (!VIRTUAL_PLATFORM_MODULE.equals(constraint.getName())) {
-            return;
+        @Override
+        public void execute(ComponentMetadataContext context) {
+            ModuleVersionIdentifier id = context.getDetails().getId();
+
+            System.out.println("BEFORE A");
+            context.getDetails()
+                    .allVariants(variant ->
+                            variant.withDependencyConstraints(constraints -> constraints.forEach(constraint -> {
+                                System.out.println(constraint.getAttributes());
+                                if (VIRTUAL_PLATFORM_MODULE.equals(constraint.getName())) {
+                                    System.out.println("ADDED PLATFORM RULE");
+                                    context.getDetails().belongsTo("%s:_:%s".formatted(GROUP, id.getVersion()));
+                                }
+                            })));
+
+            System.out.println("Aasdasd");
+
+            //            System.out.println("HERE");
+            //            System.out.println(context.getDetails());
+            //
+            //            if (!id.getGroup().equals(GROUP)) {
+            //                return;
+            //            }
+            //
+            //            context.getDetails().belongsTo("%s:_:%s".formatted(GROUP, id.getVersion()));
         }
-
-        String group = constraint.getGroup();
-        String version = constraint.getVersionConstraint().getRequiredVersion();
-
-        if (group.isEmpty() || version.isEmpty()) {
-            return;
-        }
-
-        log.debug(
-                "Found virtual platform marker in {}: {}:{}:{}",
-                component.getId(),
-                group,
-                VIRTUAL_PLATFORM_MODULE,
-                version);
-
-        // Keep the highest version per group (lexicographically, for simplicity)
-        discoveredPlatforms.merge(group, version, (oldV, newV) -> (compareVersions(oldV, newV) < 0) ? newV : oldV);
-    }
-
-    private void tryAssignComponentToPlatform(ComponentMetadataDetails component) {
-        String componentGroup = component.getId().getGroup();
-        Optional.ofNullable(discoveredPlatforms.get(componentGroup)).ifPresent(version -> {
-            String platformNotation = componentGroup + ":_:" + version;
-            log.debug("Assigning component {} to virtual platform {}", component.getId(), platformNotation);
-            component.belongsTo(platformNotation);
-        });
-    }
-
-    private static int compareVersions(String v1, String v2) {
-        return v1.compareTo(v2);
     }
 }
