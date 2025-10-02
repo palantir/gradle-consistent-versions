@@ -31,25 +31,26 @@ public class VirtualPlatformSettingsPlugin implements Plugin<Settings> {
     private static final Logger log = Logging.getLogger(VirtualPlatformSettingsPlugin.class);
     private static final String VIRTUAL_PLATFORM_MODULE = "palantir-virtual-platform";
 
-    // Map of group -> highest discovered version (as String)
     private final Map<String, String> discoveredPlatforms = new ConcurrentHashMap<>();
 
     @Override
     public final void apply(Settings settings) {
         settings.getGradle().allprojects(project -> {
             log.debug("Configuring virtual platform rules for project {}", project.getPath());
-            project.getBuildscript().getDependencies().getComponents().all(this::discoverAndAssignPlatform);
+            project.getBuildscript().getDependencies().getComponents().all(this::discoverPlatform);
+            project.getDependencies().getComponents().all(this::discoverPlatform);
         });
 
         // After all projects are evaluated, configure buildscript resolutionStrategy
         settings.getGradle().projectsEvaluated(gradle -> {
             gradle.allprojects(project -> {
                 project.getBuildscript().getDependencies().getComponents().all(this::tryAssignComponentToPlatform);
+                project.getDependencies().getComponents().all(this::tryAssignComponentToPlatform);
             });
         });
     }
 
-    private void discoverAndAssignPlatform(ComponentMetadataDetails component) {
+    private void discoverPlatform(ComponentMetadataDetails component) {
         component.allVariants(variant -> variant.withDependencyConstraints(
                 constraints -> constraints.forEach(constraint -> discoverPlatform(component, constraint))));
     }
