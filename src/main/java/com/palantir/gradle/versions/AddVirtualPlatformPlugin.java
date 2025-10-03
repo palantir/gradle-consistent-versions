@@ -17,10 +17,9 @@
 package com.palantir.gradle.versions;
 
 import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.gradle.api.NamedDomainObjectProvider;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
@@ -34,72 +33,66 @@ public class AddVirtualPlatformPlugin implements Plugin<Project> {
     @Override
     public final void apply(Project rootProject) {
         if (!rootProject.equals(rootProject.getRootProject())) {
-            throw new IllegalStateException(
-                    "GradleModuleMetadataConstraintsPlugin must be applied to the root project");
+            throw new IllegalStateException("AddVirtualPlatformPlugin must be applied to the root project");
         }
 
         rootProject.afterEvaluate(project -> {
-            if (publishPlatformConstraints(project)) {
-                enforceVersionAlignmentAcrossGroups(project);
+            if (shouldPublishPlatformConstraints(project)) {
+                enforceVersionAlignment(project);
             }
         });
     }
 
-    public static boolean publishPlatformConstraints(Project project) {
+    private static boolean shouldPublishPlatformConstraints(Project project) {
         return project.hasProperty(PUBLISH_PLATFORM_CONSTRAINTS_PROPERTY)
                 && "true".equals(project.property(PUBLISH_PLATFORM_CONSTRAINTS_PROPERTY));
     }
 
-    private void enforceVersionAlignmentAcrossGroups(Project rootProject) {
-        Map<String, Set<Project>> projectsByGroup = rootProject.getAllprojects().stream()
+    private void enforceVersionAlignment(Project rootProject) {
+        rootProject.getAllprojects().stream()
                 .filter(VersionsLockPlugin::isJavaLibrary)
-                .collect(Collectors.groupingBy(p -> String.valueOf(p.getGroup()), Collectors.toSet()));
-
-        projectsByGroup.values().stream().filter(group -> group.size() > 1).forEach(this::applyVirtualPlatformToGroup);
+                .collect(Collectors.groupingBy(p -> String.valueOf(p.getGroup()), Collectors.toSet()))
+                .values()
+                .stream()
+                .filter(group -> group.size() > 1)
+                .forEach(this::applyVirtualPlatform);
     }
 
-    private void applyVirtualPlatformToGroup(Set<Project> projectGroup) {
-        List<Project> sortedProjects = projectGroup.stream()
-                .sorted(Comparator.comparing(Project::getPath))
-                .toList();
+    private void applyVirtualPlatform(Set<Project> projectGroup) {
+        Project firstProject = projectGroup.stream()
+                .min(Comparator.comparing(Project::getPath))
+                .orElseThrow();
 
-        String platformCoordinates = sortedProjects.get(0).getGroup() + ":" + "palantir-virtual-platform:";
+        String platformCoordinates = firstProject.getGroup() + ":palantir-virtual-platform:";
 
-        sortedProjects.forEach(project -> {
-            if (project.getPluginManager().hasPlugin("java")) {
-                Configuration constraintsConfig = createConstraintsConfiguration(project);
-                addVirtualPlatformConstraint(project, platformCoordinates, constraintsConfig);
-                applyConstraintsToJavaProject(project, constraintsConfig);
-            }
-        });
+        projectGroup.stream()
+                .filter(p -> p.getPluginManager().hasPlugin("java"))
+                .forEach(project -> addVirtualPlatformToProject(project, platformCoordinates));
     }
 
-    private Configuration createConstraintsConfiguration(Project project) {
-        Configuration config = project.getConfigurations().maybeCreate("virtualPlatformConstraints");
-        config.setDescription("Enforces version alignment via virtual platform for modules within the same group");
-        config.setCanBeResolved(false);
-        config.setCanBeConsumed(false);
-        config.setVisible(false);
-        return config;
-    }
+    private void addVirtualPlatformToProject(Project project, String platformCoordinates) {
+        NamedDomainObjectProvider<Configuration> constraints = project.getConfigurations()
+                .register("virtualPlatformConstraints", config -> {
+                    config.setDescription(
+                            "Enforces version alignment via virtual platform for modules within the same group");
+                    config.setCanBeResolved(false);
+                    config.setCanBeConsumed(false);
+                    config.setVisible(false);
 
-    private void addVirtualPlatformConstraint(
-            Project project, String platformCoordinates, Configuration constraintsConfig) {
-        constraintsConfig
-                .getDependencyConstraints()
-                .add(project.getDependencies().getConstraints().create(platformCoordinates, constraint -> {
-                    constraint.version(v -> v.require(project.getVersion().toString()));
-                    constraint.because("Virtual platform for version alignment across group");
-                }));
-    }
+                    config.getDependencyConstraints()
+                            .add(project.getDependencies().getConstraints().create(platformCoordinates, constraint -> {
+                                constraint.version(
+                                        v -> v.require(project.getVersion().toString()));
+                                constraint.because("Virtual platform for version alignment across group");
+                            }));
+                });
 
-    private void applyConstraintsToJavaProject(Project project, Configuration constraintsConfig) {
         project.getConfigurations()
                 .named(JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME)
-                .configure(conf -> conf.extendsFrom(constraintsConfig));
+                .configure(conf -> conf.extendsFrom(constraints.get()));
 
         project.getConfigurations()
                 .named(JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME)
-                .configure(conf -> conf.extendsFrom(constraintsConfig));
+                .configure(conf -> conf.extendsFrom(constraints.get()));
     }
 }
