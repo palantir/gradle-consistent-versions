@@ -320,6 +320,58 @@ class VirtualPlatformSettingsPluginIntegrationSpec extends IntegrationSpec {
         gradleVersionNumber << GRADLE_VERSIONS
     }
 
+    def '#gradleVersionNumber: handles malformed GMM without crashing'() {
+        setup:
+        // Create a dependency with malformed GMM
+        def malformedDir = new File(repo, 'com/malformed/bad-metadata/1.0.0')
+        malformedDir.mkdirs()
+
+        new File(malformedDir, 'bad-metadata-1.0.0.jar').text = 'fake jar'
+        new File(malformedDir, 'bad-metadata-1.0.0.pom').text = """
+            <project>
+                <modelVersion>4.0.0</modelVersion>
+                <groupId>com.malformed</groupId>
+                <artifactId>bad-metadata</artifactId>
+                <version>1.0.0</version>
+            </project>
+        """.stripIndent()
+        // Create malformed JSON module metadata
+        new File(malformedDir, 'bad-metadata-1.0.0.module').text = "{ invalid json content"
+
+        //language=gradle
+        buildFile.text = """
+            plugins {
+                id 'java'
+            }
+            
+            repositories {
+                maven { url "file:///${repo.absolutePath}" }
+            }
+            
+            dependencies {
+                implementation 'com.palantir:service-a:1.0.0'
+                implementation 'com.malformed:bad-metadata:1.0.0'
+            }
+            
+            tasks.register('checkMalformed') {
+                doLast {
+                    def resolved = configurations.runtimeClasspath.resolvedConfiguration.resolvedArtifacts
+                    println "SUCCESS: Handled malformed GMM, resolved \${resolved.size()} dependencies"
+                }
+            }
+        """.stripIndent(true)
+
+        when:
+        def result = runTasks('checkMalformed')
+
+        then:
+        result.task(':checkMalformed').outcome == TaskOutcome.SUCCESS
+        result.output.contains("SUCCESS: Handled malformed GMM")
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
+    }
+
     private void setupConsumerProject() {
         //language=gradle
         settingsFile.text = """

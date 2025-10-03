@@ -35,7 +35,6 @@ import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 import org.immutables.value.Value;
 
-
 public class VirtualPlatformSettingsPlugin implements Plugin<Settings> {
 
     private static final Logger log = Logging.getLogger(VirtualPlatformSettingsPlugin.class);
@@ -60,15 +59,11 @@ public class VirtualPlatformSettingsPlugin implements Plugin<Settings> {
             ModuleVersionIdentifier id = context.getDetails().getId();
             String metadataPath = buildMetadataPath(id);
 
-            try {
-                getRepositoryResourceAccessor().withResource(metadataPath, resource -> {
-                    parseMetadata(resource)
-                            .filter(metadata -> hasVirtualPlatformConstraint(metadata, id.getGroup()))
-                            .ifPresent(metadata -> assignToPlatform(context, id));
-                });
-            } catch (Exception e) {
-                log.debug("No Gradle module metadata found for {}", id);
-            }
+            getRepositoryResourceAccessor().withResource(metadataPath, resource -> {
+                parseMetadata(resource)
+                        .filter(metadata -> hasVirtualPlatformConstraint(metadata, id.getGroup()))
+                        .ifPresent(metadata -> assignToPlatform(context, id));
+            });
         }
 
         private static Optional<GradleModuleMetadata> parseMetadata(InputStream resource) {
