@@ -18,7 +18,6 @@ package com.palantir.gradle.versions
 
 import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
-import org.gradle.util.GradleVersion
 import spock.lang.Unroll
 
 import static com.palantir.gradle.versions.GradleTestVersions.GRADLE_VERSIONS
@@ -34,25 +33,50 @@ class VirtualPlatformSettingsPluginIntegrationSpec extends IntegrationSpec {
                 "com.external:some-other-library:1.0.0 -> com.palantir:service-c:2.0.0"
         )
 
-        // Publish version 1.0.0 with platform constraints
-        publishVersion('1.0.0')
+        // Publish versions to the repo
+        publishVersionToRepo('1.0.0')
+        publishVersionToRepo('2.0.0')
 
-        // Publish version 2.0.0 with platform constraints
-        publishVersion('2.0.0')
+        // Now setup the main project as the consumer
+        setupConsumerProject()
     }
 
     def '#gradleVersionNumber: buildscript - virtual platform aligns versions when external library pulls in lower version'() {
         setup:
         //language=gradle
-        File consumerProject = createBuildscriptConsumerProject("""
-            dependencies {
-                classpath 'com.palantir:service-b:2.0.0'
-                classpath 'com.external:some-library:1.0.0'  // pulls in service-a:1.0.0
+        buildFile.text = """
+            buildscript {
+                repositories {
+                    maven { url "file:///${repo.absolutePath}" }
+                }
+                dependencies {
+                    classpath 'com.palantir:service-b:2.0.0'
+                    classpath 'com.external:some-library:1.0.0'  // pulls in service-a:1.0.0
+                }
             }
-        """.stripIndent(true))
+            
+            plugins {
+                id 'java'
+            }
+            
+            tasks.register('checkBuildscriptVersions') {
+                doLast {
+                    def buildscriptResolved = [:]
+                    buildscript.configurations.classpath.resolvedConfiguration.resolvedArtifacts.each { 
+                        if (it.moduleVersion.id.group == 'com.palantir') {
+                            buildscriptResolved[it.moduleVersion.id.module] = it.moduleVersion.id.version
+                        }
+                    }
+
+                    def buildscriptVersions = buildscriptResolved.values() as Set
+                    assert buildscriptVersions.size() == 1 : "Buildscript modules should be aligned! Got: \${buildscriptResolved}"
+                    println "SUCCESS: Buildscript dependencies aligned to version \${buildscriptVersions.first()}"
+                }
+            }
+        """.stripIndent(true)
 
         when:
-        def result = runGradleTask(consumerProject, 'checkBuildscriptVersions', gradleVersionNumber)
+        def result = runTasks('checkBuildscriptVersions')
 
         then:
         result.task(':checkBuildscriptVersions').outcome == TaskOutcome.SUCCESS
@@ -65,15 +89,39 @@ class VirtualPlatformSettingsPluginIntegrationSpec extends IntegrationSpec {
     def '#gradleVersionNumber: buildscript - virtual platform aligns versions when external library pulls in higher version'() {
         setup:
         //language=gradle
-        File consumerProject = createBuildscriptConsumerProject("""
-            dependencies {
-                classpath 'com.palantir:service-b:1.0.0'
-                classpath 'com.external:some-other-library:1.0.0'  // pulls in service-c:2.0.0
+        buildFile.text = """
+            buildscript {
+                repositories {
+                    maven { url "file:///${repo.absolutePath}" }
+                }
+                dependencies {
+                    classpath 'com.palantir:service-b:1.0.0'
+                    classpath 'com.external:some-other-library:1.0.0'  // pulls in service-c:2.0.0
+                }
             }
-        """.stripIndent(true))
+            
+            plugins {
+                id 'java'
+            }
+            
+            tasks.register('checkBuildscriptVersions') {
+                doLast {
+                    def buildscriptResolved = [:]
+                    buildscript.configurations.classpath.resolvedConfiguration.resolvedArtifacts.each { 
+                        if (it.moduleVersion.id.group == 'com.palantir') {
+                            buildscriptResolved[it.moduleVersion.id.module] = it.moduleVersion.id.version
+                        }
+                    }
+
+                    def buildscriptVersions = buildscriptResolved.values() as Set
+                    assert buildscriptVersions.size() == 1 : "Buildscript modules should be aligned! Got: \${buildscriptResolved}"
+                    println "SUCCESS: Buildscript dependencies aligned to version \${buildscriptVersions.first()}"
+                }
+            }
+        """.stripIndent(true)
 
         when:
-        def result = runGradleTask(consumerProject, 'checkBuildscriptVersions', gradleVersionNumber)
+        def result = runTasks('checkBuildscriptVersions')
 
         then:
         result.task(':checkBuildscriptVersions').outcome == TaskOutcome.SUCCESS
@@ -86,21 +134,45 @@ class VirtualPlatformSettingsPluginIntegrationSpec extends IntegrationSpec {
     def '#gradleVersionNumber: buildscript - virtual platform aligns versions when resolution forces in lower version'() {
         setup:
         //language=gradle
-        File consumerProject = createBuildscriptConsumerProject("""
-            dependencies {
-                classpath 'com.palantir:service-a:2.0.0'
-                classpath 'com.palantir:service-b:2.0.0'
-            }
-        
-            configurations.classpath {
-                resolutionStrategy {
-                    force 'com.palantir:service-b:1.0.0'
+        buildFile.text = """
+            buildscript {
+                repositories {
+                    maven { url "file:///${repo.absolutePath}" }
+                }
+                dependencies {
+                    classpath 'com.palantir:service-a:2.0.0'
+                    classpath 'com.palantir:service-b:2.0.0'
+                }
+                
+                configurations.classpath {
+                    resolutionStrategy {
+                        force 'com.palantir:service-b:1.0.0'
+                    }
                 }
             }
-        """.stripIndent(true))
+            
+            plugins {
+                id 'java'
+            }
+            
+            tasks.register('checkBuildscriptVersions') {
+                doLast {
+                    def buildscriptResolved = [:]
+                    buildscript.configurations.classpath.resolvedConfiguration.resolvedArtifacts.each { 
+                        if (it.moduleVersion.id.group == 'com.palantir') {
+                            buildscriptResolved[it.moduleVersion.id.module] = it.moduleVersion.id.version
+                        }
+                    }
+
+                    def buildscriptVersions = buildscriptResolved.values() as Set
+                    assert buildscriptVersions.size() == 1 : "Buildscript modules should be aligned! Got: \${buildscriptResolved}"
+                    println "SUCCESS: Buildscript dependencies aligned to version \${buildscriptVersions.first()}"
+                }
+            }
+        """.stripIndent(true)
 
         when:
-        def result = runGradleTask(consumerProject, 'checkBuildscriptVersions', gradleVersionNumber)
+        def result = runTasks('checkBuildscriptVersions')
 
         then:
         result.task(':checkBuildscriptVersions').outcome == TaskOutcome.SUCCESS
@@ -113,15 +185,38 @@ class VirtualPlatformSettingsPluginIntegrationSpec extends IntegrationSpec {
     def '#gradleVersionNumber: runtime - virtual platform aligns versions when external library pulls in lower version'() {
         setup:
         //language=gradle
-        File consumerProject = createRuntimeConsumerProject("""
+        buildFile.text = """
+            plugins {
+                id 'java'
+            }
+            
+            repositories {
+                maven { url "file:///${repo.absolutePath}" }
+            }
+            
             dependencies {
                 implementation 'com.palantir:service-b:2.0.0'
                 implementation 'com.external:some-library:1.0.0'  // pulls in service-a:1.0.0
             }
-        """.stripIndent(true))
+            
+            tasks.register('checkRuntimeVersions') {
+                doLast {
+                    def runtimeResolved = [:]
+                    configurations.runtimeClasspath.resolvedConfiguration.resolvedArtifacts.each { 
+                        if (it.moduleVersion.id.group == 'com.palantir') {
+                            runtimeResolved[it.moduleVersion.id.module] = it.moduleVersion.id.version
+                        }
+                    }
+
+                    def runtimeVersions = runtimeResolved.values() as Set
+                    assert runtimeVersions.size() == 1 : "Runtime modules should be aligned! Got: \${runtimeResolved}"
+                    println "SUCCESS: Runtime dependencies aligned to version \${runtimeVersions.first()}"
+                }
+            }
+        """.stripIndent(true)
 
         when:
-        def result = runGradleTask(consumerProject, 'checkRuntimeVersions', gradleVersionNumber)
+        def result = runTasks('checkRuntimeVersions')
 
         then:
         result.task(':checkRuntimeVersions').outcome == TaskOutcome.SUCCESS
@@ -134,21 +229,42 @@ class VirtualPlatformSettingsPluginIntegrationSpec extends IntegrationSpec {
     def '#gradleVersionNumber: runtime - virtual platform aligns versions when external library pulls in higher version'() {
         setup:
         //language=gradle
-        File consumerProject = createRuntimeConsumerProject("""
+        buildFile.text = """
+            plugins {
+                id 'java'
+            }
+            
+            repositories {
+                maven { url "file:///${repo.absolutePath}" }
+            }
+            
             dependencies {
                 implementation 'com.palantir:service-b:1.0.0'
                 implementation 'com.external:some-other-library:1.0.0'  // pulls in service-c:2.0.0
             }
-        """.stripIndent(true))
+            
+            tasks.register('checkRuntimeVersions') {
+                doLast {
+                    def runtimeResolved = [:]
+                    configurations.runtimeClasspath.resolvedConfiguration.resolvedArtifacts.each { 
+                        if (it.moduleVersion.id.group == 'com.palantir') {
+                            runtimeResolved[it.moduleVersion.id.module] = it.moduleVersion.id.version
+                        }
+                    }
+
+                    def runtimeVersions = runtimeResolved.values() as Set
+                    assert runtimeVersions.size() == 1 : "Runtime modules should be aligned! Got: \${runtimeResolved}"
+                    println "SUCCESS: Runtime dependencies aligned to version \${runtimeVersions.first()}"
+                }
+            }
+        """.stripIndent(true)
 
         when:
-        def result = runGradleTask(consumerProject, 'checkRuntimeVersions', gradleVersionNumber)
+        def result = runTasks('checkRuntimeVersions')
 
         then:
         result.task(':checkRuntimeVersions').outcome == TaskOutcome.SUCCESS
         result.output.contains("SUCCESS: Runtime dependencies aligned to version 2.0.0")
-
-        println result.output
 
         where:
         gradleVersionNumber << GRADLE_VERSIONS
@@ -157,21 +273,44 @@ class VirtualPlatformSettingsPluginIntegrationSpec extends IntegrationSpec {
     def '#gradleVersionNumber: runtime - virtual platform aligns versions when resolution forces in lower version'() {
         setup:
         //language=gradle
-        File consumerProject = createRuntimeConsumerProject("""
+        buildFile.text = """
+            plugins {
+                id 'java'
+            }
+            
+            repositories {
+                maven { url "file:///${repo.absolutePath}" }
+            }
+            
             dependencies {
                 implementation 'com.palantir:service-a:2.0.0'
                 implementation 'com.palantir:service-b:2.0.0'
             }
-        
+            
             configurations.runtimeClasspath {
                 resolutionStrategy {
                     force 'com.palantir:service-b:1.0.0'
                 }
             }
-        """.stripIndent(true))
+            
+            tasks.register('checkRuntimeVersions') {
+                doLast {
+                    def runtimeResolved = [:]
+                    configurations.runtimeClasspath.resolvedConfiguration.resolvedArtifacts.each { 
+                        if (it.moduleVersion.id.group == 'com.palantir') {
+                            runtimeResolved[it.moduleVersion.id.module] = it.moduleVersion.id.version
+                        }
+                    }
+
+                    def runtimeVersions = runtimeResolved.values() as Set
+                    assert runtimeVersions.size() == 1 : "Runtime modules should be aligned! Got: \${runtimeResolved}"
+                    println "SUCCESS: Runtime dependencies aligned to version \${runtimeVersions.first()}"
+                }
+            }
+        """.stripIndent(true)
 
         when:
-        def result = runGradleTask(consumerProject, 'checkRuntimeVersions', gradleVersionNumber)
+        def result = runTasks('checkRuntimeVersions')
 
         then:
         result.task(':checkRuntimeVersions').outcome == TaskOutcome.SUCCESS
@@ -181,9 +320,28 @@ class VirtualPlatformSettingsPluginIntegrationSpec extends IntegrationSpec {
         gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    private void publishVersion(String version) {
+    private void setupConsumerProject() {
         //language=gradle
-        buildFile.text = """
+        settingsFile.text = """
+            plugins {
+                id 'com.palantir.virtual-platform-settings'
+            }
+            rootProject.name = 'consumer'
+        """.stripIndent(true)
+    }
+
+    private void publishVersionToRepo(String version) {
+        File publisherProject = File.createTempDir('publisher-project', '')
+        publisherProject.deleteOnExit()
+
+        //language=gradle
+        new File(publisherProject, 'settings.gradle') << """
+            rootProject.name = 'publisher'
+            include 'service-a', 'service-b', 'service-c'
+        """.stripIndent(true)
+
+        //language=gradle
+        new File(publisherProject, 'build.gradle') << """
             plugins {
                 id 'com.palantir.versions-lock'
                 id 'com.palantir.add-virtual-platform-plugin'
@@ -215,114 +373,24 @@ class VirtualPlatformSettingsPluginIntegrationSpec extends IntegrationSpec {
             }
         """.stripIndent(true)
 
-        file('gradle.properties').text = 'com.palantir.gradle.versions.addVirtualPlatformConstraint = true'
+        new File(publisherProject, 'gradle.properties').text =
+                'com.palantir.gradle.versions.addVirtualPlatformConstraint = true'
 
-        if (GradleVersion.current() < GradleVersion.version("6.0")) {
-            settingsFile << """
-                enableFeaturePreview('GRADLE_METADATA')
-            """.stripIndent(true)
+        ['service-a', 'service-b', 'service-c'].each { serviceName ->
+            File serviceDir = new File(publisherProject, serviceName)
+            serviceDir.mkdirs()
+            new File(serviceDir, 'build.gradle') << "// ${serviceName} ${version}"
         }
 
-        addSubproject('service-a', "// Service A ${version}")
-        addSubproject('service-b', "// Service B ${version}")
-        addSubproject('service-c', "// Service C ${version}")
-
-        runTasks('--write-locks', 'publish')
+        runGradleTaskForPublishing(publisherProject, '--write-locks')
+        runGradleTaskForPublishing(publisherProject, 'publish')
     }
 
-    private File createBuildscriptConsumerProject(String dependencies) {
-        File consumerProject = File.createTempDir('consumer-project', '')
-        consumerProject.deleteOnExit()
-
-        //language=gradle
-        new File(consumerProject, 'settings.gradle') << """
-            plugins {
-                id 'com.palantir.virtual-platform-settings'
-            }
-            rootProject.name = 'consumer'
-        """.stripIndent(true)
-
-        //language=gradle
-        new File(consumerProject, 'build.gradle') << """
-            buildscript {
-                repositories {
-                    maven { url "file:///${repo.absolutePath}" }
-                }
-                ${dependencies}
-            }
-            
-            plugins {
-                id 'java'
-            }
-            
-            tasks.register('checkBuildscriptVersions') {
-                doLast {
-                    def buildscriptResolved = [:]
-                    buildscript.configurations.classpath.resolvedConfiguration.resolvedArtifacts.each { 
-                        if (it.moduleVersion.id.group == 'com.palantir') {
-                            buildscriptResolved[it.moduleVersion.id.module] = it.moduleVersion.id.version
-                        }
-                    }
-
-                    def buildscriptVersions = buildscriptResolved.values() as Set
-                    assert buildscriptVersions.size() == 1 : "Buildscript modules should be aligned! Got: \${buildscriptResolved}"
-                    println "SUCCESS: Buildscript dependencies aligned to version \${buildscriptVersions.first()}"
-                }
-            }
-        """.stripIndent(true)
-
-        return consumerProject
-    }
-
-    private File createRuntimeConsumerProject(String dependencies) {
-        File consumerProject = File.createTempDir('consumer-project', '')
-        consumerProject.deleteOnExit()
-
-        //language=gradle
-        new File(consumerProject, 'settings.gradle') << """
-            plugins {
-                id 'com.palantir.virtual-platform-settings'
-            }
-            rootProject.name = 'consumer'
-        """.stripIndent(true)
-
-        //language=gradle
-        new File(consumerProject, 'build.gradle') << """
-            plugins {
-                id 'java'
-            }
-            
-            repositories {
-                maven { url "file:///${repo.absolutePath}" }
-            }
-            
-            ${dependencies}
-            
-            tasks.register('checkRuntimeVersions') {
-                doLast {
-                    def runtimeResolved = [:]
-                    configurations.runtimeClasspath.resolvedConfiguration.resolvedArtifacts.each { 
-                        if (it.moduleVersion.id.group == 'com.palantir') {
-                            runtimeResolved[it.moduleVersion.id.module] = it.moduleVersion.id.version
-                        }
-                    }
-
-                    def runtimeVersions = runtimeResolved.values() as Set
-                    assert runtimeVersions.size() == 1 : "Runtime modules should be aligned! Got: \${runtimeResolved}"
-                    println "SUCCESS: Runtime dependencies aligned to version \${runtimeVersions.first()}"
-                }
-            }
-        """.stripIndent(true)
-
-        return consumerProject
-    }
-
-    private static def runGradleTask(File projectDir, String task, String gradleVersion) {
+    private static def runGradleTaskForPublishing(File projectDir, String task) {
         return GradleRunner.create()
                 .withProjectDir(projectDir)
                 .withArguments(task, '--stacktrace')
                 .withPluginClasspath()
-                .withGradleVersion(gradleVersion)
                 .build()
     }
 }
