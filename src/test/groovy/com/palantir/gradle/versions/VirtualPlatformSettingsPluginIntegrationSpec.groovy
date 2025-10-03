@@ -176,7 +176,7 @@ class VirtualPlatformSettingsPluginIntegrationSpec extends IntegrationSpec {
 
         then:
         result.task(':checkBuildscriptVersions').outcome == TaskOutcome.SUCCESS
-        result.output.contains("SUCCESS: Buildscript dependencies aligned to version 2.0.0")
+        result.output.contains("SUCCESS: Buildscript dependencies aligned to version 1.0.0")
 
         where:
         gradleVersionNumber << GRADLE_VERSIONS

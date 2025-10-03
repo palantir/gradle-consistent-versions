@@ -16,87 +16,120 @@
 
 package com.palantir.gradle.versions;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.List;
+import java.util.Optional;
+import javax.inject.Inject;
 import org.gradle.api.Plugin;
 import org.gradle.api.artifacts.ComponentMetadataContext;
 import org.gradle.api.artifacts.ComponentMetadataRule;
 import org.gradle.api.artifacts.ModuleVersionIdentifier;
+import org.gradle.api.artifacts.repositories.RepositoryResourceAccessor;
 import org.gradle.api.initialization.Settings;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
-import org.gradle.api.plugins.JavaPlugin;
+import org.immutables.value.Value;
+
 
 public class VirtualPlatformSettingsPlugin implements Plugin<Settings> {
 
     private static final Logger log = Logging.getLogger(VirtualPlatformSettingsPlugin.class);
-    private static final String VIRTUAL_PLATFORM_MODULE = "palantir-virtual-platform";
 
     @Override
     public final void apply(Settings settings) {
-
         settings.getGradle().allprojects(project -> {
-            project.getPluginManager().apply(JavaPlugin.class);
-            project.getConfigurations()
-                    .getByName("runtimeClasspath")
-                    .getIncoming()
-                    .beforeResolve(_beforeResolve -> {
-                        System.out.println("before");
-                    });
-            project.getConfigurations()
-                    .getByName("runtimeClasspath")
-                    .getIncoming()
-                    .afterResolve(_beforeResolve -> {
-                        System.out.println("after");
-                    });
-            //            project.getDependencies().getComponents().all(this::discoverPlatform);
-
-            project.getDependencies().getComponents().all(ConsistentErrorPronePlatformRule.class);
+            project.getDependencies().getComponents().all(VirtualPlatformRule.class);
+            project.getBuildscript().getDependencies().getComponents().all(VirtualPlatformRule.class);
         });
     }
 
-    //    private void discoverPlatform(ComponentMetadataDetails component) {
-    //        component.allVariants(variant -> variant.withDependencyConstraints(
-    //                constraints -> constraints.forEach(constraint -> discoverPlatform(component, constraint))));
-    //    }
-    //
-    //    private void discoverPlatform(ComponentMetadataDetails component, DependencyConstraintMetadata constraint) {
-    //
-    //        if (!VIRTUAL_PLATFORM_MODULE.equals(constraint.getName())) {
-    //            return;
-    //        }
-    //
-    //        String platformNotation = component.getId().getGroup() + ":_:2.0.0";
-    //        log.error("Assigning component {} to virtual platform {}", component.getId(), platformNotation);
-    //        component.belongsTo(platformNotation, true);
-    //    }
+    public abstract static class VirtualPlatformRule implements ComponentMetadataRule {
+        private static final String VIRTUAL_PLATFORM_NAME = "palantir-virtual-platform";
+        private static final ObjectMapper MAPPER = new ObjectMapper().registerModule(new Jdk8Module());
 
-    static final class ConsistentErrorPronePlatformRule implements ComponentMetadataRule {
-        private static final String GROUP = "com.palantir";
+        @Inject
+        protected abstract RepositoryResourceAccessor getRepositoryResourceAccessor();
 
         @Override
-        public void execute(ComponentMetadataContext context) {
+        public final void execute(ComponentMetadataContext context) {
             ModuleVersionIdentifier id = context.getDetails().getId();
+            String metadataPath = buildMetadataPath(id);
 
-            System.out.println("BEFORE A");
-            context.getDetails()
-                    .allVariants(variant ->
-                            variant.withDependencyConstraints(constraints -> constraints.forEach(constraint -> {
-                                System.out.println(constraint.getAttributes());
-                                if (VIRTUAL_PLATFORM_MODULE.equals(constraint.getName())) {
-                                    System.out.println("ADDED PLATFORM RULE");
-                                    context.getDetails().belongsTo("%s:_:%s".formatted(GROUP, id.getVersion()));
-                                }
-                            })));
-
-            System.out.println("Aasdasd");
-
-            //            System.out.println("HERE");
-            //            System.out.println(context.getDetails());
-            //
-            //            if (!id.getGroup().equals(GROUP)) {
-            //                return;
-            //            }
-            //
-            //            context.getDetails().belongsTo("%s:_:%s".formatted(GROUP, id.getVersion()));
+            try {
+                getRepositoryResourceAccessor().withResource(metadataPath, resource -> {
+                    parseMetadata(resource)
+                            .filter(metadata -> hasVirtualPlatformConstraint(metadata, id.getGroup()))
+                            .ifPresent(metadata -> assignToPlatform(context, id));
+                });
+            } catch (Exception e) {
+                log.debug("No Gradle module metadata found for {}", id);
+            }
         }
+
+        private static Optional<GradleModuleMetadata> parseMetadata(InputStream resource) {
+            try {
+                return Optional.of(MAPPER.readValue(resource, GradleModuleMetadata.class));
+            } catch (IOException e) {
+                log.debug("Failed to parse metadata: {}", e.getMessage());
+                return Optional.empty();
+            }
+        }
+
+        private static boolean hasVirtualPlatformConstraint(GradleModuleMetadata metadata, String expectedGroup) {
+            return metadata.variants().stream()
+                    .flatMap(variant -> variant.dependencyConstraints().stream())
+                    .anyMatch(constraint -> isVirtualPlatformConstraint(constraint, expectedGroup));
+        }
+
+        private static boolean isVirtualPlatformConstraint(DependencyConstraint constraint, String expectedGroup) {
+            return constraint.group().filter(expectedGroup::equals).isPresent()
+                    && constraint.module().filter(VIRTUAL_PLATFORM_NAME::equals).isPresent();
+        }
+
+        private static String buildMetadataPath(ModuleVersionIdentifier id) {
+            String groupPath = id.getGroup().replace('.', '/');
+            return String.format(
+                    "%s/%s/%s/%s-%s.module", groupPath, id.getName(), id.getVersion(), id.getName(), id.getVersion());
+        }
+
+        private static void assignToPlatform(ComponentMetadataContext context, ModuleVersionIdentifier id) {
+            String platformNotation = id.getGroup() + ":_:" + id.getVersion();
+            log.info("Assigning component {} to virtual platform {}", id, platformNotation);
+            context.getDetails().belongsTo(platformNotation, true);
+        }
+    }
+
+    @Value.Immutable
+    @JsonDeserialize(as = ImmutableGradleModuleMetadata.class)
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    interface GradleModuleMetadata {
+        @Value.Default
+        default List<Variant> variants() {
+            return List.of();
+        }
+    }
+
+    @Value.Immutable
+    @JsonDeserialize(as = ImmutableVariant.class)
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    interface Variant {
+        @Value.Default
+        default List<DependencyConstraint> dependencyConstraints() {
+            return List.of();
+        }
+    }
+
+    @Value.Immutable
+    @JsonDeserialize(as = ImmutableDependencyConstraint.class)
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    interface DependencyConstraint {
+        Optional<String> group();
+
+        Optional<String> module();
     }
 }

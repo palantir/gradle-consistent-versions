@@ -67,6 +67,7 @@ dependencies {
     implementation 'com.fasterxml.jackson.datatype:jackson-datatype-guava'
     implementation 'one.util:streamex'
     implementation 'com.palantir.gradle.idea-configuration:gradle-idea-configuration'
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jdk8'
 
     testImplementation platform('org.junit:junit-bom')
     testImplementation 'com.netflix.nebula:nebula-test'
