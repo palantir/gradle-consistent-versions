@@ -63,7 +63,7 @@ public class AddVirtualPlatformPlugin implements Plugin<Project> {
                 .min(Comparator.comparing(Project::getPath))
                 .orElseThrow();
 
-        String platformCoordinates = firstProject.getGroup() + ":palantir-virtual-platform:";
+        String platformCoordinates = firstProject.getGroup() + ":palantir-virtual-platform";
 
         projectGroup.stream()
                 .filter(p -> p.getPluginManager().hasPlugin("java"))
