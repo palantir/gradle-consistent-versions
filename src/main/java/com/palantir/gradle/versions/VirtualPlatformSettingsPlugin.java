@@ -120,7 +120,7 @@ public class VirtualPlatformSettingsPlugin implements Plugin<Settings> {
 
         private static void assignToPlatform(ComponentMetadataContext context, ModuleVersionIdentifier id) {
             String platformNotation = id.getGroup() + ":_:" + id.getVersion();
-            log.info("Assigning component {} to virtual platform {}", id, platformNotation);
+            log.debug("Assigning component {} to virtual platform {}", id, platformNotation);
             context.getDetails().belongsTo(platformNotation, true);
         }
     }
