@@ -78,8 +78,8 @@ public class AddVirtualPlatformPlugin implements Plugin<Project> {
                             .add(project.getDependencies().getConstraints().create(platformCoordinates, constraint -> {
                                 constraint.version(
                                         v -> v.require(project.getVersion().toString()));
-                                constraint.because(
-                                        "Virtual platform for version alignment across group when using com.palantir.virtual-platform-plugin");
+                                constraint.because("Virtual platform for version alignment across group when using "
+                                        + "com.palantir.virtual-platform-plugin");
                             }));
                 });
 
