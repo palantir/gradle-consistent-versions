@@ -74,7 +74,7 @@ public class VirtualPlatformSettingsPlugin implements Plugin<Settings> {
                 parseMetadata(resource, JSON_MAPPER, GradleModuleMetadata.class)
                         .flatMap(GradleModuleMetadata::extractDependencies)
                         .filter(deps -> hasVirtualPlatform(deps, id.getGroup()))
-                        .ifPresent(deps -> assignToPlatform(context, id));
+                        .ifPresent(_deps -> assignToPlatform(context, id));
             });
 
             // If GMM didn't work, try POM
@@ -83,7 +83,7 @@ public class VirtualPlatformSettingsPlugin implements Plugin<Settings> {
                 parseMetadata(resource, XML_MAPPER, PomMetadata.class)
                         .flatMap(PomMetadata::extractDependencies)
                         .filter(deps -> hasVirtualPlatform(deps, id.getGroup()))
-                        .ifPresent(deps -> assignToPlatform(context, id));
+                        .ifPresent(_deps -> assignToPlatform(context, id));
             });
         }
 
