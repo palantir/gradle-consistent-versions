@@ -25,6 +25,9 @@ import static com.palantir.gradle.versions.GradleTestVersions.GRADLE_VERSIONS
 @Unroll
 class VirtualPlatformSettingsPluginIntegrationSpec extends IntegrationSpec {
 
+    // todo:
+    // 2 transitives
+
     File repo
 
     void setup() {
@@ -50,6 +53,20 @@ class VirtualPlatformSettingsPluginIntegrationSpec extends IntegrationSpec {
         given:
         buildFileWithDeps('buildscript', [
                 'com.palantir:service-b:2.0.0',
+                'com.external:some-library:1.0.0'  // pulls in service-a:1.0.0
+        ])
+
+        expect:
+        assertAlignedTo('buildscript', '2.0.0')
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
+    }
+
+    def '#gradleVersionNumber: buildscript classpath aligns when two transitives'() {
+        given:
+        buildFileWithDeps('buildscript', [
+                'com.external:some-other-library:1.0.0', // pulls in service-c:2.0.0
                 'com.external:some-library:1.0.0'  // pulls in service-a:1.0.0
         ])
 
@@ -96,6 +113,20 @@ class VirtualPlatformSettingsPluginIntegrationSpec extends IntegrationSpec {
         given:
         buildFileWithDeps('runtime', [
                 'com.palantir:service-b:2.0.0',
+                'com.external:some-library:1.0.0'  // pulls in service-a:1.0.0
+        ])
+
+        expect:
+        assertAlignedTo('runtime', '2.0.0')
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
+    }
+
+    def '#gradleVersionNumber: runtime classpath aligns when two transitives'() {
+        given:
+        buildFileWithDeps('runtime', [
+                'com.external:some-other-library:1.0.0', // pulls in service-c:2.0.0
                 'com.external:some-library:1.0.0'  // pulls in service-a:1.0.0
         ])
 
