@@ -16,6 +16,7 @@
 
 package com.palantir.gradle.versions;
 
+import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.gradle.api.NamedDomainObjectProvider;
@@ -59,9 +60,11 @@ public class AddVirtualPlatformPlugin implements Plugin<Project> {
 
     private void applyVirtualPlatformPerGroup(Set<Project> projectGroup) {
         String platformCoordinates = projectGroup.stream()
-                .findAny()
-                .orElseThrow(() -> new java.util.NoSuchElementException("projectGroup is empty in applyVirtualPlatformPerGroup"))
-                .getGroup() + ":palantir-virtual-platform";
+                        .findAny()
+                        .orElseThrow(() ->
+                                new NoSuchElementException("projectGroup is empty in applyVirtualPlatformPerGroup"))
+                        .getGroup()
+                + ":palantir-virtual-platform";
 
         projectGroup.stream()
                 .filter(p -> p.getPluginManager().hasPlugin("java"))
