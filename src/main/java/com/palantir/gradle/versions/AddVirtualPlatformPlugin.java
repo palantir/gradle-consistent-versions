@@ -16,7 +16,6 @@
 
 package com.palantir.gradle.versions;
 
-import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.gradle.api.NamedDomainObjectProvider;
@@ -52,23 +51,18 @@ public class AddVirtualPlatformPlugin implements Plugin<Project> {
     private void applyVirtualPlatformToAllProjects(Project rootProject) {
         rootProject.getAllprojects().stream()
                 .filter(VersionsLockPlugin::isJavaLibrary)
-                .collect(Collectors.groupingBy(p -> String.valueOf(p.getGroup()), Collectors.toSet()))
-                .values()
+                .collect(Collectors.groupingBy(project -> String.valueOf(project.getGroup()), Collectors.toSet()))
+                .entrySet()
                 .stream()
-                .filter(group -> group.size() > 1)
-                .forEach(this::applyVirtualPlatformPerGroup);
+                .filter(entry -> entry.getValue().size() > 1)
+                .forEach(entry -> applyVirtualPlatformPerGroup(entry.getKey(), entry.getValue()));
     }
 
-    private void applyVirtualPlatformPerGroup(Set<Project> projectGroup) {
-        String platformCoordinates = projectGroup.stream()
-                        .findAny()
-                        .orElseThrow(() ->
-                                new NoSuchElementException("projectGroup is empty in applyVirtualPlatformPerGroup"))
-                        .getGroup()
-                + ":" + VIRTUAL_PLATFORM_NAME;
+    private void applyVirtualPlatformPerGroup(String groupName, Set<Project> projectGroup) {
+        String platformCoordinates = groupName + ":" + VIRTUAL_PLATFORM_NAME;
 
         projectGroup.stream()
-                .filter(p -> p.getPluginManager().hasPlugin("java"))
+                .filter(project -> project.getPluginManager().hasPlugin("java"))
                 .forEach(project -> addVirtualPlatformToProject(project, platformCoordinates));
     }
 
