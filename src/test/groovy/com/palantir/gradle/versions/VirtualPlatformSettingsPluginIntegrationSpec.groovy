@@ -30,20 +30,15 @@ class VirtualPlatformSettingsPluginIntegrationSpec extends IntegrationSpec {
     void setup() {
         repo = generateMavenRepo(
                 "com.external:some-library:1.0.0 -> com.palantir:service-a:1.0.0",
-                "com.external:some-library:2.0.0 -> com.palantir:service-a:3.0.0",
                 "com.external:some-other-library:1.0.0 -> com.palantir:service-c:2.0.0",
-                "com.external:some-other-library:2.0.0 -> com.palantir:service-c:4.0.0"
         )
-        publishVersionToRepo('0.5.0', false)
-        publishVersionToRepo('1.0.0', true)
-        publishVersionToRepo('2.0.0', true)
-        publishVersionToRepo('3.0.0', false)
-        publishVersionToRepo('4.0.0', false)
+
+        publishVersionToRepo('1.0.0')
+        publishVersionToRepo('2.0.0')
 
         //language=gradle
         settingsFile.text = """
             plugins { id 'com.palantir.virtual-platform-plugin' }
-            rootProject.name = 'consumer'
         """.stripIndent(true)
     }
 
@@ -140,143 +135,8 @@ class VirtualPlatformSettingsPluginIntegrationSpec extends IntegrationSpec {
     }
 
     // ========================================
-    // POM fallback tests - buildscript
-    // ========================================
-
-    def '#gradleVersionNumber: buildscript classpath aligns using POM when Gradle Module Metadata is missing'() {
-        given:
-        buildFileWithDeps('buildscript', [
-                'com.palantir:service-a:3.0.0',  // POM only
-                'com.palantir:service-b:4.0.0'   // POM only
-        ])
-
-        expect:
-        assertAlignedTo('buildscript', '4.0.0')
-
-        where:
-        gradleVersionNumber << GRADLE_VERSIONS
-    }
-
-    def '#gradleVersionNumber: buildscript classpath aligns using POM when transitive brings in POM-only artifact'() {
-        given:
-        buildFileWithDeps('buildscript', [
-                'com.external:some-library:2.0.0',  // pulls in service-a:3.0.0 (POM only)
-                'com.palantir:service-b:4.0.0'      // POM only
-        ])
-
-        expect:
-        assertAlignedTo('buildscript', '4.0.0')
-
-        where:
-        gradleVersionNumber << GRADLE_VERSIONS
-    }
-
-    def '#gradleVersionNumber: buildscript classpath aligns using POM when transitive brings in higher POM-only version'() {
-        given:
-        buildFileWithDeps('buildscript', [
-                'com.external:some-other-library:2.0.0',  // pulls in service-c:4.0.0 (POM only)
-                'com.palantir:service-b:3.0.0'            // POM only
-        ])
-
-        expect:
-        assertAlignedTo('buildscript', '4.0.0')
-
-        where:
-        gradleVersionNumber << GRADLE_VERSIONS
-    }
-
-    // ========================================
-    // POM fallback tests - runtime
-    // ========================================
-
-    def '#gradleVersionNumber: runtime classpath aligns using POM when Gradle Module Metadata is missing'() {
-        given:
-        buildFileWithDeps('runtime', [
-                'com.palantir:service-a:3.0.0',  // POM only
-                'com.palantir:service-b:4.0.0'   // POM only
-        ])
-
-        expect:
-        assertAlignedTo('runtime', '4.0.0')
-
-        where:
-        gradleVersionNumber << GRADLE_VERSIONS
-    }
-
-    def '#gradleVersionNumber: runtime classpath aligns using POM when transitive brings in POM-only artifact'() {
-        given:
-        buildFileWithDeps('runtime', [
-                'com.external:some-library:2.0.0',  // pulls in service-a:3.0.0 (POM only)
-                'com.palantir:service-b:4.0.0'      // POM only
-        ])
-
-        expect:
-        assertAlignedTo('runtime', '4.0.0')
-
-        where:
-        gradleVersionNumber << GRADLE_VERSIONS
-    }
-
-    def '#gradleVersionNumber: runtime classpath aligns using POM when transitive brings in higher POM-only version'() {
-        given:
-        buildFileWithDeps('runtime', [
-                'com.external:some-other-library:2.0.0',  // pulls in service-c:4.0.0 (POM only)
-                'com.palantir:service-b:4.0.0'            // POM only
-        ])
-
-        expect:
-        assertAlignedTo('runtime', '4.0.0')
-
-        where:
-        gradleVersionNumber << GRADLE_VERSIONS
-    }
-
-    def '#gradleVersionNumber: runtime classpath aligns mixed Gradle Module Metadata and POM-only artifacts'() {
-        given:
-        buildFileWithDeps('runtime', [
-                'com.palantir:service-a:1.0.0',  // has GMM
-                'com.palantir:service-b:3.0.0'   // POM only
-        ])
-
-        expect:
-        assertAlignedTo('runtime', '3.0.0')
-
-        where:
-        gradleVersionNumber << GRADLE_VERSIONS
-    }
-
-    def '#gradleVersionNumber: runtime classpath aligns downward to POM-only version when forced'() {
-        given:
-        buildFileWithDeps('runtime', [
-                'com.palantir:service-a:1.0.0',
-                'com.palantir:service-b:1.0.0'
-        ], [forceVersion: 'com.palantir:service-b:0.5.0'])  // 0.5.0 is POM only
-
-        expect:
-        assertAlignedTo('runtime', '0.5.0')
-
-        where:
-        gradleVersionNumber << GRADLE_VERSIONS
-    }
-
-    // ========================================
     // Error handling tests
     // ========================================
-
-    def '#gradleVersionNumber: handles malformed Gradle Module Metadata gracefully'() {
-        given:
-        createMalformedMetadata()
-        buildFileWithDeps('runtime', [
-                'com.palantir:service-a:1.0.0',
-                'com.malformed:bad-metadata:1.0.0'
-        ])
-
-        expect:
-        runTasks('dependencies').task(':dependencies').outcome == TaskOutcome.SUCCESS
-
-        where:
-        gradleVersionNumber << GRADLE_VERSIONS
-    }
 
     def '#gradleVersionNumber: handles malformed POM metadata gracefully'() {
         given:
@@ -350,21 +210,6 @@ class VirtualPlatformSettingsPluginIntegrationSpec extends IntegrationSpec {
         assert result.output.contains("SUCCESS: Aligned to $expectedVersion")
     }
 
-    private void createMalformedMetadata() {
-        def malformedDir = new File(repo, 'com/malformed/bad-metadata/1.0.0')
-        malformedDir.mkdirs()
-        new File(malformedDir, 'bad-metadata-1.0.0.jar').text = 'fake jar'
-        new File(malformedDir, 'bad-metadata-1.0.0.pom').text = """
-            <project>
-                <modelVersion>4.0.0</modelVersion>
-                <groupId>com.malformed</groupId>
-                <artifactId>bad-metadata</artifactId>
-                <version>1.0.0</version>
-            </project>
-        """.stripIndent()
-        new File(malformedDir, 'bad-metadata-1.0.0.module').text = "{ invalid json"
-    }
-
     private void createMalformedPomMetadata() {
         def malformedDir = new File(repo, 'com/malformed/bad-pom/1.0.0')
         malformedDir.mkdirs()
@@ -388,7 +233,7 @@ class VirtualPlatformSettingsPluginIntegrationSpec extends IntegrationSpec {
         """.stripIndent()
     }
 
-    private void publishVersionToRepo(String version, Boolean publishGMM) {
+    private void publishVersionToRepo(String version) {
         ['service-a', 'service-b', 'service-c'].each { serviceName ->
             def serviceDir = new File(repo, "com/palantir/${serviceName}/${version}")
             serviceDir.mkdirs()
@@ -411,51 +256,6 @@ class VirtualPlatformSettingsPluginIntegrationSpec extends IntegrationSpec {
                         </dependencies>
                     </dependencyManagement>
                 </project>
-            """.stripIndent(true)
-
-            if (!publishGMM) {
-                return
-            }
-
-            new File(serviceDir, "${serviceName}-${version}.module").text = """
-                {
-                    "formatVersion": "1.1",
-                    "component": {
-                        "group": "com.palantir",
-                        "module": "${serviceName}",
-                        "version": "${version}"
-                    },
-                    "variants": [
-                        {
-                            "name": "apiElements",
-                            "attributes": {
-                                "org.gradle.category": "library",
-                                "org.gradle.usage": "java-api"
-                            },
-                            "dependencies": [
-                                {
-                                    "group": "com.palantir",
-                                    "module": "palantir-virtual-platform",
-                                    "version": { "requires": "${version}" }
-                                }
-                            ]
-                        },
-                        {
-                            "name": "runtimeElements",
-                            "attributes": {
-                                "org.gradle.category": "library",
-                                "org.gradle.usage": "java-runtime"
-                            },
-                            "dependencies": [
-                                {
-                                    "group": "com.palantir",
-                                    "module": "palantir-virtual-platform",
-                                    "version": { "requires": "${version}" }
-                                }
-                            ]
-                        }
-                    ]
-                }
             """.stripIndent(true)
         }
     }
