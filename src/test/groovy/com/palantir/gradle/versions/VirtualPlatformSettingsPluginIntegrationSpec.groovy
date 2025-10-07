@@ -30,13 +30,13 @@ class VirtualPlatformSettingsPluginIntegrationSpec extends IntegrationSpec {
     void setup() {
         repo = generateMavenRepo(
                 "com.external:some-library:1.0.0 -> com.palantir:service-a:1.0.0",
-                "com.external:some-other-library:1.0.0 -> com.palantir:service-c:2.0.0",
                 "com.external:some-library:2.0.0 -> com.palantir:service-a:3.0.0",
+                "com.external:some-other-library:1.0.0 -> com.palantir:service-c:2.0.0",
                 "com.external:some-other-library:2.0.0 -> com.palantir:service-c:4.0.0"
         )
         publishVersionToRepo('0.5.0', false)
         publishVersionToRepo('1.0.0', true)
-        publishVersionToRepo('2.0.0', true )
+        publishVersionToRepo('2.0.0', true)
         publishVersionToRepo('3.0.0', false)
         publishVersionToRepo('4.0.0', false)
 
@@ -47,7 +47,11 @@ class VirtualPlatformSettingsPluginIntegrationSpec extends IntegrationSpec {
         """.stripIndent(true)
     }
 
-    def '#gradleVersionNumber: buildscript - aligns when external lib pulls in lower version'() {
+    // ========================================
+    // Buildscript classpath alignment tests
+    // ========================================
+
+    def '#gradleVersionNumber: buildscript classpath aligns upward when transitive dependency requests lower version'() {
         given:
         buildFileWithDeps('buildscript', [
                 'com.palantir:service-b:2.0.0',
@@ -61,7 +65,7 @@ class VirtualPlatformSettingsPluginIntegrationSpec extends IntegrationSpec {
         gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    def '#gradleVersionNumber: buildscript - aligns when external lib pulls in higher version'() {
+    def '#gradleVersionNumber: buildscript classpath aligns upward when transitive dependency requests higher version'() {
         given:
         buildFileWithDeps('buildscript', [
                 'com.palantir:service-b:1.0.0',
@@ -75,7 +79,7 @@ class VirtualPlatformSettingsPluginIntegrationSpec extends IntegrationSpec {
         gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    def '#gradleVersionNumber: buildscript - aligns when force lowers version'() {
+    def '#gradleVersionNumber: buildscript classpath aligns downward when force constraint lowers version'() {
         given:
         buildFileWithDeps('buildscript', [
                 'com.palantir:service-a:2.0.0',
@@ -89,11 +93,15 @@ class VirtualPlatformSettingsPluginIntegrationSpec extends IntegrationSpec {
         gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    def '#gradleVersionNumber: runtime - aligns when external lib pulls in lower version'() {
+    // ========================================
+    // Runtime classpath alignment tests
+    // ========================================
+
+    def '#gradleVersionNumber: runtime classpath aligns upward when transitive dependency requests lower version'() {
         given:
         buildFileWithDeps('runtime', [
                 'com.palantir:service-b:2.0.0',
-                'com.external:some-library:1.0.0'
+                'com.external:some-library:1.0.0'  // pulls in service-a:1.0.0
         ])
 
         expect:
@@ -103,11 +111,11 @@ class VirtualPlatformSettingsPluginIntegrationSpec extends IntegrationSpec {
         gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    def '#gradleVersionNumber: runtime - aligns when external lib pulls in higher version'() {
+    def '#gradleVersionNumber: runtime classpath aligns upward when transitive dependency requests higher version'() {
         given:
         buildFileWithDeps('runtime', [
                 'com.palantir:service-b:1.0.0',
-                'com.external:some-other-library:1.0.0'
+                'com.external:some-other-library:1.0.0'  // pulls in service-c:2.0.0
         ])
 
         expect:
@@ -117,7 +125,7 @@ class VirtualPlatformSettingsPluginIntegrationSpec extends IntegrationSpec {
         gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    def '#gradleVersionNumber: runtime - aligns when force lowers version'() {
+    def '#gradleVersionNumber: runtime classpath aligns downward when force constraint lowers version'() {
         given:
         buildFileWithDeps('runtime', [
                 'com.palantir:service-a:2.0.0',
@@ -131,7 +139,131 @@ class VirtualPlatformSettingsPluginIntegrationSpec extends IntegrationSpec {
         gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    def '#gradleVersionNumber: handles malformed GMM without crashing'() {
+    // ========================================
+    // POM fallback tests - buildscript
+    // ========================================
+
+    def '#gradleVersionNumber: buildscript classpath aligns using POM when Gradle Module Metadata is missing'() {
+        given:
+        buildFileWithDeps('buildscript', [
+                'com.palantir:service-a:3.0.0',  // POM only
+                'com.palantir:service-b:4.0.0'   // POM only
+        ])
+
+        expect:
+        assertAlignedTo('buildscript', '4.0.0')
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
+    }
+
+    def '#gradleVersionNumber: buildscript classpath aligns using POM when transitive brings in POM-only artifact'() {
+        given:
+        buildFileWithDeps('buildscript', [
+                'com.external:some-library:2.0.0',  // pulls in service-a:3.0.0 (POM only)
+                'com.palantir:service-b:4.0.0'      // POM only
+        ])
+
+        expect:
+        assertAlignedTo('buildscript', '4.0.0')
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
+    }
+
+    def '#gradleVersionNumber: buildscript classpath aligns using POM when transitive brings in higher POM-only version'() {
+        given:
+        buildFileWithDeps('buildscript', [
+                'com.external:some-other-library:2.0.0',  // pulls in service-c:4.0.0 (POM only)
+                'com.palantir:service-b:3.0.0'            // POM only
+        ])
+
+        expect:
+        assertAlignedTo('buildscript', '4.0.0')
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
+    }
+
+    // ========================================
+    // POM fallback tests - runtime
+    // ========================================
+
+    def '#gradleVersionNumber: runtime classpath aligns using POM when Gradle Module Metadata is missing'() {
+        given:
+        buildFileWithDeps('runtime', [
+                'com.palantir:service-a:3.0.0',  // POM only
+                'com.palantir:service-b:4.0.0'   // POM only
+        ])
+
+        expect:
+        assertAlignedTo('runtime', '4.0.0')
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
+    }
+
+    def '#gradleVersionNumber: runtime classpath aligns using POM when transitive brings in POM-only artifact'() {
+        given:
+        buildFileWithDeps('runtime', [
+                'com.external:some-library:2.0.0',  // pulls in service-a:3.0.0 (POM only)
+                'com.palantir:service-b:4.0.0'      // POM only
+        ])
+
+        expect:
+        assertAlignedTo('runtime', '4.0.0')
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
+    }
+
+    def '#gradleVersionNumber: runtime classpath aligns using POM when transitive brings in higher POM-only version'() {
+        given:
+        buildFileWithDeps('runtime', [
+                'com.external:some-other-library:2.0.0',  // pulls in service-c:4.0.0 (POM only)
+                'com.palantir:service-b:4.0.0'            // POM only
+        ])
+
+        expect:
+        assertAlignedTo('runtime', '4.0.0')
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
+    }
+
+    def '#gradleVersionNumber: runtime classpath aligns mixed Gradle Module Metadata and POM-only artifacts'() {
+        given:
+        buildFileWithDeps('runtime', [
+                'com.palantir:service-a:1.0.0',  // has GMM
+                'com.palantir:service-b:3.0.0'   // POM only
+        ])
+
+        expect:
+        assertAlignedTo('runtime', '3.0.0')
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
+    }
+
+    def '#gradleVersionNumber: runtime classpath aligns downward to POM-only version when forced'() {
+        given:
+        buildFileWithDeps('runtime', [
+                'com.palantir:service-a:1.0.0',
+                'com.palantir:service-b:1.0.0'
+        ], [forceVersion: 'com.palantir:service-b:0.5.0'])  // 0.5.0 is POM only
+
+        expect:
+        assertAlignedTo('runtime', '0.5.0')
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
+    }
+
+    // ========================================
+    // Error handling tests
+    // ========================================
+
+    def '#gradleVersionNumber: handles malformed Gradle Module Metadata gracefully'() {
         given:
         createMalformedMetadata()
         buildFileWithDeps('runtime', [
@@ -146,119 +278,7 @@ class VirtualPlatformSettingsPluginIntegrationSpec extends IntegrationSpec {
         gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    def '#gradleVersionNumber: POM fallback - aligns when GMM is missing for buildscript'() {
-        given:
-        buildFileWithDeps('buildscript', [
-                'com.palantir:service-a:3.0.0',
-                'com.palantir:service-b:4.0.0'
-        ])
-
-        expect:
-        assertAlignedTo('buildscript', '4.0.0')
-
-        where:
-        gradleVersionNumber << GRADLE_VERSIONS
-    }
-
-    def '#gradleVersionNumber: POM fallback - aligns when GMM is missing for runtime'() {
-        given:
-        buildFileWithDeps('runtime', [
-                'com.palantir:service-a:3.0.0',
-                'com.palantir:service-b:4.0.0'
-        ])
-
-        expect:
-        assertAlignedTo('runtime', '4.0.0')
-
-        where:
-        gradleVersionNumber << GRADLE_VERSIONS
-    }
-
-    def '#gradleVersionNumber: POM fallback - aligns when GMM is missing for buildscript a'() {
-        given:
-        buildFileWithDeps('buildscript', [
-                'com.external:some-library:2.0.0', // pulls in service-a:3.0.0
-                'com.palantir:service-b:4.0.0'
-        ])
-
-        expect:
-        assertAlignedTo('buildscript', '4.0.0')
-
-        where:
-        gradleVersionNumber << GRADLE_VERSIONS
-    }
-
-    def '#gradleVersionNumber: POM fallback - aligns when GMM is missing for runtime a'() {
-        given:
-        buildFileWithDeps('runtime', [
-                'com.external:some-library:2.0.0', // pulls in service-a:3.0.0
-                'com.palantir:service-b:4.0.0'
-        ])
-
-        expect:
-        assertAlignedTo('runtime', '4.0.0')
-
-        where:
-        gradleVersionNumber << GRADLE_VERSIONS
-    }
-
-    def '#gradleVersionNumber: POM fallback - aligns when GMM is missing for buildscript b'() {
-        given:
-        buildFileWithDeps('buildscript', [
-                'com.external:some-other-library:2.0.0',  // pulls in service-c:4.0.0
-                'com.palantir:service-b:3.0.0'
-        ])
-
-        expect:
-        assertAlignedTo('buildscript', '4.0.0')
-
-        where:
-        gradleVersionNumber << GRADLE_VERSIONS
-    }
-
-    def '#gradleVersionNumber: POM fallback - aligns when GMM is missing for runtime b'() {
-        given:
-        buildFileWithDeps('runtime', [
-                'com.external:some-other-library:2.0.0',  // pulls in service-c:4.0.0
-                'com.palantir:service-b:4.0.0'
-        ])
-
-        expect:
-        assertAlignedTo('runtime', '4.0.0')
-
-        where:
-        gradleVersionNumber << GRADLE_VERSIONS
-    }
-
-    def '#gradleVersionNumber: POM fallback - aligns mixed GMM and POM-only artifacts'() {
-        given:
-        buildFileWithDeps('runtime', [
-                'com.palantir:service-a:1.0.0',  // has GMM
-                'com.palantir:service-b:3.0.0'   // POM only
-        ])
-
-        expect:
-        assertAlignedTo('runtime', '3.0.0')
-
-        where:
-        gradleVersionNumber << GRADLE_VERSIONS
-    }
-
-    def '#gradleVersionNumber: POM fallback - works when force lowers to POM-only version'() {
-        given:
-        buildFileWithDeps('runtime', [
-                'com.palantir:service-a:1.0.0',
-                'com.palantir:service-b:1.0.0'
-        ], [forceVersion: 'com.palantir:service-b:0.5.0'])
-
-        expect:
-        assertAlignedTo('runtime', '0.5.0')
-
-        where:
-        gradleVersionNumber << GRADLE_VERSIONS
-    }
-
-    def '#gradleVersionNumber: POM fallback - handles malformed POM without crashing'() {
+    def '#gradleVersionNumber: handles malformed POM metadata gracefully'() {
         given:
         createMalformedPomMetadata()
         buildFileWithDeps('runtime', [
@@ -272,6 +292,10 @@ class VirtualPlatformSettingsPluginIntegrationSpec extends IntegrationSpec {
         where:
         gradleVersionNumber << GRADLE_VERSIONS
     }
+
+    // ========================================
+    // Helper methods
+    // ========================================
 
     private void buildFileWithDeps(String scope, List<String> deps, Map options = [:]) {
         def forceVersion = options.forceVersion
@@ -390,7 +414,7 @@ class VirtualPlatformSettingsPluginIntegrationSpec extends IntegrationSpec {
             """.stripIndent(true)
 
             if (!publishGMM) {
-                return;
+                return
             }
 
             new File(serviceDir, "${serviceName}-${version}.module").text = """
