@@ -29,6 +29,7 @@ public class AddVirtualPlatformPlugin implements Plugin<Project> {
 
     private static final String ADD_VIRTUAL_PLATFORM_CONSTRAINTS_PROPERTY =
             "com.palantir.gradle.versions.addVirtualPlatformConstraint";
+    static final String VIRTUAL_PLATFORM_NAME = "palantir-virtual-platform";
 
     @Override
     public final void apply(Project rootProject) {
@@ -64,7 +65,7 @@ public class AddVirtualPlatformPlugin implements Plugin<Project> {
                         .orElseThrow(() ->
                                 new NoSuchElementException("projectGroup is empty in applyVirtualPlatformPerGroup"))
                         .getGroup()
-                + ":palantir-virtual-platform";
+                + ":" + VIRTUAL_PLATFORM_NAME;
 
         projectGroup.stream()
                 .filter(p -> p.getPluginManager().hasPlugin("java"))

@@ -16,7 +16,10 @@
 
 package com.palantir.gradle.versions;
 
+import com.ctc.wstx.stax.WstxInputFactory;
+import com.ctc.wstx.stax.WstxOutputFactory;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlElementWrapper;
@@ -50,12 +53,8 @@ public class VirtualPlatformSettingsPlugin implements Plugin<Settings> {
     }
 
     public abstract static class VirtualPlatformRule implements ComponentMetadataRule {
-        private static final String VIRTUAL_PLATFORM_NAME = "palantir-virtual-platform";
-        private static final XmlMapper XML_MAPPER = new XmlMapper();
-
-        static {
-            XML_MAPPER.registerModule(new Jdk8Module());
-        }
+        private static final ObjectMapper XML_MAPPER =
+                new XmlMapper(new WstxInputFactory(), new WstxOutputFactory()).registerModule(new Jdk8Module());
 
         @Inject
         protected abstract RepositoryResourceAccessor getRepositoryResourceAccessor();
@@ -66,16 +65,16 @@ public class VirtualPlatformSettingsPlugin implements Plugin<Settings> {
 
             String pomPath = buildPomPath(id);
             getRepositoryResourceAccessor().withResource(pomPath, resource -> {
-                parsePomMetadata(resource)
-                        .flatMap(PomMetadata::extractDependencies)
+                parseMetadata(resource)
+                        .flatMap(Metadata::extractDependencies)
                         .filter(deps -> hasVirtualPlatform(deps, id.getGroup()))
                         .ifPresent(_deps -> assignToPlatform(context, id));
             });
         }
 
-        private static Optional<PomMetadata> parsePomMetadata(InputStream resource) {
+        private static Optional<Metadata> parseMetadata(InputStream resource) {
             try {
-                return Optional.of(XML_MAPPER.readValue(resource, PomMetadata.class));
+                return Optional.of(XML_MAPPER.readValue(resource, Metadata.class));
             } catch (IOException e) {
                 log.debug("Failed to parse POM metadata: {}", e.getMessage());
                 return Optional.empty();
@@ -88,7 +87,10 @@ public class VirtualPlatformSettingsPlugin implements Plugin<Settings> {
 
         private static boolean isVirtualPlatformDependency(Dependency dependency, String expectedGroup) {
             return dependency.group().filter(expectedGroup::equals).isPresent()
-                    && dependency.module().filter(VIRTUAL_PLATFORM_NAME::equals).isPresent();
+                    && dependency
+                            .module()
+                            .filter(AddVirtualPlatformPlugin.VIRTUAL_PLATFORM_NAME::equals)
+                            .isPresent();
         }
 
         private static String buildPomPath(ModuleVersionIdentifier id) {
@@ -105,20 +107,9 @@ public class VirtualPlatformSettingsPlugin implements Plugin<Settings> {
     }
 
     @Value.Immutable
-    @JsonDeserialize(as = ImmutableDependency.class)
+    @JsonDeserialize(as = ImmutableMetadata.class)
     @JsonIgnoreProperties(ignoreUnknown = true)
-    interface Dependency {
-        @JacksonXmlProperty(localName = "groupId")
-        Optional<String> group();
-
-        @JacksonXmlProperty(localName = "artifactId")
-        Optional<String> module();
-    }
-
-    @Value.Immutable
-    @JsonDeserialize(as = ImmutablePomMetadata.class)
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    interface PomMetadata {
+    interface Metadata {
         Optional<DependencyManagement> dependencyManagement();
 
         default Optional<List<Dependency>> extractDependencies() {
@@ -136,5 +127,16 @@ public class VirtualPlatformSettingsPlugin implements Plugin<Settings> {
         default List<Dependency> dependencies() {
             return List.of();
         }
+    }
+
+    @Value.Immutable
+    @JsonDeserialize(as = ImmutableDependency.class)
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    interface Dependency {
+        @JacksonXmlProperty(localName = "groupId")
+        Optional<String> group();
+
+        @JacksonXmlProperty(localName = "artifactId")
+        Optional<String> module();
     }
 }
