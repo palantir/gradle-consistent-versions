@@ -17,13 +17,18 @@
 package com.palantir.gradle.versions;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.dataformat.xml.XmlMapper;
+import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlElementWrapper;
+import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 import javax.inject.Inject;
 import org.gradle.api.Plugin;
 import org.gradle.api.artifacts.ComponentMetadataContext;
@@ -49,7 +54,12 @@ public class VirtualPlatformSettingsPlugin implements Plugin<Settings> {
 
     public abstract static class VirtualPlatformRule implements ComponentMetadataRule {
         private static final String VIRTUAL_PLATFORM_NAME = "palantir-virtual-platform";
-        private static final ObjectMapper MAPPER = new ObjectMapper().registerModule(new Jdk8Module());
+        private static final ObjectMapper JSON_MAPPER = new ObjectMapper().registerModule(new Jdk8Module());
+        private static final XmlMapper XML_MAPPER = new XmlMapper();
+
+        static {
+            XML_MAPPER.registerModule(new Jdk8Module());
+        }
 
         @Inject
         protected abstract RepositoryResourceAccessor getRepositoryResourceAccessor();
@@ -57,39 +67,55 @@ public class VirtualPlatformSettingsPlugin implements Plugin<Settings> {
         @Override
         public final void execute(ComponentMetadataContext context) {
             ModuleVersionIdentifier id = context.getDetails().getId();
-            String metadataPath = buildMetadataPath(id);
 
-            getRepositoryResourceAccessor().withResource(metadataPath, resource -> {
-                parseMetadata(resource)
-                        .filter(metadata -> hasVirtualPlatformConstraint(metadata, id.getGroup()))
-                        .ifPresent(metadata -> assignToPlatform(context, id));
+            // Try GMM first
+            String gmmPath = buildGmmPath(id);
+            getRepositoryResourceAccessor().withResource(gmmPath, resource -> {
+                parseMetadata(resource, JSON_MAPPER, GradleModuleMetadata.class)
+                        .flatMap(GradleModuleMetadata::extractDependencies)
+                        .filter(deps -> hasVirtualPlatform(deps, id.getGroup()))
+                        .ifPresent(deps -> assignToPlatform(context, id));
+            });
+
+            // If GMM didn't work, try POM
+            String pomPath = buildPomPath(id);
+            getRepositoryResourceAccessor().withResource(pomPath, resource -> {
+                parseMetadata(resource, XML_MAPPER, PomMetadata.class)
+                        .flatMap(PomMetadata::extractDependencies)
+                        .filter(deps -> hasVirtualPlatform(deps, id.getGroup()))
+                        .ifPresent(deps -> assignToPlatform(context, id));
             });
         }
 
-        private static Optional<GradleModuleMetadata> parseMetadata(InputStream resource) {
+        private static <T> Optional<T> parseMetadata(
+                InputStream resource, ObjectMapper mapper, Class<T> metadataClass) {
             try {
-                return Optional.of(MAPPER.readValue(resource, GradleModuleMetadata.class));
+                return Optional.of(mapper.readValue(resource, metadataClass));
             } catch (IOException e) {
-                log.debug("Failed to parse metadata: {}", e.getMessage());
+                log.debug("Failed to parse {} metadata: {}", metadataClass.getSimpleName(), e.getMessage());
                 return Optional.empty();
             }
         }
 
-        private static boolean hasVirtualPlatformConstraint(GradleModuleMetadata metadata, String expectedGroup) {
-            return metadata.variants().stream()
-                    .flatMap(variant -> variant.dependencyConstraints().stream())
-                    .anyMatch(constraint -> isVirtualPlatformConstraint(constraint, expectedGroup));
+        private static boolean hasVirtualPlatform(Stream<Dependency> dependencies, String expectedGroup) {
+            return dependencies.anyMatch(dep -> isVirtualPlatformDependency(dep, expectedGroup));
         }
 
-        private static boolean isVirtualPlatformConstraint(DependencyConstraint constraint, String expectedGroup) {
-            return constraint.group().filter(expectedGroup::equals).isPresent()
-                    && constraint.module().filter(VIRTUAL_PLATFORM_NAME::equals).isPresent();
+        private static boolean isVirtualPlatformDependency(Dependency dependency, String expectedGroup) {
+            return dependency.group().filter(expectedGroup::equals).isPresent()
+                    && dependency.module().filter(VIRTUAL_PLATFORM_NAME::equals).isPresent();
         }
 
-        private static String buildMetadataPath(ModuleVersionIdentifier id) {
+        private static String buildGmmPath(ModuleVersionIdentifier id) {
             String groupPath = id.getGroup().replace('.', '/');
             return String.format(
                     "%s/%s/%s/%s-%s.module", groupPath, id.getName(), id.getVersion(), id.getName(), id.getVersion());
+        }
+
+        private static String buildPomPath(ModuleVersionIdentifier id) {
+            String groupPath = id.getGroup().replace('.', '/');
+            return String.format(
+                    "%s/%s/%s/%s-%s.pom", groupPath, id.getName(), id.getVersion(), id.getName(), id.getVersion());
         }
 
         private static void assignToPlatform(ComponentMetadataContext context, ModuleVersionIdentifier id) {
@@ -99,13 +125,37 @@ public class VirtualPlatformSettingsPlugin implements Plugin<Settings> {
         }
     }
 
+    interface MetadataWithDependencies {
+        Optional<Stream<Dependency>> extractDependencies();
+    }
+
+    @Value.Immutable
+    @JsonDeserialize(as = ImmutableDependency.class)
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    interface Dependency {
+        @JsonProperty("group")
+        @JacksonXmlProperty(localName = "groupId")
+        Optional<String> group();
+
+        @JsonProperty("module")
+        @JacksonXmlProperty(localName = "artifactId")
+        Optional<String> module();
+    }
+
+    // GMM Models
     @Value.Immutable
     @JsonDeserialize(as = ImmutableGradleModuleMetadata.class)
     @JsonIgnoreProperties(ignoreUnknown = true)
-    interface GradleModuleMetadata {
+    interface GradleModuleMetadata extends MetadataWithDependencies {
         @Value.Default
         default List<Variant> variants() {
             return List.of();
+        }
+
+        @Override
+        default Optional<Stream<Dependency>> extractDependencies() {
+            Stream<Dependency> deps = variants().stream().flatMap(variant -> variant.dependencyConstraints().stream());
+            return Optional.of(deps);
         }
     }
 
@@ -114,17 +164,33 @@ public class VirtualPlatformSettingsPlugin implements Plugin<Settings> {
     @JsonIgnoreProperties(ignoreUnknown = true)
     interface Variant {
         @Value.Default
-        default List<DependencyConstraint> dependencyConstraints() {
+        default List<Dependency> dependencyConstraints() {
             return List.of();
         }
     }
 
+    // POM Models
     @Value.Immutable
-    @JsonDeserialize(as = ImmutableDependencyConstraint.class)
+    @JsonDeserialize(as = ImmutablePomMetadata.class)
     @JsonIgnoreProperties(ignoreUnknown = true)
-    interface DependencyConstraint {
-        Optional<String> group();
+    interface PomMetadata extends MetadataWithDependencies {
+        Optional<DependencyManagement> dependencyManagement();
 
-        Optional<String> module();
+        @Override
+        default Optional<Stream<Dependency>> extractDependencies() {
+            return dependencyManagement().map(dm -> dm.dependencies().stream());
+        }
+    }
+
+    @Value.Immutable
+    @JsonDeserialize(as = ImmutableDependencyManagement.class)
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    interface DependencyManagement {
+        @JacksonXmlElementWrapper(localName = "dependencies")
+        @JacksonXmlProperty(localName = "dependency")
+        @Value.Default
+        default List<Dependency> dependencies() {
+            return List.of();
+        }
     }
 }
