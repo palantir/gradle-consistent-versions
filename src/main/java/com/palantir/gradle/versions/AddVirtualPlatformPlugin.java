@@ -16,7 +16,6 @@
 
 package com.palantir.gradle.versions;
 
-import java.util.Comparator;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.gradle.api.NamedDomainObjectProvider;
@@ -27,7 +26,7 @@ import org.gradle.api.plugins.JavaPlugin;
 
 public class AddVirtualPlatformPlugin implements Plugin<Project> {
 
-    private static final String PUBLISH_PLATFORM_CONSTRAINTS_PROPERTY =
+    private static final String ADD_VIRTUAL_PLATFORM_CONSTRAINTS_PROPERTY =
             "com.palantir.gradle.versions.addVirtualPlatformConstraint";
 
     @Override
@@ -37,33 +36,29 @@ public class AddVirtualPlatformPlugin implements Plugin<Project> {
         }
 
         rootProject.afterEvaluate(project -> {
-            if (shouldPublishPlatformConstraints(project)) {
-                enforceVersionAlignment(project);
+            if (shouldAddVirtualPlatformConstraint(project)) {
+                applyVirtualPlatformToAllProjects(project);
             }
         });
     }
 
-    private static boolean shouldPublishPlatformConstraints(Project project) {
-        return project.hasProperty(PUBLISH_PLATFORM_CONSTRAINTS_PROPERTY)
-                && "true".equals(project.property(PUBLISH_PLATFORM_CONSTRAINTS_PROPERTY));
+    private static boolean shouldAddVirtualPlatformConstraint(Project project) {
+        return project.hasProperty(ADD_VIRTUAL_PLATFORM_CONSTRAINTS_PROPERTY)
+                && "true".equals(project.property(ADD_VIRTUAL_PLATFORM_CONSTRAINTS_PROPERTY));
     }
 
-    private void enforceVersionAlignment(Project rootProject) {
+    private void applyVirtualPlatformToAllProjects(Project rootProject) {
         rootProject.getAllprojects().stream()
                 .filter(VersionsLockPlugin::isJavaLibrary)
                 .collect(Collectors.groupingBy(p -> String.valueOf(p.getGroup()), Collectors.toSet()))
                 .values()
                 .stream()
                 .filter(group -> group.size() > 1)
-                .forEach(this::applyVirtualPlatform);
+                .forEach(this::applyVirtualPlatformPerGroup);
     }
 
-    private void applyVirtualPlatform(Set<Project> projectGroup) {
-        Project firstProject = projectGroup.stream()
-                .min(Comparator.comparing(Project::getPath))
-                .orElseThrow();
-
-        String platformCoordinates = firstProject.getGroup() + ":palantir-virtual-platform";
+    private void applyVirtualPlatformPerGroup(Set<Project> projectGroup) {
+        String platformCoordinates = projectGroup.stream().findAny().get().getGroup() + ":palantir-virtual-platform";
 
         projectGroup.stream()
                 .filter(p -> p.getPluginManager().hasPlugin("java"))
@@ -83,7 +78,8 @@ public class AddVirtualPlatformPlugin implements Plugin<Project> {
                             .add(project.getDependencies().getConstraints().create(platformCoordinates, constraint -> {
                                 constraint.version(
                                         v -> v.require(project.getVersion().toString()));
-                                constraint.because("Virtual platform for version alignment across group");
+                                constraint.because(
+                                        "Virtual platform for version alignment across group when using com.palantir.virtual-platform-plugin");
                             }));
                 });
 
