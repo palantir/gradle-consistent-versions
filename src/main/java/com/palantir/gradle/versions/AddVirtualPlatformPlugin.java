@@ -58,7 +58,10 @@ public class AddVirtualPlatformPlugin implements Plugin<Project> {
     }
 
     private void applyVirtualPlatformPerGroup(Set<Project> projectGroup) {
-        String platformCoordinates = projectGroup.stream().findAny().get().getGroup() + ":palantir-virtual-platform";
+        String platformCoordinates = projectGroup.stream()
+                .findAny()
+                .orElseThrow(() -> new java.util.NoSuchElementException("projectGroup is empty in applyVirtualPlatformPerGroup"))
+                .getGroup() + ":palantir-virtual-platform";
 
         projectGroup.stream()
                 .filter(p -> p.getPluginManager().hasPlugin("java"))
