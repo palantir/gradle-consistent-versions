@@ -137,7 +137,7 @@ gradlePlugin {
             tags.set(['versions'])
         }
         virtualPlatformSettingsPlugin {
-            id = 'com.palantir.virtual-platform-settings'
+            id = 'com.palantir.virtual-platform-plugin'
             implementationClass = 'com.palantir.gradle.versions.VirtualPlatformSettingsPlugin'
             displayName = 'Settings plugin to automatically assign components to virtual platforms'
             description = displayName

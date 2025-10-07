@@ -42,7 +42,7 @@ class VirtualPlatformSettingsPluginIntegrationSpec extends IntegrationSpec {
 
         //language=gradle
         settingsFile.text = """
-            plugins { id 'com.palantir.virtual-platform-settings' }
+            plugins { id 'com.palantir.virtual-platform-plugin' }
             rootProject.name = 'consumer'
         """.stripIndent(true)
     }
