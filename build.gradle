@@ -51,12 +51,6 @@ allprojects {
 
     group 'com.palantir.gradle.consistentversions'
     version rootProject.version
-    suppressibleErrorProne {
-        configureEachErrorProneOptions {
-            disable 'StrictUnusedVariable'
-        }
-
-    }
 }
 
 dependencies {
