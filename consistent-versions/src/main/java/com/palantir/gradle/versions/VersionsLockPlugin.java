@@ -1,5 +1,5 @@
 /*
- * (c) Copyright 2019 Palantir Technologies Inc. All rights reserved.
+ * (c) Copyright 2025 Palantir Technologies Inc. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1107,7 +1107,7 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
                 && "true".equals(project.property(PUBLISH_LOCAL_CONSTRAINTS_PROPERTY));
     }
 
-    static boolean isJavaLibrary(Project project) {
+    private static boolean isJavaLibrary(Project project) {
         if (project.getPluginManager().hasPlugin("nebula.maven-publish")) {
             // 'nebula.maven-publish' creates publications lazily which causes inconsistencies based
             // on ordering.
