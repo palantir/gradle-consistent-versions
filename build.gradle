@@ -160,3 +160,8 @@ jdks {
 gradleTestUtils {
     gradleVersions = ['8.14.3']
 }
+
+test {
+    jvmArgs '--add-opens', 'java.base/java.lang.invoke=ALL-UNNAMED'
+    jvmArgs '--add-opens', 'java.base/java.util=ALL-UNNAMED'
+}

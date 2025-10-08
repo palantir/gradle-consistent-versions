@@ -60,6 +60,12 @@ class ExternallyConsistentVersionsProducerPluginIntegrationSpec extends Integrat
         addSubproject('service-b', '// Service B')
     }
 
+    def "check does not break configuration cache"() {
+        expect:
+        runTasksWithConfigurationCache('--write-locks')
+        runTasksWithConfigurationCache('build')
+    }
+
     def "#gradleVersionNumber: published constraints with platform constraint"() {
         setup:
         runTasksWithConfigurationCache('--write-locks')
