@@ -16,7 +16,6 @@
 
 package com.palantir.gradle.versions
 
-import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
 import spock.lang.Unroll
 
@@ -24,9 +23,6 @@ import static com.palantir.gradle.versions.GradleTestVersions.GRADLE_VERSIONS
 
 @Unroll
 class VirtualPlatformSettingsPluginIntegrationSpec extends IntegrationSpec {
-
-    // todo:
-    // 2 transitives
 
     File repo
 
@@ -222,11 +218,22 @@ class VirtualPlatformSettingsPluginIntegrationSpec extends IntegrationSpec {
 
         //language=gradle
         buildFile << """
+            import org.gradle.api.artifacts.component.ModuleComponentIdentifier
+
             tasks.register('$taskName') {
+                def artifactsProvider = provider {
+                    ${configName}.incoming.artifactView {
+                        lenient(true)
+                    }.artifacts
+                }
+                
                 doLast {
-                    def versions = ${configName}.resolvedConfiguration.resolvedArtifacts
-                        .findAll { it.moduleVersion.id.group == 'com.palantir' }
-                        .collect { it.moduleVersion.id.version }
+                    def versions = artifactsProvider.get()
+                        .findAll { 
+                            it.id.componentIdentifier instanceof ModuleComponentIdentifier &&
+                            it.id.componentIdentifier.group == 'com.palantir' 
+                        }
+                        .collect { it.id.componentIdentifier.version }
                         .unique()
                     
                     assert versions.size() == 1 : "Expected alignment, got: \${versions}"
@@ -236,7 +243,7 @@ class VirtualPlatformSettingsPluginIntegrationSpec extends IntegrationSpec {
             }
         """.stripIndent(true)
 
-        def result = runTasks(taskName)
+        def result = runTasksWithConfigurationCache(taskName)
         assert result.task(":$taskName").outcome == TaskOutcome.SUCCESS
         assert result.output.contains("SUCCESS: Aligned to $expectedVersion")
     }

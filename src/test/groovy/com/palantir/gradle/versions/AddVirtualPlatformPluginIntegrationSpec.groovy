@@ -62,13 +62,7 @@ class AddVirtualPlatformPluginIntegrationSpec extends IntegrationSpec {
         setup:
         file('gradle.properties') << 'com.palantir.gradle.versions.addVirtualPlatformConstraint = true'
 
-        if (GradleVersion.version(gradleVersionNumber) < GradleVersion.version("6.0")) {
-            settingsFile << '''
-                enableFeaturePreview('GRADLE_METADATA')
-            '''.stripIndent(true)
-        }
-
-        runTasks('--write-locks')
+        runTasksWithConfigurationCache('--write-locks')
 
         when:
         runTasks('generatePomFileForMavenPublication', 'generateMetadataFileForMavenPublication')
