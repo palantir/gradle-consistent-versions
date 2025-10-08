@@ -41,14 +41,14 @@ import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 import org.immutables.value.Value;
 
-public class VirtualPlatformSettingsPlugin implements Plugin<Settings> {
+public class ExternallyConsistentVersionsSettingsPlugin implements Plugin<Settings> {
 
-    private static final Logger log = Logging.getLogger(VirtualPlatformSettingsPlugin.class);
+    private static final Logger log = Logging.getLogger(ExternallyConsistentVersionsSettingsPlugin.class);
 
     @Override
     public final void apply(Settings settings) {
         settings.getGradle().rootProject(rootProject -> {
-            rootProject.getPluginManager().apply(AddVirtualPlatformPlugin.class);
+            rootProject.getPluginManager().apply(ExternallyConsistentVersionsProducerPlugin.class);
         });
 
         settings.getGradle().allprojects(project -> {
@@ -93,7 +93,7 @@ public class VirtualPlatformSettingsPlugin implements Plugin<Settings> {
             return dependency.group().filter(expectedGroup::equals).isPresent()
                     && dependency
                             .module()
-                            .filter(AddVirtualPlatformPlugin.VIRTUAL_PLATFORM_NAME::equals)
+                            .filter(ExternallyConsistentVersionsProducerPlugin.VIRTUAL_PLATFORM_NAME::equals)
                             .isPresent();
         }
 

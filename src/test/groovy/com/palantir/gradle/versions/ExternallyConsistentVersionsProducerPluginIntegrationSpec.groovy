@@ -23,15 +23,18 @@ import static com.palantir.gradle.versions.GradleTestVersions.GRADLE_VERSIONS
 
 
 @Unroll
-class AddVirtualPlatformPluginIntegrationSpec extends IntegrationSpec {
+class ExternallyConsistentVersionsProducerPluginIntegrationSpec extends IntegrationSpec {
 
     void setup() {
         //language=gradle
         buildFile << """
+            import com.palantir.gradle.versions.ExternallyConsistentVersionsProducerPlugin
+
             plugins {
                 id 'com.palantir.versions-lock'
-                id 'com.palantir.add-virtual-platform-plugin'
             }
+            
+            apply plugin: ExternallyConsistentVersionsProducerPlugin
             
             allprojects {
                 group = 'com.palantir'

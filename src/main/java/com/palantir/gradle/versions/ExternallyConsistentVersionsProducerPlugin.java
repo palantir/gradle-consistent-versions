@@ -24,14 +24,15 @@ import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.plugins.JavaPlugin;
 
-public class AddVirtualPlatformPlugin implements Plugin<Project> {
+public class ExternallyConsistentVersionsProducerPlugin implements Plugin<Project> {
 
     static final String VIRTUAL_PLATFORM_NAME = "palantir-virtual-platform";
 
     @Override
     public final void apply(Project rootProject) {
         if (!rootProject.equals(rootProject.getRootProject())) {
-            throw new IllegalStateException("AddVirtualPlatformPlugin must be applied to the root project");
+            throw new IllegalStateException(
+                    "ExternallyConsistentVersionsProducerPlugin must be applied to the root project");
         }
 
         rootProject.afterEvaluate(project -> {
@@ -67,7 +68,7 @@ public class AddVirtualPlatformPlugin implements Plugin<Project> {
                                 constraint.version(
                                         v -> v.require(project.getVersion().toString()));
                                 constraint.because("Virtual platform for version alignment across group when using "
-                                        + "com.palantir.virtual-platform-plugin");
+                                        + "com.palantir.externally-consistent-versions");
                             }));
                 });
 

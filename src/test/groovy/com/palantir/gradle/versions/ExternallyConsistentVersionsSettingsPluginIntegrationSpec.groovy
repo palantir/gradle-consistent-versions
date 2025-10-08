@@ -22,7 +22,7 @@ import spock.lang.Unroll
 import static com.palantir.gradle.versions.GradleTestVersions.GRADLE_VERSIONS
 
 @Unroll
-class VirtualPlatformSettingsPluginIntegrationSpec extends IntegrationSpec {
+class ExternallyConsistentVersionsSettingsPluginIntegrationSpec extends IntegrationSpec {
 
     File repo
 
@@ -37,7 +37,7 @@ class VirtualPlatformSettingsPluginIntegrationSpec extends IntegrationSpec {
 
         //language=gradle
         settingsFile.text = """
-            plugins { id 'com.palantir.virtual-platform-plugin' }
+            plugins { id 'com.palantir.externally-consistent-versions' }
         """.stripIndent(true)
     }
 
