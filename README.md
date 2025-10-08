@@ -551,9 +551,10 @@ When you publish your libraries, the plugin automatically embeds alignment metad
 
 ### Why Not Use BOMs?
 
-Traditional BOMs have limitations:
+The main drive away from BOMs or inter-project constraints is to enable version alignment even on downgrade via `force` or `strictly` constraints. 
+
+Traditional BOMs have some further limitations:
 - **Require a separate published project** to host the BOM
-- **Only provide recommendations**—consumers can still end up with mismatched versions during downgrades
 - **Must be explicitly imported** by every consumer
 
 This plugin:
