@@ -52,7 +52,7 @@ public class ExternallyConsistentVersionsSettingsPlugin implements Plugin<Settin
             rootProject.getPluginManager().apply(ExternallyConsistentVersionsProducerPlugin.class);
         });
 
-        settings.getGradle().allprojects(project -> {
+        settings.getGradle().beforeProject(project -> {
             project.getDependencies().getComponents().all(VirtualPlatformRule.class);
             project.getBuildscript().getDependencies().getComponents().all(VirtualPlatformRule.class);
         });
