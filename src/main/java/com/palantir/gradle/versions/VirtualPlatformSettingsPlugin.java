@@ -69,14 +69,14 @@ public class VirtualPlatformSettingsPlugin implements Plugin<Settings> {
 
             String pomPath = buildPomPath(id);
             getRepositoryResourceAccessor().withResource(pomPath, resource -> {
-                parseMetadata(resource)
+                parsePom(resource)
                         .flatMap(Metadata::extractDependencies)
                         .filter(deps -> hasVirtualPlatform(deps, id.getGroup()))
                         .ifPresent(_deps -> assignToPlatform(context, id));
             });
         }
 
-        private static Optional<Metadata> parseMetadata(InputStream resource) {
+        private static Optional<Metadata> parsePom(InputStream resource) {
             try {
                 return Optional.of(XML_MAPPER.readValue(resource, Metadata.class));
             } catch (IOException e) {
