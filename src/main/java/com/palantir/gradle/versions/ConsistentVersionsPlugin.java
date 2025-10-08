@@ -49,7 +49,6 @@ public class ConsistentVersionsPlugin implements Plugin<Project> {
         project.getPluginManager().apply(VersionsPropsPlugin.class);
         project.getPluginManager().apply(GetVersionPlugin.class);
         project.getPluginManager().apply(VersionsPropsIdeaPlugin.class);
-        project.getPluginManager().apply(AddVirtualPlatformPlugin.class);
 
         project.getPluginManager().apply(IdeaConfigurationPlugin.class);
         IdeaConfigurationExtension extension = project.getExtensions().getByType(IdeaConfigurationExtension.class);

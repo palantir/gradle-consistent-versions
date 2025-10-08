@@ -46,6 +46,10 @@ public class VirtualPlatformSettingsPlugin implements Plugin<Settings> {
 
     @Override
     public final void apply(Settings settings) {
+        settings.getGradle().rootProject(rootProject -> {
+            rootProject.getPluginManager().apply(AddVirtualPlatformPlugin.class);
+        });
+
         settings.getGradle().allprojects(project -> {
             project.getDependencies().getComponents().all(VirtualPlatformRule.class);
             project.getBuildscript().getDependencies().getComponents().all(VirtualPlatformRule.class);
