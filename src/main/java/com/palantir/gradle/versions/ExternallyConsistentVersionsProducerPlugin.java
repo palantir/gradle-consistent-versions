@@ -39,10 +39,11 @@ public class ExternallyConsistentVersionsProducerPlugin implements Plugin<Projec
             project.getAllprojects().stream()
                     .filter(VersionsLockPlugin::isJavaLibrary)
                     .collect(Collectors.groupingBy(proj -> String.valueOf(proj.getGroup()), Collectors.toSet()))
-                    .entrySet()
-                    .stream()
-                    .filter(entry -> entry.getValue().size() > 1)
-                    .forEach(entry -> applyVirtualPlatformPerGroup(entry.getKey(), entry.getValue()));
+                    .forEach((groupName, projects) -> {
+                        if (projects.size() > 1) {
+                            applyVirtualPlatformPerGroup(groupName, projects);
+                        }
+                    });
         });
     }
 
