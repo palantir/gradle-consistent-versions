@@ -11,10 +11,10 @@ buildscript {
         classpath 'com.palantir.gradle.plugintesting:gradle-plugin-testing:0.12.0'
         classpath 'com.palantir.gradle.externalpublish:gradle-external-publish-plugin:1.25.0'
         classpath 'com.palantir.gradle.failure-reports:gradle-failure-reports:1.16.0'
-        classpath 'com.palantir.javaformat:gradle-palantir-java-format:2.75.0'
+        classpath 'com.palantir.javaformat:gradle-palantir-java-format:2.77.0'
         classpath 'com.palantir.suppressible-error-prone:gradle-suppressible-error-prone:2.16.0'
         classpath 'com.palantir.gradle.consistentversions:gradle-consistent-versions:3.2.0'
-        classpath 'com.palantir.baseline:gradle-baseline-java:6.61.0'
+        classpath 'com.palantir.baseline:gradle-baseline-java:6.64.0'
         classpath 'com.palantir.gradle.gitversion:gradle-git-version:4.0.0'
         classpath 'com.palantir.gradle.guide:gradle-guide:1.13.0'
         classpath 'com.palantir.gradle.idea-configuration:gradle-idea-configuration:0.5.0'
@@ -23,15 +23,19 @@ buildscript {
 }
 
 plugins {
- id 'com.gradle.plugin-publish' version '2.0.0'
+    id 'com.gradle.plugin-publish' version '2.0.0'
 }
 
 apply plugin: 'com.palantir.external-publish'
+apply plugin: 'java-gradle-plugin'
+apply plugin: 'groovy'
 apply plugin: 'com.palantir.baseline'
 apply plugin: 'com.palantir.consistent-versions'
 apply plugin: 'com.palantir.git-version'
 apply plugin: 'com.palantir.gradle-guide'
+apply plugin: 'com.palantir.gradle-plugin-testing'
 apply plugin: 'com.palantir.jdks'
+apply plugin: 'com.palantir.external-publish-jar'
 apply plugin: 'com.palantir.failure-reports'
 apply plugin: 'com.palantir.baseline-java-versions'
 apply plugin: 'com.palantir.jdks.latest'
@@ -48,6 +52,28 @@ allprojects {
 
     group 'com.palantir.gradle.consistentversions'
     version rootProject.version
+}
+
+dependencies {
+    implementation 'com.google.guava:guava'
+    implementation 'com.netflix.nebula:nebula-dependency-recommender'
+    implementation 'com.palantir.gradle.failure-reports:gradle-failure-reports-exceptions'
+    implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-xml'
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-guava'
+    implementation 'one.util:streamex'
+    implementation 'com.palantir.gradle.idea-configuration:gradle-idea-configuration'
+
+    testImplementation platform('org.junit:junit-bom')
+    testImplementation 'com.netflix.nebula:nebula-test'
+    testImplementation 'org.mockito:mockito-core'
+    testImplementation 'com.fasterxml.jackson.core:jackson-databind'
+    testImplementation "org.junit.jupiter:junit-jupiter-api"
+    testImplementation 'org.assertj:assertj-core'
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly "org.junit.vintage:junit-vintage-engine"
+
+    annotationProcessor "org.immutables:value"
+    compileOnly "org.immutables:value::annotations"
 }
 
 tasks.withType(Test) {
@@ -70,6 +96,47 @@ tasks.withType(JavaCompile) {
     options.errorprone.disable 'Slf4jLogsafeArgs', 'PreferSafeLoggableExceptions'
 }
 
+gradlePlugin {
+    website = 'https://github.com/palantir/gradle-consistent-versions'
+    vcsUrl = 'https://github.com/palantir/gradle-consistent-versions'
+
+    plugins {
+        consistentVersions {
+            id = 'com.palantir.consistent-versions'
+            implementationClass = 'com.palantir.gradle.versions.ConsistentVersionsPlugin'
+            displayName = 'Compact, constraint-friendly lockfiles for your dependencies'
+            description = displayName
+            tags.set(['versions'])
+        }
+        versionsLock {
+            id = 'com.palantir.versions-lock'
+            implementationClass = 'com.palantir.gradle.versions.VersionsLockPlugin'
+            displayName = 'Compact, constraint-friendly lockfiles for your dependencies'
+            description = displayName
+            tags.set(['versions'])
+        }
+        versionsProps {
+            id = 'com.palantir.versions-props'
+            implementationClass = 'com.palantir.gradle.versions.VersionsPropsPlugin'
+            displayName = 'Inject version constraints into every configuration in your projects'
+            description = displayName
+            tags.set(['versions'])
+        }
+        versionsPropsIdeaPlugin {
+            id = 'com.palantir.version-props-idea'
+            implementationClass = 'com.palantir.gradle.versions.VersionsPropsIdeaPlugin'
+            displayName = 'Plugin to collect repositories for use by the IDEA plugin.'
+            description = displayName
+            tags.set(['versions'])
+        }
+    }
+}
+
+afterEvaluate {
+    tasks.publishVersionsLockPluginMarkerMavenPublicationToSonatypeRepository.enabled = false
+    tasks.publishVersionsPropsPluginMarkerMavenPublicationToSonatypeRepository.enabled = false
+}
+
 tasks.publish.dependsOn tasks.publishPlugins
 publishPlugins.onlyIf { !System.env.CI || versionDetails().isCleanTag }
 project.ext.'gradle.publish.key' = System.env["GRADLE_KEY"]
@@ -81,4 +148,8 @@ javaVersions {
 
 jdks {
     daemonTarget = 21
+}
+
+gradleTestUtils {
+    gradleVersions = ['8.14.3']
 }
