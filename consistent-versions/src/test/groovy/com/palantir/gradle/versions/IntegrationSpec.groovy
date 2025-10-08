@@ -16,12 +16,12 @@
 
 package com.palantir.gradle.versions
 
-import com.palantir.gradle.plugintesting.ConfigurationCacheSpec
 import groovy.transform.CompileStatic
+import nebula.test.IntegrationTestKitSpec
 import nebula.test.dependencies.DependencyGraph
 import nebula.test.dependencies.GradleDependencyGenerator
 
-class IntegrationSpec extends ConfigurationCacheSpec {
+class IntegrationSpec extends IntegrationTestKitSpec {
     void setup() {
         keepFiles = true
         debug = true
@@ -34,5 +34,28 @@ class IntegrationSpec extends ConfigurationCacheSpec {
         GradleDependencyGenerator generator = new GradleDependencyGenerator(
                 dependencyGraph, new File(projectDir, "build/testrepogen").toString())
         return generator.generateTestMavenRepo()
+    }
+
+
+    /**
+     * Runs the specified tasks twice with configuration cache and verifies cache behavior.
+     * Returns true if the configuration cache was properly used on the second run.
+     */
+    boolean runTasksWithConfigurationCache(String... tasks) {
+        def firstRun = createRunner(tasks + ['--configuration-cache'] as String[]).build()
+        assert firstRun.output.contains('Configuration cache entry stored.'),
+                "Expected first run to store configuration cache, but output was: ${firstRun.output}"
+
+        def secondRun = createRunner(tasks + ['--configuration-cache'] as String[]).build()
+        assert secondRun.output.contains('Configuration cache entry reused.'),
+                "Expected second run to reuse configuration cache, but output was: ${secondRun.output}"
+
+        File configCacheDir = new File(projectDir, ".gradle/configuration-cache")
+        if (configCacheDir.exists()) {
+            configCacheDir.deleteDir()
+        }
+        assert !configCacheDir.exists(), "Configuration cache directory was not deleted"
+
+        return true
     }
 }
