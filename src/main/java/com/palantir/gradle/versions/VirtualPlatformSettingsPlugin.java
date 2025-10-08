@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Optional;
 import javax.inject.Inject;
 import org.gradle.api.Plugin;
+import org.gradle.api.UncheckedIOException;
 import org.gradle.api.artifacts.ComponentMetadataContext;
 import org.gradle.api.artifacts.ComponentMetadataRule;
 import org.gradle.api.artifacts.ModuleVersionIdentifier;
@@ -80,7 +81,7 @@ public class VirtualPlatformSettingsPlugin implements Plugin<Settings> {
             try {
                 return Optional.of(XML_MAPPER.readValue(resource, Metadata.class));
             } catch (IOException e) {
-                throw new RuntimeException("Failed to parse POM metadata: ", e);
+                throw new UncheckedIOException("Failed to parse POM: ", e);
             }
         }
 
