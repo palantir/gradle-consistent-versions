@@ -18,7 +18,6 @@ package com.palantir.gradle.versions
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import spock.lang.Unroll;
-import org.gradle.util.GradleVersion
 
 import static com.palantir.gradle.versions.GradleTestVersions.GRADLE_VERSIONS
 
@@ -60,8 +59,6 @@ class AddVirtualPlatformPluginIntegrationSpec extends IntegrationSpec {
 
     def "#gradleVersionNumber: published constraints with platform constraint"() {
         setup:
-        file('gradle.properties') << 'com.palantir.gradle.versions.addVirtualPlatformConstraint = true'
-
         runTasksWithConfigurationCache('--write-locks')
 
         when:

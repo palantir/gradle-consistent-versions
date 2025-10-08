@@ -26,8 +26,6 @@ import org.gradle.api.plugins.JavaPlugin;
 
 public class AddVirtualPlatformPlugin implements Plugin<Project> {
 
-    private static final String ADD_VIRTUAL_PLATFORM_CONSTRAINTS_PROPERTY =
-            "com.palantir.gradle.versions.addVirtualPlatformConstraint";
     static final String VIRTUAL_PLATFORM_NAME = "palantir-virtual-platform";
 
     @Override
@@ -37,25 +35,14 @@ public class AddVirtualPlatformPlugin implements Plugin<Project> {
         }
 
         rootProject.afterEvaluate(project -> {
-            if (shouldAddVirtualPlatformConstraint(project)) {
-                applyVirtualPlatformToAllProjects(project);
-            }
+            project.getAllprojects().stream()
+                    .filter(VersionsLockPlugin::isJavaLibrary)
+                    .collect(Collectors.groupingBy(proj -> String.valueOf(proj.getGroup()), Collectors.toSet()))
+                    .entrySet()
+                    .stream()
+                    .filter(entry -> entry.getValue().size() > 1)
+                    .forEach(entry -> applyVirtualPlatformPerGroup(entry.getKey(), entry.getValue()));
         });
-    }
-
-    private static boolean shouldAddVirtualPlatformConstraint(Project project) {
-        return project.hasProperty(ADD_VIRTUAL_PLATFORM_CONSTRAINTS_PROPERTY)
-                && "true".equals(project.property(ADD_VIRTUAL_PLATFORM_CONSTRAINTS_PROPERTY));
-    }
-
-    private void applyVirtualPlatformToAllProjects(Project rootProject) {
-        rootProject.getAllprojects().stream()
-                .filter(VersionsLockPlugin::isJavaLibrary)
-                .collect(Collectors.groupingBy(project -> String.valueOf(project.getGroup()), Collectors.toSet()))
-                .entrySet()
-                .stream()
-                .filter(entry -> entry.getValue().size() > 1)
-                .forEach(entry -> applyVirtualPlatformPerGroup(entry.getKey(), entry.getValue()));
     }
 
     private void applyVirtualPlatformPerGroup(String groupName, Set<Project> projectGroup) {
