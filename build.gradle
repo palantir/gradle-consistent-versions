@@ -27,13 +27,11 @@ plugins {
 }
 
 apply plugin: 'com.palantir.external-publish'
-
 apply plugin: 'com.palantir.baseline'
 apply plugin: 'com.palantir.consistent-versions'
 apply plugin: 'com.palantir.git-version'
 apply plugin: 'com.palantir.gradle-guide'
 apply plugin: 'com.palantir.jdks'
-
 apply plugin: 'com.palantir.failure-reports'
 apply plugin: 'com.palantir.baseline-java-versions'
 apply plugin: 'com.palantir.jdks.latest'
@@ -72,7 +70,6 @@ tasks.withType(JavaCompile) {
     options.errorprone.disable 'Slf4jLogsafeArgs', 'PreferSafeLoggableExceptions'
 }
 
-
 tasks.publish.dependsOn tasks.publishPlugins
 publishPlugins.onlyIf { !System.env.CI || versionDetails().isCleanTag }
 project.ext.'gradle.publish.key' = System.env["GRADLE_KEY"]
@@ -85,5 +82,3 @@ javaVersions {
 jdks {
     daemonTarget = 21
 }
-
-
