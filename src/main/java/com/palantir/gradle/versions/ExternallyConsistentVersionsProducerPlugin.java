@@ -26,7 +26,7 @@ import org.gradle.api.plugins.JavaPlugin;
 
 public class ExternallyConsistentVersionsProducerPlugin implements Plugin<Project> {
 
-    static final String VIRTUAL_PLATFORM_NAME = "palantir-virtual-platform";
+    static final String VIRTUAL_PLATFORM_PREFIX = "consistent-versions.external-virtual-platform";
 
     @Override
     public final void apply(Project rootProject) {
@@ -48,7 +48,7 @@ public class ExternallyConsistentVersionsProducerPlugin implements Plugin<Projec
     }
 
     private void applyVirtualPlatformPerGroup(String groupName, Set<Project> projectGroup) {
-        String platformCoordinates = groupName + ":" + VIRTUAL_PLATFORM_NAME;
+        String platformCoordinates = VIRTUAL_PLATFORM_PREFIX + "." + groupName + ":_";
 
         projectGroup.stream()
                 .filter(project -> project.getPluginManager().hasPlugin("java"))

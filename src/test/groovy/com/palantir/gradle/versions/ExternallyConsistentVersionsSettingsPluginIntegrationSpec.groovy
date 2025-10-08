@@ -262,7 +262,7 @@ class ExternallyConsistentVersionsSettingsPluginIntegrationSpec extends Integrat
                     <dependencies>
                         <!-- Malformed dependency entry -->
                         <dependency>
-                            <groupId>com.palantir</groupId>
+                            <groupId>consistent-versions.external-virtual-platform.com.palantir</groupId>
                             <!-- Missing artifactId -->
                         </dependency>
                     </dependencies>
@@ -287,8 +287,8 @@ class ExternallyConsistentVersionsSettingsPluginIntegrationSpec extends Integrat
                     <dependencyManagement>
                         <dependencies>
                             <dependency>
-                                <groupId>com.palantir</groupId>
-                                <artifactId>palantir-virtual-platform</artifactId>
+                                <groupId>consistent-versions.external-virtual-platform.com.palantir</groupId>
+                                <artifactId>_</artifactId>
                                 <version>${version}</version>
                             </dependency>
                         </dependencies>

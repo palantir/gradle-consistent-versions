@@ -68,8 +68,8 @@ class ExternallyConsistentVersionsProducerPluginIntegrationSpec extends Integrat
         runTasks('generatePomFileForMavenPublication', 'generateMetadataFileForMavenPublication')
 
         def virtualPlatformConstraint = new MetadataFile.Dependency(
-                group: 'com.palantir',
-                module: 'palantir-virtual-platform',
+                group: 'consistent-versions.external-virtual-platform.com.palantir',
+                module: '_',
                 version: [requires: '1.0.0'])
 
         then: "service-a's metadata file has the virtual platform constraint"

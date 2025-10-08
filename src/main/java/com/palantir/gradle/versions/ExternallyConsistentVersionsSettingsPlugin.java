@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import javax.inject.Inject;
 import org.gradle.api.Plugin;
 import org.gradle.api.UncheckedIOException;
@@ -72,8 +73,9 @@ public class ExternallyConsistentVersionsSettingsPlugin implements Plugin<Settin
             getRepositoryResourceAccessor().withResource(pomPath, resource -> {
                 parsePom(resource)
                         .flatMap(Metadata::extractDependencies)
-                        .filter(deps -> hasVirtualPlatform(deps, id.getGroup()))
-                        .ifPresent(_deps -> assignToPlatform(context, id));
+                        .map(VirtualPlatformRule::extractVirtualPlatforms)
+                        .filter(platforms -> !platforms.isEmpty())
+                        .ifPresent(platforms -> assignToPlatforms(context, id, platforms));
             });
         }
 
@@ -85,16 +87,21 @@ public class ExternallyConsistentVersionsSettingsPlugin implements Plugin<Settin
             }
         }
 
-        private static boolean hasVirtualPlatform(List<Dependency> dependencies, String expectedGroup) {
-            return dependencies.stream().anyMatch(dep -> isVirtualPlatformDependency(dep, expectedGroup));
+        private static List<String> extractVirtualPlatforms(List<Dependency> dependencies) {
+            return dependencies.stream()
+                    .map(VirtualPlatformRule::buildPlatformCoordinate)
+                    .<String>mapMulti(Optional::ifPresent)
+                    .collect(Collectors.toList());
         }
 
-        private static boolean isVirtualPlatformDependency(Dependency dependency, String expectedGroup) {
-            return dependency.group().filter(expectedGroup::equals).isPresent()
-                    && dependency
-                            .module()
-                            .filter(ExternallyConsistentVersionsProducerPlugin.VIRTUAL_PLATFORM_NAME::equals)
-                            .isPresent();
+        private static Optional<String> buildPlatformCoordinate(Dependency dependency) {
+            return dependency
+                    .group()
+                    .filter(group ->
+                            group.startsWith(ExternallyConsistentVersionsProducerPlugin.VIRTUAL_PLATFORM_PREFIX))
+                    .map(group -> group.substring(
+                            ExternallyConsistentVersionsProducerPlugin.VIRTUAL_PLATFORM_PREFIX.length()))
+                    .flatMap(extractedGroup -> dependency.module().map(module -> extractedGroup + ":" + module));
         }
 
         private static String buildPomPath(ModuleVersionIdentifier id) {
@@ -103,10 +110,12 @@ public class ExternallyConsistentVersionsSettingsPlugin implements Plugin<Settin
                     "%s/%s/%s/%s-%s.pom", groupPath, id.getName(), id.getVersion(), id.getName(), id.getVersion());
         }
 
-        private static void assignToPlatform(ComponentMetadataContext context, ModuleVersionIdentifier id) {
-            String platformNotation = id.getGroup() + ":_:" + id.getVersion();
-            log.debug("Assigning component {} to virtual platform {}", id, platformNotation);
-            context.getDetails().belongsTo(platformNotation, true);
+        private static void assignToPlatforms(
+                ComponentMetadataContext context, ModuleVersionIdentifier id, List<String> platformCoordinates) {
+            platformCoordinates.forEach(platform -> {
+                log.debug("Assigning component {} to virtual platform {}", id, platform);
+                context.getDetails().belongsTo(platform + ":" + id.getVersion(), true);
+            });
         }
     }
 
@@ -142,5 +151,8 @@ public class ExternallyConsistentVersionsSettingsPlugin implements Plugin<Settin
 
         @JacksonXmlProperty(localName = "artifactId")
         Optional<String> module();
+
+        @JacksonXmlProperty(localName = "version")
+        Optional<String> version();
     }
 }
