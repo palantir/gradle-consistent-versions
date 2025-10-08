@@ -80,8 +80,7 @@ public class VirtualPlatformSettingsPlugin implements Plugin<Settings> {
             try {
                 return Optional.of(XML_MAPPER.readValue(resource, Metadata.class));
             } catch (IOException e) {
-                log.debug("Failed to parse POM metadata: {}", e.getMessage());
-                return Optional.empty();
+                throw new RuntimeException("Failed to parse POM metadata: ", e);
             }
         }
 
