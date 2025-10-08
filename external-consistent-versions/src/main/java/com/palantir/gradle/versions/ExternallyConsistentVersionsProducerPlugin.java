@@ -16,13 +16,19 @@
 
 package com.palantir.gradle.versions;
 
+import com.google.common.collect.ImmutableList;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.gradle.api.Named;
 import org.gradle.api.NamedDomainObjectProvider;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.plugins.JavaPlugin;
+import org.gradle.api.publish.Publication;
+import org.gradle.api.publish.PublishingExtension;
+import org.gradle.api.publish.ivy.IvyPublication;
+import org.gradle.api.publish.maven.MavenPublication;
 
 public class ExternallyConsistentVersionsProducerPlugin implements Plugin<Project> {
 
@@ -37,7 +43,7 @@ public class ExternallyConsistentVersionsProducerPlugin implements Plugin<Projec
 
         rootProject.afterEvaluate(project -> {
             project.getAllprojects().stream()
-                    .filter(VersionsLockPlugin::isJavaLibrary)
+                    .filter(ExternallyConsistentVersionsProducerPlugin::isJavaLibrary)
                     .collect(Collectors.groupingBy(proj -> String.valueOf(proj.getGroup()), Collectors.toSet()))
                     .forEach((groupName, projects) -> {
                         if (projects.size() > 1) {
@@ -80,5 +86,32 @@ public class ExternallyConsistentVersionsProducerPlugin implements Plugin<Projec
         project.getConfigurations()
                 .named(JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME)
                 .configure(conf -> conf.extendsFrom(constraints.get()));
+    }
+
+    static boolean isJavaLibrary(Project project) {
+        if (project.getPluginManager().hasPlugin("nebula.maven-publish")) {
+            // 'nebula.maven-publish' creates publications lazily which causes inconsistencies based
+            // on ordering.
+            return true;
+        }
+        PublishingExtension publishing = project.getExtensions().findByType(PublishingExtension.class);
+        if (publishing == null) {
+            return false;
+        }
+        ImmutableList<String> jarPublications = publishing.getPublications().stream()
+                .filter(ExternallyConsistentVersionsProducerPlugin::isLibraryPublication)
+                .map(Named::getName)
+                .collect(ImmutableList.toImmutableList());
+        return !jarPublications.isEmpty();
+    }
+
+    private static boolean isLibraryPublication(Publication publication) {
+        if (publication instanceof MavenPublication mavenPublication) {
+            return mavenPublication.getArtifacts().stream().anyMatch(artifact -> "jar".equals(artifact.getExtension()));
+        }
+        if (publication instanceof IvyPublication ivyPublication) {
+            return ivyPublication.getArtifacts().stream().anyMatch(artifact -> "jar".equals(artifact.getExtension()));
+        }
+        return true;
     }
 }

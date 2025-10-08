@@ -16,15 +16,27 @@
 
 package com.palantir.gradle.versions
 
+import com.palantir.gradle.plugintesting.ConfigurationCacheSpec
+import groovy.transform.CompileStatic
+import nebula.test.dependencies.DependencyGraph
+import nebula.test.dependencies.GradleDependencyGenerator
 import org.gradle.testkit.runner.TaskOutcome
 import spock.lang.Unroll
 
 import static com.palantir.gradle.versions.GradleTestVersions.GRADLE_VERSIONS
 
 @Unroll
-class ExternallyConsistentVersionsSettingsPluginIntegrationSpec extends IntegrationSpec {
+class ExternallyConsistentVersionsSettingsPluginIntegrationSpec extends ConfigurationCacheSpec {
 
     File repo
+
+    @CompileStatic
+    protected File generateMavenRepo(String... graph) {
+        DependencyGraph dependencyGraph = new DependencyGraph(graph)
+        GradleDependencyGenerator generator = new GradleDependencyGenerator(
+                dependencyGraph, new File(projectDir, "build/testrepogen").toString())
+        return generator.generateTestMavenRepo()
+    }
 
     void setup() {
         repo = generateMavenRepo(

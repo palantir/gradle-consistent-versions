@@ -16,24 +16,21 @@
 
 package com.palantir.gradle.versions
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.palantir.gradle.plugintesting.ConfigurationCacheSpec;
 import spock.lang.Unroll;
 
 import static com.palantir.gradle.versions.GradleTestVersions.GRADLE_VERSIONS
 
 
 @Unroll
-class ExternallyConsistentVersionsProducerPluginIntegrationSpec extends IntegrationSpec {
+class ExternallyConsistentVersionsProducerPluginIntegrationSpec extends ConfigurationCacheSpec {
 
     void setup() {
         //language=gradle
         buildFile << """
             import com.palantir.gradle.versions.ExternallyConsistentVersionsProducerPlugin
 
-            plugins {
-                id 'com.palantir.versions-lock'
-            }
-            
             apply plugin: ExternallyConsistentVersionsProducerPlugin
             
             allprojects {
@@ -62,14 +59,10 @@ class ExternallyConsistentVersionsProducerPluginIntegrationSpec extends Integrat
 
     def "check does not break configuration cache"() {
         expect:
-        runTasksWithConfigurationCache('--write-locks')
         runTasksWithConfigurationCache('build')
     }
 
     def "#gradleVersionNumber: published constraints with platform constraint"() {
-        setup:
-        runTasksWithConfigurationCache('--write-locks')
-
         when:
         runTasks('generatePomFileForMavenPublication', 'generateMetadataFileForMavenPublication')
 

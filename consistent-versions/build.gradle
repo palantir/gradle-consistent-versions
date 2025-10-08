@@ -11,7 +11,6 @@ dependencies {
     implementation 'com.fasterxml.jackson.datatype:jackson-datatype-guava'
     implementation 'one.util:streamex'
     implementation 'com.palantir.gradle.idea-configuration:gradle-idea-configuration'
-    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jdk8'
 
     testImplementation platform('org.junit:junit-bom')
     testImplementation 'com.netflix.nebula:nebula-test'
@@ -59,24 +58,12 @@ gradlePlugin {
             description = displayName
             tags.set(['versions'])
         }
-        externallyConsistentVersions {
-            id = 'com.palantir.externally-consistent-versions'
-            implementationClass = 'com.palantir.gradle.versions.ExternallyConsistentVersionsSettingsPlugin'
-            displayName = 'Settings plugin to automatically assign dependencies to a virtual platforms'
-            description = displayName
-            tags.set(['versions'])
-        }
     }
 }
 
 afterEvaluate {
     tasks.publishVersionsLockPluginMarkerMavenPublicationToSonatypeRepository.enabled = false
     tasks.publishVersionsPropsPluginMarkerMavenPublicationToSonatypeRepository.enabled = false
-}
-
-test {
-    jvmArgs '--add-opens', 'java.base/java.lang.invoke=ALL-UNNAMED'
-    jvmArgs '--add-opens', 'java.base/java.util=ALL-UNNAMED'
 }
 
 gradleTestUtils {

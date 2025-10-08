@@ -11,3 +11,4 @@ apply plugin: 'com.palantir.jdks.settings'
 rootProject.name = 'gradle-consistent-versions'
 
 include 'consistent-versions'
+include 'external-consistent-versions'
