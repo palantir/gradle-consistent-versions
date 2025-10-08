@@ -22,7 +22,7 @@ gradlePlugin {
     plugins {
         externallyConsistentVersions {
             id = 'com.palantir.externally-consistent-versions'
-            implementationClass = 'com.palantir.gradle.versions.ExternallyConsistentVersionsSettingsPlugin'
+            implementationClass = 'com.palantir.gradle.versions.ConstraintConsumerSettingsPlugin'
             displayName = 'Settings plugin to automatically assign dependencies to a virtual platforms'
             description = displayName
             tags.set(['versions'])

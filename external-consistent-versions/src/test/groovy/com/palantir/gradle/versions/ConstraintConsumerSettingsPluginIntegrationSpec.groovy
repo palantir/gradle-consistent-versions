@@ -26,7 +26,7 @@ import spock.lang.Unroll
 import static com.palantir.gradle.versions.GradleTestVersions.GRADLE_VERSIONS
 
 @Unroll
-class ExternallyConsistentVersionsSettingsPluginIntegrationSpec extends ConfigurationCacheSpec {
+class ConstraintConsumerSettingsPluginIntegrationSpec extends ConfigurationCacheSpec {
 
     File repo
 

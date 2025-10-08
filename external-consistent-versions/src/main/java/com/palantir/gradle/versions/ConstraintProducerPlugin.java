@@ -30,20 +30,19 @@ import org.gradle.api.publish.PublishingExtension;
 import org.gradle.api.publish.ivy.IvyPublication;
 import org.gradle.api.publish.maven.MavenPublication;
 
-public class ExternallyConsistentVersionsProducerPlugin implements Plugin<Project> {
+public class ConstraintProducerPlugin implements Plugin<Project> {
 
     static final String VIRTUAL_PLATFORM_PREFIX = "consistent-versions.external-virtual-platform";
 
     @Override
     public final void apply(Project rootProject) {
         if (!rootProject.equals(rootProject.getRootProject())) {
-            throw new IllegalStateException(
-                    "ExternallyConsistentVersionsProducerPlugin must be applied to the root project");
+            throw new IllegalStateException("ConstraintProducerPlugin must be applied to the root project");
         }
 
         rootProject.afterEvaluate(project -> {
             project.getAllprojects().stream()
-                    .filter(ExternallyConsistentVersionsProducerPlugin::isJavaLibrary)
+                    .filter(ConstraintProducerPlugin::isJavaLibrary)
                     .collect(Collectors.groupingBy(proj -> String.valueOf(proj.getGroup()), Collectors.toSet()))
                     .forEach((groupName, projects) -> {
                         if (projects.size() > 1) {
@@ -99,7 +98,7 @@ public class ExternallyConsistentVersionsProducerPlugin implements Plugin<Projec
             return false;
         }
         ImmutableList<String> jarPublications = publishing.getPublications().stream()
-                .filter(ExternallyConsistentVersionsProducerPlugin::isLibraryPublication)
+                .filter(ConstraintProducerPlugin::isLibraryPublication)
                 .map(Named::getName)
                 .collect(ImmutableList.toImmutableList());
         return !jarPublications.isEmpty();

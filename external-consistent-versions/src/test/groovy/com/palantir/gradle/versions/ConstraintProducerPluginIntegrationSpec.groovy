@@ -24,14 +24,14 @@ import static com.palantir.gradle.versions.GradleTestVersions.GRADLE_VERSIONS
 
 
 @Unroll
-class ExternallyConsistentVersionsProducerPluginIntegrationSpec extends ConfigurationCacheSpec {
+class ConstraintProducerPluginIntegrationSpec extends ConfigurationCacheSpec {
 
     void setup() {
         //language=gradle
         buildFile << """
-            import com.palantir.gradle.versions.ExternallyConsistentVersionsProducerPlugin
+            import com.palantir.gradle.versions.ConstraintProducerPlugin
 
-            apply plugin: ExternallyConsistentVersionsProducerPlugin
+            apply plugin: ConstraintProducerPlugin
             
             allprojects {
                 group = 'com.palantir'

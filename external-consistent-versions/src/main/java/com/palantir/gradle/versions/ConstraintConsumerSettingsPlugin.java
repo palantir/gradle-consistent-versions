@@ -42,14 +42,14 @@ import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 import org.immutables.value.Value;
 
-public class ExternallyConsistentVersionsSettingsPlugin implements Plugin<Settings> {
+public class ConstraintConsumerSettingsPlugin implements Plugin<Settings> {
 
-    private static final Logger log = Logging.getLogger(ExternallyConsistentVersionsSettingsPlugin.class);
+    private static final Logger log = Logging.getLogger(ConstraintConsumerSettingsPlugin.class);
 
     @Override
     public final void apply(Settings settings) {
         settings.getGradle().rootProject(rootProject -> {
-            rootProject.getPluginManager().apply(ExternallyConsistentVersionsProducerPlugin.class);
+            rootProject.getPluginManager().apply(ConstraintProducerPlugin.class);
         });
 
         settings.getGradle().beforeProject(project -> {
@@ -97,10 +97,8 @@ public class ExternallyConsistentVersionsSettingsPlugin implements Plugin<Settin
         private static Optional<String> buildPlatformCoordinate(Dependency dependency) {
             return dependency
                     .group()
-                    .filter(group ->
-                            group.startsWith(ExternallyConsistentVersionsProducerPlugin.VIRTUAL_PLATFORM_PREFIX))
-                    .map(group -> group.substring(
-                            ExternallyConsistentVersionsProducerPlugin.VIRTUAL_PLATFORM_PREFIX.length()))
+                    .filter(group -> group.startsWith(ConstraintProducerPlugin.VIRTUAL_PLATFORM_PREFIX))
+                    .map(group -> group.substring(ConstraintProducerPlugin.VIRTUAL_PLATFORM_PREFIX.length()))
                     .flatMap(extractedGroup -> dependency.module().map(module -> extractedGroup + ":" + module));
         }
 
