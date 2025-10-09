@@ -107,7 +107,7 @@ public class ConstraintConsumerSettingsPlugin implements Plugin<Settings> {
             return dependency
                     .group()
                     .filter(group -> group.startsWith(ConstraintProducerPlugin.VIRTUAL_PLATFORM_PREFIX))
-                    .map(group -> group.substring(ConstraintProducerPlugin.VIRTUAL_PLATFORM_PREFIX.length()))
+                    .map(group -> group.substring(ConstraintProducerPlugin.VIRTUAL_PLATFORM_PREFIX.length() + 1))
                     .flatMap(extractedGroup -> dependency.module().map(module -> extractedGroup + ":" + module));
         }
 
