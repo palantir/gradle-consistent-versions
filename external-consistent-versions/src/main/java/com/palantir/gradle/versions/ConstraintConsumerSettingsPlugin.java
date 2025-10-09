@@ -41,6 +41,7 @@ import org.gradle.api.artifacts.repositories.RepositoryResourceAccessor;
 import org.gradle.api.initialization.Settings;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
+import org.gradle.api.plugins.JavaPlugin;
 import org.immutables.value.Value;
 
 public class ConstraintConsumerSettingsPlugin implements Plugin<Settings> {
@@ -70,14 +71,20 @@ public class ConstraintConsumerSettingsPlugin implements Plugin<Settings> {
         @Override
         public final void execute(ComponentMetadataContext context) {
             ModuleVersionIdentifier id = context.getDetails().getId();
+            processVariant(context, id, JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME);
+            processVariant(context, id, JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME);
+        }
 
-            String pomPath = buildPomPath(id);
-            getRepositoryResourceAccessor().withResource(pomPath, resource -> {
-                parsePom(resource)
-                        .flatMap(Metadata::extractDependencies)
-                        .map(VirtualPlatformRule::extractVirtualPlatforms)
-                        .filter(platforms -> !platforms.isEmpty())
-                        .ifPresent(platforms -> assignToPlatforms(context, id, platforms));
+        private void processVariant(ComponentMetadataContext context, ModuleVersionIdentifier id, String variantName) {
+            context.getDetails().withVariant(variantName, _variant -> {
+                String pomPath = buildPomPath(id);
+                getRepositoryResourceAccessor().withResource(pomPath, resource -> {
+                    parsePom(resource)
+                            .flatMap(Metadata::extractDependencies)
+                            .map(VirtualPlatformRule::extractVirtualPlatforms)
+                            .filter(platforms -> !platforms.isEmpty())
+                            .ifPresent(platforms -> assignToPlatforms(context, id, platforms));
+                });
             });
         }
 
