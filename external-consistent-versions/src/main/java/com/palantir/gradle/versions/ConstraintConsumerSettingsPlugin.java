@@ -33,6 +33,7 @@ import java.util.stream.Collectors;
 import javax.inject.Inject;
 import org.gradle.api.Plugin;
 import org.gradle.api.UncheckedIOException;
+import org.gradle.api.artifacts.CacheableRule;
 import org.gradle.api.artifacts.ComponentMetadataContext;
 import org.gradle.api.artifacts.ComponentMetadataRule;
 import org.gradle.api.artifacts.ModuleVersionIdentifier;
@@ -58,6 +59,7 @@ public class ConstraintConsumerSettingsPlugin implements Plugin<Settings> {
         });
     }
 
+    @CacheableRule
     public abstract static class VirtualPlatformRule implements ComponentMetadataRule {
         private static final ObjectMapper XML_MAPPER =
                 new XmlMapper(new WstxInputFactory(), new WstxOutputFactory()).registerModule(new Jdk8Module());
