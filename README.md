@@ -67,6 +67,9 @@ Direct dependencies are specified in a top level `versions.props` file and then 
 1. [Technical explanation](#technical-explanation)
     1. Are these vanilla Gradle lockfiles?
     1. Conflict-safe lock files
+1. [External Version Alignment](#external-version-alignment)
+    1. Usage
+    1. Why Not Use BOMs?
 
 
 
@@ -528,3 +531,33 @@ Internally, a few projects started using Nebula's [Gradle Dependency Lock Plugin
 - Contributors often updated versions.props but forgot to update the lockfiles, leading them to think they'd picked up a new version when they actually hadn't!
 
 Both of these problems are solved by this plugin because the new gradle lock files are extremely compact (one line per dependency) and they can never get out of date because gradle validates their correctness every time you resolve the unifiedClasspath configuration.
+
+## External Version Alignment
+
+When publishing libraries for external consumption, you may want to ensure that consumers always resolve all modules from your group (e.g., `com.palantir.foo:*`) to the same version—even when transitive dependencies or explicit downgrades would otherwise cause mismatches. This provides the same alignment guarantees as `*` wildcards in `versions.props`, but for the buildScript as well.
+
+### Usage
+
+Both library publishers and consumers apply the same settings plugin:
+
+```gradle
+// settings.gradle
+plugins {
+    id 'com.palantir.externally-consistent-versions' version '<current version>'
+}
+```
+
+When you publish your libraries, the plugin automatically embeds alignment metadata. Consumers who also apply the plugin will automatically enforce that all modules from the same group resolve to the same version.
+
+### Why Not Use BOMs?
+
+The main drive away from BOMs or inter-project constraints is to enable version alignment even on downgrade via `force` or `strictly` constraints. 
+
+Traditional BOMs have some further limitations:
+- **Require a separate published project** to host the BOM
+- **Must be explicitly imported** by every consumer
+
+This plugin:
+- **Works automatically** via published metadata—no separate BOM artifact needed
+- **Enforces strict alignment** even when versions are downgraded via `force` or `strictly` constraints
+- **No explicit imports required**—alignment happens transparently for any consumer using the plugin

@@ -1,0 +1,40 @@
+apply plugin: 'com.palantir.external-publish-jar'
+apply plugin: 'java-gradle-plugin'
+apply plugin: 'com.palantir.gradle-plugin-testing'
+apply plugin: 'groovy'
+apply plugin: 'com.palantir.shadow-jar'
+
+dependencies {
+    shadeTransitively 'com.fasterxml.jackson.dataformat:jackson-dataformat-xml'
+    shadeTransitively 'com.fasterxml.jackson.datatype:jackson-datatype-guava'
+    shadeTransitively 'com.fasterxml.jackson.datatype:jackson-datatype-jdk8'
+
+    testImplementation 'com.netflix.nebula:nebula-test'
+
+    annotationProcessor "org.immutables:value"
+    compileOnly "org.immutables:value::annotations"
+}
+
+gradlePlugin {
+    website = 'https://github.com/palantir/gradle-consistent-versions'
+    vcsUrl = 'https://github.com/palantir/gradle-consistent-versions'
+
+    plugins {
+        externallyConsistentVersions {
+            id = 'com.palantir.externally-consistent-versions'
+            implementationClass = 'com.palantir.gradle.versions.ConstraintConsumerSettingsPlugin'
+            displayName = 'Settings plugin to automatically assign dependencies to a virtual platforms'
+            description = displayName
+            tags.set(['versions'])
+        }
+    }
+}
+
+test {
+    jvmArgs '--add-opens', 'java.base/java.lang.invoke=ALL-UNNAMED'
+    jvmArgs '--add-opens', 'java.base/java.util=ALL-UNNAMED'
+}
+
+gradleTestUtils {
+    gradleVersions = ['8.14.3']
+}
