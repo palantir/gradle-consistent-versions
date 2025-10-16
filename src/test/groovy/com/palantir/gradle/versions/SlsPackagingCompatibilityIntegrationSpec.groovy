@@ -19,6 +19,8 @@ package com.palantir.gradle.versions
 
 import org.gradle.testkit.runner.TaskOutcome
 
+import static com.palantir.gradle.versions.GradleTestVersions.GRADLE_VERSIONS
+
 /**
  * https://github.com/palantir/sls-packaging does some funky stuff when resolving inter-project dependencies for the
  * purposes of detecting published recommended product dependencies, so we want to make double sure that GCV doesn't
@@ -50,8 +52,10 @@ class SlsPackagingCompatibilityIntegrationSpec extends IntegrationSpec {
         """.stripIndent(true)
     }
 
-    def 'can consume recommended product dependencies project'() {
+    def '#gradleVersionNumber can consume recommended product dependencies project'() {
         setup:
+        gradleVersion = gradleVersionNumber
+
         file("versions.props") << """
             org.slf4j:* = 1.7.24
         """.stripIndent(true)
@@ -104,5 +108,9 @@ class SlsPackagingCompatibilityIntegrationSpec extends IntegrationSpec {
         wroteLocks.task(':api:jar') == null
 
         runTasks('createManifest', 'verifyLocks')
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
+
     }
 }

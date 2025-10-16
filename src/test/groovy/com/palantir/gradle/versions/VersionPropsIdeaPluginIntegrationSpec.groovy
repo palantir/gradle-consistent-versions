@@ -16,12 +16,10 @@
 
 package com.palantir.gradle.versions
 
-import com.fasterxml.jackson.dataformat.xml.XmlMapper
-import com.fasterxml.jackson.datatype.guava.GuavaModule
+import groovy.xml.XmlNodePrinter
 import nebula.test.IntegrationSpec
-import spock.util.environment.RestoreSystemProperties
 
-import java.util.stream.Collectors
+import static com.palantir.gradle.versions.GradleTestVersions.GRADLE_VERSIONS
 
 class VersionPropsIdeaPluginIntegrationSpec extends IntegrationSpec {
 
@@ -46,7 +44,9 @@ class VersionPropsIdeaPluginIntegrationSpec extends IntegrationSpec {
         ideaDir.mkdirs()
     }
 
-    def "plugin creates gcv-maven-repositories.xml file in .idea folder"() {
+    def "#gradleVersionNumber: plugin creates gcv-maven-repositories.xml file in .idea folder"() {
+        setup:
+        gradleVersion = gradleVersionNumber
         when: 'we run the first time'
         runTasksSuccessfully('-Didea.active=true')
 
@@ -71,6 +71,9 @@ class VersionPropsIdeaPluginIntegrationSpec extends IntegrationSpec {
 
         then: "if nothing has changed, the task is then up-to-date"
         secondRun.wasUpToDate(":writeMavenRepositories")
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
     }
 
     private static String nodeToXmlString(debugRunConf) {

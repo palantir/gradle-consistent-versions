@@ -19,6 +19,8 @@ package com.palantir.gradle.versions
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.TaskOutcome
 
+import static com.palantir.gradle.versions.GradleTestVersions.GRADLE_VERSIONS
+
 class CheckOverbroadConstraintsIntegrationSpec extends IntegrationSpec {
 
     def setup() {
@@ -53,13 +55,22 @@ class CheckOverbroadConstraintsIntegrationSpec extends IntegrationSpec {
         runTasks('checkOverbroadConstraints')
     }
 
-    def 'Task should run as part of :check'() {
+    def '#gradleVersionNumber: Task should run as part of :check'() {
+        setup:
+        gradleVersion = gradleVersionNumber
+
         expect:
         def result = runTasks('check', '-m')
         result.output.contains(':checkOverbroadConstraints')
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    def 'All versions are pinned'() {
+    def '#gradleVersionNumber: All versions are pinned'() {
+        setup:
+        gradleVersion = gradleVersionNumber
+
         when:
         file('versions.props').text = """
             com.fasterxml.jackson.*:* = 2.9.3
@@ -72,9 +83,15 @@ class CheckOverbroadConstraintsIntegrationSpec extends IntegrationSpec {
 
         then:
         buildSucceed()
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    def 'Not all versions are pinned throws error and fix works and no new line is added'() {
+    def '#gradleVersionNumber: Not all versions are pinned throws error and fix works and no new line is added'() {
+        setup:
+        gradleVersion = gradleVersionNumber
+
         when:
         file('versions.props').text = """
             com.fasterxml.jackson.*:* = 2.9.3
@@ -101,9 +118,15 @@ class CheckOverbroadConstraintsIntegrationSpec extends IntegrationSpec {
             com.fasterxml.jackson.core:jackson-annotations = 2.9.5
             com.fasterxml.jackson.core:jackson-core = 2.9.3
         """.stripIndent(true)
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    def 'Fixes are inserted in the correct locations new lines are maintained'() {
+    def '#gradleVersionNumber: Fixes are inserted in the correct locations new lines are maintained'() {
+        setup:
+        gradleVersion = gradleVersionNumber
+
         when:
         file('versions.props').text = """
 
@@ -133,5 +156,8 @@ class CheckOverbroadConstraintsIntegrationSpec extends IntegrationSpec {
             org.different:artifact = 2.0.0
             
         """.stripIndent(true)
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
     }
 }
