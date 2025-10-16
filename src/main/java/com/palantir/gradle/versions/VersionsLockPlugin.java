@@ -60,8 +60,6 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.inject.Inject;
-import netflix.nebula.dependency.recommender.RecommendationStrategies;
-import netflix.nebula.dependency.recommender.provider.RecommendationProviderContainer;
 import org.gradle.StartParameter;
 import org.gradle.api.GradleException;
 import org.gradle.api.Named;
@@ -498,21 +496,6 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
                 if (subprojectsLeft.isEmpty()) {
                     checkForDuplicatesInSubprojects(coordinateDuplicates);
                 }
-            });
-        });
-
-        project.subprojects(subproject -> {
-            subproject.afterEvaluate(sub -> {
-                sub.getPluginManager().withPlugin("nebula.dependency-recommender", _plugin -> {
-                    RecommendationProviderContainer container =
-                            sub.getExtensions().findByType(RecommendationProviderContainer.class);
-                    if (container.getStrategy() == RecommendationStrategies.OverrideTransitives) {
-                        throw new GradleException("Must not use strategy OverrideTransitives for "
-                                + sub
-                                + ". "
-                                + "Use this instead: dependencyRecommendations { strategy ConflictResolved }");
-                    }
-                });
             });
         });
     }

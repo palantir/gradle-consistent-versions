@@ -85,13 +85,6 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
     }
 
     private def standardSetup() {
-        buildFile << """
-            allprojects {
-                // using nebula in ':baz'
-                apply plugin: 'nebula.dependency-recommender'
-            }
-        """.stripIndent(true)
-
         addSubproject('foo', '''
             apply plugin: 'java'
             dependencies {
@@ -106,16 +99,6 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
             }
         '''.stripIndent(true))
         file("gradle.properties") << "bar_version=1.7.11"
-
-        addSubproject('baz', '''
-            apply plugin: 'java'
-            dependencies {
-                implementation "org.slf4j:slf4j-api"
-            }
-            dependencyRecommendations {
-                map recommendations: ['org.slf4j:slf4j-api': '1.7.20']
-            }
-        '''.stripIndent(true))
 
         addSubproject('forced', '''
             apply plugin: 'java'
@@ -157,56 +140,6 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    def '#gradleVersionNumber: global nebula recommendations are superseded by transitive'() {
-        setup:
-        gradleVersion = gradleVersionNumber
-        buildFile << """
-            allprojects {
-                apply plugin: 'nebula.dependency-recommender'
-                
-                dependencyRecommendations {
-                    propertiesFile file: rootProject.file('versions.props')
-                }
-            }
-        """.stripIndent(true)
-
-        def fooProject = addSubproject('foo', '''
-            apply plugin: 'java'
-            dependencies {
-                implementation 'org.slf4j:slf4j-api'
-            }
-        '''.stripIndent(true))
-
-        addSubproject('bar', '''
-            apply plugin: 'java'
-            dependencies {
-                implementation 'ch.qos.logback:logback-classic:1.2.3' // brings in slf4j-api 1.7.25
-            }
-        '''.stripIndent(true))
-
-        buildFile << '''
-            subprojects {
-                configurations.matching { it.name == 'runtimeClasspath' }.all {
-                    resolutionStrategy.activateDependencyLocking()
-                }
-            }
-        '''.stripIndent(true)
-
-        file('versions.props') << 'org.slf4j:slf4j-api = 1.7.24'
-
-        expect: "I can write locks"
-        runTasks('resolveConfigurations', '--write-locks')
-
-        and: "foo now picks up a higher version than nebula suggested"
-        verifyLockfile(fooProject, "org.slf4j:slf4j-api:1.7.25")
-
-        and: "I can resolve"
-        runTasks('resolveConfigurations')
-
-        where:
-        gradleVersionNumber << GRADLE_VERSIONS
-    }
-
     def '#gradleVersionNumber: consolidates subproject dependencies'() {
         def expectedError = "Locked by versions.lock"
         setup:
@@ -226,7 +159,7 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         then: "Lock files are consistent with version resolved at root"
         file("versions.lock").text.readLines().any { it.startsWith('org.slf4j:slf4j-api:1.7.24') }
 
-        ["foo", "bar", "baz"].each { verifyLockfile(file(it), "org.slf4j:slf4j-api:1.7.24") }
+        ["foo", "bar"].each { verifyLockfile(file(it), "org.slf4j:slf4j-api:1.7.24") }
 
         then: "Manually forced version overrides unified dependency"
         verifyLockfile(file("forced"), "org.slf4j:slf4j-api:1.7.20")
@@ -239,17 +172,6 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
 
         then: "Resolution fails"
         incompatible.output.contains(expectedError)
-
-        when: "I change the version in baz/"
-        file("baz/build.gradle") << '''
-            dependencyRecommendations {
-                map recommendations: ['org.slf4j:slf4j-api': '1.7.25']
-            }
-        '''.stripIndent(true)
-
-        then: "Resolution fails"
-        def error = runTasksAndFail(':baz:resolveConfigurations')
-        error.output.contains(expectedError)
 
         where:
         gradleVersionNumber << GRADLE_VERSIONS

@@ -1,6 +1,5 @@
 com.fasterxml.jackson.*:* = 2.19.2
 com.google.guava:guava = 33.4.8-jre
-com.netflix.nebula:nebula-dependency-recommender = 11.0.0
 org.assertj:* = 3.27.4
 org.immutables:value = 2.11.2
 org.junit.jupiter:* = 5.13.4
