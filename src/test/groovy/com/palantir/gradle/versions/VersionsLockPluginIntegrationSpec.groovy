@@ -19,6 +19,7 @@ package com.palantir.gradle.versions
 import com.fasterxml.jackson.databind.ObjectMapper
 import nebula.test.dependencies.DependencyGraph
 import nebula.test.dependencies.GradleDependencyGenerator
+import one.util.streamex.StreamEx
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.TaskOutcome
 import org.gradle.util.GradleVersion
@@ -276,6 +277,17 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
 
         where:
         gradleVersionNumber << GRADLE_VERSIONS
+    }
+
+    @Override
+    File addSubproject(String name) {
+        File subprojectDir = new File(projectDir, name.replace(":", "/"))
+        subprojectDir.mkdirs()
+        StreamEx.split(name, ":")
+                .scanLeft { left, right -> "$left:$right" }
+                .each { subproject -> settingsFile << "include \"${subproject}\"${LINE_END}" }
+
+        return subprojectDir
     }
 
     def "#gradleVersionNumber: detects failOnVersionConflict on locked configuration"() {
