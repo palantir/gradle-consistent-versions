@@ -378,6 +378,19 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
                     subproject,
                     subproject.getConfigurations().getByName(CONSISTENT_VERSIONS_TEST),
                     lockedConfigurations.testConfigurations());
+
+            @SuppressWarnings("for-rollout:ConfigurationAvoidanceRegistration")
+            Configuration locksConfiguration = subproject
+                    .getConfigurations()
+                    .create(LOCK_CONSTRAINTS_CONFIGURATION_NAME, locksConf -> {
+                        locksConf.setVisible(false);
+                        locksConf.setCanBeConsumed(false);
+                        locksConf.setCanBeResolved(false);
+                    });
+
+            lockedConfigurations
+                    .allConfigurations()
+                    .forEach(configuration -> configuration.extendsFrom(locksConfiguration));
             return lockedConfigurations;
         }));
     }
@@ -961,22 +974,12 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
             ProjectDependency locksDependency,
             List<DependencyConstraint> publishableConstraints,
             LockedConfigurations lockedConfigurations) {
-        @SuppressWarnings("for-rollout:ConfigurationAvoidanceRegistration")
-        Configuration locksConfiguration = subproject
-                .getConfigurations()
-                .create(LOCK_CONSTRAINTS_CONFIGURATION_NAME, locksConf -> {
-                    locksConf.setVisible(false);
-                    locksConf.setCanBeConsumed(false);
-                    locksConf.setCanBeResolved(false);
-                    locksConf.getDependencies().add(locksDependency);
-                });
+        subproject.getConfigurations().named(LOCK_CONSTRAINTS_CONFIGURATION_NAME, conf -> conf.getDependencies()
+                .add(locksDependency));
 
         Set<Configuration> configurationsToLock = lockedConfigurations.allConfigurations();
         log.info("Configuring locks for {}. Locked configurations: {}", subproject.getPath(), configurationsToLock);
-        configurationsToLock.forEach(conf -> {
-            conf.extendsFrom(locksConfiguration);
-            VersionsLockPlugin.ensureNoFailOnVersionConflict(conf);
-        });
+        configurationsToLock.forEach(VersionsLockPlugin::ensureNoFailOnVersionConflict);
 
         subproject.getConfigurations().named(GCV_PUBLISH_CONSTRAINTS_CONFIGURATION_NAME, conf -> {
             conf.getDependencyConstraints().addAll(publishableConstraints);

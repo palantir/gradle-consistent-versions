@@ -16,8 +16,8 @@
 
 package com.palantir.gradle.versions
 
-
 import org.gradle.testkit.runner.TaskOutcome
+import spock.lang.IgnoreIf
 
 import static com.palantir.gradle.versions.GradleTestVersions.GRADLE_VERSIONS
 
@@ -42,7 +42,7 @@ class SlsPackagingCompatibilityIntegrationSpec extends IntegrationSpec {
             }            
             plugins {
                 id '${PLUGIN_NAME}'
-                id 'com.palantir.sls-java-service-distribution' version '7.25.0' apply false
+                id 'com.palantir.sls-java-service-distribution' version '7.31.0' apply false
             }
             allprojects {
                 repositories {
@@ -52,6 +52,12 @@ class SlsPackagingCompatibilityIntegrationSpec extends IntegrationSpec {
         """.stripIndent(true)
     }
 
+    @IgnoreIf(
+            reason = """
+                sls-packaging is creating a configuration as part of a task input, which is happening far too late. \
+                Once gradle has done a resolution, it will not look at any new Configurations that have popped up \
+                since then. See https://github.com/palantir/gradle-consistent-versions/pull/1443 for more details.""",
+            value = { data.gradleVersionNumber.startsWith("9") })
     def '#gradleVersionNumber can consume recommended product dependencies project'() {
         setup:
         gradleVersion = gradleVersionNumber
