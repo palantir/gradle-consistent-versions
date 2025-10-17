@@ -677,10 +677,9 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
                                         + " com.palantir.consistent-versions without resolving the '%s' configuration"
                                         + " itself.",
                                 targetConf.getName(), targetConf.getName()));
-                        // what will I need to do here?
                         conf.setCanBeResolved(false);
                         // Must set this because we depend on this configuration when resolving unifiedClasspath.
-                        conf.setCanBeConsumed(true); // need to pick one, this is not great
+                        conf.setCanBeConsumed(true);
                         conf.extendsFrom(copiedTargetConfResolvable);
                         conf.attributes(getGcvAttributes()::configureGcvBaseAttributes);
 
