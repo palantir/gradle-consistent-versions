@@ -95,6 +95,7 @@ import org.gradle.api.logging.configuration.ShowStacktrace;
 import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.plugins.JavaPluginExtension;
 import org.gradle.api.provider.Property;
+import org.gradle.api.provider.Provider;
 import org.gradle.api.publish.Publication;
 import org.gradle.api.publish.PublishingExtension;
 import org.gradle.api.publish.ivy.IvyPublication;
@@ -379,10 +380,9 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
                     subproject.getConfigurations().getByName(CONSISTENT_VERSIONS_TEST),
                     lockedConfigurations.testConfigurations());
 
-            @SuppressWarnings("for-rollout:ConfigurationAvoidanceRegistration")
-            Configuration locksConfiguration = subproject
+            Provider<Configuration> locksConfiguration = subproject
                     .getConfigurations()
-                    .create(LOCK_CONSTRAINTS_CONFIGURATION_NAME, locksConf -> {
+                    .register(LOCK_CONSTRAINTS_CONFIGURATION_NAME, locksConf -> {
                         locksConf.setVisible(false);
                         locksConf.setCanBeConsumed(false);
                         locksConf.setCanBeResolved(false);
@@ -390,7 +390,7 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
 
             lockedConfigurations
                     .allConfigurations()
-                    .forEach(configuration -> configuration.extendsFrom(locksConfiguration));
+                    .forEach(configuration -> configuration.extendsFrom(locksConfiguration.get()));
             return lockedConfigurations;
         }));
     }
