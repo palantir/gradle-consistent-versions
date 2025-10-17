@@ -364,6 +364,14 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
 
     private static Map<Project, LockedConfigurations> wireUpLockedConfigurationsByProject(Project rootProject) {
         return rootProject.getAllprojects().stream().collect(Collectors.toMap(Functions.identity(), subproject -> {
+            Provider<Configuration> locksConfiguration = subproject
+                    .getConfigurations()
+                    .register(LOCK_CONSTRAINTS_CONFIGURATION_NAME, locksConf -> {
+                        locksConf.setVisible(false);
+                        locksConf.setCanBeConsumed(false);
+                        locksConf.setCanBeResolved(false);
+                    });
+
             if (rootProject.getGradle().getStartParameter().isConfigureOnDemand()
                     && !subproject.getState().getExecuted()) {
                 return ImmutableLockedConfigurations.builder().build();
@@ -379,14 +387,6 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
                     subproject,
                     subproject.getConfigurations().getByName(CONSISTENT_VERSIONS_TEST),
                     lockedConfigurations.testConfigurations());
-
-            Provider<Configuration> locksConfiguration = subproject
-                    .getConfigurations()
-                    .register(LOCK_CONSTRAINTS_CONFIGURATION_NAME, locksConf -> {
-                        locksConf.setVisible(false);
-                        locksConf.setCanBeConsumed(false);
-                        locksConf.setCanBeResolved(false);
-                    });
 
             lockedConfigurations
                     .allConfigurations()
