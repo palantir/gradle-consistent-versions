@@ -1169,7 +1169,7 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
     }
 
     @SuppressWarnings("deprecation")
-    abstract static class ProjectDependencyWorkarounds {
+    protected abstract static class ProjectDependencyWorkarounds {
 
         @Inject
         protected abstract Gradle getGradle();
