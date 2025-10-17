@@ -109,9 +109,11 @@ class SlsPackagingCompatibilityIntegrationSpec extends IntegrationSpec {
                 ':service:mergeDiagnosticsJson',
                 ':service:resolveProductDependencies',
                 ':service:createManifest',
+                ':api:classes',
+                ':api:configureProductDependencies',
+                ':api:jar',
+                ':service:jar'
         ] as Set
-        // Ensure that 'jar' was not run on the API project
-        wroteLocks.task(':api:jar') == null
 
         runTasks('createManifest', 'verifyLocks')
 
