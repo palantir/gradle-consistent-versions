@@ -1169,10 +1169,10 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
     }
 
     @SuppressWarnings("deprecation")
-    public abstract static class ProjectDependencyWorkarounds {
+    abstract static class ProjectDependencyWorkarounds {
 
         @Inject
-        public abstract Gradle getGradle();
+        protected abstract Gradle getGradle();
 
         /**
          * {@link ProjectDependency#getPath} was introduced in Gradle 8.11, and
