@@ -269,7 +269,7 @@ public abstract class VersionsPropsPlugin implements Plugin<Project> {
                 .getDependencies()
                 .withType(ModuleDependency.class)
                 .matching(dep -> GradleWorkarounds.isPlatform(dep.getAttributes()))));
-        return GradleWorkarounds.fixListProperty(proxiedDependencies);
+        return proxiedDependencies;
     }
 
     /**

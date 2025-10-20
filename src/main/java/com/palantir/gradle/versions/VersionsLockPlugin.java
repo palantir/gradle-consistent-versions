@@ -60,8 +60,7 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.inject.Inject;
-import netflix.nebula.dependency.recommender.RecommendationStrategies;
-import netflix.nebula.dependency.recommender.provider.RecommendationProviderContainer;
+import one.util.streamex.StreamEx;
 import org.gradle.StartParameter;
 import org.gradle.api.GradleException;
 import org.gradle.api.Named;
@@ -96,6 +95,7 @@ import org.gradle.api.logging.configuration.ShowStacktrace;
 import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.plugins.JavaPluginExtension;
 import org.gradle.api.provider.Property;
+import org.gradle.api.provider.Provider;
 import org.gradle.api.publish.Publication;
 import org.gradle.api.publish.PublishingExtension;
 import org.gradle.api.publish.ivy.IvyPublication;
@@ -133,6 +133,7 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
             new TaskNameMatcher(WRITE_VERSIONS_LOCKS_TASK);
     private static final String PUBLISH_LOCAL_CONSTRAINTS_PROPERTY =
             "com.palantir.gradle.versions.publishLocalConstraints";
+    private static final String GCV_PUBLISH_CONSTRAINTS_CONFIGURATION_NAME = "gcvPublishConstraints";
 
     public enum GcvUsage implements Named {
         /**
@@ -178,6 +179,9 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
     @Nested
     public abstract GcvAttributes getGcvAttributes();
 
+    @Nested
+    protected abstract ProjectDependencyWorkarounds getProjectDependencyWorkarounds();
+
     @Inject
     public VersionsLockPlugin(Gradle gradle) {
         showStacktrace = gradle.getStartParameter().getShowStacktrace();
@@ -217,6 +221,7 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
         project.allprojects(subproject -> {
             subproject.getExtensions().create(VERSIONS_LOCK_EXTENSION, VersionsLockExtension.class, subproject);
             setupDependenciesToProject(project, unifiedClasspath, subproject);
+            setupPublishConstraintsForProject(subproject);
         });
 
         Path rootLockfile = getRootLockFile(project);
@@ -359,6 +364,14 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
 
     private static Map<Project, LockedConfigurations> wireUpLockedConfigurationsByProject(Project rootProject) {
         return rootProject.getAllprojects().stream().collect(Collectors.toMap(Functions.identity(), subproject -> {
+            Provider<Configuration> locksConfiguration = subproject
+                    .getConfigurations()
+                    .register(LOCK_CONSTRAINTS_CONFIGURATION_NAME, locksConf -> {
+                        locksConf.setVisible(false);
+                        locksConf.setCanBeConsumed(false);
+                        locksConf.setCanBeResolved(false);
+                    });
+
             if (rootProject.getGradle().getStartParameter().isConfigureOnDemand()
                     && !subproject.getState().getExecuted()) {
                 return ImmutableLockedConfigurations.builder().build();
@@ -374,6 +387,10 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
                     subproject,
                     subproject.getConfigurations().getByName(CONSISTENT_VERSIONS_TEST),
                     lockedConfigurations.testConfigurations());
+
+            lockedConfigurations
+                    .allConfigurations()
+                    .forEach(configuration -> configuration.extendsFrom(locksConfiguration.get()));
             return lockedConfigurations;
         }));
     }
@@ -432,6 +449,29 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
                 .getDependencies()
                 .add(createDependencyOnProjectWithScope(
                         project, GcvScope.TEST, getGcvAttributes().buildPath()));
+    }
+
+    private void setupPublishConstraintsForProject(Project subproject) {
+        NamedDomainObjectProvider<Configuration> publishConstraints = subproject
+                .getConfigurations()
+                .register(GCV_PUBLISH_CONSTRAINTS_CONFIGURATION_NAME, conf -> {
+                    conf.setDescription("Publishable constraints from the GCV versions.lock file");
+                    conf.setCanBeResolved(false);
+                    conf.setCanBeConsumed(false);
+                });
+
+        // Enrich the configurations being published as part of the java component (components.java)
+        // with constraints generated from the lock file.
+        subproject.getPluginManager().withPlugin("java", _plugin -> {
+            subproject
+                    .getConfigurations()
+                    .named(JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME)
+                    .configure(conf -> conf.extendsFrom(publishConstraints.get()));
+            subproject
+                    .getConfigurations()
+                    .named(JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME)
+                    .configure(conf -> conf.extendsFrom(publishConstraints.get()));
+        });
     }
 
     private static Map<String, String> capabilityFor(Project project, GcvScope scope) {
@@ -500,21 +540,6 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
                 }
             });
         });
-
-        project.subprojects(subproject -> {
-            subproject.afterEvaluate(sub -> {
-                sub.getPluginManager().withPlugin("nebula.dependency-recommender", _plugin -> {
-                    RecommendationProviderContainer container =
-                            sub.getExtensions().findByType(RecommendationProviderContainer.class);
-                    if (container.getStrategy() == RecommendationStrategies.OverrideTransitives) {
-                        throw new GradleException("Must not use strategy OverrideTransitives for "
-                                + sub
-                                + ". "
-                                + "Use this instead: dependencyRecommendations { strategy ConflictResolved }");
-                    }
-                });
-            });
-        });
     }
 
     private static void checkForDuplicatesInSubprojects(Multimap<String, Project> coordinateDuplicates) {
@@ -576,7 +601,7 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
         return scopes.build();
     }
 
-    private static List<Configuration> findProjectDependencyWithTargetConfigurationName(
+    private List<Configuration> findProjectDependencyWithTargetConfigurationName(
             DependencySet depSet, String configurationName) {
         return depSet.stream()
                 .filter(dep -> dep instanceof ProjectDependency)
@@ -601,8 +626,7 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
             DirectDependencyScopes.Builder dependencyScopes,
             GcvScope scope) {
         dependencySet.withType(ProjectDependency.class).all(projectDependency -> {
-            @SuppressWarnings("for-rollout:deprecation")
-            Project projectDep = projectDependency.getDependencyProject();
+            Project projectDep = getProjectDependencyWorkarounds().getDependencyProject(projectDependency);
 
             String targetConfiguration = projectDependency.getTargetConfiguration();
             if (targetConfiguration == null) {
@@ -635,11 +659,46 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
             // Without this, they'd just be propagated to the copiedConf and probably never run!
             causeWithDependenciesActionsToRun(targetConf);
 
-            Configuration copiedConf = targetConf.copyRecursive();
-            copiedConf.setDescription(String.format(
-                    "Copy of the '%s' configuration that can be resolved by com.palantir.consistent-versions"
-                            + " without resolving the '%s' configuration itself.",
-                    targetConf.getName(), targetConf.getName()));
+            Configuration copiedTargetConfResolvable = targetConf.copyRecursive();
+
+            // This is required in Gradle 7 otherwise we won't see any dependencies
+            // It works without this in Gradle 8
+            // It is however *illegal* in Gradle 9, so we have to remove it.
+            // When we drop Gradle 7
+            if (GradleVersion.current().compareTo(GradleVersion.version("8.0")) < 0) {
+                projectDep.getConfigurations().add(copiedTargetConfResolvable);
+            }
+
+            Configuration copiedConf = projectDep
+                    .getConfigurations()
+                    .register(targetConf.getName() + "GcvConsumable", conf -> {
+                        conf.setDescription(String.format(
+                                "Copy of the '%s' configuration that can be resolved by"
+                                        + " com.palantir.consistent-versions without resolving the '%s' configuration"
+                                        + " itself.",
+                                targetConf.getName(), targetConf.getName()));
+                        conf.setCanBeResolved(false);
+                        // Must set this because we depend on this configuration when resolving unifiedClasspath.
+                        conf.setCanBeConsumed(true);
+                        conf.extendsFrom(copiedTargetConfResolvable);
+                        conf.attributes(getGcvAttributes()::configureGcvBaseAttributes);
+
+                        // Since we only depend on these from the same project (via CONSISTENT_VERSIONS_PRODUCTION or
+                        // CONSISTENT_VERSIONS_TEST), we shouldn't allow them to be visible outside this project.
+                        conf.setVisible(false);
+
+                        // This is so we can get back the scope from the ResolutionResult.
+                        conf.getAllDependencies()
+                                .withType(ExternalModuleDependency.class)
+                                .all(externalDep -> dependencyScopes.record(externalDep.getModule(), scope));
+
+                        // To avoid capability based conflict detection between all these copied configurations (where
+                        // they conflict as each has no capabilities), we give each of them a capability
+                        conf.outgoing(outgoing -> outgoing.capability(String.format(
+                                "gcv:%s-%s-%s-%s:extra",
+                                projectDep.getGroup(), projectDep.getName(), projectDep.getVersion(), conf.getName())));
+                    })
+                    .get();
 
             // Update state about what we've seen
             copiedConfigurationsCache.put(targetConf, copiedConf.getName());
@@ -649,41 +708,16 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
                         "Recursively copied {}'s '{}' configuration, which has\n"
                                 + " - dependencies: {}\n"
                                 + " - constraints: {}",
-                        projectDep,
+                        getProjectDependencyWorkarounds().getPath(projectDependency),
                         targetConfiguration,
                         ImmutableList.copyOf(copiedConf.getAllDependencies()),
                         ImmutableList.copyOf(copiedConf.getAllDependencyConstraints()));
             }
 
-            copiedConf.attributes(getGcvAttributes()::configureGcvBaseAttributes);
-
-            // Must set this because we depend on this configuration when resolving unifiedClasspath.
-            copiedConf.setCanBeConsumed(true);
-            // Since we only depend on these from the same project (via CONSISTENT_VERSIONS_PRODUCTION or
-            // CONSISTENT_VERSIONS_TEST), we shouldn't allow them to be visible outside this project.
-            copiedConf.setVisible(false);
-            // This is so we can get back the scope from the ResolutionResult.
-            copiedConf
-                    .getDependencies()
-                    .withType(ExternalModuleDependency.class)
-                    .all(externalDep -> dependencyScopes.record(externalDep.getModule(), scope));
-            // To avoid capability based conflict detection between all these copied configurations (where they
-            // conflict as each has no capabilities), we give each of them a capability
-            copiedConf
-                    .getOutgoing()
-                    .capability(String.format(
-                            "gcv:%s-%s-%s-%s:extra",
-                            projectDep.getGroup(),
-                            projectDep.getName(),
-                            projectDep.getVersion(),
-                            copiedConf.getName()));
-
-            projectDep.getConfigurations().add(copiedConf);
-
             projectDependency.setTargetConfiguration(copiedConf.getName());
 
             recursivelyCopyProjectDependenciesWithScope(
-                    projectDep, copiedConf.getDependencies(), copiedConfigurationsCache, dependencyScopes, scope);
+                    projectDep, copiedConf.getAllDependencies(), copiedConfigurationsCache, dependencyScopes, scope);
         });
     }
 
@@ -696,27 +730,26 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
         conf.getIncoming().getDependencies();
     }
 
-    @SuppressWarnings("for-rollout:deprecation")
-    private static Configuration getTargetConfiguration(DependencySet depSet, ProjectDependency projectDependency) {
+    private Configuration getTargetConfiguration(DependencySet depSet, ProjectDependency projectDependency) {
         String targetConfiguration = Preconditions.checkNotNull(
                 projectDependency.getTargetConfiguration(),
                 "Expected dependency to have a targetConfiguration: %s",
                 formatProjectDependency(projectDependency));
-        @SuppressWarnings("for-rollout:deprecation")
-        Configuration targetConf =
-                projectDependency.getDependencyProject().getConfigurations().getByName(targetConfiguration);
+        Configuration targetConf = getProjectDependencyWorkarounds()
+                .getDependencyProject(projectDependency)
+                .getConfigurations()
+                .getByName(targetConfiguration);
         Preconditions.checkNotNull(
                 targetConf,
                 "Target configuration of project dependency was null: %s -> %s",
                 depSet,
-                projectDependency.getDependencyProject());
+                getProjectDependencyWorkarounds().getPath(projectDependency));
         return targetConf;
     }
 
-    @SuppressWarnings("for-rollout:deprecation")
-    private static Configuration findConfigurationUsingCapabilities(ProjectDependency projectDependency) {
-        @SuppressWarnings("for-rollout:deprecation")
-        Set<Configuration> confs = projectDependency.getDependencyProject().getConfigurations().stream()
+    private Configuration findConfigurationUsingCapabilities(ProjectDependency projectDependency) {
+        Project dependencyProject = getProjectDependencyWorkarounds().getDependencyProject(projectDependency);
+        Set<Configuration> confs = dependencyProject.getConfigurations().stream()
                 .filter(conf ->
                         conf.getOutgoing().getCapabilities().containsAll(projectDependency.getRequestedCapabilities()))
                 .collect(Collectors.toSet());
@@ -727,7 +760,7 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
                 projectDependency.getRequestedCapabilities(),
                 confs.size(),
                 confs,
-                projectDependency.getDependencyProject().getConfigurations().stream()
+                dependencyProject.getConfigurations().stream()
                         .map(conf -> String.format(
                                 "- %s -> %s", conf, conf.getOutgoing().getCapabilities()))
                         .collect(Collectors.joining("\n")));
@@ -735,10 +768,9 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
         return Iterables.getOnlyElement(confs);
     }
 
-    @SuppressWarnings("for-rollout:deprecation")
-    private static String formatProjectDependency(ProjectDependency dep) {
+    private String formatProjectDependency(ProjectDependency dep) {
         StringBuilder builder = new StringBuilder();
-        builder.append(dep.getDependencyProject());
+        builder.append(getProjectDependencyWorkarounds().getPath(dep));
         if (dep.getTargetConfiguration() != null) {
             builder.append(" (configuration: ");
             builder.append(dep.getTargetConfiguration());
@@ -746,7 +778,7 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
         }
         if (!dep.getAttributes().isEmpty()) {
             builder.append(", attributes: ");
-            builder.append(dep.getAttributes().toString());
+            builder.append(dep.getAttributes());
         }
         return builder.toString();
     }
@@ -757,10 +789,9 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
     }
 
     private void failIfAnyDependenciesUnresolved(ResolutionResult resolutionResult) {
-        List<UnresolvedDependencyResult> unresolved = resolutionResult.getAllDependencies().stream()
-                .filter(a -> a instanceof UnresolvedDependencyResult)
-                .map(a -> (UnresolvedDependencyResult) a)
-                .collect(Collectors.toList());
+        List<UnresolvedDependencyResult> unresolved = StreamEx.of(resolutionResult.getAllDependencies())
+                .select(UnresolvedDependencyResult.class)
+                .toList();
         if (!unresolved.isEmpty()) {
             GradleException gradleException = new GradleException(String.format(
                     "Could not compute lock state from configuration '%s' due to unresolved dependencies "
@@ -942,43 +973,15 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
             ProjectDependency locksDependency,
             List<DependencyConstraint> publishableConstraints,
             LockedConfigurations lockedConfigurations) {
-        @SuppressWarnings("for-rollout:ConfigurationAvoidanceRegistration")
-        Configuration locksConfiguration = subproject
-                .getConfigurations()
-                .create(LOCK_CONSTRAINTS_CONFIGURATION_NAME, locksConf -> {
-                    locksConf.setVisible(false);
-                    locksConf.setCanBeConsumed(false);
-                    locksConf.setCanBeResolved(false);
-                    locksConf.getDependencies().add(locksDependency);
-                });
+        subproject.getConfigurations().named(LOCK_CONSTRAINTS_CONFIGURATION_NAME, conf -> conf.getDependencies()
+                .add(locksDependency));
 
         Set<Configuration> configurationsToLock = lockedConfigurations.allConfigurations();
         log.info("Configuring locks for {}. Locked configurations: {}", subproject.getPath(), configurationsToLock);
-        configurationsToLock.forEach(conf -> {
-            conf.extendsFrom(locksConfiguration);
-            VersionsLockPlugin.ensureNoFailOnVersionConflict(conf);
-        });
+        configurationsToLock.forEach(VersionsLockPlugin::ensureNoFailOnVersionConflict);
 
-        NamedDomainObjectProvider<Configuration> publishConstraints = subproject
-                .getConfigurations()
-                .register("gcvPublishConstraints", conf -> {
-                    conf.setDescription("Publishable constraints from the GCV versions.lock file");
-                    conf.setCanBeResolved(false);
-                    conf.setCanBeConsumed(false);
-                    conf.getDependencyConstraints().addAll(publishableConstraints);
-                });
-
-        // Enrich the configurations being published as part of the java component (components.java)
-        // with constraints generated from the lock file.
-        subproject.getPluginManager().withPlugin("java", _plugin -> {
-            subproject
-                    .getConfigurations()
-                    .named(JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME)
-                    .configure(conf -> conf.extendsFrom(publishConstraints.get()));
-            subproject
-                    .getConfigurations()
-                    .named(JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME)
-                    .configure(conf -> conf.extendsFrom(publishConstraints.get()));
+        subproject.getConfigurations().named(GCV_PUBLISH_CONSTRAINTS_CONFIGURATION_NAME, conf -> {
+            conf.getDependencyConstraints().addAll(publishableConstraints);
         });
     }
 
@@ -1162,5 +1165,44 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
         StartParameter startParameter = project.getGradle().getStartParameter();
         return startParameter.isWriteDependencyLocks()
                 || WRITE_VERSIONS_LOCKS_TASK_NAME_MATCHER.matchesAny(startParameter.getTaskNames());
+    }
+
+    @SuppressWarnings("deprecation")
+    protected abstract static class ProjectDependencyWorkarounds {
+
+        @Inject
+        protected abstract Gradle getGradle();
+
+        /**
+         * {@link ProjectDependency#getPath} was introduced in Gradle 8.11, and
+         * {@link ProjectDependency#getDependencyProject} was not deprecated yet. Fallback to using the latter on
+         * versions prior to 8.11.
+         */
+        public String getPath(ProjectDependency projectDependency) {
+            GradleVersion requiredVersion = GradleVersion.version("8.11");
+            if (GradleVersion.current().compareTo(requiredVersion) < 0) {
+                return projectDependency.getDependencyProject().getPath();
+            } else {
+                return projectDependency.getPath();
+            }
+        }
+
+        /**
+         * {@link ProjectDependency#getDependencyProject} was deprecated in Gradle 8.11 and will be removed in Gradle
+         * 9.0. Without a considerable rethinking of how GCV works with Isolated projects, it may be easier to
+         * continue to reach into subprojects at will for now.
+         *
+         */
+        public Project getDependencyProject(ProjectDependency projectDependency) {
+            GradleVersion removedVersion = GradleVersion.version("9.0");
+            if (GradleVersion.current().compareTo(removedVersion) < 0) {
+                return projectDependency.getDependencyProject();
+            }
+
+            return getGradle().getRootProject().project(projectDependency.getPath());
+        }
+
+        @Inject
+        public ProjectDependencyWorkarounds() {}
     }
 }
