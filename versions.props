@@ -1,4 +1,5 @@
-com.fasterxml.jackson.*:* = 2.19.2
+com.fasterxml.jackson.*:* = 2.20.0
+com.fasterxml.jackson.core:jackson-annotations = 2.20
 com.google.guava:guava = 33.4.8-jre
 org.assertj:* = 3.27.4
 org.immutables:value = 2.11.2

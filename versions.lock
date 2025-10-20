@@ -1,14 +1,14 @@
 # Run ./gradlew writeVersionsLocks to regenerate this file. Blank lines are to minimize merge conflicts.
 
-com.fasterxml.jackson.core:jackson-annotations:2.19.2 (3 constraints: a5408176)
+com.fasterxml.jackson.core:jackson-annotations:2.20 (4 constraints: 444484b1)
 
-com.fasterxml.jackson.core:jackson-core:2.19.2 (3 constraints: a5408176)
+com.fasterxml.jackson.core:jackson-core:2.20.0 (3 constraints: 8740c06e)
 
-com.fasterxml.jackson.core:jackson-databind:2.19.2 (3 constraints: 57331be9)
+com.fasterxml.jackson.core:jackson-databind:2.20.0 (3 constraints: 39335ae1)
 
-com.fasterxml.jackson.dataformat:jackson-dataformat-xml:2.19.2 (1 constraints: 40054c3b)
+com.fasterxml.jackson.dataformat:jackson-dataformat-xml:2.20.0 (1 constraints: 3605333b)
 
-com.fasterxml.jackson.datatype:jackson-datatype-guava:2.19.2 (1 constraints: 40054c3b)
+com.fasterxml.jackson.datatype:jackson-datatype-guava:2.20.0 (1 constraints: 3605333b)
 
 com.fasterxml.woodstox:woodstox-core:7.1.1 (1 constraints: 3d174926)
 
@@ -16,7 +16,7 @@ com.google.errorprone:error_prone_annotations:2.41.0 (2 constraints: 7e0f1fa1)
 
 com.google.guava:failureaccess:1.0.3 (1 constraints: 160ae3b4)
 
-com.google.guava:guava:33.5.0-jre (4 constraints: ac5262cf)
+com.google.guava:guava:33.5.0-jre (5 constraints: f36dfe61)
 
 com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava (1 constraints: bd17c918)
 
@@ -32,7 +32,7 @@ org.codehaus.woodstox:stax2-api:4.2.2 (2 constraints: 6a278bd2)
 
 org.immutables:value:2.11.2 (1 constraints: 3805343b)
 
-org.jspecify:jspecify:1.0.0 (7 constraints: 5370d26f)
+org.jspecify:jspecify:1.0.0 (1 constraints: 130ae0b4)
 
 
 
@@ -42,9 +42,13 @@ cglib:cglib-nodep:3.2.2 (1 constraints: 490ded24)
 
 com.netflix.nebula:nebula-test:10.6.2 (2 constraints: d61de72d)
 
-com.palantir.gradle.plugintesting:configuration-cache-spec:0.12.0 (1 constraints: 3505293b)
+com.palantir.gradle.plugintesting:configuration-cache-spec:0.13.0 (1 constraints: 36052c3b)
 
-com.palantir.gradle.plugintesting:plugin-testing-core:0.12.0 (1 constraints: 3505293b)
+com.palantir.gradle.plugintesting:gradle-plugin-testing-junit:0.13.0 (1 constraints: 36052c3b)
+
+com.palantir.gradle.plugintesting:plugin-testing-core:0.13.0 (1 constraints: 36052c3b)
+
+commons-io:commons-io:2.19.0 (1 constraints: db190cdf)
 
 junit:junit:4.13.2 (2 constraints: ca1e3ab9)
 
@@ -54,29 +58,31 @@ net.bytebuddy:byte-buddy-agent:1.17.5 (1 constraints: 480b4cde)
 
 org.apiguardian:apiguardian-api:1.1.2 (7 constraints: cc761de9)
 
-org.assertj:assertj-core:3.27.4 (1 constraints: 4205523b)
+org.assertj:assertj-core:3.27.4 (2 constraints: 1f1f8a8f)
 
-org.codehaus.groovy:groovy:3.0.25 (3 constraints: 14347add)
+org.codehaus.groovy:groovy:3.0.24 (3 constraints: 133429dd)
 
 org.hamcrest:hamcrest:2.2 (1 constraints: d20cdc04)
 
 org.hamcrest:hamcrest-core:1.3 (1 constraints: cc05fe3f)
 
+org.jetbrains:annotations:26.0.2 (1 constraints: d9190fdf)
+
 org.junit:junit-bom:5.13.4 (1 constraints: 3f054e3b)
 
-org.junit.jupiter:junit-jupiter:6.0.0 (2 constraints: c1103aef)
+org.junit.jupiter:junit-jupiter:5.13.4 (2 constraints: c1103aef)
 
-org.junit.jupiter:junit-jupiter-api:6.0.0 (6 constraints: 63540877)
+org.junit.jupiter:junit-jupiter-api:5.13.4 (7 constraints: 1a6f3817)
 
-org.junit.jupiter:junit-jupiter-engine:6.0.0 (2 constraints: 4617224d)
+org.junit.jupiter:junit-jupiter-engine:5.13.4 (2 constraints: 7d17a564)
 
-org.junit.jupiter:junit-jupiter-params:6.0.0 (3 constraints: cd2d9856)
+org.junit.jupiter:junit-jupiter-params:5.13.4 (3 constraints: 3b2e71aa)
 
-org.junit.platform:junit-platform-commons:6.0.0 (3 constraints: 122add44)
+org.junit.platform:junit-platform-commons:1.13.4 (3 constraints: 782ad891)
 
-org.junit.platform:junit-platform-engine:6.0.0 (5 constraints: 0d4a4861)
+org.junit.platform:junit-platform-engine:1.13.4 (5 constraints: 734a41d4)
 
-org.junit.platform:junit-platform-launcher:6.0.0 (2 constraints: 7a0e8171)
+org.junit.platform:junit-platform-launcher:1.13.4 (2 constraints: 7a0e8171)
 
 org.junit.vintage:junit-vintage-engine:5.13.4 (1 constraints: 4409c29e)
 
