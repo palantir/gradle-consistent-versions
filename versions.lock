@@ -16,7 +16,7 @@ com.google.errorprone:error_prone_annotations:2.41.0 (2 constraints: 7e0f1fa1)
 
 com.google.guava:failureaccess:1.0.3 (1 constraints: 160ae3b4)
 
-com.google.guava:guava:33.5.0-jre (5 constraints: f36dfe61)
+com.google.guava:guava:33.5.0-jre (5 constraints: ec6d125a)
 
 com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava (1 constraints: bd17c918)
 
@@ -30,9 +30,9 @@ one.util:streamex:0.8.4 (1 constraints: 0e050736)
 
 org.codehaus.woodstox:stax2-api:4.2.2 (2 constraints: 6a278bd2)
 
-org.immutables:value:2.11.2 (1 constraints: 3805343b)
+org.immutables:value:2.11.6 (1 constraints: 3c05383b)
 
-org.jspecify:jspecify:1.0.0 (1 constraints: 130ae0b4)
+org.jspecify:jspecify:1.0.0 (8 constraints: c9803ac0)
 
 
 
@@ -52,13 +52,13 @@ commons-io:commons-io:2.19.0 (1 constraints: db190cdf)
 
 junit:junit:4.13.2 (2 constraints: ca1e3ab9)
 
-net.bytebuddy:byte-buddy:1.17.5 (2 constraints: c616fe4f)
+net.bytebuddy:byte-buddy:1.17.7 (2 constraints: 9f161b3f)
 
-net.bytebuddy:byte-buddy-agent:1.17.5 (1 constraints: 480b4cde)
+net.bytebuddy:byte-buddy-agent:1.17.7 (1 constraints: 4a0b4ede)
 
 org.apiguardian:apiguardian-api:1.1.2 (7 constraints: cc761de9)
 
-org.assertj:assertj-core:3.27.4 (2 constraints: 1f1f8a8f)
+org.assertj:assertj-core:3.27.6 (2 constraints: 211f1a90)
 
 org.codehaus.groovy:groovy:3.0.24 (3 constraints: 133429dd)
 
@@ -68,25 +68,25 @@ org.hamcrest:hamcrest-core:1.3 (1 constraints: cc05fe3f)
 
 org.jetbrains:annotations:26.0.2 (1 constraints: d9190fdf)
 
-org.junit:junit-bom:5.13.4 (1 constraints: 3f054e3b)
+org.junit:junit-bom:6.0.0 (1 constraints: 08050936)
 
-org.junit.jupiter:junit-jupiter:5.13.4 (2 constraints: c1103aef)
+org.junit.jupiter:junit-jupiter:6.0.0 (2 constraints: 531036d1)
 
-org.junit.jupiter:junit-jupiter-api:5.13.4 (7 constraints: 1a6f3817)
+org.junit.jupiter:junit-jupiter-api:6.0.0 (7 constraints: 076e573d)
 
-org.junit.jupiter:junit-jupiter-engine:5.13.4 (2 constraints: 7d17a564)
+org.junit.jupiter:junit-jupiter-engine:6.0.0 (2 constraints: 0f17403b)
 
-org.junit.jupiter:junit-jupiter-params:5.13.4 (3 constraints: 3b2e71aa)
+org.junit.jupiter:junit-jupiter-params:6.0.0 (3 constraints: cd2d9053)
 
-org.junit.platform:junit-platform-commons:1.13.4 (3 constraints: 782ad891)
+org.junit.platform:junit-platform-commons:6.0.0 (3 constraints: df292429)
 
-org.junit.platform:junit-platform-engine:1.13.4 (5 constraints: 734a41d4)
+org.junit.platform:junit-platform-engine:6.0.0 (5 constraints: a74936ef)
 
-org.junit.platform:junit-platform-launcher:1.13.4 (2 constraints: 7a0e8171)
+org.junit.platform:junit-platform-launcher:6.0.0 (2 constraints: 140e5458)
 
-org.junit.vintage:junit-vintage-engine:5.13.4 (1 constraints: 4409c29e)
+org.junit.vintage:junit-vintage-engine:6.0.0 (1 constraints: 0d097895)
 
-org.mockito:mockito-core:5.18.0 (1 constraints: 4005593b)
+org.mockito:mockito-core:5.20.0 (1 constraints: 3905453b)
 
 org.objenesis:objenesis:3.3 (2 constraints: 9b17f557)
 
