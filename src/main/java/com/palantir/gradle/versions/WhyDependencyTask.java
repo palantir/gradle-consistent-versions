@@ -36,8 +36,7 @@ import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.TaskAction;
 import org.gradle.api.tasks.options.Option;
 
-@SuppressWarnings("for-rollout:NonAbstractGradleType")
-public class WhyDependencyTask extends DefaultTask {
+public abstract class WhyDependencyTask extends DefaultTask {
 
     @SuppressWarnings("for-rollout:GradleTypesAsFields")
     private final Property<String> hashOption;
