@@ -37,8 +37,7 @@ import org.gradle.api.tasks.OutputFile;
 import org.gradle.api.tasks.TaskAction;
 import org.gradle.language.base.plugins.LifecycleBasePlugin;
 
-@SuppressWarnings("for-rollout:NonAbstractGradleType")
-public class VerifyLocksTask extends DefaultTask {
+public abstract class VerifyLocksTask extends DefaultTask {
 
     private static final String WRITE_LOCKS_SUGGESTION = "./gradlew writeVersionsLocks";
     private final File outputFile;
