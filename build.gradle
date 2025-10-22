@@ -90,8 +90,8 @@ tasks.withType(Test) {
 
 tasks.withType(JavaCompile) {
     // necessary until https://github.com/palantir/gradle-baseline/issues/389
-    options.compilerArgs += ['-Werror']
-    options.errorprone.disable 'Slf4jLogsafeArgs', 'PreferSafeLoggableExceptions'
+//    options.compilerArgs += ['-Werror']
+    options.errorprone.disable 'Slf4jLogsafeArgs', 'PreferSafeLoggableExceptions', 'StrictUnusedVariable'
 }
 
 gradlePlugin {

@@ -952,13 +952,13 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
             ProjectDependency locksDependency,
             Property<FullLockState> fullLockStateProperty) {
 
-        DependencyUsageAnalyzer analyzer = new DependencyUsageAnalyzer(fullLockStateProperty.get());
+        Provider<DependencyUsageAnalyzer> analyzer = fullLockStateProperty.map(DependencyUsageAnalyzer::new);
 
         rootProject.allprojects(subproject -> {
-            List<DependencyConstraint> publishableConstraints = constructPublishableConstraintsFromLockFile(
+            Provider<List<DependencyConstraint>> publishableConstraints = constructPublishableConstraintsFromLockFile(
                     rootProject,
                     subproject,
-                    fullLockStateProperty.get(),
+                    fullLockStateProperty,
                     analyzer,
                     rootProject.getDependencies().getConstraints()::create);
 
@@ -966,11 +966,11 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
             List<DependencyConstraint> localProjectConstraints = constructPublishableConstraintsFromLocalProjects(
                     subproject, rootProject.getDependencies().getConstraints()::create);
 
-            ImmutableList<DependencyConstraint> publishableConstraintsForSubproject =
-                    ImmutableList.<DependencyConstraint>builder()
+            Provider<ImmutableList<DependencyConstraint>> publishableConstraintsForSubproject =
+                    publishableConstraints.map(publishables -> ImmutableList.<DependencyConstraint>builder()
                             .addAll(localProjectConstraints)
-                            .addAll(publishableConstraints)
-                            .build();
+                            .addAll(publishables)
+                            .build());
 
             configureUsingConstraints(
                     subproject,
@@ -983,7 +983,7 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
     private static void configureUsingConstraints(
             Project subproject,
             ProjectDependency locksDependency,
-            List<DependencyConstraint> publishableConstraints,
+            Provider<? extends Iterable<DependencyConstraint>> publishableConstraints,
             LockedConfigurations lockedConfigurations) {
         subproject.getConfigurations().named(LOCK_CONSTRAINTS_CONFIGURATION_NAME, conf -> conf.getDependencies()
                 .add(locksDependency));
@@ -993,7 +993,7 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
         configurationsToLock.forEach(VersionsLockPlugin::ensureNoFailOnVersionConflict);
 
         subproject.getConfigurations().named(GCV_PUBLISH_CONSTRAINTS_CONFIGURATION_NAME, conf -> {
-            conf.getDependencyConstraints().addAll(publishableConstraints);
+            conf.getDependencyConstraints().addAllLater(publishableConstraints);
         });
     }
 
@@ -1083,27 +1083,30 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
                 .collect(Collectors.toList());
     }
 
-    private static List<DependencyConstraint> constructPublishableConstraintsFromLockFile(
+    private static Provider<List<DependencyConstraint>> constructPublishableConstraintsFromLockFile(
             Project rootProject,
             Project subproject,
-            FullLockState fullLockState,
-            DependencyUsageAnalyzer analyzer,
+            Provider<FullLockState> fullLockStateProvider,
+            Provider<DependencyUsageAnalyzer> analyzerProvider,
             DependencyConstraintCreator constraintCreator) {
-        Predicate<ModuleVersionIdentifier> isUsedBySubproject =
-                id -> analyzer.isUsedByProject(id, subproject.getPath());
-        Function<ModuleVersionIdentifier, DependencyConstraint> toDependencyConstraint = id -> {
-            String notation = id.getGroup() + ":" + id.getName() + ":" + id.getVersion();
-            return constraintCreator.create(notation, constraint -> {
-                constraint.version(v -> v.require(id.getVersion()));
-                constraint.because(
-                        "Computed from com.palantir.consistent-versions' versions.lock in " + rootProject.getName());
-            });
-        };
-        Stream<MyModuleVersionIdentifier> productionDeps = fullLockState.productionDeps().keySet().stream();
-        return productionDeps
-                .filter(isUsedBySubproject)
-                .map(toDependencyConstraint)
-                .toList();
+        return fullLockStateProvider.zip(analyzerProvider, (lockState, analyzer) -> {
+            Predicate<ModuleVersionIdentifier> isUsedBySubproject =
+                    id -> analyzer.isUsedByProject(id, subproject.getPath());
+            Function<ModuleVersionIdentifier, DependencyConstraint> toDependencyConstraint = id -> {
+                String notation = id.getGroup() + ":" + id.getName() + ":" + id.getVersion();
+                return constraintCreator.create(notation, constraint -> {
+                    constraint.version(v -> v.require(id.getVersion()));
+                    constraint.because("Computed from com.palantir.consistent-versions' versions.lock in "
+                            + rootProject.getName());
+                });
+            };
+
+            Stream<MyModuleVersionIdentifier> productionDeps = lockState.productionDeps().keySet().stream();
+            return productionDeps
+                    .filter(isUsedBySubproject)
+                    .map(toDependencyConstraint)
+                    .toList();
+        });
     }
 
     private static List<DependencyConstraint> constructPublishableConstraintsFromLocalProjects(
