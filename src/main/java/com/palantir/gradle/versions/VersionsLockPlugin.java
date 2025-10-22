@@ -34,6 +34,7 @@ import com.palantir.gradle.versions.ConsistentVersionsPlugin.GcvAttributes;
 import com.palantir.gradle.versions.ConsistentVersionsPlugin.GcvBuildPath;
 import com.palantir.gradle.versions.internal.MyModuleIdentifier;
 import com.palantir.gradle.versions.internal.MyModuleVersionIdentifier;
+import com.palantir.gradle.versions.lockstate.DependencyUsageAnalyzer;
 import com.palantir.gradle.versions.lockstate.Dependents;
 import com.palantir.gradle.versions.lockstate.FullLockState;
 import com.palantir.gradle.versions.lockstate.Line;
@@ -56,6 +57,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -73,6 +76,7 @@ import org.gradle.api.artifacts.DependencyConstraint;
 import org.gradle.api.artifacts.DependencySet;
 import org.gradle.api.artifacts.ExternalModuleDependency;
 import org.gradle.api.artifacts.ModuleIdentifier;
+import org.gradle.api.artifacts.ModuleVersionIdentifier;
 import org.gradle.api.artifacts.ProjectDependency;
 import org.gradle.api.artifacts.VersionConstraint;
 import org.gradle.api.artifacts.component.ComponentSelector;
@@ -324,7 +328,7 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
                                 rootLockfile, project.getDependencies().getConstraints()::create));
             });
 
-            configureAllProjectsUsingConstraints(project, rootLockfile, lockedConfigurations, locksDependency);
+            configureAllProjectsUsingConstraints(project, lockedConfigurations, locksDependency, fullLockStateProperty);
         });
 
         TaskProvider<?> verifyLocks = project.getTasks().register("verifyLocks", VerifyLocksTask.class, task -> {
@@ -944,22 +948,30 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
 
     private static void configureAllProjectsUsingConstraints(
             Project rootProject,
-            Path gradleLockfile,
             Map<Project, LockedConfigurations> lockedConfigurations,
-            ProjectDependency locksDependency) {
+            ProjectDependency locksDependency,
+            Property<FullLockState> fullLockStateProperty) {
 
-        List<DependencyConstraint> publishableConstraints = constructPublishableConstraintsFromLockFile(
-                rootProject, gradleLockfile, rootProject.getDependencies().getConstraints()::create);
+        DependencyUsageAnalyzer analyzer = new DependencyUsageAnalyzer(fullLockStateProperty.get());
 
         rootProject.allprojects(subproject -> {
+            List<DependencyConstraint> publishableConstraints = constructPublishableConstraintsFromLockFile(
+                    rootProject,
+                    subproject,
+                    fullLockStateProperty.get(),
+                    analyzer,
+                    rootProject.getDependencies().getConstraints()::create);
+
             // Avoid including the current project as a constraint -- it must already be present to provide constraints
             List<DependencyConstraint> localProjectConstraints = constructPublishableConstraintsFromLocalProjects(
                     subproject, rootProject.getDependencies().getConstraints()::create);
+
             ImmutableList<DependencyConstraint> publishableConstraintsForSubproject =
                     ImmutableList.<DependencyConstraint>builder()
                             .addAll(localProjectConstraints)
                             .addAll(publishableConstraints)
                             .build();
+
             configureUsingConstraints(
                     subproject,
                     locksDependency,
@@ -1072,20 +1084,26 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
     }
 
     private static List<DependencyConstraint> constructPublishableConstraintsFromLockFile(
-            Project rootProject, Path gradleLockfile, DependencyConstraintCreator constraintCreator) {
-        LockState lockState = new ConflictSafeLockFile(gradleLockfile).readLocks();
-        // We only publish the production locks.
-        return lockState.productionLinesByModuleIdentifier().entrySet().stream()
-                .map(e -> e.getKey() + ":" + e.getValue().version())
-                .map(notation -> constraintCreator.create(notation, constraint -> {
-                    constraint.version(v -> {
-                        String version = Objects.requireNonNull(constraint.getVersion());
-                        v.require(version);
-                    });
-                    constraint.because("Computed from com.palantir.consistent-versions' versions.lock in "
-                            + rootProject.getName());
-                }))
-                .collect(Collectors.toList());
+            Project rootProject,
+            Project subproject,
+            FullLockState fullLockState,
+            DependencyUsageAnalyzer analyzer,
+            DependencyConstraintCreator constraintCreator) {
+        Predicate<ModuleVersionIdentifier> isUsedBySubproject =
+                id -> analyzer.isUsedByProject(id, subproject.getPath());
+        Function<ModuleVersionIdentifier, DependencyConstraint> toDependencyConstraint = id -> {
+            String notation = id.getGroup() + ":" + id.getName() + ":" + id.getVersion();
+            return constraintCreator.create(notation, constraint -> {
+                constraint.version(v -> v.require(id.getVersion()));
+                constraint.because(
+                        "Computed from com.palantir.consistent-versions' versions.lock in " + rootProject.getName());
+            });
+        };
+        Stream<MyModuleVersionIdentifier> productionDeps = fullLockState.productionDeps().keySet().stream();
+        return productionDeps
+                .filter(isUsedBySubproject)
+                .map(toDependencyConstraint)
+                .toList();
     }
 
     private static List<DependencyConstraint> constructPublishableConstraintsFromLocalProjects(
