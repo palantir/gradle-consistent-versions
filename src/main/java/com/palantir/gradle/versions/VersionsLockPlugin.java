@@ -665,8 +665,14 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
             // It works without this in Gradle 8
             // It is however *illegal* in Gradle 9, so we have to remove it.
             // When we drop Gradle 7
-            if (GradleVersion.current().compareTo(GradleVersion.version("8.0")) < 0) {
+            if (GradleVersion.current().compareTo(GradleVersion.version("8.14")) < 0) {
                 projectDep.getConfigurations().add(copiedTargetConfResolvable);
+                copiedTargetConfResolvable.outgoing(outgoing -> outgoing.capability(String.format(
+                        "gcv:%s-%s-%s-%s:extra",
+                        projectDep.getGroup(),
+                        projectDep.getName(),
+                        projectDep.getVersion(),
+                        copiedTargetConfResolvable.getName())));
             }
 
             Configuration copiedConf = projectDep
