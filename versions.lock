@@ -2,13 +2,15 @@
 
 com.fasterxml.jackson.core:jackson-annotations:2.20 (4 constraints: 444484b1)
 
-com.fasterxml.jackson.core:jackson-core:2.20.0 (3 constraints: 8740c06e)
+com.fasterxml.jackson.core:jackson-core:2.20.0 (4 constraints: 8056ceff)
 
-com.fasterxml.jackson.core:jackson-databind:2.20.0 (3 constraints: 39335ae1)
+com.fasterxml.jackson.core:jackson-databind:2.20.0 (4 constraints: 32496639)
 
-com.fasterxml.jackson.dataformat:jackson-dataformat-xml:2.20.0 (1 constraints: 3605333b)
+com.fasterxml.jackson.dataformat:jackson-dataformat-xml:2.20.0 (2 constraints: da1f1fde)
 
-com.fasterxml.jackson.datatype:jackson-datatype-guava:2.20.0 (1 constraints: 3605333b)
+com.fasterxml.jackson.datatype:jackson-datatype-guava:2.20.0 (2 constraints: da1f1fde)
+
+com.fasterxml.jackson.datatype:jackson-datatype-jdk8:2.20.0 (1 constraints: a51a8b21)
 
 com.fasterxml.woodstox:woodstox-core:7.1.1 (1 constraints: 3d174926)
 
@@ -16,7 +18,7 @@ com.google.errorprone:error_prone_annotations:2.41.0 (2 constraints: 7e0f1fa1)
 
 com.google.guava:failureaccess:1.0.3 (1 constraints: 160ae3b4)
 
-com.google.guava:guava:33.5.0-jre (5 constraints: ec6d125a)
+com.google.guava:guava:33.5.0-jre (4 constraints: cc51abef)
 
 com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava (1 constraints: bd17c918)
 
@@ -24,7 +26,7 @@ com.google.j2objc:j2objc-annotations:3.1 (1 constraints: b809f1a0)
 
 com.palantir.gradle.failure-reports:gradle-failure-reports-exceptions:1.2.0 (1 constraints: 0505f635)
 
-com.palantir.gradle.idea-configuration:gradle-idea-configuration:0.3.0 (1 constraints: 0505f435)
+com.palantir.gradle.idea-configuration:gradle-idea-configuration:0.7.0 (1 constraints: 09050036)
 
 one.util:streamex:0.8.4 (1 constraints: 0e050736)
 
