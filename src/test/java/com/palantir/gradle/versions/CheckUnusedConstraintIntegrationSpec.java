@@ -32,59 +32,51 @@ class CheckUnusedConstraintIntegrationSpec {
 
     @BeforeEach
     void setup(RootProject rootProject) {
-        rootProject
-                .buildGradle()
-                .append("""
-                        plugins {
-                            id 'java'
-                            id 'com.palantir.versions-lock'
-                            id 'com.palantir.versions-props'
-                        }
+        rootProject.buildGradle().append("""
+            plugins {
+                id 'java'
+                id 'com.palantir.versions-lock'
+                id 'com.palantir.versions-props'
+            }
 
-                        repositories {
-                            mavenCentral()
-                            maven { url "${rootProject.path().toUri()}/maven" }
-                        }
-                        \s\s\s\s
-                        // Get rid of deprecation warnings for Gradle 7+
-                        versionRecommendations {
-                            excludeConfigurations 'compile', 'runtime', 'testCompile', 'testRuntime'
-                        }
-                        """);
-        rootProject
-                .gradlePropertiesFile()
-                .append("""
-                        ignoreLockFile=true
-                        """);
+            repositories {
+                mavenCentral()
+                maven { url "${rootProject.path().toUri()}/maven" }
+            }
+            \s\s\s\s
+            // Get rid of deprecation warnings for Gradle 7+
+            versionRecommendations {
+                excludeConfigurations 'compile', 'runtime', 'testCompile', 'testRuntime'
+            }
+            """);
+        rootProject.gradlePropertiesFile().append("""
+            ignoreLockFile=true
+            """);
         rootProject.file("versions.props").createEmpty();
     }
 
     @Test
     void check_versions_props_does_not_resolve_artifacts(GradleInvoker gradle, RootProject rootProject) {
-        rootProject
-                .buildGradle()
-                .append("""
-                        dependencies {
-                            implementation 'com.palantir.product:foo:1.0.0'
-                        }
-                        """);
+        rootProject.buildGradle().append("""
+            dependencies {
+                implementation 'com.palantir.product:foo:1.0.0'
+            }
+            """);
         rootProject.file("versions.props").overwrite("");
 
         // We're not producing a jar for this dependency, so artifact resolution would fail
-        rootProject
-                .file("maven/com/palantir/product/foo/1.0.0/foo-1.0.0.pom")
-                .overwrite("""
-                        <?xml version="1.0" encoding="UTF-8"?>
-                        <project xmlns="http://maven.apache.org/POM/4.0.0" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-                        <modelVersion>4.0.0</modelVersion>
-                        <groupId>com.palantir.product</groupId>
-                        <artifactId>foo</artifactId>
-                        <packaging>jar</packaging>
-                        <version>1.0.0</version>
-                        <description/>
-                        <dependencies/>
-                        </project>
-                        """);
+        rootProject.file("maven/com/palantir/product/foo/1.0.0/foo-1.0.0.pom").overwrite("""
+            <?xml version="1.0" encoding="UTF-8"?>
+            <project xmlns="http://maven.apache.org/POM/4.0.0" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+            <modelVersion>4.0.0</modelVersion>
+            <groupId>com.palantir.product</groupId>
+            <artifactId>foo</artifactId>
+            <packaging>jar</packaging>
+            <version>1.0.0</version>
+            <description/>
+            <dependencies/>
+            </project>
+            """);
 
         InvocationResult result = gradle.withArgs("checkUnusedConstraints").buildsSuccessfully();
         assertThat(result.task(":checkUnusedConstraints"))
@@ -99,18 +91,15 @@ class CheckUnusedConstraintIntegrationSpec {
 
     @Test
     void version_props_conflict_should_succeed(GradleInvoker gradle, RootProject rootProject) {
-        rootProject
-                .file("versions.props")
-                .overwrite("""
-                        com.fasterxml.jackson.*:* = 2.9.3
-                        com.fasterxml.jackson.core:jackson-annotations = 2.9.5
-                        """);
-        rootProject
-                .buildGradle()
-                .append("""
-                        dependencies {
-                            implementation 'com.fasterxml.jackson.core:jackson-databind'
-                        }""");
+        rootProject.file("versions.props").overwrite("""
+            com.fasterxml.jackson.*:* = 2.9.3
+            com.fasterxml.jackson.core:jackson-annotations = 2.9.5
+            """);
+        rootProject.buildGradle().append("""
+            dependencies {
+                implementation 'com.fasterxml.jackson.core:jackson-databind'
+            }\
+            """);
 
         InvocationResult result = gradle.withArgs("checkUnusedConstraints").buildsSuccessfully();
         assertThat(result.task(":checkUnusedConstraints"))
@@ -119,27 +108,24 @@ class CheckUnusedConstraintIntegrationSpec {
 
     @Test
     void most_specific_matching_version_should_win(GradleInvoker gradle, RootProject rootProject) {
-        rootProject
-                .file("versions.props")
-                .overwrite("""
-                        org.slf4j:slf4j-api = 1.7.25
-                        org.slf4j:* = 1.7.20
-                        """);
+        rootProject.file("versions.props").overwrite("""
+            org.slf4j:slf4j-api = 1.7.25
+            org.slf4j:* = 1.7.20
+            """);
 
-        rootProject
-                .buildGradle()
-                .append("""
-                        dependencies {
-                            implementation 'org.slf4j:slf4j-api'
-                        }""");
+        rootProject.buildGradle().append("""
+            dependencies {
+                implementation 'org.slf4j:slf4j-api'
+            }\
+            """);
 
         InvocationResult failure = gradle.withArgs("checkUnusedConstraints").buildsWithFailure();
         assertThat(failure.output()).contains("There are unused pins in your versions.props: \n[org.slf4j:*]");
 
-        List<String> currentVersionsProps = rootProject.file("versions.props").text().lines().toList();
+        List<String> currentVersionsProps =
+                rootProject.file("versions.props").text().lines().toList();
         gradle.withArgs("checkUnusedConstraints", "--fix").buildsSuccessfully();
-        assertThat(rootProject.file("versions.props").text().lines().toList())
-                .isNotEqualTo(currentVersionsProps);
+        assertThat(rootProject.file("versions.props").text().lines().toList()).isNotEqualTo(currentVersionsProps);
 
         gradle.withArgs("checkUnusedConstraints").buildsSuccessfully();
         assertThat(rootProject.file("versions.props").text().trim()).isEqualTo("org.slf4j:slf4j-api = 1.7.25");
@@ -147,28 +133,25 @@ class CheckUnusedConstraintIntegrationSpec {
 
     @Test
     void most_specific_glob_should_win(GradleInvoker gradle, RootProject rootProject) {
-        rootProject
-                .file("versions.props")
-                .overwrite("""
-                        org.slf4j:slf4j-* = 1.7.25
-                        org.slf4j:* = 1.7.20
-                        """);
+        rootProject.file("versions.props").overwrite("""
+            org.slf4j:slf4j-* = 1.7.25
+            org.slf4j:* = 1.7.20
+            """);
 
-        rootProject
-                .buildGradle()
-                .append("""
-                        dependencies {
-                            implementation 'org.slf4j:slf4j-api'
-                            implementation 'org.slf4j:slf4j-jdk14'
-                        }""");
+        rootProject.buildGradle().append("""
+            dependencies {
+                implementation 'org.slf4j:slf4j-api'
+                implementation 'org.slf4j:slf4j-jdk14'
+            }\
+            """);
 
         InvocationResult failure = gradle.withArgs("checkUnusedConstraints").buildsWithFailure();
         assertThat(failure.output()).contains("There are unused pins in your versions.props: \n[org.slf4j:*]");
 
-        List<String> currentVersionsProps = rootProject.file("versions.props").text().lines().toList();
+        List<String> currentVersionsProps =
+                rootProject.file("versions.props").text().lines().toList();
         gradle.withArgs("checkUnusedConstraints", "--fix").buildsSuccessfully();
-        assertThat(rootProject.file("versions.props").text().lines().toList())
-                .isNotEqualTo(currentVersionsProps);
+        assertThat(rootProject.file("versions.props").text().lines().toList()).isNotEqualTo(currentVersionsProps);
 
         gradle.withArgs("checkUnusedConstraints").buildsSuccessfully();
         assertThat(rootProject.file("versions.props").text().trim()).isEqualTo("org.slf4j:slf4j-* = 1.7.25");
@@ -181,29 +164,26 @@ class CheckUnusedConstraintIntegrationSpec {
         InvocationResult failure = gradle.withArgs("checkUnusedConstraints").buildsWithFailure();
         assertThat(failure.output()).contains("There are unused pins in your versions.props");
 
-        List<String> currentVersionsProps = rootProject.file("versions.props").text().lines().toList();
+        List<String> currentVersionsProps =
+                rootProject.file("versions.props").text().lines().toList();
         gradle.withArgs("checkUnusedConstraints", "--fix").buildsSuccessfully();
-        assertThat(rootProject.file("versions.props").text().lines().toList())
-                .isNotEqualTo(currentVersionsProps);
+        assertThat(rootProject.file("versions.props").text().lines().toList()).isNotEqualTo(currentVersionsProps);
 
         gradle.withArgs("checkUnusedConstraints").buildsSuccessfully();
     }
 
     @Test
     void unused_check_should_use_exact_matching(GradleInvoker gradle, RootProject rootProject) {
-        rootProject
-                .file("versions.props")
-                .overwrite("""
-                        com.google.guava:guava-testlib = 23.0
-                        com.google.guava:guava = 22.0
-                        """);
-        rootProject
-                .buildGradle()
-                .append("""
-                        dependencies {
-                            implementation 'com.google.guava:guava'
-                            implementation 'com.google.guava:guava-testlib'
-                        }""");
+        rootProject.file("versions.props").overwrite("""
+            com.google.guava:guava-testlib = 23.0
+            com.google.guava:guava = 22.0
+            """);
+        rootProject.buildGradle().append("""
+            dependencies {
+                implementation 'com.google.guava:guava'
+                implementation 'com.google.guava:guava-testlib'
+            }\
+            """);
 
         InvocationResult result = gradle.withArgs("checkUnusedConstraints").buildsSuccessfully();
         assertThat(result.task(":checkUnusedConstraints"))

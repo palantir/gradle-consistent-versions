@@ -52,64 +52,59 @@ class VersionsPropsPluginIntegrationSpec {
                 "org.slf4j:slf4j-api:1.7.22",
                 "org.slf4j:slf4j-api:1.7.24",
                 "org.slf4j:slf4j-api:1.7.25",
-                "com.fasterxml.jackson.core:jackson-databind:2.9.0 -> com.fasterxml.jackson.core:jackson-annotations:2.9.0",
+                "com.fasterxml.jackson.core:jackson-databind:2.9.0 ->"
+                        + " com.fasterxml.jackson.core:jackson-annotations:2.9.0",
                 "com.fasterxml.jackson.core:jackson-annotations:2.9.0",
                 "com.fasterxml.jackson.core:jackson-annotations:2.9.7",
                 "com.fasterxml.jackson.core:jackson-databind:2.9.7");
         PomUtils.makePlatformPom(mavenRepo, "org", "platform", "1.0");
 
-        rootProject
-                .buildGradle()
-                .append("""
-                        buildscript {
-                            repositories {
-                                mavenCentral()
-                            }
-                        }
-                        plugins {
-                            id '%s'
-                        }
-                        allprojects {
-                            repositories {
-                                maven { url "file:///%s" }
-                            }
-                        }
+        rootProject.buildGradle().append("""
+            buildscript {
+                repositories {
+                    mavenCentral()
+                }
+            }
+            plugins {
+                id '%s'
+            }
+            allprojects {
+                repositories {
+                    maven { url "file:///%s" }
+                }
+            }
 
-                        // Make it easy to verify what versions of dependencies you got.
-                        allprojects {
-                            configurations.matching { it.name == 'runtimeClasspath' }.all {
-                                resolutionStrategy.activateDependencyLocking()
-                            }
-                            task resolveConfigurations {
-                                doLast {
-                                    if (pluginManager.hasPlugin('java')) {
-                                        configurations.compileClasspath.resolve()
-                                        configurations.runtimeClasspath.resolve()
-                                    }
-                                }
-                            }
+            // Make it easy to verify what versions of dependencies you got.
+            allprojects {
+                configurations.matching { it.name == 'runtimeClasspath' }.all {
+                    resolutionStrategy.activateDependencyLocking()
+                }
+                task resolveConfigurations {
+                    doLast {
+                        if (pluginManager.hasPlugin('java')) {
+                            configurations.compileClasspath.resolve()
+                            configurations.runtimeClasspath.resolve()
                         }
-                        """, PLUGIN_NAME, mavenRepo.getAbsolutePath());
+                    }
+                }
+            }
+            """, PLUGIN_NAME, mavenRepo.getAbsolutePath());
     }
 
     @Test
     void star_dependency_constraint_is_injected_for_direct_dependency(
             GradleInvoker gradle, RootProject rootProject, SubProject fooProject) {
-        rootProject
-                .file("versions.props")
-                .overwrite("""
-                        org.slf4j:* = 1.7.24
-                        """);
+        rootProject.file("versions.props").overwrite("""
+            org.slf4j:* = 1.7.24
+            """);
 
         rootProject.settingsGradle().include("foo");
-        fooProject
-                .buildGradle()
-                .append("""
-                        apply plugin: 'java'
-                        dependencies {
-                            implementation 'org.slf4j:slf4j-api'
-                        }
-                        """);
+        fooProject.buildGradle().append("""
+            apply plugin: 'java'
+            dependencies {
+                implementation 'org.slf4j:slf4j-api'
+            }
+            """);
 
         gradle.withArgs("resolveConfigurations", "--write-locks").buildsSuccessfully();
 
@@ -119,22 +114,18 @@ class VersionsPropsPluginIntegrationSpec {
     @Test
     void star_dependency_constraint_is_not_forcefully_downgraded_for_transitive_dependency(
             GradleInvoker gradle, RootProject rootProject, SubProject fooProject) {
-        rootProject
-                .file("versions.props")
-                .overwrite("""
-                        org.slf4j:* = 1.7.21
-                        ch.qos.logback:logback-classic = 1.1.11  # brings in slf4j-api 1.7.22
-                        """);
+        rootProject.file("versions.props").overwrite("""
+            org.slf4j:* = 1.7.21
+            ch.qos.logback:logback-classic = 1.1.11  # brings in slf4j-api 1.7.22
+            """);
 
         rootProject.settingsGradle().include("foo");
-        fooProject
-                .buildGradle()
-                .append("""
-                        apply plugin: 'java'
-                        dependencies {
-                            implementation 'ch.qos.logback:logback-classic'
-                        }
-                        """);
+        fooProject.buildGradle().append("""
+            apply plugin: 'java'
+            dependencies {
+                implementation 'ch.qos.logback:logback-classic'
+            }
+            """);
 
         gradle.withArgs("resolveConfigurations", "--write-locks").buildsSuccessfully();
 
@@ -144,22 +135,18 @@ class VersionsPropsPluginIntegrationSpec {
     @Test
     void star_dependency_constraint_upgrades_transitive_dependency(
             GradleInvoker gradle, RootProject rootProject, SubProject fooProject) {
-        rootProject
-                .file("versions.props")
-                .overwrite("""
-                        org.slf4j:* = 1.7.25
-                        ch.qos.logback:logback-classic = 1.1.11  # brings in slf4j-api 1.7.22
-                        """);
+        rootProject.file("versions.props").overwrite("""
+            org.slf4j:* = 1.7.25
+            ch.qos.logback:logback-classic = 1.1.11  # brings in slf4j-api 1.7.22
+            """);
 
         rootProject.settingsGradle().include("foo");
-        fooProject
-                .buildGradle()
-                .append("""
-                        apply plugin: 'java'
-                        dependencies {
-                            implementation 'ch.qos.logback:logback-classic'
-                        }
-                        """);
+        fooProject.buildGradle().append("""
+            apply plugin: 'java'
+            dependencies {
+                implementation 'ch.qos.logback:logback-classic'
+            }
+            """);
 
         gradle.withArgs("resolveConfigurations", "--write-locks").buildsSuccessfully();
 
@@ -169,31 +156,27 @@ class VersionsPropsPluginIntegrationSpec {
     @Test
     void imported_platform_generated_correctly_in_pom(
             GradleInvoker gradle, RootProject rootProject, SubProject fooProject) throws Exception {
-        rootProject
-                .file("versions.props")
-                .overwrite("""
-                        org:platform = 1.0
-                        # This shouldn't end up in the POM
-                        other:constraint = 1.0.0
-                        """);
+        rootProject.file("versions.props").overwrite("""
+            org:platform = 1.0
+            # This shouldn't end up in the POM
+            other:constraint = 1.0.0
+            """);
 
         rootProject.settingsGradle().include("foo");
-        fooProject
-                .buildGradle()
-                .append("""
-                        apply plugin: 'java-library'
-                        apply plugin: 'maven-publish'
-                        dependencies {
-                            rootConfiguration platform('org:platform')
-                        }
-                        publishing {
-                            publications {
-                                main(MavenPublication) {
-                                    from components.java
-                                }
-                            }
-                        }
-                        """);
+        fooProject.buildGradle().append("""
+            apply plugin: 'java-library'
+            apply plugin: 'maven-publish'
+            dependencies {
+                rootConfiguration platform('org:platform')
+            }
+            publishing {
+                publications {
+                    main(MavenPublication) {
+                        from components.java
+                    }
+                }
+            }
+            """);
 
         gradle.withArgs("foo:generatePomFile").buildsSuccessfully();
 
@@ -238,20 +221,16 @@ class VersionsPropsPluginIntegrationSpec {
     @Test
     void non_glob_module_forces_do_not_get_added_to_a_matching_platform_too(
             GradleInvoker gradle, RootProject rootProject) {
-        rootProject
-                .buildGradle()
-                .append("""
-                        apply plugin: 'java'
-                        dependencies {
-                            implementation 'com.fasterxml.jackson.core:jackson-databind'
-                        }
-                        """);
-        rootProject
-                .file("versions.props")
-                .overwrite("""
-                        com.fasterxml.jackson.core:jackson-databind = 2.9.0
-                        com.fasterxml.jackson.*:* = 2.9.7
-                        """);
+        rootProject.buildGradle().append("""
+            apply plugin: 'java'
+            dependencies {
+                implementation 'com.fasterxml.jackson.core:jackson-databind'
+            }
+            """);
+        rootProject.file("versions.props").overwrite("""
+            com.fasterxml.jackson.core:jackson-databind = 2.9.0
+            com.fasterxml.jackson.*:* = 2.9.7
+            """);
 
         gradle.withArgs("resolveConfigurations", "--write-locks").buildsSuccessfully();
 
@@ -263,15 +242,13 @@ class VersionsPropsPluginIntegrationSpec {
 
     @Test
     void throws_if_resolving_configuration_in_after_evaluate(GradleInvoker gradle, RootProject rootProject) {
-        rootProject
-                .buildGradle()
-                .append("""
-                        configurations { foo }
-                        \s\s\s\s
-                        afterEvaluate {
-                            configurations.foo.resolve()
-                        }
-                        """);
+        rootProject.buildGradle().append("""
+            configurations { foo }
+            \s\s\s\s
+            afterEvaluate {
+                configurations.foo.resolve()
+            }
+            """);
         rootProject.file("versions.props").overwrite("");
 
         InvocationResult result = gradle.withArgs().buildsWithFailure();
@@ -280,36 +257,31 @@ class VersionsPropsPluginIntegrationSpec {
 
     @Test
     void does_not_throw_if_excluded_configuration_is_resolved_early(GradleInvoker gradle, RootProject rootProject) {
-        rootProject
-                .buildGradle()
-                .append("""
-                        configurations { foo }
-                        \s\s\s\s
-                        versionRecommendations {
-                            excludeConfigurations 'foo'
-                        }
-                        \s\s\s\s
-                        afterEvaluate {
-                            configurations.foo.resolve()
-                        }
-                        """);
+        rootProject.buildGradle().append("""
+            configurations { foo }
+            \s\s\s\s
+            versionRecommendations {
+                excludeConfigurations 'foo'
+            }
+            \s\s\s\s
+            afterEvaluate {
+                configurations.foo.resolve()
+            }
+            """);
         rootProject.file("versions.props").overwrite("");
 
         gradle.withArgs().buildsSuccessfully();
     }
 
     @Test
-    void creates_root_configuration_even_if_versions_props_file_missing(
-            GradleInvoker gradle, RootProject rootProject) {
-        rootProject
-                .buildGradle()
-                .append("""
-                        dependencies {
-                            constraints {
-                                rootConfiguration 'org.slf4j:slf4j-api:1.7.25'
-                            }
-                        }
-                        """);
+    void creates_root_configuration_even_if_versions_props_file_missing(GradleInvoker gradle, RootProject rootProject) {
+        rootProject.buildGradle().append("""
+            dependencies {
+                constraints {
+                    rootConfiguration 'org.slf4j:slf4j-api:1.7.25'
+                }
+            }
+            """);
         rootProject.path().resolve("versions.props").toFile().delete();
 
         gradle.withArgs().buildsSuccessfully();
@@ -319,11 +291,9 @@ class VersionsPropsPluginIntegrationSpec {
     void build_succeeds_without_versions_props_or_versions_lock(
             GradleInvoker gradle, RootProject rootProject, SubProject fooProject) {
         rootProject.settingsGradle().include("foo");
-        fooProject
-                .buildGradle()
-                .append("""
-                        apply plugin: 'java'
-                        """);
+        fooProject.buildGradle().append("""
+            apply plugin: 'java'
+            """);
 
         gradle.withArgs("build").buildsSuccessfully();
     }

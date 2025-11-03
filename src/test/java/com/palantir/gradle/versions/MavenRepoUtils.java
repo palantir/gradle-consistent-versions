@@ -31,8 +31,7 @@ public final class MavenRepoUtils {
         DependencyGraph dependencyGraph = new DependencyGraph(graph);
         try {
             Path repoPath = Files.createDirectories(tempDir.resolve("testrepogen"));
-            GradleDependencyGenerator generator =
-                    new GradleDependencyGenerator(dependencyGraph, repoPath.toString());
+            GradleDependencyGenerator generator = new GradleDependencyGenerator(dependencyGraph, repoPath.toString());
             return generator.generateTestMavenRepo();
         } catch (IOException e) {
             throw new UncheckedIOException("Failed to create Maven repo", e);

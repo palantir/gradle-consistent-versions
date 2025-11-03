@@ -34,30 +34,28 @@ class VersionPropsIdeaPluginIntegrationSpec {
 
     @BeforeEach
     void setup(RootProject rootProject) {
-        rootProject
-                .buildGradle()
-                .append("""
-                        repositories {
-                            maven {
-                                url 'https://test'
-                            }
-                            maven {
-                                url 'https://demo/'
-                            }
-                            mavenCentral() { metadataSources { mavenPom(); ignoreGradleMetadataRedirection() } }
-                        }
+        rootProject.buildGradle().append("""
+            repositories {
+                maven {
+                    url 'https://test'
+                }
+                maven {
+                    url 'https://demo/'
+                }
+                mavenCentral() { metadataSources { mavenPom(); ignoreGradleMetadataRedirection() } }
+            }
 
-                        apply plugin: 'com.palantir.version-props-idea'
-                        apply plugin: 'idea'
-                        """);
+            apply plugin: 'com.palantir.version-props-idea'
+            apply plugin: 'idea'
+            """);
 
         Path ideaDir = rootProject.path().resolve(".idea");
         ideaDir.toFile().mkdirs();
     }
 
     @Test
-    void plugin_creates_gcv_maven_repositories_xml_file_in_idea_folder(
-            GradleInvoker gradle, RootProject rootProject) throws IOException {
+    void plugin_creates_gcv_maven_repositories_xml_file_in_idea_folder(GradleInvoker gradle, RootProject rootProject)
+            throws IOException {
         gradle.withArgs("-Didea.active=true").buildsSuccessfully();
 
         Path repoFile = rootProject.path().resolve(".idea/gcv-maven-repositories.xml");

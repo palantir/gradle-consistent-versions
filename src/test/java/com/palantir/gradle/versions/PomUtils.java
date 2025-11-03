@@ -29,23 +29,21 @@ public final class PomUtils {
         Path dir = repo.toPath().resolve(group).resolve(name).resolve(version);
         try {
             Files.createDirectories(dir);
-            String pomContent =
-                    """
-                    <?xml version="1.0" encoding="UTF-8"?>
-                    <project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
-                        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-                      <modelVersion>4.0.0</modelVersion>
-                      <packaging>pom</packaging>
-                      <groupId>%s</groupId>
-                      <artifactId>%s</artifactId>
-                      <version>%s</version>
-                      <dependencyManagement>
-                        <dependencies>
-                        </dependencies>
-                      </dependencyManagement>
-                    </project>
-                    """
-                            .formatted(group, name, version);
+            String pomContent = """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
+                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                  <modelVersion>4.0.0</modelVersion>
+                  <packaging>pom</packaging>
+                  <groupId>%s</groupId>
+                  <artifactId>%s</artifactId>
+                  <version>%s</version>
+                  <dependencyManagement>
+                    <dependencies>
+                    </dependencies>
+                  </dependencyManagement>
+                </project>
+                """.formatted(group, name, version);
             Files.writeString(dir.resolve("platform-1.0.pom"), pomContent);
         } catch (IOException e) {
             throw new UncheckedIOException("Failed to create platform POM", e);
