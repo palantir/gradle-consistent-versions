@@ -16,8 +16,10 @@
 
 package com.palantir.gradle.versions
 
-
 import org.gradle.testkit.runner.TaskOutcome
+import spock.lang.IgnoreIf
+
+import static com.palantir.gradle.versions.GradleTestVersions.GRADLE_VERSIONS
 
 /**
  * https://github.com/palantir/sls-packaging does some funky stuff when resolving inter-project dependencies for the
@@ -40,7 +42,7 @@ class SlsPackagingCompatibilityIntegrationSpec extends IntegrationSpec {
             }            
             plugins {
                 id '${PLUGIN_NAME}'
-                id 'com.palantir.sls-java-service-distribution' version '7.25.0' apply false
+                id 'com.palantir.sls-java-service-distribution' version '7.31.0' apply false
             }
             allprojects {
                 repositories {
@@ -50,8 +52,16 @@ class SlsPackagingCompatibilityIntegrationSpec extends IntegrationSpec {
         """.stripIndent(true)
     }
 
-    def 'can consume recommended product dependencies project'() {
+    @IgnoreIf(
+            reason = """
+                sls-packaging is creating a configuration as part of a task input, which is happening far too late. \
+                Once gradle has done a resolution, it will not look at any new Configurations that have popped up \
+                since then. See https://github.com/palantir/gradle-consistent-versions/pull/1443 for more details.""",
+            value = { data.gradleVersionNumber.startsWith("9") })
+    def '#gradleVersionNumber can consume recommended product dependencies project'() {
         setup:
+        gradleVersion = gradleVersionNumber
+
         file("versions.props") << """
             org.slf4j:* = 1.7.24
         """.stripIndent(true)
@@ -99,10 +109,16 @@ class SlsPackagingCompatibilityIntegrationSpec extends IntegrationSpec {
                 ':service:mergeDiagnosticsJson',
                 ':service:resolveProductDependencies',
                 ':service:createManifest',
+                ':api:classes',
+                ':api:configureProductDependencies',
+                ':api:jar',
+                ':service:jar'
         ] as Set
-        // Ensure that 'jar' was not run on the API project
-        wroteLocks.task(':api:jar') == null
 
         runTasks('createManifest', 'verifyLocks')
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
+
     }
 }

@@ -48,8 +48,7 @@ import org.gradle.api.tasks.TaskAction;
 import org.gradle.api.tasks.options.Option;
 import org.gradle.language.base.plugins.LifecycleBasePlugin;
 
-@SuppressWarnings("for-rollout:NonAbstractGradleType")
-public class CheckUnusedConstraintsTask extends DefaultTask {
+public abstract class CheckUnusedConstraintsTask extends DefaultTask {
 
     @SuppressWarnings("for-rollout:GradleTypesAsFields")
     private final Property<Boolean> shouldFailWithConfigurationOnDemandMessage =

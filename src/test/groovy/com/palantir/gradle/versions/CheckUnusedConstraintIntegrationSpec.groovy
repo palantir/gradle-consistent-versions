@@ -19,6 +19,8 @@ package com.palantir.gradle.versions
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.TaskOutcome
 
+import static com.palantir.gradle.versions.GradleTestVersions.GRADLE_VERSIONS
+
 class CheckUnusedConstraintIntegrationSpec extends IntegrationSpec {
 
     def setup() {
@@ -66,7 +68,10 @@ class CheckUnusedConstraintIntegrationSpec extends IntegrationSpec {
         runTasks('checkUnusedConstraints')
     }
 
-    def 'checkVersionsProps does not resolve artifacts'() {
+    def '#gradleVersionNumber: checkVersionsProps does not resolve artifacts'() {
+        setup:
+        gradleVersion = gradleVersionNumber
+
         buildFile << """
             dependencies {
                 implementation 'com.palantir.product:foo:1.0.0'
@@ -80,15 +85,27 @@ class CheckUnusedConstraintIntegrationSpec extends IntegrationSpec {
 
         expect:
         buildSucceed()
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    def 'Task should run as part of :check'() {
+    def '#gradleVersionNumber: Task should run as part of :check'() {
+        setup:
+        gradleVersion = gradleVersionNumber
+
         expect:
         def result = runTasks('check', '-m')
         result.output.contains(':checkUnusedConstraints')
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    def 'Version props conflict should succeed'() {
+    def '#gradleVersionNumber: Version props conflict should succeed'() {
+        setup:
+        gradleVersion = gradleVersionNumber
+
         when:
         file('versions.props').text = """
             com.fasterxml.jackson.*:* = 2.9.3
@@ -101,9 +118,15 @@ class CheckUnusedConstraintIntegrationSpec extends IntegrationSpec {
 
         then:
         buildSucceed()
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    def 'Most specific matching version should win'() {
+    def '#gradleVersionNumber: Most specific matching version should win'() {
+        setup:
+        gradleVersion = gradleVersionNumber
+
         when:
         file('versions.props').text = """
             org.slf4j:slf4j-api = 1.7.25
@@ -119,9 +142,15 @@ class CheckUnusedConstraintIntegrationSpec extends IntegrationSpec {
         buildAndFailWith('There are unused pins in your versions.props: \n[org.slf4j:*]')
         buildWithFixWorks()
         file('versions.props').text.trim() == "org.slf4j:slf4j-api = 1.7.25"
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    def 'Most specific glob should win'() {
+    def '#gradleVersionNumber: Most specific glob should win'() {
+        setup:
+        gradleVersion = gradleVersionNumber
+
         when:
         file('versions.props').text = """
             org.slf4j:slf4j-* = 1.7.25
@@ -138,18 +167,30 @@ class CheckUnusedConstraintIntegrationSpec extends IntegrationSpec {
         buildAndFailWith('There are unused pins in your versions.props: \n[org.slf4j:*]')
         buildWithFixWorks()
         file('versions.props').text.trim() == "org.slf4j:slf4j-* = 1.7.25"
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    def 'Unused version should fail'() {
+    def '#gradleVersionNumber: Unused version should fail'() {
+        setup:
+        gradleVersion = gradleVersionNumber
+
         when:
         file('versions.props').text = "notused:atall = 42.42"
 
         then:
         buildAndFailWith("There are unused pins in your versions.props")
         buildWithFixWorks()
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    def 'Unused check should use exact matching'() {
+    def '#gradleVersionNumber: Unused check should use exact matching'() {
+        setup:
+        gradleVersion = gradleVersionNumber
+
         when:
         file('versions.props').text = """
             com.google.guava:guava-testlib = 23.0
@@ -163,6 +204,9 @@ class CheckUnusedConstraintIntegrationSpec extends IntegrationSpec {
 
         then:
         buildSucceed()
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
     }
 
     static String pomWithJarPackaging(String group, String artifact, String version) {

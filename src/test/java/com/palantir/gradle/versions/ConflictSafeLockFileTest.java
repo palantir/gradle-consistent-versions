@@ -35,36 +35,34 @@ class ConflictSafeLockFileTest {
     Path preBlankLinesLockFilePath;
     Path currentLockFilePath;
 
-    private static final String PRE_BLANK_LINES_LOCK_FILE_CONTENT =
-            """
-            # Run ./gradlew writeVersionsLocks to regenerate this file
-            aopalliance:aopalliance:1.0 (1 constraints: 170a83ac)
-            ch.qos.logback:logback-core:1.2.3 (4 constraints: 5e330891)
-            com.fasterxml.jackson.module:jackson-module-parameter-names:2.9.3 (1 constraints: 880ec14f)
+    private static final String PRE_BLANK_LINES_LOCK_FILE_CONTENT = """
+        # Run ./gradlew writeVersionsLocks to regenerate this file
+        aopalliance:aopalliance:1.0 (1 constraints: 170a83ac)
+        ch.qos.logback:logback-core:1.2.3 (4 constraints: 5e330891)
+        com.fasterxml.jackson.module:jackson-module-parameter-names:2.9.3 (1 constraints: 880ec14f)
 
-            [Test dependencies]
-            com.palantir.conjure.java.api:test-utils:2.2.0 (1 constraints: 6b122d13)
-            junit:junit:4.12 (4 constraints: 4734a44f)
-            """;
+        [Test dependencies]
+        com.palantir.conjure.java.api:test-utils:2.2.0 (1 constraints: 6b122d13)
+        junit:junit:4.12 (4 constraints: 4734a44f)
+        """;
 
-    private static final @SuppressWarnings("checkstyle:RegexpMultiline") String CURRENT_LOCK_FILE_CONTENT =
-            """
-            # Run ./gradlew writeVersionsLocks to regenerate this file. Blank lines are to minimize merge conflicts.
+    private static final @SuppressWarnings("checkstyle:RegexpMultiline") String CURRENT_LOCK_FILE_CONTENT = """
+        # Run ./gradlew writeVersionsLocks to regenerate this file. Blank lines are to minimize merge conflicts.
 
-            aopalliance:aopalliance:1.0 (1 constraints: 170a83ac)
+        aopalliance:aopalliance:1.0 (1 constraints: 170a83ac)
 
-            ch.qos.logback:logback-core:1.2.3 (4 constraints: 5e330891)
+        ch.qos.logback:logback-core:1.2.3 (4 constraints: 5e330891)
 
-            com.fasterxml.jackson.module:jackson-module-parameter-names:2.9.3 (1 constraints: 880ec14f)
+        com.fasterxml.jackson.module:jackson-module-parameter-names:2.9.3 (1 constraints: 880ec14f)
 
 
 
-            [Test dependencies]
+        [Test dependencies]
 
-            com.palantir.conjure.java.api:test-utils:2.2.0 (1 constraints: 6b122d13)
+        com.palantir.conjure.java.api:test-utils:2.2.0 (1 constraints: 6b122d13)
 
-            junit:junit:4.12 (4 constraints: 4734a44f)
-            """;
+        junit:junit:4.12 (4 constraints: 4734a44f)
+        """;
 
     @BeforeEach
     void beforeEach() throws IOException {
