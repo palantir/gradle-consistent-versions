@@ -28,9 +28,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import org.junit.jupiter.api.BeforeEach;
@@ -91,8 +89,7 @@ class VersionsPropsPluginIntegrationSpec {
                                 }
                             }
                         }
-                        """
-                        .formatted(PLUGIN_NAME, mavenRepo.getAbsolutePath()));
+                        """, PLUGIN_NAME, mavenRepo.getAbsolutePath());
     }
 
     @Test

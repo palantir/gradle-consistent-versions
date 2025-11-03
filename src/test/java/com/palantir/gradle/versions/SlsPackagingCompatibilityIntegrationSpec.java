@@ -20,7 +20,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.palantir.gradle.testing.execution.GradleInvoker;
 import com.palantir.gradle.testing.execution.InvocationResult;
-import com.palantir.gradle.testing.execution.TaskOutcome;
 import com.palantir.gradle.testing.junit.GradlePluginTests;
 import com.palantir.gradle.testing.project.RootProject;
 import com.palantir.gradle.testing.project.SubProject;
@@ -45,82 +44,72 @@ class SlsPackagingCompatibilityIntegrationSpec {
     @BeforeEach
     void setup(RootProject rootProject) {
         mavenRepo = MavenRepoUtils.generateMavenRepo(rootProject.path().resolve("build"), "org.slf4j:slf4j-api:1.7.24");
-        rootProject
-                .buildGradle()
-                .append("""
-                        buildscript {
-                            repositories {
-                                mavenCentral()
-                            }
-                        }
-                        plugins {
-                            id '%s'
-                            id 'com.palantir.sls-java-service-distribution' version '7.31.0' apply false
-                        }
-                        allprojects {
-                            repositories {
-                                maven { url "file:///%s" }
-                            }
-                        }
-                        """
-                        .formatted(PLUGIN_NAME, mavenRepo.getAbsolutePath()));
+        rootProject.buildGradle().append("""
+            buildscript {
+                repositories {
+                    mavenCentral()
+                }
+            }
+            plugins {
+                id '%s'
+                id 'com.palantir.sls-java-service-distribution' version '7.31.0' apply false
+            }
+            allprojects {
+                repositories {
+                    maven { url "file:///%s" }
+                }
+            }
+            """, PLUGIN_NAME, mavenRepo.getAbsolutePath());
     }
 
     @DisabledIf("isGradle9OrLater")
     @Test
     void can_consume_recommended_product_dependencies_project(
             GradleInvoker gradle, RootProject rootProject, SubProject apiProject, SubProject serviceProject) {
-        rootProject
-                .file("versions.props")
-                .overwrite("""
-                        org.slf4j:* = 1.7.24
-                        """);
+        rootProject.file("versions.props").overwrite("""
+            org.slf4j:* = 1.7.24
+            """);
 
-        rootProject
-                .buildGradle()
-                .append("""
-                        allprojects {
-                            version = '1.0.0'
-                        }
-                        """);
+        rootProject.buildGradle().append("""
+            allprojects {
+                version = '1.0.0'
+            }
+            """);
 
         rootProject.settingsGradle().include("api");
         rootProject.settingsGradle().include("service");
-        apiProject
-                .buildGradle()
-                .append("""
-                        apply plugin: 'java'
-                        apply plugin: 'com.palantir.sls-recommended-dependencies'
-                        \s\s\s\s
-                        dependencies {
-                            implementation 'org.slf4j:slf4j-api'
-                        }
-                        \s\s\s\s
-                        recommendedProductDependencies {
-                            productDependency {
-                                productGroup = 'org'
-                                productName = 'product'
-                                minimumVersion = '1.1.0'
-                                maximumVersion = '1.x.x'
-                            }
-                        }
-                        """);
+        apiProject.buildGradle().append("""
+            apply plugin: 'java'
+            apply plugin: 'com.palantir.sls-recommended-dependencies'
+            \s\s\s\s
+            dependencies {
+                implementation 'org.slf4j:slf4j-api'
+            }
+            \s\s\s\s
+            recommendedProductDependencies {
+                productDependency {
+                    productGroup = 'org'
+                    productName = 'product'
+                    minimumVersion = '1.1.0'
+                    maximumVersion = '1.x.x'
+                }
+            }
+            """);
 
-        serviceProject
-                .buildGradle()
-                .append("""
-                        apply plugin: 'java'
-                        apply plugin: 'com.palantir.sls-java-service-distribution'
-                        \s\s\s\s
-                        dependencies {
-                            // Gets picked up by the productDependenciesConfig which is runtimeClasspath
-                            implementation project(':api')
-                        }
-                        """);
+        serviceProject.buildGradle().append("""
+            apply plugin: 'java'
+            apply plugin: 'com.palantir.sls-java-service-distribution'
+            \s\s\s\s
+            dependencies {
+                // Gets picked up by the productDependenciesConfig which is runtimeClasspath
+                implementation project(':api')
+            }
+            """);
 
         InvocationResult wroteLocks = gradle.withArgs("--write-locks").buildsSuccessfully();
         // Maybe this is a bit too much but for a fixed version of sls-packaging, we expect this to not change
-        Set<String> successfulTasks = wroteLocks.output()
+        Set<String> successfulTasks = wroteLocks
+                .output()
                 .lines()
                 .filter(line -> line.contains("> Task :"))
                 .map(line -> line.substring(line.indexOf(":"), line.length()).trim())

@@ -68,42 +68,37 @@ class ConfigurationOnDemandSpec {
 
         PomUtils.makePlatformPom(mavenRepo, "org", "platform", "1.0");
 
-        rootProject
-                .buildGradle()
-                .overwrite("""
-                        plugins {
-                            id '%s'
-                        }
-                        allprojects {
-                            repositories {
-                                maven { url "file:///%s" }
-                            }
-                        }
-                        subprojects {
-                            tasks.register('writeClasspath') {
-                                doLast {
-                                    println(configurations.runtimeClasspath.getFiles())
-                                }
-                            }
-                        }
-                        \s\s\s\s
-                        // Get rid of deprecation warnings for Gradle 7+
-                        versionRecommendations {
-                            excludeConfigurations 'compile', 'runtime', 'testCompile', 'testRuntime'
-                        }
-                        """
-                        .formatted(PLUGIN_NAME, mavenRepo.getAbsolutePath()));
+        rootProject.buildGradle().overwrite("""
+            plugins {
+                id '%s'
+            }
+            allprojects {
+                repositories {
+                    maven { url "file:///%s" }
+                }
+            }
+            subprojects {
+                tasks.register('writeClasspath') {
+                    doLast {
+                        println(configurations.runtimeClasspath.getFiles())
+                    }
+                }
+            }
+            \s\s\s\s
+            // Get rid of deprecation warnings for Gradle 7+
+            versionRecommendations {
+                excludeConfigurations 'compile', 'runtime', 'testCompile', 'testRuntime'
+            }
+            """, PLUGIN_NAME, mavenRepo.getAbsolutePath());
 
-        rootProject
-                .file("versions.props")
-                .overwrite("""
-                        com.example:dependency-of-upstream = 1.2.3
-                        com.example:dependency-of-downstream1 = 1.2.3
-                        com.example:dependency-of-downstream2 = 1.2.3
-                        com.example:dependency-of-unrelated = 1.2.3
-                        # 1.0.0 is a minimum, we expect this to be locked to 1.1.0
-                        com.example:dep-with-version-bumped-by-unrelated = 1.0.0
-                        """);
+        rootProject.file("versions.props").overwrite("""
+            com.example:dependency-of-upstream = 1.2.3
+            com.example:dependency-of-downstream1 = 1.2.3
+            com.example:dependency-of-downstream2 = 1.2.3
+            com.example:dependency-of-unrelated = 1.2.3
+            # 1.0.0 is a minimum, we expect this to be locked to 1.1.0
+            com.example:dep-with-version-bumped-by-unrelated = 1.0.0
+            """);
 
         rootProject.settingsGradle().rootProjectName("test");
         rootProject.settingsGradle().include("upstream");
@@ -111,63 +106,53 @@ class ConfigurationOnDemandSpec {
         rootProject.settingsGradle().include("downstream2");
         rootProject.settingsGradle().include("unrelated");
 
-        upstreamProject
-                .buildGradle()
-                .append("""
-                        plugins {
-                            id 'java'
-                        }
-                        println 'configuring upstream'
-                        dependencies {
-                            implementation 'com.example:dependency-of-upstream'
-                        }
-                        """);
+        upstreamProject.buildGradle().append("""
+            plugins {
+                id 'java'
+            }
+            println 'configuring upstream'
+            dependencies {
+                implementation 'com.example:dependency-of-upstream'
+            }
+            """);
 
-        downstream1Project
-                .buildGradle()
-                .append("""
-                        plugins {
-                            id 'java'
-                        }
-                        println 'configuring downstream1'
-                        dependencies {
-                            implementation project(':upstream')
-                            implementation 'com.example:dependency-of-downstream1'
-                        }
-                        """);
+        downstream1Project.buildGradle().append("""
+            plugins {
+                id 'java'
+            }
+            println 'configuring downstream1'
+            dependencies {
+                implementation project(':upstream')
+                implementation 'com.example:dependency-of-downstream1'
+            }
+            """);
 
-        downstream2Project
-                .buildGradle()
-                .append("""
-                        plugins {
-                            id 'java'
-                        }
-                        println 'configuring downstream2'
-                        dependencies {
-                            implementation project(':upstream')
-                            implementation 'com.example:dependency-of-downstream2'
-                            implementation 'com.example:dep-with-version-bumped-by-unrelated'
-                        }
-                        """);
+        downstream2Project.buildGradle().append("""
+            plugins {
+                id 'java'
+            }
+            println 'configuring downstream2'
+            dependencies {
+                implementation project(':upstream')
+                implementation 'com.example:dependency-of-downstream2'
+                implementation 'com.example:dep-with-version-bumped-by-unrelated'
+            }
+            """);
 
-        unrelatedProject
-                .buildGradle()
-                .append("""
-                        plugins {
-                            id 'java'
-                        }
-                        println 'configuring unrelated'
-                        dependencies {
-                            implementation 'com.example:dependency-of-unrelated'
-                            implementation 'com.example:dep-with-version-bumped-by-unrelated:1.1.0'
-                        }
-                        """);
+        unrelatedProject.buildGradle().append("""
+            plugins {
+                id 'java'
+            }
+            println 'configuring unrelated'
+            dependencies {
+                implementation 'com.example:dependency-of-unrelated'
+                implementation 'com.example:dep-with-version-bumped-by-unrelated:1.1.0'
+            }
+            """);
 
-        rootProject
-                .gradlePropertiesFile()
-                .append("""
-                        org.gradle.configureondemand=true
-                        """);
+        rootProject.gradlePropertiesFile().append("""
+            org.gradle.configureondemand=true
+            """);
     }
 
     @Test
@@ -186,8 +171,7 @@ class ConfigurationOnDemandSpec {
     }
 
     @Test
-    void can_write_locks_when_a_task_in_one_project_is_specified(
-            GradleInvoker gradle, RootProject rootProject) {
+    void can_write_locks_when_a_task_in_one_project_is_specified(GradleInvoker gradle, RootProject rootProject) {
         gradle.withArgs(":downstream1:build", "--write-locks").buildsSuccessfully();
 
         assertThat(rootProject.path().resolve("versions.lock")).exists();
@@ -252,42 +236,38 @@ class ConfigurationOnDemandSpec {
         rootProject.settingsGradle().include("c");
         rootProject.settingsGradle().include("u");
 
-        aProject.buildGradle()
-                .append("""
-                        plugins { id 'java' }
-                        dependencies {
-                            implementation 'com.example:transitive-test-dep:1.0.0'
-                        }
-                        """);
+        aProject.buildGradle().append("""
+            plugins { id 'java' }
+            dependencies {
+                implementation 'com.example:transitive-test-dep:1.0.0'
+            }
+            """);
 
-        bProject.buildGradle()
-                .append("""
-                        plugins { id 'java' }
-                        dependencies {
-                            implementation project(':a')
-                        }
-                        """);
+        bProject.buildGradle().append("""
+            plugins { id 'java' }
+            dependencies {
+                implementation project(':a')
+            }
+            """);
 
-        cProject.buildGradle()
-                .append("""
-                        plugins { id 'java' }
-                        dependencies {
-                            implementation project(':b')
-                        }
-                        tasks.register('writeClasspathOfA') {
-                            doLast {
-                                println project(':a').configurations.runtimeClasspath.files
-                            }
-                        }
-                        """);
+        cProject.buildGradle().append("""
+            plugins { id 'java' }
+            dependencies {
+                implementation project(':b')
+            }
+            tasks.register('writeClasspathOfA') {
+                doLast {
+                    println project(':a').configurations.runtimeClasspath.files
+                }
+            }
+            """);
 
-        uProject.buildGradle()
-                .append("""
-                        plugins { id 'java' }
-                        dependencies {
-                            implementation 'com.example:transitive-test-dep:1.1.0'
-                        }
-                        """);
+        uProject.buildGradle().append("""
+            plugins { id 'java' }
+            dependencies {
+                implementation 'com.example:transitive-test-dep:1.1.0'
+            }
+            """);
 
         gradle.withArgs("--write-locks").buildsSuccessfully();
         InvocationResult result = gradle.withArgs(":c:writeClasspathOfA").buildsSuccessfully();
@@ -309,35 +289,31 @@ class ConfigurationOnDemandSpec {
         rootProject.settingsGradle().include("c");
         rootProject.settingsGradle().include("u");
 
-        aProject.buildGradle()
-                .append("""
-                        plugins { id 'java' }
-                        dependencies {
-                            implementation 'com.example:transitive-test-dep:1.0.0'
-                        }
-                        """);
+        aProject.buildGradle().append("""
+            plugins { id 'java' }
+            dependencies {
+                implementation 'com.example:transitive-test-dep:1.0.0'
+            }
+            """);
 
-        bProject.buildGradle()
-                .append("""
-                        tasks.register('foo') {
-                            dependsOn ':a:writeClasspath'
-                        }
-                        """);
+        bProject.buildGradle().append("""
+            tasks.register('foo') {
+                dependsOn ':a:writeClasspath'
+            }
+            """);
 
-        cProject.buildGradle()
-                .append("""
-                        tasks.register('bar') {
-                            dependsOn ':b:foo'
-                        }
-                        """);
+        cProject.buildGradle().append("""
+            tasks.register('bar') {
+                dependsOn ':b:foo'
+            }
+            """);
 
-        uProject.buildGradle()
-                .append("""
-                        plugins { id 'java' }
-                        dependencies {
-                            implementation 'com.example:transitive-test-dep:1.1.0'
-                        }
-                        """);
+        uProject.buildGradle().append("""
+            plugins { id 'java' }
+            dependencies {
+                implementation 'com.example:transitive-test-dep:1.1.0'
+            }
+            """);
 
         gradle.withArgs("--write-locks").buildsSuccessfully();
         InvocationResult result = gradle.withArgs(":c:bar").buildsSuccessfully();
@@ -351,7 +327,8 @@ class ConfigurationOnDemandSpec {
         gradle.withArgs("--write-locks").buildsSuccessfully();
 
         // Note: Not specifying the project causes all projects to be configured regardless of CoD
-        InvocationResult result = gradle.withArgs("checkUnusedConstraints", "verifyLocks").buildsSuccessfully();
+        InvocationResult result =
+                gradle.withArgs("checkUnusedConstraints", "verifyLocks").buildsSuccessfully();
 
         assertThat(result.output()).contains("configuring upstream");
         assertThat(result.task(":checkUnusedConstraints"))
@@ -370,10 +347,9 @@ class ConfigurationOnDemandSpec {
         assertThat(result.task(":checkUnusedConstraints"))
                 .hasValueSatisfying(task -> assertThat(task.outcome()).isEqualTo(TaskOutcome.FAILED));
         assertThat(result.output())
-                .contains(
-                        "The gradle-consistent-versions checkUnusedConstraints task "
-                                + "must have all projects configured to work accurately, but due to Gradle "
-                                + "configuration-on-demand, not all projects were configured.");
+                .contains("The gradle-consistent-versions checkUnusedConstraints task "
+                        + "must have all projects configured to work accurately, but due to Gradle "
+                        + "configuration-on-demand, not all projects were configured.");
     }
 
     @Test
@@ -386,9 +362,8 @@ class ConfigurationOnDemandSpec {
         assertThat(result.task(":verifyLocks"))
                 .hasValueSatisfying(task -> assertThat(task.outcome()).isEqualTo(TaskOutcome.FAILED));
         assertThat(result.output())
-                .contains(
-                        "All projects must have been configured for this task to work correctly, but due to "
-                                + "Gradle configuration-on-demand, not all projects were configured.");
+                .contains("All projects must have been configured for this task to work correctly, but due to "
+                        + "Gradle configuration-on-demand, not all projects were configured.");
     }
 
     @Test
@@ -421,7 +396,6 @@ class ConfigurationOnDemandSpec {
         assertThat(result.output()).contains("configuring unrelated");
         assertThat(result.task(":why"))
                 .hasValueSatisfying(task -> assertThat(task.outcome()).isEqualTo(TaskOutcome.SUCCESS));
-        assertThat(result.output())
-                .contains("com.example:dependency-of-unrelated:1.2.3\n\tprojects -> 1.2.3");
+        assertThat(result.output()).contains("com.example:dependency-of-unrelated:1.2.3\n\tprojects -> 1.2.3");
     }
 }
