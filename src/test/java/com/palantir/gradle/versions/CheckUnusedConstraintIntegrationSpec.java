@@ -41,14 +41,14 @@ class CheckUnusedConstraintIntegrationSpec {
 
             repositories {
                 mavenCentral()
-                maven { url "${rootProject.path().toUri()}/maven" }
+                maven { url "%s/maven" }
             }
             \s\s\s\s
             // Get rid of deprecation warnings for Gradle 7+
             versionRecommendations {
                 excludeConfigurations 'compile', 'runtime', 'testCompile', 'testRuntime'
             }
-            """);
+            """, rootProject.path().toUri());
         rootProject.gradlePropertiesFile().append("""
             ignoreLockFile=true
             """);
