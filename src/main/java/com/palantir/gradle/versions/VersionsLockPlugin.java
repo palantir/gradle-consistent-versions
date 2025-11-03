@@ -985,9 +985,12 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
         log.info("Configuring locks for {}. Locked configurations: {}", subproject.getPath(), configurationsToLock);
         configurationsToLock.forEach(VersionsLockPlugin::ensureNoFailOnVersionConflict);
 
-        subproject.getConfigurations().named(GCV_PUBLISH_CONSTRAINTS_CONFIGURATION_NAME, conf -> {
-            conf.getDependencyConstraints().addAll(localProjectConstraints);
-            conf.getDependencyConstraints().addAllLater(maybeFilterConstraintsByUsage(subproject, lockFileConstraints));
+        subproject.getPluginManager().withPlugin("java", _plugin -> {
+            subproject.getConfigurations().named(GCV_PUBLISH_CONSTRAINTS_CONFIGURATION_NAME, conf -> {
+                conf.getDependencyConstraints().addAll(localProjectConstraints);
+                conf.getDependencyConstraints()
+                        .addAllLater(maybeFilterConstraintsByUsage(subproject, lockFileConstraints));
+            });
         });
     }
 
