@@ -74,6 +74,7 @@ dependencies {
 
     annotationProcessor "org.immutables:value"
     compileOnly "org.immutables:value::annotations"
+    testImplementation 'com.palantir.gradle.plugintesting:gradle-plugin-testing-junit'
 }
 
 tasks.withType(Test) {
