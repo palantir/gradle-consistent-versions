@@ -29,6 +29,7 @@ import com.palantir.gradle.testing.execution.InvocationResult;
 import com.palantir.gradle.testing.junit.GradlePluginTests;
 import com.palantir.gradle.testing.maven.MavenArtifact;
 import com.palantir.gradle.testing.maven.MavenRepo;
+import com.palantir.gradle.testing.project.GradleProject;
 import com.palantir.gradle.testing.project.RootProject;
 import com.palantir.gradle.testing.project.SubProject;
 import java.io.IOException;
@@ -297,22 +298,10 @@ class VersionsPropsPluginIntegrationTest {
         gradle.withArgs("build").buildsSuccessfully();
     }
 
-    private void verifyLockfile(com.palantir.gradle.testing.project.GradleProject project, String... lines) {
-        // Gradle 7+ only uses a single lockfile per project:
-        // https://docs.gradle.org/current/userguide/upgrading_version_6.html#locking_single
-        // Check for Gradle 7+ lockfile first
-        if (project.file("gradle.lockfile").path().toFile().exists()) {
-            String lockfile = project.file("gradle.lockfile").text();
-            for (String line : lines) {
-                assertThat(lockfile).contains(line + "=runtimeClasspath");
-            }
-        } else {
-            // Fall back to pre-Gradle 7 lockfile location
-            String lockfile = project.file("gradle/dependency-locks/runtimeClasspath.lockfile")
-                    .text();
-            for (String line : lines) {
-                assertThat(lockfile).contains(line);
-            }
+    private void verifyLockfile(GradleProject project, String... lines) {
+        String lockfile = project.file("gradle.lockfile").text();
+        for (String line : lines) {
+            assertThat(lockfile).contains(line + "=runtimeClasspath");
         }
     }
 
