@@ -74,6 +74,9 @@ dependencies {
 
     annotationProcessor "org.immutables:value"
     compileOnly "org.immutables:value::annotations"
+
+    testAnnotationProcessor "org.immutables:value"
+    testCompileOnly "org.immutables:value::annotations"
 }
 
 tasks.withType(Test) {

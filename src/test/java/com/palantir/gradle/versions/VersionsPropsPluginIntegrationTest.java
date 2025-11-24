@@ -17,9 +17,13 @@
 package com.palantir.gradle.versions;
 
 import static com.palantir.gradle.testing.assertion.GradlePluginTestAssertions.assertThat;
-import static com.palantir.gradle.versions.JavaPomUtils.makePlatformPom;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.dataformat.xml.XmlMapper;
+import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlElementWrapper;
+import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty;
 import com.palantir.gradle.testing.execution.GradleInvoker;
 import com.palantir.gradle.testing.execution.InvocationResult;
 import com.palantir.gradle.testing.junit.GradlePluginTests;
@@ -27,18 +31,15 @@ import com.palantir.gradle.testing.maven.MavenArtifact;
 import com.palantir.gradle.testing.maven.MavenRepo;
 import com.palantir.gradle.testing.project.RootProject;
 import com.palantir.gradle.testing.project.SubProject;
-import groovy.xml.slurpersupport.GPathResult;
-import groovy.xml.slurpersupport.NodeChildren;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
-import javax.xml.parsers.ParserConfigurationException;
+import org.immutables.value.Value;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.xml.sax.SAXException;
 
 @GradlePluginTests
 class VersionsPropsPluginIntegrationTest {
@@ -164,7 +165,7 @@ class VersionsPropsPluginIntegrationTest {
 
     @Test
     void imported_platform_generated_correctly_in_pom(GradleInvoker gradle, RootProject rootProject, SubProject foo)
-            throws ParserConfigurationException, IOException, SAXException {
+            throws IOException {
         rootProject.propertiesFile("versions.props").appendProperty("org:platform", "1.0");
 
         rootProject
@@ -190,17 +191,18 @@ class VersionsPropsPluginIntegrationTest {
 
         foo.file("build/publications/main/pom-default.xml").assertThat().exists();
 
-        groovy.xml.XmlSlurper slurper = new groovy.xml.XmlSlurper();
-        GPathResult pom = (GPathResult) slurper.parse(
-                foo.file("build/publications/main/pom-default.xml").path().toFile());
-        GPathResult dependencyManagement = (GPathResult) pom.getProperty("dependencyManagement");
-        GPathResult dependencies = (GPathResult) dependencyManagement.getProperty("dependencies");
-        NodeChildren dependency = (NodeChildren) dependencies.getProperty("dependency");
+        XmlMapper xmlMapper = new XmlMapper();
+        Pom pom = xmlMapper.readValue(
+                foo.file("build/publications/main/pom-default.xml").path().toFile(), Pom.class);
 
-        Set<Map<String, String>> actualDependencies = new java.util.HashSet<>();
-        for (Object node : dependency) {
-            actualDependencies.add(convertToMap((GPathResult) node));
-        }
+        Set<Map<String, String>> actualDependencies = pom.dependencyManagement().dependencies().stream()
+                .map(dep -> Map.of(
+                        "groupId", dep.groupId(),
+                        "artifactId", dep.artifactId(),
+                        "version", dep.version(),
+                        "scope", dep.scope(),
+                        "type", dep.type()))
+                .collect(Collectors.toSet());
 
         Set<Map<String, String>> expectedDependencies = Set.of(Map.of(
                 "groupId", "org",
@@ -314,27 +316,60 @@ class VersionsPropsPluginIntegrationTest {
         }
     }
 
-    /**
-     * Recursively converts a node's children to a map of <tt>(tag name): (value inside tag)</tt>.
-     * <p>
-     * See: https://stackoverflow.com/a/26889997/274699
-     */
-    @SuppressWarnings("unchecked")
-    private Map<String, String> convertToMap(GPathResult node) {
-        return StreamSupport.stream(((Iterable<GPathResult>) node.children()).spliterator(), false)
-                .collect(Collectors.toMap(GPathResult::name, child -> {
-                    Object childNodes = child.childNodes();
-                    if (childNodes != null) {
-                        try {
-                            java.util.List<?> nodeList = (java.util.List<?>) childNodes;
-                            if (!nodeList.isEmpty()) {
-                                return convertToMap(child).toString();
-                            }
-                        } catch (ClassCastException e) {
-                            // Not a list, proceed to text
-                        }
-                    }
-                    return child.text();
-                }));
+    static void makePlatformPom(RootProject rootProject, MavenRepo repo, String group, String name, String version) {
+        rootProject
+                .directory(repo.path()
+                        .resolve(group)
+                        .resolve(name)
+                        .resolve(version)
+                        .toString())
+                .file("platform-1.0.pom")
+                .overwrite("""
+                    <?xml version="1.0" encoding="UTF-8"?>
+                    <project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
+                        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                      <modelVersion>4.0.0</modelVersion>
+                      <packaging>pom</packaging>
+                      <groupId>%s</groupId>
+                      <artifactId>%s</artifactId>
+                      <version>%s</version>
+                      <dependencyManagement>
+                        <dependencies>
+                        </dependencies>
+                      </dependencyManagement>
+                    </project>
+                    """, group, name, version);
+    }
+
+    @Value.Immutable
+    @JsonDeserialize(as = ImmutablePom.class)
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    interface Pom {
+        @JacksonXmlProperty(localName = "dependencyManagement")
+        DependencyManagement dependencyManagement();
+    }
+
+    @Value.Immutable
+    @JsonDeserialize(as = ImmutableDependencyManagement.class)
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    interface DependencyManagement {
+        @JacksonXmlProperty(localName = "dependency")
+        @JacksonXmlElementWrapper(localName = "dependencies")
+        List<Dependency> dependencies();
+    }
+
+    @Value.Immutable
+    @JsonDeserialize(as = ImmutableDependency.class)
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    interface Dependency {
+        String groupId();
+
+        String artifactId();
+
+        String version();
+
+        String scope();
+
+        String type();
     }
 }
