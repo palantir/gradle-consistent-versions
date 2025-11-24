@@ -17,11 +17,11 @@
 package com.palantir.gradle.versions;
 
 import static com.palantir.gradle.testing.assertion.GradlePluginTestAssertions.assertThat;
+import static com.palantir.gradle.versions.JavaPomUtils.makePlatformPom;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.palantir.gradle.testing.execution.GradleInvoker;
 import com.palantir.gradle.testing.execution.InvocationResult;
-import com.palantir.gradle.testing.files.gradle.GradleFile;
 import com.palantir.gradle.testing.junit.GradlePluginTests;
 import com.palantir.gradle.testing.maven.MavenArtifact;
 import com.palantir.gradle.testing.maven.MavenRepo;
@@ -29,8 +29,8 @@ import com.palantir.gradle.testing.project.RootProject;
 import com.palantir.gradle.testing.project.SubProject;
 import groovy.xml.slurpersupport.GPathResult;
 import groovy.xml.slurpersupport.NodeChildren;
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -67,23 +67,16 @@ class VersionsPropsPluginIntegrationTest {
                 MavenArtifact.of("com.fasterxml.jackson.core:jackson-annotations:2.9.7"),
                 MavenArtifact.of("com.fasterxml.jackson.core:jackson-databind:2.9.7"));
 
-        makePlatformPom(repo, "org", "platform", "1.0");
+        makePlatformPom(rootProject, repo, "org", "platform", "1.0");
 
-        standardBuildFile(rootProject, repo);
-    }
-
-    private GradleFile standardBuildFile(RootProject rootProject, MavenRepo repo) {
+        rootProject.buildGradle().plugins().add(PLUGIN_NAME);
         rootProject.buildGradle().append("""
             buildscript {
                 repositories {
                     mavenCentral()
                 }
             }
-            """);
 
-        rootProject.buildGradle().plugins().add(PLUGIN_NAME);
-
-        return rootProject.buildGradle().append("""
             allprojects {
                 repositories {
                     maven { url "file:///%s" }
@@ -132,8 +125,7 @@ class VersionsPropsPluginIntegrationTest {
 
         rootProject
                 .propertiesFile("versions.props")
-                .append("# brings in slf4j-api 1.7.22\n")
-                .appendProperty("ch.qos.logback:logback-classic", "1.1.11");
+                .appendProperty("ch.qos.logback:logback-classic", "1.1.11"); // brings in slf4j-api 1.7.22
 
         foo.buildGradle().plugins().add("java");
 
@@ -155,8 +147,7 @@ class VersionsPropsPluginIntegrationTest {
 
         rootProject
                 .propertiesFile("versions.props")
-                .append("# brings in slf4j-api 1.7.22\n")
-                .appendProperty("ch.qos.logback:logback-classic", "1.1.11");
+                .appendProperty("ch.qos.logback:logback-classic", "1.1.11"); // brings in slf4j-api 1.7.22
 
         foo.buildGradle().plugins().add("java");
 
@@ -178,8 +169,7 @@ class VersionsPropsPluginIntegrationTest {
 
         rootProject
                 .propertiesFile("versions.props")
-                .append("# This shouldn't end up in the POM\n")
-                .appendProperty("other:constraint", "1.0.0");
+                .appendProperty("other:constraint", "1.0.0"); // This shouldn't end up in the POM
 
         foo.buildGradle().plugins().add("java-library").add("maven-publish");
 
@@ -283,7 +273,8 @@ class VersionsPropsPluginIntegrationTest {
     }
 
     @Test
-    void creates_rootconfiguration_even_if_versions_props_file_missing(GradleInvoker gradle, RootProject rootProject) {
+    void creates_rootconfiguration_even_if_versions_props_file_missing(GradleInvoker gradle, RootProject rootProject)
+            throws IOException {
         rootProject.buildGradle().append("""
             dependencies {
                 constraints {
@@ -292,8 +283,7 @@ class VersionsPropsPluginIntegrationTest {
             }
             """);
 
-        rootProject.file("versions.props").assertThat().exists();
-        rootProject.file("versions.props").path().toFile().delete();
+        Files.deleteIfExists(rootProject.file("versions.props").path());
 
         gradle.withArgs().buildsSuccessfully();
     }
@@ -332,7 +322,7 @@ class VersionsPropsPluginIntegrationTest {
     @SuppressWarnings("unchecked")
     private Map<String, String> convertToMap(GPathResult node) {
         return StreamSupport.stream(((Iterable<GPathResult>) node.children()).spliterator(), false)
-                .collect(Collectors.toMap(child -> child.name(), child -> {
+                .collect(Collectors.toMap(GPathResult::name, child -> {
                     Object childNodes = child.childNodes();
                     if (childNodes != null) {
                         try {
@@ -346,30 +336,5 @@ class VersionsPropsPluginIntegrationTest {
                     }
                     return child.text();
                 }));
-    }
-
-    private void makePlatformPom(MavenRepo repo, String group, String name, String version) {
-        File dir = repo.path().resolve(group).resolve(name).resolve(version).toFile();
-        dir.mkdirs();
-        File pomFile = new File(dir, "platform-1.0.pom");
-        try {
-            java.nio.file.Files.writeString(pomFile.toPath(), """
-                <?xml version="1.0" encoding="UTF-8"?>
-                <project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
-                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-                  <modelVersion>4.0.0</modelVersion>
-                  <packaging>pom</packaging>
-                  <groupId>%s</groupId>
-                  <artifactId>%s</artifactId>
-                  <version>%s</version>
-                  <dependencyManagement>
-                    <dependencies>
-                    </dependencies>
-                  </dependencyManagement>
-                </project>
-                """.formatted(group, name, version));
-        } catch (IOException e) {
-            throw new java.io.UncheckedIOException(e);
-        }
     }
 }
