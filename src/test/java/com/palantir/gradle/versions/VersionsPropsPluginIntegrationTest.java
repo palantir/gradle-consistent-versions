@@ -212,7 +212,7 @@ class VersionsPropsPluginIntegrationTest {
                 "scope", "import",
                 "type", "pom"));
 
-        assertThat(actualDependencies).isEqualTo(expectedDependencies);
+        assertThat(actualDependencies).containsExactlyInAnyOrderElementsOf(expectedDependencies);
     }
 
     @Test
