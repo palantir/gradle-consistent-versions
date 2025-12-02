@@ -22,6 +22,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.palantir.gradle.testing.execution.GradleInvoker;
 import com.palantir.gradle.testing.execution.InvocationResult;
 import com.palantir.gradle.testing.files.arbitrary.ArbitraryFile;
+import com.palantir.gradle.testing.junit.DisabledConfigurationCache;
 import com.palantir.gradle.testing.junit.GradlePluginTests;
 import com.palantir.gradle.testing.project.RootProject;
 import groovy.util.Node;
@@ -38,6 +39,7 @@ import org.junit.jupiter.api.Test;
 import org.xml.sax.SAXException;
 
 @GradlePluginTests
+@DisabledConfigurationCache
 class VersionPropsIdeaPluginIntegrationTest {
 
     @BeforeEach
