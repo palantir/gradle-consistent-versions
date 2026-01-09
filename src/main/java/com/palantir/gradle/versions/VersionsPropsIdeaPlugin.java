@@ -22,12 +22,12 @@ import org.gradle.StartParameter;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.repositories.MavenArtifactRepository;
+import org.gradle.api.logging.Logger;
+import org.gradle.api.logging.Logging;
 import org.gradle.api.tasks.TaskProvider;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public final class VersionsPropsIdeaPlugin implements Plugin<Project> {
-    private static final Logger log = LoggerFactory.getLogger(VersionsPropsIdeaPlugin.class);
+    private static final Logger log = Logging.getLogger(VersionsPropsIdeaPlugin.class);
 
     @Override
     public void apply(Project project) {
