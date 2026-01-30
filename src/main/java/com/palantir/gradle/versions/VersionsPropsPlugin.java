@@ -79,16 +79,24 @@ public abstract class VersionsPropsPlugin implements Plugin<Project> {
                                 && project.getAllprojects().stream()
                                         .anyMatch(p -> !p.getState().getExecuted())) {
                             task.setShouldFailWithConfigurationOnDemandMessage(true);
-                        } else {
-                            task.getClasspath().set(project.provider(() -> project.getAllprojects().stream()
-                                    .flatMap(proj -> CheckUnusedConstraintsTask.getResolvedModuleIdentifiers(
-                                            proj,
-                                            project.getExtensions().getByType(VersionRecommendationsExtension.class)))
-                                    .collect(Collectors.toSet())));
                         }
                         task.getPropsFile()
                                 .set(project.getLayout().getProjectDirectory().file("versions.props"));
                     });
+
+            // Gradle 9 compatibility: configure the classpath after task graph is ready
+            // This ensures configuration resolution happens with proper locking
+            project.getGradle().getTaskGraph().whenReady(_graph -> {
+                checkNoUnusedConstraints.configure(task -> {
+                    if (!task.getShouldFailWithConfigurationOnDemandMessage().get()) {
+                        task.getClasspath().set(project.getAllprojects().stream()
+                                .flatMap(proj -> CheckUnusedConstraintsTask.getResolvedModuleIdentifiers(
+                                        proj,
+                                        project.getExtensions().getByType(VersionRecommendationsExtension.class)))
+                                .collect(Collectors.toSet()));
+                    }
+                });
+            });
             project.getTasks().named("check").configure(task -> task.dependsOn(checkNoUnusedConstraints));
 
             project.getPluginManager().withPlugin("com.palantir.versions-lock", _plugin -> {
