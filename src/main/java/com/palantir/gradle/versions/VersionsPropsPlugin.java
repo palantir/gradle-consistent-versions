@@ -89,11 +89,13 @@ public abstract class VersionsPropsPlugin implements Plugin<Project> {
             project.getGradle().getTaskGraph().whenReady(_graph -> {
                 checkNoUnusedConstraints.configure(task -> {
                     if (!task.getShouldFailWithConfigurationOnDemandMessage().get()) {
-                        task.getClasspath().set(project.getAllprojects().stream()
-                                .flatMap(proj -> CheckUnusedConstraintsTask.getResolvedModuleIdentifiers(
-                                        proj,
-                                        project.getExtensions().getByType(VersionRecommendationsExtension.class)))
-                                .collect(Collectors.toSet()));
+                        task.getClasspath()
+                                .set(project.getAllprojects().stream()
+                                        .flatMap(proj -> CheckUnusedConstraintsTask.getResolvedModuleIdentifiers(
+                                                proj,
+                                                project.getExtensions()
+                                                        .getByType(VersionRecommendationsExtension.class)))
+                                        .collect(Collectors.toSet()));
                     }
                 });
             });
