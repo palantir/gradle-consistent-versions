@@ -24,6 +24,7 @@ import com.palantir.gradle.testing.execution.InvocationResult;
 import com.palantir.gradle.testing.junit.DisabledConfigurationCache;
 import com.palantir.gradle.testing.junit.GradlePluginTests;
 import com.palantir.gradle.testing.project.RootProject;
+import com.palantir.gradle.testing.project.SubProject;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -179,6 +180,43 @@ class CheckUnusedConstraintIntegrationTest {
             """);
 
         buildSucceed(gradle);
+    }
+
+    @Test
+    void checkUnusedConstraints_works_in_multiproject_build_with_cross_project_deps(
+            GradleInvoker gradle, RootProject rootProject, SubProject foo, SubProject bar) {
+        rootProject.file("versions.props").overwrite("""
+            com.google.guava:guava = 33.0.0-jre
+            org.slf4j:slf4j-api = 2.0.9
+            """);
+
+        foo.buildGradle().plugins().add("java");
+        foo.buildGradle().append("""
+            repositories {
+                mavenCentral()
+            }
+            dependencies {
+                implementation 'com.google.guava:guava'
+            }
+            """);
+
+        bar.buildGradle().plugins().add("java");
+        bar.buildGradle().append("""
+            repositories {
+                mavenCentral()
+            }
+            dependencies {
+                implementation 'org.slf4j:slf4j-api'
+                // Cross-project dependency - bar depends on foo
+                implementation project(':foo')
+            }
+            """);
+
+        InvocationResult result =
+                gradle.withArgs("checkUnusedConstraints", "--parallel").buildsSuccessfully();
+        assertThat(result).task(":checkUnusedConstraints").succeeded();
+
+        assertThat(result).output().doesNotContain("without an exclusive lock");
     }
 
     private static String pomWithJarPackaging(String group, String artifact, String version) {
