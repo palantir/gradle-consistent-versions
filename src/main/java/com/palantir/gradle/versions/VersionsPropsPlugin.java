@@ -24,7 +24,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Collectors;
 import org.gradle.api.GradleException;
 import org.gradle.api.NamedDomainObjectProvider;
 import org.gradle.api.Plugin;
@@ -73,32 +72,37 @@ public abstract class VersionsPropsPlugin implements Plugin<Project> {
         if (project.getRootProject().equals(project)) {
             applyToRootProject(project);
 
+            // Create a configuration that aggregates all dependencies from all subprojects
+            // This allows us to resolve a single configuration to get all module identifiers,
+            // with Gradle handling cross-project locking correctly - see:
+            // https://github.com/gradle/gradle/issues/33938#issuecomment-2985249363
+            NamedDomainObjectProvider<Configuration> gcvAllDependencies = project.getConfigurations()
+                    .register("gcvAllDependencies", conf -> {
+                        conf.setVisible(false);
+                        conf.setCanBeResolved(true);
+                        conf.setCanBeConsumed(false);
+                        conf.setDescription(
+                                "Aggregated dependencies from all projects for checkUnusedConstraints task");
+                    });
+
+            project.allprojects(subproject -> {
+                gcvAllDependencies.configure(conf -> {
+                    conf.getDependencies().add(project.getDependencies().create(subproject));
+                });
+            });
+
             TaskProvider<CheckUnusedConstraintsTask> checkNoUnusedConstraints = project.getTasks()
                     .register("checkUnusedConstraints", CheckUnusedConstraintsTask.class, task -> {
                         if (project.getGradle().getStartParameter().isConfigureOnDemand()
                                 && project.getAllprojects().stream()
                                         .anyMatch(p -> !p.getState().getExecuted())) {
-                            task.setShouldFailWithConfigurationOnDemandMessage(true);
+                            task.getShouldFailWithConfigurationOnDemandMessage().set(true);
                         }
                         task.getPropsFile()
                                 .set(project.getLayout().getProjectDirectory().file("versions.props"));
-                    });
 
-            // Gradle 9 compatibility: configure the classpath after task graph is ready
-            // This ensures configuration resolution happens with proper locking
-            project.getGradle().getTaskGraph().whenReady(_graph -> {
-                checkNoUnusedConstraints.configure(task -> {
-                    if (!task.getShouldFailWithConfigurationOnDemandMessage().get()) {
-                        task.getClasspath()
-                                .set(project.getAllprojects().stream()
-                                        .flatMap(proj -> CheckUnusedConstraintsTask.getResolvedModuleIdentifiers(
-                                                proj,
-                                                project.getExtensions()
-                                                        .getByType(VersionRecommendationsExtension.class)))
-                                        .collect(Collectors.toSet()));
-                    }
-                });
-            });
+                        task.getAggregatedConfiguration().set(gcvAllDependencies);
+                    });
             project.getTasks().named("check").configure(task -> task.dependsOn(checkNoUnusedConstraints));
 
             project.getPluginManager().withPlugin("com.palantir.versions-lock", _plugin -> {

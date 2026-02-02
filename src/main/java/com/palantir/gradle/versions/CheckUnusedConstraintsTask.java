@@ -32,16 +32,14 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.gradle.api.DefaultTask;
-import org.gradle.api.Project;
+import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.component.ModuleComponentIdentifier;
-import org.gradle.api.artifacts.result.ResolutionResult;
 import org.gradle.api.artifacts.result.ResolvedComponentResult;
-import org.gradle.api.file.RegularFile;
 import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.provider.Property;
-import org.gradle.api.provider.SetProperty;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputFiles;
+import org.gradle.api.tasks.Internal;
 import org.gradle.api.tasks.PathSensitive;
 import org.gradle.api.tasks.PathSensitivity;
 import org.gradle.api.tasks.TaskAction;
@@ -50,65 +48,31 @@ import org.gradle.language.base.plugins.LifecycleBasePlugin;
 
 public abstract class CheckUnusedConstraintsTask extends DefaultTask {
 
-    @SuppressWarnings("for-rollout:GradleTypesAsFields")
-    private final Property<Boolean> shouldFailWithConfigurationOnDemandMessage =
-            getProject().getObjects().property(Boolean.class);
-
-    @SuppressWarnings("for-rollout:GradleTypesAsFields")
-    private final Property<Boolean> shouldFix = getProject().getObjects().property(Boolean.class);
-
-    @SuppressWarnings("for-rollout:GradleTypesAsFields")
-    private final RegularFileProperty propsFileProperty =
-            getProject().getObjects().fileProperty();
-
-    @SuppressWarnings("for-rollout:GradleTypesAsFields")
-    private final SetProperty<String> classpath = getProject().getObjects().setProperty(String.class);
-
     public CheckUnusedConstraintsTask() {
-        shouldFailWithConfigurationOnDemandMessage.set(false);
-        shouldFix.set(false);
+        getShouldFailWithConfigurationOnDemandMessage().set(false);
+        getShouldFix().set(false);
         setGroup(LifecycleBasePlugin.VERIFICATION_GROUP);
         setDescription("Ensures all versions in your versions.props correspond to an actual gradle dependency");
         getOutputs().upToDateWhen(_task -> true); // task has no outputs, this is needed for it to be up to date
     }
 
-    final void setPropsFile(File propsFile) {
-        this.propsFileProperty.set(propsFile);
-    }
-
-    @Input
-    public final SetProperty<String> getClasspath() {
-        return classpath;
-    }
+    @Internal
+    public abstract Property<Configuration> getAggregatedConfiguration();
 
     @InputFiles
     @PathSensitive(PathSensitivity.RELATIVE)
-    public final Property<RegularFile> getPropsFile() {
-        return propsFileProperty;
-    }
+    public abstract RegularFileProperty getPropsFile();
 
     @Input
-    public final Property<Boolean> getShouldFailWithConfigurationOnDemandMessage() {
-        return shouldFailWithConfigurationOnDemandMessage;
-    }
-
-    final void setShouldFailWithConfigurationOnDemandMessage(boolean shouldFail) {
-        this.shouldFailWithConfigurationOnDemandMessage.set(shouldFail);
-    }
+    public abstract Property<Boolean> getShouldFailWithConfigurationOnDemandMessage();
 
     @Input
-    public final Property<Boolean> getShouldFix() {
-        return shouldFix;
-    }
-
     @Option(option = "fix", description = "Whether to apply the suggested fix to versions.props")
-    public final void setShouldFix(boolean shouldFix) {
-        this.shouldFix.set(shouldFix);
-    }
+    public abstract Property<Boolean> getShouldFix();
 
     @TaskAction
     public final void checkNoUnusedPin() {
-        if (shouldFailWithConfigurationOnDemandMessage.get()) {
+        if (getShouldFailWithConfigurationOnDemandMessage().get()) {
             throw new ExceptionWithSuggestion(
                     "The gradle-consistent-versions checkUnusedConstraints task must have all projects configured to"
                             + " work accurately, but due to Gradle configuration-on-demand, not all projects were"
@@ -117,7 +81,14 @@ public abstract class CheckUnusedConstraintsTask extends DefaultTask {
                     "./gradlew build");
         }
 
-        Set<String> artifacts = getClasspath().get();
+        Set<String> artifacts =
+                getAggregatedConfiguration().get().getIncoming().getResolutionResult().getAllComponents().stream()
+                        .map(ResolvedComponentResult::getId)
+                        .filter(cid -> cid instanceof ModuleComponentIdentifier)
+                        .map(cid -> (ModuleComponentIdentifier) cid)
+                        .map(mcid -> mcid.getGroup() + ":" + mcid.getModule())
+                        .collect(Collectors.toSet());
+
         VersionsProps versionsProps =
                 VersionsProps.loadFromFile(getPropsFile().get().getAsFile().toPath());
 
@@ -134,7 +105,7 @@ public abstract class CheckUnusedConstraintsTask extends DefaultTask {
 
         if (unusedConstraints.isEmpty()) {
             return;
-        } else if (shouldFix.get()) {
+        } else if (getShouldFix().get()) {
             getLogger()
                     .lifecycle("Removing unused pins from versions.props:\n"
                             + unusedConstraints.stream()
@@ -171,29 +142,5 @@ public abstract class CheckUnusedConstraintsTask extends DefaultTask {
         } catch (IOException e) {
             throw new UncheckedIOException("Error reading " + propsFile.toPath(), e);
         }
-    }
-
-    static Stream<String> getResolvedModuleIdentifiers(Project project, VersionRecommendationsExtension extension) {
-        return GradleConfigurations.getResolvableConfigurations(project).stream()
-                .filter(configuration -> !extension.shouldExcludeConfiguration(configuration.getName()))
-                .flatMap(configuration -> {
-                    try {
-                        ResolutionResult resolutionResult =
-                                configuration.getIncoming().getResolutionResult();
-                        return resolutionResult.getAllComponents().stream()
-                                .map(ResolvedComponentResult::getId)
-                                .filter(cid ->
-                                        !cid.equals(resolutionResult.getRoot().getId())) // remove the project
-                                .filter(cid -> cid instanceof ModuleComponentIdentifier)
-                                .map(mcid -> ((ModuleComponentIdentifier) mcid).getModuleIdentifier())
-                                .map(mid -> mid.getGroup() + ":" + mid.getName());
-                    } catch (Exception e) {
-                        throw new RuntimeException(
-                                String.format(
-                                        "Error during resolution of the dependency graph of configuration %s",
-                                        configuration),
-                                e);
-                    }
-                });
     }
 }

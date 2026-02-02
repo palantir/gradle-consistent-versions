@@ -21,6 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.palantir.gradle.testing.execution.GradleInvoker;
 import com.palantir.gradle.testing.execution.InvocationResult;
+import com.palantir.gradle.testing.junit.AdditionallyRunWithGradle;
 import com.palantir.gradle.testing.junit.DisabledConfigurationCache;
 import com.palantir.gradle.testing.junit.GradlePluginTests;
 import com.palantir.gradle.testing.project.RootProject;
@@ -183,6 +184,7 @@ class CheckUnusedConstraintIntegrationTest {
     }
 
     @Test
+    @AdditionallyRunWithGradle("9.3.0")
     void checkUnusedConstraints_works_in_multiproject_build_with_cross_project_deps(
             GradleInvoker gradle, RootProject rootProject, SubProject foo, SubProject bar) {
         rootProject.file("versions.props").overwrite("""
