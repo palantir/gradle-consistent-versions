@@ -207,8 +207,6 @@ class CheckUnusedConstraintIntegrationTest {
             }
             dependencies {
                 implementation 'org.slf4j:slf4j-api'
-                // Cross-project dependency - bar depends on foo
-                implementation project(':foo')
             }
             """);
 
