@@ -21,8 +21,7 @@ import org.gradle.api.GradleException;
 import org.gradle.api.NamedDomainObjectProvider;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
-import org.gradle.api.artifacts.DependencyScopeConfiguration;
-import org.gradle.api.artifacts.ResolvableConfiguration;
+import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.attributes.Usage;
 import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.tasks.TaskProvider;
@@ -38,8 +37,12 @@ public class CheckUnusedConstraintsPlugin implements Plugin<Project> {
         VersionRecommendationsExtension extension =
                 rootProject.getExtensions().getByType(VersionRecommendationsExtension.class);
 
-        NamedDomainObjectProvider<DependencyScopeConfiguration> subprojectDependencies =
-                rootProject.getConfigurations().dependencyScope("checkUnusedConstraintsSubprojects");
+        NamedDomainObjectProvider<Configuration> subprojectDependencies = rootProject
+                .getConfigurations()
+                .register("checkUnusedConstraintsSubprojects", conf -> {
+                    conf.setCanBeConsumed(false);
+                    conf.setCanBeResolved(false);
+                });
 
         // to make this plugin isolated projects compatible instead of applying the project plugin here apply via a
         // settings plugin
@@ -53,16 +56,16 @@ public class CheckUnusedConstraintsPlugin implements Plugin<Project> {
             subprojectDeps
                     .getDependencies()
                     .addAllLater(rootProject.provider(() -> rootProject.getAllprojects().stream()
-                            .map(subproject -> rootProject
-                                    .getDependencies()
-                                    .project(Map.of(
-                                            "path", subproject.getIsolated().getPath())))
+                            .map(subproject ->
+                                    rootProject.getDependencies().project(Map.of("path", subproject.getPath())))
                             .toList()));
         });
 
-        NamedDomainObjectProvider<ResolvableConfiguration> collectedConfiguration = rootProject
+        NamedDomainObjectProvider<Configuration> collectedConfiguration = rootProject
                 .getConfigurations()
-                .resolvable("collectedCheckUnusedConstraintsOutgoing", conf -> {
+                .register("collectedCheckUnusedConstraintsOutgoing", conf -> {
+                    conf.setCanBeConsumed(false);
+                    conf.setCanBeResolved(true);
                     conf.extendsFrom(subprojectDependencies.get());
                     conf.setTransitive(false);
                     conf.attributes(attrs -> {

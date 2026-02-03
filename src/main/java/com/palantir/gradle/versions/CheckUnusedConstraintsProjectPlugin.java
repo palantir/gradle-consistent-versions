@@ -45,7 +45,10 @@ public class CheckUnusedConstraintsProjectPlugin implements Plugin<Project> {
     }
 
     private static void createOutgoingConfiguration(Project project) {
-        project.getConfigurations().consumable("check-unused-constraints-outgoing", outgoing -> {
+        project.getConfigurations().register("check-unused-constraints-outgoing", outgoing -> {
+            outgoing.setCanBeConsumed(true);
+            outgoing.setCanBeResolved(false);
+            outgoing.setVisible(false);
             outgoing.attributes(attrs -> {
                 attrs.attribute(Usage.USAGE_ATTRIBUTE, project.getObjects().named(Usage.class, OUTGOING_USAGE));
             });
