@@ -72,25 +72,6 @@ public abstract class VersionsPropsPlugin implements Plugin<Project> {
         if (project.getRootProject().equals(project)) {
             applyToRootProject(project);
 
-            // Create a configuration that aggregates all dependencies from all subprojects
-            // This allows us to resolve a single configuration to get all module identifiers,
-            // with Gradle handling cross-project locking correctly - see:
-            // https://github.com/gradle/gradle/issues/33938#issuecomment-2985249363
-            NamedDomainObjectProvider<Configuration> gcvAllDependencies = project.getConfigurations()
-                    .register("gcvAllDependencies", conf -> {
-                        conf.setVisible(false);
-                        conf.setCanBeResolved(true);
-                        conf.setCanBeConsumed(false);
-                        conf.setDescription(
-                                "Aggregated dependencies from all projects for checkUnusedConstraints task");
-                    });
-
-            project.allprojects(subproject -> {
-                gcvAllDependencies.configure(conf -> {
-                    conf.getDependencies().add(project.getDependencies().create(subproject));
-                });
-            });
-
             TaskProvider<CheckUnusedConstraintsTask> checkNoUnusedConstraints = project.getTasks()
                     .register("checkUnusedConstraints", CheckUnusedConstraintsTask.class, task -> {
                         if (project.getGradle().getStartParameter().isConfigureOnDemand()
@@ -100,10 +81,20 @@ public abstract class VersionsPropsPlugin implements Plugin<Project> {
                         }
                         task.getPropsFile()
                                 .set(project.getLayout().getProjectDirectory().file("versions.props"));
-
-                        task.getAggregatedConfiguration().set(gcvAllDependencies);
                     });
+
             project.getTasks().named("check").configure(task -> task.dependsOn(checkNoUnusedConstraints));
+
+            // When versions-lock is applied, use its unifiedClasspath which includes both production
+            // and test dependencies. This provides accurate unused constraint detection with Gradle 9
+            // compatibility.
+            project.getPluginManager().withPlugin("com.palantir.versions-lock", _plugin -> {
+                checkNoUnusedConstraints.configure(task -> {
+                    task.getAggregatedConfiguration()
+                            .set(project.getConfigurations()
+                                    .named(VersionsLockPlugin.UNIFIED_CLASSPATH_CONFIGURATION_NAME));
+                });
+            });
 
             project.getPluginManager().withPlugin("com.palantir.versions-lock", _plugin -> {
                 TaskProvider<CheckOverbroadConstraints> checkOverbroadConstraints = project.getTasks()
