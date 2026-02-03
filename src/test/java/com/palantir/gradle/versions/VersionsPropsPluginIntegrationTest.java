@@ -73,7 +73,7 @@ class VersionsPropsPluginIntegrationTest {
 
         makePlatformPom(rootProject, repo, "org", "platform", "1.0");
 
-        rootProject.buildGradle().plugins().add("com.palantir.versions-lock").add(PLUGIN_NAME);
+        rootProject.buildGradle().plugins().add(PLUGIN_NAME);
         rootProject.buildGradle().append("""
             buildscript {
                 repositories {
@@ -102,8 +102,6 @@ class VersionsPropsPluginIntegrationTest {
                 }
             }
             """, repo.path());
-
-        rootProject.file("versions.lock").createEmpty();
     }
 
     @Test
