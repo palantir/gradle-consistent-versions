@@ -80,12 +80,6 @@ public class CheckUnusedConstraintsPlugin implements Plugin<Project> {
         TaskProvider<CheckUnusedConstraintsTask> checkNoUnusedConstraints = rootProject
                 .getTasks()
                 .register("checkUnusedConstraints", CheckUnusedConstraintsTask.class, task -> {
-                    if (rootProject.getGradle().getStartParameter().isConfigureOnDemand()
-                            && rootProject.getAllprojects().stream()
-                                    .anyMatch(p -> !p.getState().getExecuted())) {
-                        task.getShouldFailWithConfigurationOnDemandMessage().set(true);
-                    }
-
                     task.getResolvedModulesFiles()
                             .from(collectedConfiguration.map(
                                     resolvable -> resolvable.getIncoming().getFiles()));

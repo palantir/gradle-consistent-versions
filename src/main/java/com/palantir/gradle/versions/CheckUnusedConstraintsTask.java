@@ -53,7 +53,6 @@ public abstract class CheckUnusedConstraintsTask extends DefaultTask {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     public CheckUnusedConstraintsTask() {
-        getShouldFailWithConfigurationOnDemandMessage().set(false);
         getShouldFix().set(false);
         setGroup(LifecycleBasePlugin.VERIFICATION_GROUP);
         setDescription("Ensures all versions in your versions.props correspond to an actual gradle dependency");
@@ -72,26 +71,11 @@ public abstract class CheckUnusedConstraintsTask extends DefaultTask {
     public abstract RegularFileProperty getPropsFile();
 
     @Input
-    public abstract Property<Boolean> getShouldFailWithConfigurationOnDemandMessage();
-
-    @Input
     @Option(option = "fix", description = "Whether to apply the suggested fix to versions.props")
     public abstract Property<Boolean> getShouldFix();
 
     @TaskAction
     public final void checkNoUnusedPin() {
-        //        if (getShouldFailWithConfigurationOnDemandMessage().get()) {
-        //            throw new ExceptionWithSuggestion(
-        //                    "The gradle-consistent-versions checkUnusedConstraints task must have all projects
-        // configured to"
-        //                            + " work accurately, but due to Gradle configuration-on-demand, not all projects
-        // were"
-        //                            + " configured. Make your command work by including a task with no project name
-        // (such as"
-        //                            + " `./gradlew build` vs. `./gradlew :build`) or use --no-configure-on-demand.",
-        //                    "./gradlew build");
-        //        }
-
         Set<String> excludedConfigs = getExcludeConfigurations().get();
         Set<String> artifacts = getResolvedModulesFiles().getFiles().stream()
                 .map(CheckUnusedConstraintsTask::readModulesFile)
