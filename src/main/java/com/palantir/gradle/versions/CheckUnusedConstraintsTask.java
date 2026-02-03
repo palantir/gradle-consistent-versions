@@ -32,6 +32,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.gradle.api.DefaultTask;
+import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.provider.Property;
 import org.gradle.api.provider.SetProperty;
@@ -53,8 +54,12 @@ public abstract class CheckUnusedConstraintsTask extends DefaultTask {
         getOutputs().upToDateWhen(_task -> true); // task has no outputs, this is needed for it to be up to date
     }
 
+    @InputFiles
+    @PathSensitive(PathSensitivity.NONE)
+    public abstract ConfigurableFileCollection getResolvedModulesFiles();
+
     @Input
-    public abstract SetProperty<String> getResolvedModuleIdentifiers();
+    public abstract SetProperty<String> getExcludeConfigurations();
 
     @InputFiles
     @PathSensitive(PathSensitivity.RELATIVE)
@@ -78,7 +83,22 @@ public abstract class CheckUnusedConstraintsTask extends DefaultTask {
                     "./gradlew build");
         }
 
-        Set<String> artifacts = getResolvedModuleIdentifiers().get();
+        Set<String> excludedConfigs = getExcludeConfigurations().get();
+        Set<String> artifacts = getResolvedModulesFiles().getFiles().stream()
+                .flatMap(this::readModulesFile)
+                .filter(line -> {
+                    int pipeIndex = line.indexOf('|');
+                    if (pipeIndex < 0) {
+                        return false;
+                    }
+                    String configName = line.substring(0, pipeIndex);
+                    return !excludedConfigs.contains(configName);
+                })
+                .map(line -> {
+                    int pipeIndex = line.indexOf('|');
+                    return line.substring(pipeIndex + 1);
+                })
+                .collect(Collectors.toSet());
 
         VersionsProps versionsProps =
                 VersionsProps.loadFromFile(getPropsFile().get().getAsFile().toPath());
@@ -110,6 +130,14 @@ public abstract class CheckUnusedConstraintsTask extends DefaultTask {
                 "There are unused pins in your versions.props: \n" + unusedConstraints + "\n\n"
                         + "Run ./gradlew checkUnusedConstraints --fix to remove them.",
                 "./gradlew checkUnusedConstraints --fix");
+    }
+
+    private Stream<String> readModulesFile(File file) {
+        try (Stream<String> lines = Files.lines(file.toPath())) {
+            return lines.toList().stream();
+        } catch (IOException e) {
+            throw new UncheckedIOException("Error reading " + file, e);
+        }
     }
 
     private static void writeVersionsProps(File propsFile, Set<String> unusedConstraints) {

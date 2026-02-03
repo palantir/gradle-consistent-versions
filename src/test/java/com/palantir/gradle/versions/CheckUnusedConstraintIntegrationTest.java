@@ -37,8 +37,7 @@ class CheckUnusedConstraintIntegrationTest {
     @BeforeEach
     void setup(RootProject rootProject) {
         rootProject.buildGradle().plugins().add("java");
-        rootProject.buildGradle().plugins().add("com.palantir.versions-lock");
-        rootProject.buildGradle().plugins().add("com.palantir.versions-props");
+        rootProject.buildGradle().plugins().add("com.palantir.consistent-versions");
 
         rootProject.buildGradle().append("""
             repositories {
@@ -53,8 +52,6 @@ class CheckUnusedConstraintIntegrationTest {
             """, rootProject.directory(".").path().toUri());
 
         rootProject.gradlePropertiesFile().appendProperty("ignoreLockFile", "true");
-
-        rootProject.file("versions.props").createEmpty();
     }
 
     private InvocationResult buildSucceed(GradleInvoker gradle) {

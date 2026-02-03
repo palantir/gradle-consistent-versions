@@ -345,6 +345,7 @@ class ConfigurationOnDemandSpec extends IntegrationSpec {
         BuildResult result = runTasksAndFail(':checkUnusedConstraints')
 
         then:
+        println result.output
         !result.output.contains('configuring upstream')
         result.task(':checkUnusedConstraints').outcome == TaskOutcome.FAILED
         result.output.contains("The gradle-consistent-versions checkUnusedConstraints task " +
