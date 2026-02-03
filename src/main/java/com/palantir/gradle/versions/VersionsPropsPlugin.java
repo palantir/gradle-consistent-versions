@@ -92,7 +92,7 @@ public abstract class VersionsPropsPlugin implements Plugin<Project> {
                 checkNoUnusedConstraints.configure(task -> {
                     task.getAggregatedConfiguration()
                             .set(project.getConfigurations()
-                                    .named(VersionsLockPlugin.UNIFIED_CLASSPATH_CONFIGURATION_NAME));
+                                    .named(VersionsLockPlugin.ALL_PROJECTS_CLASSPATH_CONFIGURATION_NAME));
                 });
             });
 

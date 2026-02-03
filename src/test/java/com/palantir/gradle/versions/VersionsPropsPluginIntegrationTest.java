@@ -102,6 +102,8 @@ class VersionsPropsPluginIntegrationTest {
                 }
             }
             """, repo.path());
+
+        rootProject.file("versions.lock").createEmpty();
     }
 
     @Test
