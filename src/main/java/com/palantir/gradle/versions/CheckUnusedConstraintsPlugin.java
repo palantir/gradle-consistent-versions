@@ -43,8 +43,6 @@ public abstract class CheckUnusedConstraintsPlugin implements Plugin<Project> {
                     conf.setCanBeResolved(false);
                 });
 
-        // to make this plugin isolated projects compatible instead of applying the project plugin here apply via a
-        // settings plugin
         rootProject.allprojects(subproject -> {
             subproject.getPlugins().apply(CheckUnusedConstraintsProjectPlugin.class);
         });
