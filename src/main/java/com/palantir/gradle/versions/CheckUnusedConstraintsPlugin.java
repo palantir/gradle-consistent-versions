@@ -76,8 +76,8 @@ public abstract class CheckUnusedConstraintsPlugin implements Plugin<Project> {
                 .register("collectedCheckUnusedConstraintsOutgoing", conf -> {
                     conf.setCanBeConsumed(false);
                     conf.setCanBeResolved(true);
-                    conf.extendsFrom(subprojectDependencies.get());
                     conf.setTransitive(false);
+                    conf.extendsFrom(subprojectDependencies.get());
                     conf.attributes(attrs -> {
                         attrs.attribute(
                                 Usage.USAGE_ATTRIBUTE,
