@@ -32,14 +32,11 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.gradle.api.DefaultTask;
-import org.gradle.api.artifacts.Configuration;
-import org.gradle.api.artifacts.component.ModuleComponentIdentifier;
-import org.gradle.api.artifacts.result.ResolvedComponentResult;
 import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.provider.Property;
+import org.gradle.api.provider.SetProperty;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputFiles;
-import org.gradle.api.tasks.Internal;
 import org.gradle.api.tasks.PathSensitive;
 import org.gradle.api.tasks.PathSensitivity;
 import org.gradle.api.tasks.TaskAction;
@@ -56,8 +53,8 @@ public abstract class CheckUnusedConstraintsTask extends DefaultTask {
         getOutputs().upToDateWhen(_task -> true); // task has no outputs, this is needed for it to be up to date
     }
 
-    @Internal
-    public abstract Property<Configuration> getAggregatedConfiguration();
+    @Input
+    public abstract SetProperty<String> getResolvedModuleIdentifiers();
 
     @InputFiles
     @PathSensitive(PathSensitivity.RELATIVE)
@@ -81,13 +78,7 @@ public abstract class CheckUnusedConstraintsTask extends DefaultTask {
                     "./gradlew build");
         }
 
-        Set<String> artifacts =
-                getAggregatedConfiguration().get().getIncoming().getResolutionResult().getAllComponents().stream()
-                        .map(ResolvedComponentResult::getId)
-                        .filter(cid -> cid instanceof ModuleComponentIdentifier)
-                        .map(cid -> (ModuleComponentIdentifier) cid)
-                        .map(mcid -> mcid.getGroup() + ":" + mcid.getModule())
-                        .collect(Collectors.toSet());
+        Set<String> artifacts = getResolvedModuleIdentifiers().get();
 
         VersionsProps versionsProps =
                 VersionsProps.loadFromFile(getPropsFile().get().getAsFile().toPath());

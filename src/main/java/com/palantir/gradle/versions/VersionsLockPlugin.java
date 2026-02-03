@@ -115,14 +115,6 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
     /** Root project configuration that collects all the dependencies from each project. */
     static final String UNIFIED_CLASSPATH_CONFIGURATION_NAME = "unifiedClasspath";
 
-    /**
-     * Root project configuration that collects dependencies from ALL resolvable configurations in each project.
-     * Unlike {@link #UNIFIED_CLASSPATH_CONFIGURATION_NAME} which only collects Java production/test configurations,
-     * this configuration provides a safe way to access all cross-project dependencies without triggering
-     * Gradle 9's unsafe cross-project configuration access errors.
-     */
-    static final String ALL_PROJECTS_CLASSPATH_CONFIGURATION_NAME = "allProjectsClasspath";
-
     /** Per-project configuration that gets resolved when resolving the user's inter-project dependencies. */
     private static final String PLACEHOLDER_CONFIGURATION_NAME = "consistentVersionsPlaceholder";
 
@@ -131,7 +123,6 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
 
     private static final String CONSISTENT_VERSIONS_PRODUCTION = "consistentVersionsProduction";
     private static final String CONSISTENT_VERSIONS_TEST = "consistentVersionsTest";
-    private static final String CONSISTENT_VERSIONS_ALL = "consistentVersionsAll";
     private static final String VERSIONS_LOCK_EXTENSION = "versionsLock";
 
     private static final Attribute<GcvUsage> GCV_USAGE_ATTRIBUTE =
@@ -166,9 +157,7 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
 
     public enum GcvScope implements Named {
         PRODUCTION,
-        TEST,
-        /** Scope for all configurations - not used for lock file computation, only for cross-project access. */
-        ALL;
+        TEST;
 
         /** Must match the enum name exactly, so you can pass this into {@link #valueOf(String)}. */
         @Override
@@ -179,11 +168,9 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
 
     static final Comparator<GcvScope> GCV_SCOPE_COMPARATOR = Comparator.comparing(scope -> {
         // Production takes priority over test when it comes to provenance.
-        // ALL is not used in lock file computation.
         return switch (scope) {
             case PRODUCTION -> 0;
             case TEST -> 1;
-            case ALL -> 2;
         };
     });
 
@@ -221,12 +208,10 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
 
         NamedDomainObjectProvider<Configuration> unifiedClasspath =
                 createRootClasspathConfiguration(project, UNIFIED_CLASSPATH_CONFIGURATION_NAME);
-        NamedDomainObjectProvider<Configuration> allProjectsClasspath =
-                createRootClasspathConfiguration(project, ALL_PROJECTS_CLASSPATH_CONFIGURATION_NAME);
 
         project.allprojects(subproject -> {
             subproject.getExtensions().create(VERSIONS_LOCK_EXTENSION, VersionsLockExtension.class, subproject);
-            setupDependenciesToProject(project, unifiedClasspath.get(), allProjectsClasspath.get(), subproject);
+            setupDependenciesToProject(project, unifiedClasspath.get(), subproject);
             setupPublishConstraintsForProject(subproject);
         });
 
@@ -369,8 +354,8 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
     }
 
     /**
-     * Creates a root classpath configuration that collects dependencies from subprojects.
-     * Used for both {@link #UNIFIED_CLASSPATH_CONFIGURATION_NAME} and {@link #ALL_PROJECTS_CLASSPATH_CONFIGURATION_NAME}.
+     * Creates the root {@link #UNIFIED_CLASSPATH_CONFIGURATION_NAME} configuration that collects
+     * dependencies from subprojects.
      */
     private NamedDomainObjectProvider<Configuration> createRootClasspathConfiguration(
             Project project, String configurationName) {
@@ -408,13 +393,6 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
                     subproject.getConfigurations().getByName(CONSISTENT_VERSIONS_TEST),
                     lockedConfigurations.testConfigurations());
 
-            // Wire up ALL resolvable configurations to consistentVersionsAll for cross-project access.
-            // We copy all external module dependencies from all resolvable configurations into consistentVersionsAll.
-            Set<Configuration> allResolvableConfigurations =
-                    GradleConfigurations.getResolvableConfigurations(subproject);
-            Configuration consistentVersionsAll = subproject.getConfigurations().getByName(CONSISTENT_VERSIONS_ALL);
-            copyAllDependenciesToConfiguration(allResolvableConfigurations, consistentVersionsAll);
-
             lockedConfigurations
                     .allConfigurations()
                     .forEach(configuration -> configuration.extendsFrom(locksConfiguration.get()));
@@ -424,12 +402,10 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
 
     /**
      * This method sets up the necessary intermediate configurations in each project, and wires up the dependencies from
-     * {@link #UNIFIED_CLASSPATH_CONFIGURATION_NAME} and {@link #ALL_PROJECTS_CLASSPATH_CONFIGURATION_NAME} to these
-     * configurations. It doesn't wire up the actual configurations that we intend to lock, because that will be done
-     * later, in afterEvaluate.
+     * {@link #UNIFIED_CLASSPATH_CONFIGURATION_NAME} to these configurations. It doesn't wire up the actual
+     * configurations that we intend to lock, because that will be done later, in afterEvaluate.
      */
-    private void setupDependenciesToProject(
-            Project rootProject, Configuration unifiedClasspath, Configuration allProjectsClasspath, Project project) {
+    private void setupDependenciesToProject(Project rootProject, Configuration unifiedClasspath, Project project) {
         // Parallel 'resolveConfigurations' sometimes breaks unless we force the root one to run first.
         if (rootProject != project) {
             project.getPluginManager().withPlugin("com.palantir.configuration-resolver", _plugin -> {
@@ -470,16 +446,6 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
             conf.getOutgoing().capability(capabilityFor(project, GcvScope.TEST));
         });
 
-        project.getConfigurations().register(CONSISTENT_VERSIONS_ALL, conf -> {
-            conf.setDescription("Outgoing configuration for ALL dependencies meant to be used by consistent-versions "
-                    + "for safe cross-project configuration access");
-            conf.setVisible(false);
-            conf.setCanBeConsumed(true);
-            conf.setCanBeResolved(false);
-            conf.attributes(getGcvAttributes()::configureGcvBaseAttributes);
-            conf.getOutgoing().capability(capabilityFor(project, GcvScope.ALL));
-        });
-
         unifiedClasspath
                 .getDependencies()
                 .add(createDependencyOnProjectWithScope(
@@ -488,11 +454,6 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
                 .getDependencies()
                 .add(createDependencyOnProjectWithScope(
                         project, GcvScope.TEST, getGcvAttributes().buildPath()));
-
-        allProjectsClasspath
-                .getDependencies()
-                .add(createDependencyOnProjectWithScope(
-                        project, GcvScope.ALL, getGcvAttributes().buildPath()));
     }
 
     private void setupPublishConstraintsForProject(Project subproject) {
@@ -533,23 +494,6 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
     private static void addConfigurationDependencies(
             Project project, Configuration fromConf, Set<Configuration> toConfs) {
         toConfs.forEach(toConf -> fromConf.getDependencies().add(createConfigurationDependency(project, toConf)));
-    }
-
-    /**
-     * Copies all external module dependencies from the source configurations to the target configuration.
-     * This is used for allProjectsClasspath to aggregate dependencies from all resolvable configurations
-     * without needing to create consumable variants of those configurations.
-     */
-    private static void copyAllDependenciesToConfiguration(Set<Configuration> sourceConfs, Configuration targetConf) {
-        sourceConfs.forEach(sourceConf -> {
-            sourceConf
-                    .getAllDependencies()
-                    .withType(ExternalModuleDependency.class)
-                    .all(dep -> {
-                        // Create a copy of the dependency to avoid modifying the original
-                        targetConf.getDependencies().add(dep.copy());
-                    });
-        });
     }
 
     /** Create a dependency to {@code toConfiguration}, where the latter should exist in the given {@code project}. */

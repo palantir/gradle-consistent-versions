@@ -23,7 +23,9 @@ import com.palantir.gradle.versions.ConsistentVersionsPlugin.GcvAttributes;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 import org.gradle.api.GradleException;
 import org.gradle.api.NamedDomainObjectProvider;
 import org.gradle.api.Plugin;
@@ -36,6 +38,8 @@ import org.gradle.api.artifacts.DependencySet;
 import org.gradle.api.artifacts.ExternalDependency;
 import org.gradle.api.artifacts.ModuleDependency;
 import org.gradle.api.artifacts.ProjectDependency;
+import org.gradle.api.artifacts.component.ModuleComponentIdentifier;
+import org.gradle.api.artifacts.result.ComponentResult;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 import org.gradle.api.plugins.JavaPlugin;
@@ -81,20 +85,12 @@ public abstract class VersionsPropsPlugin implements Plugin<Project> {
                         }
                         task.getPropsFile()
                                 .set(project.getLayout().getProjectDirectory().file("versions.props"));
+
+                        task.getResolvedModuleIdentifiers()
+                                .set(project.provider(() -> collectResolvedModuleIdentifiers(project)));
                     });
 
             project.getTasks().named("check").configure(task -> task.dependsOn(checkNoUnusedConstraints));
-
-            // When versions-lock is applied, use its unifiedClasspath which includes both production
-            // and test dependencies. This provides accurate unused constraint detection with Gradle 9
-            // compatibility.
-            project.getPluginManager().withPlugin("com.palantir.versions-lock", _plugin -> {
-                checkNoUnusedConstraints.configure(task -> {
-                    task.getAggregatedConfiguration()
-                            .set(project.getConfigurations()
-                                    .named(VersionsLockPlugin.ALL_PROJECTS_CLASSPATH_CONFIGURATION_NAME));
-                });
-            });
 
             project.getPluginManager().withPlugin("com.palantir.versions-lock", _plugin -> {
                 TaskProvider<CheckOverbroadConstraints> checkOverbroadConstraints = project.getTasks()
@@ -357,5 +353,20 @@ public abstract class VersionsPropsPlugin implements Plugin<Project> {
                         mapping.allVariants(VariantVersionMappingStrategy::fromResolutionResult);
                     }));
         });
+    }
+
+    /**
+     * Collects all resolved module identifiers (group:artifact) from all resolvable configurations
+     * across all projects. This is called lazily at task execution time to avoid configuration-time resolution.
+     */
+    private static Set<String> collectResolvedModuleIdentifiers(Project rootProject) {
+        return rootProject.getAllprojects().stream()
+                .flatMap(project -> GradleConfigurations.getResolvableConfigurations(project).stream())
+                .flatMap(conf -> conf.getIncoming().getResolutionResult().getAllComponents().stream())
+                .map(ComponentResult::getId)
+                .filter(cid -> cid instanceof ModuleComponentIdentifier)
+                .map(cid -> (ModuleComponentIdentifier) cid)
+                .map(mcid -> mcid.getGroup() + ":" + mcid.getModule())
+                .collect(Collectors.toSet());
     }
 }
