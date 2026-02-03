@@ -23,10 +23,9 @@ import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.attributes.Usage;
-import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.tasks.TaskProvider;
 
-public class CheckUnusedConstraintsPlugin implements Plugin<Project> {
+public abstract class CheckUnusedConstraintsPlugin implements Plugin<Project> {
 
     @Override
     public final void apply(Project rootProject) {
@@ -47,9 +46,7 @@ public class CheckUnusedConstraintsPlugin implements Plugin<Project> {
         // to make this plugin isolated projects compatible instead of applying the project plugin here apply via a
         // settings plugin
         rootProject.allprojects(subproject -> {
-            subproject.getPlugins().withType(JavaPlugin.class, _javaPlugin -> {
-                subproject.getPlugins().apply(CheckUnusedConstraintsProjectPlugin.class);
-            });
+            subproject.getPlugins().apply(CheckUnusedConstraintsProjectPlugin.class);
         });
 
         subprojectDependencies.configure(subprojectDeps -> {
