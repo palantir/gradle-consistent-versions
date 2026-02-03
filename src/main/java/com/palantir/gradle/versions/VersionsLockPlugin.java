@@ -206,12 +206,21 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
             });
         });
 
-        NamedDomainObjectProvider<Configuration> unifiedClasspath =
-                createRootClasspathConfiguration(project, UNIFIED_CLASSPATH_CONFIGURATION_NAME);
+        @SuppressWarnings("for-rollout:ConfigurationAvoidanceRegistration")
+        Configuration unifiedClasspath = project.getConfigurations()
+                .create(UNIFIED_CLASSPATH_CONFIGURATION_NAME, conf -> {
+                    conf.setVisible(false).setCanBeConsumed(false);
+
+                    // Attributes declared here will become required attributes when resolving this configuration
+                    conf.getAttributes().attribute(GCV_USAGE_ATTRIBUTE, GcvUsage.GCV_SOURCE);
+                    conf.getAttributes()
+                            .attribute(
+                                    GcvBuildPath.ATTRIBUTE, getGcvAttributes().buildPath());
+                });
 
         project.allprojects(subproject -> {
             subproject.getExtensions().create(VERSIONS_LOCK_EXTENSION, VersionsLockExtension.class, subproject);
-            setupDependenciesToProject(project, unifiedClasspath.get(), subproject);
+            setupDependenciesToProject(project, unifiedClasspath, subproject);
             setupPublishConstraintsForProject(subproject);
         });
 
@@ -264,12 +273,12 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
             // resolution of unifiedClasspath.
             Map<Project, LockedConfigurations> lockedConfigurations = wireUpLockedConfigurationsByProject(project);
             DirectDependencyScopes directDependencyScopes = recursivelyCopyProjectDependencies(
-                    project, unifiedClasspath.get().getIncoming().getDependencies());
+                    project, unifiedClasspath.getIncoming().getDependencies());
 
             StartParameter startParameter = project.getGradle().getStartParameter();
             Supplier<FullLockState> fullLockStateSupplier = Suppliers.memoize(() -> {
                 ResolutionResult resolutionResult =
-                        unifiedClasspath.get().getIncoming().getResolutionResult();
+                        unifiedClasspath.getIncoming().getResolutionResult();
                 // Throw if there are dependencies that are not present in the lock state.
                 if (startParameter.isConfigureOnDemand()
                         && project.getAllprojects().stream()
@@ -351,20 +360,6 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
 
     private static boolean isSkipWriteLocks(Project project) {
         return project.hasProperty("gcvSkipWriteLocks");
-    }
-
-    /**
-     * Creates the root {@link #UNIFIED_CLASSPATH_CONFIGURATION_NAME} configuration that collects
-     * dependencies from subprojects.
-     */
-    private NamedDomainObjectProvider<Configuration> createRootClasspathConfiguration(
-            Project project, String configurationName) {
-        return project.getConfigurations().register(configurationName, conf -> {
-            conf.setVisible(false).setCanBeConsumed(false);
-            conf.getAttributes().attribute(GCV_USAGE_ATTRIBUTE, GcvUsage.GCV_SOURCE);
-            conf.getAttributes()
-                    .attribute(GcvBuildPath.ATTRIBUTE, getGcvAttributes().buildPath());
-        });
     }
 
     private static Map<Project, LockedConfigurations> wireUpLockedConfigurationsByProject(Project rootProject) {
@@ -837,18 +832,21 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
                 .forEach(component -> {
                     GcvScope scope = getScope(component, scopeCache, directDependencyScopes);
                     switch (scope) {
-                        case PRODUCTION ->
+                        case PRODUCTION -> {
                             builder.putProductionDeps(
                                     MyModuleVersionIdentifier.copyOf(component.getModuleVersion()),
                                     extractDependents(component));
-                        case TEST ->
+                            return;
+                        }
+                        case TEST -> {
                             builder.putTestDeps(
                                     MyModuleVersionIdentifier.copyOf(component.getModuleVersion()),
                                     extractDependents(component));
-                        default ->
-                            throw new RuntimeException(String.format(
-                                    "Unexpected scope for component %s: %s", component.getModuleVersion(), scope));
+                            return;
+                        }
                     }
+                    throw new RuntimeException(String.format(
+                            "Unexpected scope for component %s: %s", component.getModuleVersion(), scope));
                 });
         return builder.build();
     }
