@@ -17,15 +17,36 @@
 package com.palantir.gradle.versions;
 
 import java.util.Map;
+import javax.inject.Inject;
 import org.gradle.api.GradleException;
 import org.gradle.api.NamedDomainObjectProvider;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
+import org.gradle.api.artifacts.ConfigurationContainer;
+import org.gradle.api.artifacts.dsl.DependencyHandler;
 import org.gradle.api.attributes.Usage;
+import org.gradle.api.file.ProjectLayout;
+import org.gradle.api.model.ObjectFactory;
+import org.gradle.api.provider.ProviderFactory;
 import org.gradle.api.tasks.TaskProvider;
 
 public abstract class CheckUnusedConstraintsPlugin implements Plugin<Project> {
+
+    @Inject
+    protected abstract ProjectLayout getLayout();
+
+    @Inject
+    protected abstract ObjectFactory getObjectFactory();
+
+    @Inject
+    protected abstract ProviderFactory getProviderFactory();
+
+    @Inject
+    protected abstract DependencyHandler getDependencyHandler();
+
+    @Inject
+    protected abstract ConfigurationContainer getConfigurations();
 
     @Override
     public final void apply(Project rootProject) {
@@ -33,31 +54,25 @@ public abstract class CheckUnusedConstraintsPlugin implements Plugin<Project> {
             throw new GradleException("The CheckUnusedConstraintsPlugin plugin must be applied on the root project");
         }
 
-        VersionRecommendationsExtension extension =
-                rootProject.getExtensions().getByType(VersionRecommendationsExtension.class);
+        rootProject.allprojects(subproject -> {
+            subproject.getPlugins().apply(CheckUnusedConstraintsProjectPlugin.class);
+        });
 
-        NamedDomainObjectProvider<Configuration> subprojectDependencies = rootProject
-                .getConfigurations()
+        NamedDomainObjectProvider<Configuration> subprojectDependencies = getConfigurations()
                 .register("checkUnusedConstraintsSubprojects", conf -> {
                     conf.setCanBeConsumed(false);
                     conf.setCanBeResolved(false);
                 });
 
-        rootProject.allprojects(subproject -> {
-            subproject.getPlugins().apply(CheckUnusedConstraintsProjectPlugin.class);
-        });
-
         subprojectDependencies.configure(subprojectDeps -> {
             subprojectDeps
                     .getDependencies()
-                    .addAllLater(rootProject.provider(() -> rootProject.getAllprojects().stream()
-                            .map(subproject ->
-                                    rootProject.getDependencies().project(Map.of("path", subproject.getPath())))
+                    .addAllLater(getProviderFactory().provider(() -> rootProject.getAllprojects().stream()
+                            .map(subproject -> getDependencyHandler().project(Map.of("path", subproject.getPath())))
                             .toList()));
         });
 
-        NamedDomainObjectProvider<Configuration> collectedConfiguration = rootProject
-                .getConfigurations()
+        NamedDomainObjectProvider<Configuration> collectedConfiguration = getConfigurations()
                 .register("collectedCheckUnusedConstraintsOutgoing", conf -> {
                     conf.setCanBeConsumed(false);
                     conf.setCanBeResolved(true);
@@ -66,8 +81,7 @@ public abstract class CheckUnusedConstraintsPlugin implements Plugin<Project> {
                     conf.attributes(attrs -> {
                         attrs.attribute(
                                 Usage.USAGE_ATTRIBUTE,
-                                rootProject
-                                        .getObjects()
+                                getObjectFactory()
                                         .named(Usage.class, CheckUnusedConstraintsProjectPlugin.OUTGOING_USAGE));
                     });
                 });
@@ -79,10 +93,13 @@ public abstract class CheckUnusedConstraintsPlugin implements Plugin<Project> {
                             .from(collectedConfiguration.map(
                                     resolvable -> resolvable.getIncoming().getFiles()));
 
-                    task.getExcludeConfigurations().set(extension.getExcludeConfigurations());
+                    task.getExcludeConfigurations()
+                            .set(rootProject
+                                    .getExtensions()
+                                    .getByType(VersionRecommendationsExtension.class)
+                                    .getExcludeConfigurations());
 
-                    task.getPropsFile()
-                            .set(rootProject.getLayout().getProjectDirectory().file("versions.props"));
+                    task.getPropsFile().set(getLayout().getProjectDirectory().file("versions.props"));
                 });
 
         rootProject.getTasks().named("check").configure(task -> task.dependsOn(checkNoUnusedConstraints));

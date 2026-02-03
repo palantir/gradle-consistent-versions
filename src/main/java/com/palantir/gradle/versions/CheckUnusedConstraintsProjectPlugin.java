@@ -17,7 +17,6 @@
 package com.palantir.gradle.versions;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.Set;
@@ -27,11 +26,13 @@ import javax.inject.Inject;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
+import org.gradle.api.artifacts.ConfigurationContainer;
 import org.gradle.api.artifacts.component.ModuleComponentIdentifier;
 import org.gradle.api.artifacts.result.ResolutionResult;
 import org.gradle.api.artifacts.result.ResolvedComponentResult;
 import org.gradle.api.attributes.Usage;
 import org.gradle.api.file.ProjectLayout;
+import org.gradle.api.model.ObjectFactory;
 
 public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Project> {
 
@@ -41,23 +42,28 @@ public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Proj
     @Inject
     protected abstract ProjectLayout getLayout();
 
+    @Inject
+    protected abstract ObjectFactory getObjectFactory();
+
+    @Inject
+    protected abstract ConfigurationContainer getConfigurations();
+
     @Override
     public final void apply(Project project) {
-        project.getConfigurations().register("check-unused-constraints-outgoing", outgoing -> {
+        getConfigurations().register("check-unused-constraints-outgoing", outgoing -> {
             outgoing.setCanBeConsumed(true);
             outgoing.setCanBeResolved(false);
             outgoing.setVisible(false);
             outgoing.attributes(attrs -> {
-                attrs.attribute(Usage.USAGE_ATTRIBUTE, project.getObjects().named(Usage.class, OUTGOING_USAGE));
+                attrs.attribute(Usage.USAGE_ATTRIBUTE, getObjectFactory().named(Usage.class, OUTGOING_USAGE));
             });
 
             outgoing.getOutgoing()
                     .artifact(getLayout()
                             .getBuildDirectory()
-                            .file("check-unused-constraints/resolved-module-identifiers.json")
+                            .file("tmp/check-unused-constraints/resolved-module-identifiers.json")
                             .map(regFile -> {
-                                File file = regFile.getAsFile();
-                                file.getParentFile().mkdirs();
+                                regFile.getAsFile().getParentFile().mkdirs();
 
                                 Set<ResolvedModule> identifiers =
                                         GradleConfigurations.getResolvableConfigurations(project).stream()
@@ -65,11 +71,11 @@ public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Proj
                                                 .collect(Collectors.toSet());
 
                                 try {
-                                    OBJECT_MAPPER.writeValue(file, identifiers);
+                                    OBJECT_MAPPER.writeValue(regFile.getAsFile(), identifiers);
                                 } catch (IOException e) {
                                     throw new UncheckedIOException("Failed to write resolved module identifiers", e);
                                 }
-                                return file;
+                                return regFile;
                             }));
         });
     }
