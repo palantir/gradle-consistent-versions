@@ -16,6 +16,8 @@
 
 package com.palantir.gradle.versions;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
 import com.palantir.gradle.failurereports.exceptions.ExceptionWithSuggestion;
@@ -45,6 +47,10 @@ import org.gradle.api.tasks.options.Option;
 import org.gradle.language.base.plugins.LifecycleBasePlugin;
 
 public abstract class CheckUnusedConstraintsTask extends DefaultTask {
+
+    private static final TypeReference<Set<ResolvedModule>> SET_OF_RESOLVED_MODULES = new TypeReference<>() {};
+
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     public CheckUnusedConstraintsTask() {
         getShouldFailWithConfigurationOnDemandMessage().set(false);
@@ -85,19 +91,10 @@ public abstract class CheckUnusedConstraintsTask extends DefaultTask {
 
         Set<String> excludedConfigs = getExcludeConfigurations().get();
         Set<String> artifacts = getResolvedModulesFiles().getFiles().stream()
-                .flatMap(this::readModulesFile)
-                .filter(line -> {
-                    int pipeIndex = line.indexOf('|');
-                    if (pipeIndex < 0) {
-                        return false;
-                    }
-                    String configName = line.substring(0, pipeIndex);
-                    return !excludedConfigs.contains(configName);
-                })
-                .map(line -> {
-                    int pipeIndex = line.indexOf('|');
-                    return line.substring(pipeIndex + 1);
-                })
+                .map(CheckUnusedConstraintsTask::readModulesFile)
+                .flatMap(Set::stream)
+                .filter(module -> !excludedConfigs.contains(module.configuration()))
+                .map(ResolvedModule::module)
                 .collect(Collectors.toSet());
 
         VersionsProps versionsProps =
@@ -132,9 +129,9 @@ public abstract class CheckUnusedConstraintsTask extends DefaultTask {
                 "./gradlew checkUnusedConstraints --fix");
     }
 
-    private Stream<String> readModulesFile(File file) {
-        try (Stream<String> lines = Files.lines(file.toPath())) {
-            return lines.toList().stream();
+    private static Set<ResolvedModule> readModulesFile(File file) {
+        try {
+            return OBJECT_MAPPER.readValue(file, SET_OF_RESOLVED_MODULES);
         } catch (IOException e) {
             throw new UncheckedIOException("Error reading " + file, e);
         }

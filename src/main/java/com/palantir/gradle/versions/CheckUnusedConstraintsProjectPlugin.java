@@ -16,14 +16,25 @@
 
 package com.palantir.gradle.versions;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.File;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
+import org.gradle.api.artifacts.Configuration;
+import org.gradle.api.artifacts.component.ModuleComponentIdentifier;
+import org.gradle.api.artifacts.result.ResolutionResult;
+import org.gradle.api.artifacts.result.ResolvedComponentResult;
 import org.gradle.api.attributes.Usage;
 import org.gradle.api.plugins.JavaPlugin;
-import org.gradle.api.tasks.TaskProvider;
 
 public class CheckUnusedConstraintsProjectPlugin implements Plugin<Project> {
 
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     static final String OUTGOING_USAGE = "check-unused-constraints-module-identifiers";
 
     @Override
@@ -34,22 +45,40 @@ public class CheckUnusedConstraintsProjectPlugin implements Plugin<Project> {
     }
 
     private static void createOutgoingConfiguration(Project project) {
-        TaskProvider<GenerateResolvedModulesTask> generateTask = project.getTasks()
-                .register("generateResolvedModules", GenerateResolvedModulesTask.class, task -> {
-                    task.getOutputFile()
-                            .set(project.getLayout()
-                                    .getBuildDirectory()
-                                    .file("check-unused-constraints/resolved-modules.txt"));
-                    task.getConfigurations()
-                            .set(project.provider(() -> GradleConfigurations.getResolvableConfigurations(project)));
-                });
-
-        project.getConfigurations().consumable("checkUnusedConstraintsOutgoing", outgoing -> {
+        project.getConfigurations().consumable("check-unused-constraints-outgoing", outgoing -> {
             outgoing.attributes(attrs -> {
                 attrs.attribute(Usage.USAGE_ATTRIBUTE, project.getObjects().named(Usage.class, OUTGOING_USAGE));
             });
 
-            outgoing.getOutgoing().artifact(generateTask.flatMap(GenerateResolvedModulesTask::getOutputFile));
+            outgoing.getOutgoing().artifact(project.provider(() -> writeResolvedModuleIdentifiers(project)));
         });
+    }
+
+    static File writeResolvedModuleIdentifiers(Project project) {
+        File outputFile = new File(
+                project.getLayout().getBuildDirectory().getAsFile().get(),
+                "check-unused-constraints/resolved-module-identifiers.json");
+        outputFile.getParentFile().mkdirs();
+
+        Set<ResolvedModule> identifiers = GradleConfigurations.getResolvableConfigurations(project).stream()
+                .flatMap(CheckUnusedConstraintsProjectPlugin::getResolvedModules)
+                .collect(Collectors.toSet());
+
+        try {
+            OBJECT_MAPPER.writeValue(outputFile, identifiers);
+        } catch (IOException e) {
+            throw new UncheckedIOException("Failed to write resolved module identifiers", e);
+        }
+        return outputFile;
+    }
+
+    private static Stream<ResolvedModule> getResolvedModules(Configuration configuration) {
+        ResolutionResult resolutionResult = configuration.getIncoming().getResolutionResult();
+        return resolutionResult.getAllComponents().stream()
+                .map(ResolvedComponentResult::getId)
+                .filter(cid -> !cid.equals(resolutionResult.getRoot().getId()))
+                .filter(ModuleComponentIdentifier.class::isInstance)
+                .map(ModuleComponentIdentifier.class::cast)
+                .map(mcid -> ResolvedModule.of(configuration.getName(), mcid.getGroup() + ":" + mcid.getModule()));
     }
 }
