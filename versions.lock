@@ -58,13 +58,13 @@ info.picocli:picocli:4.7.7 (1 constraints: 2816dcdd)
 
 junit:junit:4.13.2 (2 constraints: ca1e3ab9)
 
-net.bytebuddy:byte-buddy:1.17.7 (2 constraints: 9f161b3f)
+net.bytebuddy:byte-buddy:1.18.3 (2 constraints: 9c16b43e)
 
 net.bytebuddy:byte-buddy-agent:1.17.7 (1 constraints: 4a0b4ede)
 
 org.apiguardian:apiguardian-api:1.1.2 (7 constraints: cc761de9)
 
-org.assertj:assertj-core:3.27.6 (2 constraints: 211f1a90)
+org.assertj:assertj-core:3.27.7 (2 constraints: 221f6290)
 
 org.codehaus.groovy:groovy:3.0.24 (3 constraints: 133429dd)
 
