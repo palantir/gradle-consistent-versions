@@ -216,6 +216,86 @@ class CheckUnusedConstraintIntegrationTest {
         assertThat(result).output().doesNotContain("without an exclusive lock");
     }
 
+    /**
+     * This test reproduces the scenario where a root-level resolvable configuration has lazy dependency
+     * constraints that resolve a subproject's configuration. When running with --parallel, this causes
+     * "Resolution of the configuration was attempted without an exclusive lock" errors.
+     */
+    @Test
+    @AdditionallyRunWithGradle("9.3.0")
+    void checkUnusedConstraints_with_root_config_depending_on_subproject_and_parallel(
+            GradleInvoker gradle, RootProject rootProject, SubProject serviceA) {
+        rootProject.file("versions.props").overwrite("""
+            org.slf4j:slf4j-api = 2.0.9
+            ch.qos.logback:logback-classic = 1.4.14
+            com.google.guava:guava = 33.0.0-jre
+            """);
+
+        // Create a subproject with integrationTest configurations
+        // This creates the integrationTestRuntimeClasspath configuration that appears in the error
+        serviceA.buildGradle().plugins().add("java");
+        serviceA.buildGradle().append("""
+            repositories {
+                mavenCentral()
+            }
+
+            // Create an integrationTest source set
+            sourceSets {
+                integrationTest {
+                    compileClasspath += sourceSets.main.output
+                    runtimeClasspath += sourceSets.main.output
+                }
+            }
+
+            configurations {
+                integrationTestImplementation.extendsFrom implementation
+                integrationTestRuntimeOnly.extendsFrom runtimeOnly
+            }
+
+            dependencies {
+                implementation 'org.slf4j:slf4j-api'
+                integrationTestImplementation 'ch.qos.logback:logback-classic'
+            }
+            """);
+
+        // In the root project, create a resolvable configuration that has lazy constraints
+        // which resolve the subproject's integrationTestRuntimeClasspath.
+        rootProject.buildGradle().append("""
+            configurations {
+                resolvable {
+                    canBeConsumed = false
+                    canBeResolved = true
+                }
+            }
+
+            dependencies {
+                resolvable project(':serviceA')
+                resolvable 'com.google.guava:guava'
+            }
+
+            configurations.resolvable.dependencyConstraints.addAllLater(
+                provider {
+                    // When this provider is evaluated (during resolvable resolution),
+                    // it resolves the subproject's integrationTestRuntimeClasspath from the root's thread
+                    def integTestClasspath = project(':serviceA')
+                        .configurations
+                        .getByName('integrationTestRuntimeClasspath')
+                    integTestClasspath.resolvedConfiguration.resolvedArtifacts
+                    return []
+                }
+            )
+            """);
+
+        InvocationResult result =
+                gradle.withArgs("checkUnusedConstraints", "--parallel").buildsSuccessfully();
+
+        assertThat(result).task(":checkUnusedConstraints").succeeded();
+
+        // The key assertion - we should NOT see this error message
+        assertThat(result).output().doesNotContain("without an exclusive lock");
+        assertThat(result).output().doesNotContain("Resolution of the configuration");
+    }
+
     private static String pomWithJarPackaging(String group, String artifact, String version) {
         return """
             <?xml version="1.0" encoding="UTF-8"?>
