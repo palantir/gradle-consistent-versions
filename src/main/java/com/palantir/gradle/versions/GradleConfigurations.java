@@ -33,13 +33,6 @@ final class GradleConfigurations {
     private static final ImmutableList<String> DEPRECATED_SOURCESET_SUFFIXES = ImmutableList.of("Compile", "Runtime");
 
     /**
-     * Internal GCV configuration name prefixes that should not be resolved by other plugins.
-     * Resolving these can cause binary store corruption issues in Gradle 7.
-     */
-    private static final ImmutableList<String> GCV_INTERNAL_PREFIXES =
-            ImmutableList.of("gcv", "consistentVersions", "lockConstraints", "unifiedClasspath");
-
-    /**
      * Filters out both the unresolvable configurations but also the legacy java and GCV configurations that should not
      * be resolved.
      *
@@ -55,9 +48,6 @@ final class GradleConfigurations {
                 .filter(conf -> !legacyJavaConfigurations.contains(conf.getName()))
                 .filter(conf -> DEPRECATED_SOURCESET_SUFFIXES.stream()
                         .noneMatch(suffix -> conf.getName().endsWith(suffix)))
-                // Exclude internal GCV configurations to avoid binary store corruption in Gradle 7
-                .filter(conf -> GCV_INTERNAL_PREFIXES.stream()
-                        .noneMatch(prefix -> conf.getName().startsWith(prefix)))
                 .collect(ImmutableSet.toImmutableSet());
     }
 

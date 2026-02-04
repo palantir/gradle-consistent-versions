@@ -17,6 +17,7 @@
 package com.palantir.gradle.versions;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.Set;
@@ -38,6 +39,13 @@ public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Proj
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     static final String OUTGOING_USAGE = "check-unused-constraints-module-identifiers";
+
+    /**
+     * Internal GCV configuration name prefixes that should not be resolved by other plugins.
+     * Resolving these can cause binary store corruption issues in Gradle 7.
+     */
+    private static final ImmutableList<String> GCV_INTERNAL_PREFIXES =
+            ImmutableList.of("gcv", "consistentVersions", "lockConstraints", "unifiedClasspath");
 
     @Inject
     protected abstract ProjectLayout getLayout();
@@ -67,6 +75,9 @@ public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Proj
 
                                 Set<ResolvedModule> identifiers =
                                         GradleConfigurations.getResolvableConfigurations(project).stream()
+                                                .filter(conf -> GCV_INTERNAL_PREFIXES.stream()
+                                                        .noneMatch(prefix ->
+                                                                conf.getName().startsWith(prefix)))
                                                 .flatMap(CheckUnusedConstraintsProjectPlugin::getResolvedModules)
                                                 .collect(Collectors.toSet());
 
