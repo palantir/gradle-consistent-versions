@@ -82,11 +82,15 @@ public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Proj
 
     private static Stream<ResolvedModule> getResolvedModules(Configuration configuration) {
         ResolutionResult resolutionResult = configuration.getIncoming().getResolutionResult();
-        return resolutionResult.getAllComponents().stream()
-                .map(ResolvedComponentResult::getId)
-                .filter(cid -> !cid.equals(resolutionResult.getRoot().getId()))
-                .filter(ModuleComponentIdentifier.class::isInstance)
-                .map(ModuleComponentIdentifier.class::cast)
-                .map(mcid -> ResolvedModule.of(configuration.getName(), mcid.getGroup() + ":" + mcid.getModule()));
+        try {
+            return resolutionResult.getAllComponents().stream()
+                    .map(ResolvedComponentResult::getId)
+                    .filter(cid -> !cid.equals(resolutionResult.getRoot().getId()))
+                    .filter(ModuleComponentIdentifier.class::isInstance)
+                    .map(ModuleComponentIdentifier.class::cast)
+                    .map(mcid -> ResolvedModule.of(configuration.getName(), mcid.getGroup() + ":" + mcid.getModule()));
+        } catch (Exception e) {
+            return Stream.empty();
+        }
     }
 }
