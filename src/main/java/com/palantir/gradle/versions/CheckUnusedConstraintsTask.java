@@ -18,6 +18,7 @@ package com.palantir.gradle.versions;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
 import com.palantir.gradle.failurereports.exceptions.ExceptionWithSuggestion;
@@ -50,10 +51,10 @@ public abstract class CheckUnusedConstraintsTask extends DefaultTask {
 
     private static final TypeReference<Set<ResolvedModule>> SET_OF_RESOLVED_MODULES = new TypeReference<>() {};
 
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final ObjectMapper OBJECT_MAPPER = new JsonMapper();
 
     public CheckUnusedConstraintsTask() {
-        getShouldFix().set(false);
+        getShouldFix().convention(false);
         setGroup(LifecycleBasePlugin.VERIFICATION_GROUP);
         setDescription("Ensures all versions in your versions.props correspond to an actual gradle dependency");
         getOutputs().upToDateWhen(_task -> true); // task has no outputs, this is needed for it to be up to date

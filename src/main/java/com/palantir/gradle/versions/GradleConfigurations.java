@@ -33,8 +33,8 @@ final class GradleConfigurations {
     private static final ImmutableList<String> DEPRECATED_SOURCESET_SUFFIXES = ImmutableList.of("Compile", "Runtime");
 
     /**
-     * Filters out both the unresolvable configurations but also the legacy java and GCV configurations that should not
-     * be resolved.
+     * Filters out both the unresolvable configurations but also the legacy java configurations that should not be
+     * resolved.
      *
      * Note that we need to do a defensive copy here to guard against concurrent modification.
      * See https://github.com/palantir/gradle-consistent-versions/pull/812
