@@ -300,6 +300,39 @@ class CheckUnusedConstraintIntegrationTest {
         assertThat(result).output().doesNotContain("Resolution of the configuration");
     }
 
+    @Test
+    @AdditionallyRunWithGradle("9.3.0")
+    void checkUnusedConstraints_with_platform_dependencies_on_root_project(
+            GradleInvoker gradle, RootProject rootProject) {
+        rootProject.file("versions.props").overwrite("""
+            com.fasterxml.jackson.core:jackson-databind = 2.18.2
+            """);
+
+        // Add a custom resolvable configuration to the root project with a platform dependency
+        rootProject.buildGradle().append("""
+            configurations {
+                rootConfiguration {
+                    canBeConsumed = false
+                    canBeResolved = true
+                }
+            }
+
+            repositories {
+                mavenCentral()
+            }
+
+            dependencies {
+                rootConfiguration platform('com.fasterxml.jackson:jackson-bom:2.18.2')
+                implementation 'com.fasterxml.jackson.core:jackson-databind'
+            }
+            """);
+
+        InvocationResult result =
+                gradle.withArgs("checkUnusedConstraints", "--parallel").buildsSuccessfully();
+
+        assertThat(result).task(":checkUnusedConstraints").succeeded();
+    }
+
     private static String pomWithJarPackaging(String group, String artifact, String version) {
         return """
             <?xml version="1.0" encoding="UTF-8"?>

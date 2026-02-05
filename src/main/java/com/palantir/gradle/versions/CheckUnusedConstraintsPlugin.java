@@ -84,9 +84,10 @@ public abstract class CheckUnusedConstraintsPlugin implements Plugin<Project> {
         TaskProvider<CheckUnusedConstraintsTask> checkNoUnusedConstraints = rootProject
                 .getTasks()
                 .register("checkUnusedConstraints", CheckUnusedConstraintsTask.class, task -> {
-                    task.getResolvedModulesFiles()
-                            .from(collectedConfiguration.map(
-                                    resolvable -> resolvable.getIncoming().getFiles()));
+                    task.getResolvedModulesFiles().from(collectedConfiguration.map(resolvable -> resolvable
+                            .getIncoming()
+                            .artifactView(view -> view.lenient(true))
+                            .getFiles()));
 
                     task.getExcludeConfigurations()
                             .set(rootProject

@@ -91,7 +91,10 @@ public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Proj
                                             .flatMap(CheckUnusedConstraintsProjectPlugin::resolvedModules)
                                             .collect(Collectors.toSet())));
 
-                    task.getDependentProjectModule().from(incomingDependentProjectModules);
+                    task.getDependentProjectModule()
+                            .from(incomingDependentProjectModules.map(config -> config.getIncoming()
+                                    .artifactView(view -> view.lenient(true))
+                                    .getFiles()));
                 });
 
         getConfigurations().register("checkUnusedConstraintsOutgoing", outgoing -> {
