@@ -108,7 +108,7 @@ public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Proj
     }
 
     /**
-     * Returns the set of project paths that this project depends on, excluding ancestor projects.
+     * Returns the set of project paths that this project depends on, excluding self and root projects.
      *
      * <p> We must filter these out to avoid cycles where subproject tasks depend on root project tasks and vice versa.
      */
@@ -119,18 +119,18 @@ public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Proj
                 .filter(ProjectDependency.class::isInstance)
                 .map(ProjectDependency.class::cast)
                 .map(CheckUnusedConstraintsProjectPlugin::getProjectDependencyPath)
-                .filter(path -> !isAncestorOrSelf(project.getPath(), path))
+                .filter(path -> !isRootOrSelf(project.getPath(), path))
                 .collect(Collectors.toSet());
     }
 
     /**
-     * Returns true if {@code otherPath} is the same as or an ancestor of {@code currentPath}.
+     * Returns true if {@code otherPath} is the same as or is the root {@code currentPath}.
      */
-    private static boolean isAncestorOrSelf(String currentPath, String otherPath) {
+    private static boolean isRootOrSelf(String currentPath, String otherPath) {
         if (":".equals(otherPath)) {
             return true; // Root project is ancestor of everything
         }
-        return currentPath.equals(otherPath) || currentPath.startsWith(otherPath + ":");
+        return currentPath.equals(otherPath);
     }
 
     /**
