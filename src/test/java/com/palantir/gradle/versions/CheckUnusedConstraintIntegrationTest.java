@@ -270,6 +270,9 @@ class CheckUnusedConstraintIntegrationTest {
 
             dependencies {
                 resolvable project(':serviceA')
+
+                // The configuration may have other dependencies that we want to check so it is not sufficient to just
+                // remove the configuration if it contains a project dependency
                 resolvable 'com.google.guava:guava'
             }
 
