@@ -17,20 +17,10 @@
 package com.palantir.gradle.versions;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.ImmutableSet;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.util.Objects;
-import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-import javax.inject.Inject;
 import org.gradle.api.DefaultTask;
-import org.gradle.api.artifacts.Configuration;
-import org.gradle.api.artifacts.ConfigurationContainer;
-import org.gradle.api.artifacts.component.ModuleComponentIdentifier;
-import org.gradle.api.artifacts.result.ResolutionResult;
-import org.gradle.api.artifacts.result.ResolvedComponentResult;
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.provider.SetProperty;
@@ -43,16 +33,13 @@ import org.gradle.api.tasks.TaskAction;
 
 public abstract class WriteResolvedModulesTask extends DefaultTask {
 
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-
-    @Inject
-    protected abstract ConfigurationContainer getConfigurationContainer();
+    private static final ObjectMapper OBJECT_MAPPER = new JsonMapper();
 
     @OutputFile
     public abstract RegularFileProperty getOutputFile();
 
     @Input
-    public abstract SetProperty<String> getResolvableConfigurationNames();
+    public abstract SetProperty<ResolvedModule> getResolvedModules();
 
     /**
      * Files from dependent projects' writeResolvedModulesTask.
@@ -62,41 +49,15 @@ public abstract class WriteResolvedModulesTask extends DefaultTask {
      */
     @InputFiles
     @PathSensitive(PathSensitivity.NONE)
-    public abstract ConfigurableFileCollection getDependentProjectModuleFiles();
+    public abstract ConfigurableFileCollection getDependentProjectModule();
 
     @TaskAction
     public final void writeResolvedModules() {
         try {
             OBJECT_MAPPER.writeValue(
-                    getOutputFile().get().getAsFile(),
-                    configurations().stream()
-                            .flatMap(WriteResolvedModulesTask::getResolvedModules)
-                            .collect(Collectors.toSet()));
+                    getOutputFile().get().getAsFile(), getResolvedModules().get());
         } catch (IOException e) {
             throw new UncheckedIOException("Failed to write resolved module identifiers", e);
-        }
-    }
-
-    private Set<Configuration> configurations() {
-        return getResolvableConfigurationNames().get().stream()
-                .map(getConfigurationContainer()::findByName)
-                .filter(Objects::nonNull)
-                .collect(ImmutableSet.toImmutableSet());
-    }
-
-    private static Stream<ResolvedModule> getResolvedModules(Configuration configuration) {
-        ResolutionResult resolutionResult = configuration.getIncoming().getResolutionResult();
-        try {
-            return resolutionResult.getAllComponents().stream()
-                    .map(ResolvedComponentResult::getId)
-                    .filter(cid -> !cid.equals(resolutionResult.getRoot().getId()))
-                    .filter(ModuleComponentIdentifier.class::isInstance)
-                    .map(ModuleComponentIdentifier.class::cast)
-                    .map(mcid -> ResolvedModule.of(configuration.getName(), mcid.getGroup() + ":" + mcid.getModule()));
-        } catch (Exception e) {
-            throw new RuntimeException(
-                    String.format("Error during resolution of the dependency graph of configuration %s", configuration),
-                    e);
         }
     }
 }

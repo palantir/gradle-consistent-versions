@@ -55,35 +55,28 @@ public abstract class CheckUnusedConstraintsPlugin implements Plugin<Project> {
         }
 
         rootProject.allprojects(subproject -> {
-            subproject.getPlugins().apply(CheckUnusedConstraintsProjectPlugin.class);
-        });
-
-        NamedDomainObjectProvider<Configuration> subprojectDependencies = getConfigurations()
-                .register("checkUnusedConstraintsSubprojects", conf -> {
-                    conf.setCanBeConsumed(false);
-                    conf.setCanBeResolved(false);
-                });
-
-        subprojectDependencies.configure(subprojectDeps -> {
-            subprojectDeps
-                    .getDependencies()
-                    .addAllLater(getProviderFactory().provider(() -> rootProject.getAllprojects().stream()
-                            .map(subproject -> getDependencyHandler().project(Map.of("path", subproject.getPath())))
-                            .toList()));
+            subproject.getPluginManager().apply(CheckUnusedConstraintsProjectPlugin.class);
         });
 
         NamedDomainObjectProvider<Configuration> collectedConfiguration = getConfigurations()
-                .register("collectedCheckUnusedConstraintsOutgoing", conf -> {
-                    conf.setCanBeConsumed(false);
-                    conf.setCanBeResolved(true);
-                    conf.setTransitive(false);
-                    conf.extendsFrom(subprojectDependencies.get());
-                    conf.attributes(attrs -> {
+                .register("collectedCheckUnusedConstraintsOutgoing", collected -> {
+                    collected.setCanBeConsumed(false);
+                    collected.setCanBeResolved(true);
+                    collected.setTransitive(false);
+                    collected.setVisible(false);
+                    collected.attributes(attrs -> {
                         attrs.attribute(
                                 Usage.USAGE_ATTRIBUTE,
                                 getObjectFactory()
                                         .named(Usage.class, CheckUnusedConstraintsProjectPlugin.OUTGOING_USAGE));
                     });
+
+                    collected
+                            .getDependencies()
+                            .addAllLater(getProviderFactory().provider(() -> rootProject.getAllprojects().stream()
+                                    .map(subproject ->
+                                            getDependencyHandler().project(Map.of("path", subproject.getPath())))
+                                    .toList()));
                 });
 
         TaskProvider<CheckUnusedConstraintsTask> checkNoUnusedConstraints = rootProject

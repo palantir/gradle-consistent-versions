@@ -18,12 +18,13 @@ package com.palantir.gradle.versions;
 
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import java.io.Serializable;
 import org.immutables.value.Value;
 
 @Value.Immutable
 @JsonSerialize(as = ImmutableResolvedModule.class)
 @JsonDeserialize(as = ImmutableResolvedModule.class)
-interface ResolvedModule {
+interface ResolvedModule extends Serializable {
     String configuration();
 
     String module();
