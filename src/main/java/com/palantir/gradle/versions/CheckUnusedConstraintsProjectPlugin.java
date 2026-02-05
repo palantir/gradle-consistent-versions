@@ -110,7 +110,7 @@ public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Proj
     /**
      * Returns the set of project paths that this project depends on, excluding self and root projects.
      *
-     * <p> We must filter these out to avoid cycles where subproject tasks depend on root project tasks and vice versa.
+     * <p> We must filter these out to avoid cycles where subproject tasks depend on root project tasks.
      */
     @SuppressWarnings("deprecation")
     private static Set<String> getDependentProjectPaths(Project project) {
