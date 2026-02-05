@@ -31,7 +31,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 @GradlePluginTests
-@DisabledConfigurationCache
 class CheckUnusedConstraintIntegrationTest {
 
     @BeforeEach
@@ -119,6 +118,7 @@ class CheckUnusedConstraintIntegrationTest {
     }
 
     @Test
+    @DisabledConfigurationCache("Test modifies versions.props via --fix flag which invalidates cache")
     void most_specific_matching_version_should_win(GradleInvoker gradle, RootProject rootProject) {
         rootProject.file("versions.props").overwrite("""
             org.slf4j:slf4j-api = 1.7.25
@@ -137,6 +137,7 @@ class CheckUnusedConstraintIntegrationTest {
     }
 
     @Test
+    @DisabledConfigurationCache("Test modifies versions.props via --fix flag which invalidates cache")
     void most_specific_glob_should_win(GradleInvoker gradle, RootProject rootProject) {
         rootProject.file("versions.props").overwrite("""
             org.slf4j:slf4j-* = 1.7.25
@@ -156,6 +157,7 @@ class CheckUnusedConstraintIntegrationTest {
     }
 
     @Test
+    @DisabledConfigurationCache("Test modifies versions.props via --fix flag which invalidates cache")
     void unused_version_should_fail(GradleInvoker gradle, RootProject rootProject) {
         rootProject.file("versions.props").overwrite("notused:atall = 42.42");
 
