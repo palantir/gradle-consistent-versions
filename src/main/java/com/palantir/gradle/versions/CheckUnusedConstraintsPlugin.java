@@ -71,6 +71,8 @@ public abstract class CheckUnusedConstraintsPlugin implements Plugin<Project> {
                                         .named(Usage.class, CheckUnusedConstraintsProjectPlugin.OUTGOING_USAGE));
                     });
 
+                    // withDependencies does not seem to work on Gradle 7.x.x with configuration-on-demand so use
+                    // addAllLater instead
                     collected
                             .getDependencies()
                             .addAllLater(getProviderFactory().provider(() -> rootProject.getAllprojects().stream()

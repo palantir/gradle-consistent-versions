@@ -40,8 +40,7 @@ import org.gradle.util.GradleVersion;
 
 public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Project> {
 
-    static final String OUTGOING_USAGE = "check-unused-constraints-module-identifiers";
-    static final String TASK_NAME = "writeResolvedModulesTask";
+    static final String OUTGOING_USAGE = "checkUnusedConstraintsOutgoingModuleIdentifiers";
 
     @Inject
     protected abstract ProjectLayout getLayout();
@@ -80,7 +79,7 @@ public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Proj
                 });
 
         TaskProvider<WriteResolvedModulesTask> writeResolvedModulesTask = project.getTasks()
-                .register(TASK_NAME, WriteResolvedModulesTask.class, task -> {
+                .register("writeResolvedModulesTask", WriteResolvedModulesTask.class, task -> {
                     task.getOutputFile()
                             .set(getLayout()
                                     .getBuildDirectory()
@@ -95,7 +94,7 @@ public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Proj
                     task.getDependentProjectModule().from(incomingDependentProjectModules);
                 });
 
-        getConfigurations().register("check-unused-constraints-outgoing", outgoing -> {
+        getConfigurations().register("checkUnusedConstraintsOutgoing", outgoing -> {
             outgoing.setCanBeConsumed(true);
             outgoing.setCanBeResolved(false);
             outgoing.setVisible(false);
