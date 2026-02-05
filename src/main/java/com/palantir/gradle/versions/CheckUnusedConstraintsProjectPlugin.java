@@ -16,36 +16,36 @@
 
 package com.palantir.gradle.versions;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.ImmutableList;
-import java.io.IOException;
-import java.io.UncheckedIOException;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import javax.inject.Inject;
+import org.gradle.api.NamedDomainObjectProvider;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.ConfigurationContainer;
-import org.gradle.api.artifacts.component.ModuleComponentIdentifier;
-import org.gradle.api.artifacts.result.ResolutionResult;
-import org.gradle.api.artifacts.result.ResolvedComponentResult;
+import org.gradle.api.artifacts.ProjectDependency;
+import org.gradle.api.artifacts.dsl.DependencyHandler;
 import org.gradle.api.attributes.Usage;
 import org.gradle.api.file.ProjectLayout;
 import org.gradle.api.model.ObjectFactory;
+import org.gradle.api.provider.Provider;
+import org.gradle.api.provider.ProviderFactory;
+import org.gradle.api.tasks.TaskProvider;
 
 public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Project> {
 
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     static final String OUTGOING_USAGE = "check-unused-constraints-module-identifiers";
+    static final String TASK_NAME = "writeResolvedModulesTask";
 
-    /**
-     * Internal GCV configuration name prefixes that should not be resolved by other plugins.
-     * Resolving these can cause binary store corruption issues in Gradle 7.
-     */
-    private static final ImmutableList<String> GCV_INTERNAL_PREFIXES =
-            ImmutableList.of("gcv", "consistentVersions", "lockConstraints", "unifiedClasspath");
+    // Internal configurations that should not be scanned for project dependencies
+    // to avoid circular dependency issues
+    private static final Set<String> INTERNAL_CONFIGURATION_NAMES = Set.of(
+            "checkUnusedConstraintsIncoming",
+            "checkUnusedConstraintsSubprojects",
+            "collectedCheckUnusedConstraintsOutgoing",
+            "check-unused-constraints-outgoing");
 
     @Inject
     protected abstract ProjectLayout getLayout();
@@ -56,8 +56,84 @@ public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Proj
     @Inject
     protected abstract ConfigurationContainer getConfigurations();
 
+    @Inject
+    protected abstract DependencyHandler getDependencyHandler();
+
+    @Inject
+    protected abstract ProviderFactory getProviderFactory();
+
     @Override
     public final void apply(Project project) {
+        // Lazily compute the set of project paths this project depends on.
+        // This is used both for populating the incoming configuration and for
+        // deciding whether to wire up task ordering.
+        Provider<Set<String>> dependentProjectPaths = getProviderFactory().provider(() -> {
+            String currentProjectPath = project.getPath();
+            return GradleConfigurations.getResolvableConfigurations(project).stream()
+                    .filter(config -> !INTERNAL_CONFIGURATION_NAMES.contains(config.getName()))
+                    .flatMap(config -> config.getAllDependencies().stream())
+                    .filter(ProjectDependency.class::isInstance)
+                    .map(ProjectDependency.class::cast)
+                    .map(ProjectDependency::getPath)
+                    // Filter out current project and ancestor projects to avoid circular dependencies.
+                    // Subprojects often depend on parent projects (e.g., for platforms/BOMs), but we
+                    // shouldn't wire up task dependencies for ancestors since their resolved modules
+                    // aren't relevant to this project's unused constraint checking.
+                    .filter(path -> !isAncestorOrSelf(currentProjectPath, path))
+                    .collect(Collectors.toSet());
+        });
+
+        // Create an incoming configuration that will resolve artifacts from dependent projects.
+        // This establishes proper task ordering through Gradle's dependency resolution system,
+        // which is isolated-projects compatible.
+        NamedDomainObjectProvider<Configuration> incomingDependentProjectModules = getConfigurations()
+                .register("checkUnusedConstraintsIncoming", incoming -> {
+                    incoming.setCanBeConsumed(false);
+                    incoming.setCanBeResolved(true);
+                    incoming.setVisible(false);
+                    incoming.setTransitive(false);
+                    incoming.attributes(attrs -> {
+                        attrs.attribute(
+                                Usage.USAGE_ATTRIBUTE, getObjectFactory().named(Usage.class, OUTGOING_USAGE));
+                    });
+                });
+
+        // Populate the incoming configuration with project dependencies found in resolvable configs.
+        incomingDependentProjectModules.configure(incoming -> {
+            incoming.withDependencies(deps -> {
+                dependentProjectPaths
+                        .get()
+                        .forEach(path -> deps.add(getDependencyHandler().project(Map.of("path", path))));
+            });
+        });
+
+        TaskProvider<WriteResolvedModulesTask> writeResolvedModulesTask = project.getTasks()
+                .register(TASK_NAME, WriteResolvedModulesTask.class, task -> {
+                    task.getOutputFile()
+                            .set(getLayout()
+                                    .getBuildDirectory()
+                                    .file("tmp/check-unused-constraints/resolved-module-identifiers.json"));
+
+                    task.getResolvableConfigurationNames()
+                            .set(project.provider(
+                                    () -> GradleConfigurations.getResolvableConfigurations(project).stream()
+                                            .map(Configuration::getName)
+                                            .collect(Collectors.toSet())));
+
+                    // Only wire up the incoming configuration files as an input if there are
+                    // actual project dependencies. This avoids creating spurious task dependencies
+                    // through Gradle's attribute-based resolution when the configuration is empty.
+                    task.getDependentProjectModuleFiles().from(dependentProjectPaths.map(paths -> {
+                        if (paths.isEmpty()) {
+                            return project.files();
+                        }
+                        return incomingDependentProjectModules
+                                .get()
+                                .getIncoming()
+                                .getFiles();
+                    }));
+                });
+
         getConfigurations().register("check-unused-constraints-outgoing", outgoing -> {
             outgoing.setCanBeConsumed(true);
             outgoing.setCanBeResolved(false);
@@ -67,41 +143,29 @@ public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Proj
             });
 
             outgoing.getOutgoing()
-                    .artifact(getLayout()
-                            .getBuildDirectory()
-                            .file("tmp/check-unused-constraints/resolved-module-identifiers.json")
-                            .map(regFile -> {
-                                regFile.getAsFile().getParentFile().mkdirs();
-
-                                Set<ResolvedModule> identifiers =
-                                        GradleConfigurations.getResolvableConfigurations(project).stream()
-                                                .filter(conf -> GCV_INTERNAL_PREFIXES.stream()
-                                                        .noneMatch(prefix ->
-                                                                conf.getName().startsWith(prefix)))
-                                                .flatMap(CheckUnusedConstraintsProjectPlugin::getResolvedModules)
-                                                .collect(Collectors.toSet());
-
-                                try {
-                                    OBJECT_MAPPER.writeValue(regFile.getAsFile(), identifiers);
-                                } catch (IOException e) {
-                                    throw new UncheckedIOException("Failed to write resolved module identifiers", e);
-                                }
-                                return regFile;
-                            }));
+                    .artifact(writeResolvedModulesTask.flatMap(WriteResolvedModulesTask::getOutputFile), artifact -> {
+                        artifact.builtBy(writeResolvedModulesTask);
+                    });
         });
     }
 
-    private static Stream<ResolvedModule> getResolvedModules(Configuration configuration) {
-        ResolutionResult resolutionResult = configuration.getIncoming().getResolutionResult();
-        try {
-            return resolutionResult.getAllComponents().stream()
-                    .map(ResolvedComponentResult::getId)
-                    .filter(cid -> !cid.equals(resolutionResult.getRoot().getId()))
-                    .filter(ModuleComponentIdentifier.class::isInstance)
-                    .map(ModuleComponentIdentifier.class::cast)
-                    .map(mcid -> ResolvedModule.of(configuration.getName(), mcid.getGroup() + ":" + mcid.getModule()));
-        } catch (Exception e) {
-            return Stream.empty();
+    /**
+     * Returns true if {@code otherPath} is the same as or an ancestor of {@code currentPath}.
+     * This is used to filter out parent projects from task dependencies to avoid circular dependencies.
+     *
+     * <p>Examples:
+     * <ul>
+     *   <li>isAncestorOrSelf(":foo", ":") returns true (root is ancestor of all)</li>
+     *   <li>isAncestorOrSelf(":foo:bar", ":foo") returns true</li>
+     *   <li>isAncestorOrSelf(":foo", ":foo") returns true (self)</li>
+     *   <li>isAncestorOrSelf(":foo", ":bar") returns false (sibling)</li>
+     *   <li>isAncestorOrSelf(":foo", ":foobar") returns false (different project)</li>
+     * </ul>
+     */
+    private static boolean isAncestorOrSelf(String currentPath, String otherPath) {
+        if (":".equals(otherPath)) {
+            return true; // Root project is ancestor of everything
         }
+        return currentPath.equals(otherPath) || currentPath.startsWith(otherPath + ":");
     }
 }
