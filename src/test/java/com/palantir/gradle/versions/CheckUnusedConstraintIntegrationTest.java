@@ -291,7 +291,6 @@ class CheckUnusedConstraintIntegrationTest {
 
         assertThat(result).task(":checkUnusedConstraints").succeeded();
 
-        // The key assertion - we should NOT see this error message
         assertThat(result).output().doesNotContain("without an exclusive lock");
         assertThat(result).output().doesNotContain("Resolution of the configuration");
     }
