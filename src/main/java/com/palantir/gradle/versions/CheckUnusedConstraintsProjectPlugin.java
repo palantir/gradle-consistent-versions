@@ -17,14 +17,21 @@
 package com.palantir.gradle.versions;
 
 import java.io.File;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import javax.inject.Inject;
 import org.gradle.api.Named;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
+import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.ConfigurationContainer;
+import org.gradle.api.artifacts.result.ResolvedComponentResult;
 import org.gradle.api.attributes.Usage;
+import org.gradle.api.file.FileCollection;
 import org.gradle.api.model.ObjectFactory;
+import org.gradle.api.provider.Provider;
+import org.gradle.api.provider.ProviderFactory;
 import org.gradle.api.tasks.TaskContainer;
 import org.gradle.api.tasks.TaskProvider;
 
@@ -39,33 +46,36 @@ public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Proj
     protected abstract ObjectFactory getObjectFactory();
 
     @Inject
+    protected abstract ProviderFactory getProviderFactory();
+
+    @Inject
     protected abstract ConfigurationContainer getConfigurations();
 
     @Override
     public final void apply(Project project) {
+        Provider<List<Configuration>> configurationsToCheck = getProviderFactory()
+                .provider(() -> GradleConfigurations.getResolvableConfigurations(project).stream()
+                        .filter(config -> !config.getName().startsWith("checkUnusedConstraints"))
+                        .toList());
+
+        Provider<List<FileCollection>> resolvedFiles =
+                configurationsToCheck.map(configurations -> configurations.stream()
+                        .map(config -> config.getIncoming()
+                                .artifactView(view -> view.lenient(true))
+                                .getFiles())
+                        .toList());
+
+        Provider<Map<String, ResolvedComponentResult>> rootComponents = configurationsToCheck.map(configurations ->
+                configurations.stream().collect(Collectors.toMap(Named::getName, config -> config.getIncoming()
+                        .getResolutionResult()
+                        .getRoot())));
+
         TaskProvider<WriteResolvedCoordinatesTask> writeResolvedCoordinatesTask = getTasks()
                 .register("writeResolvedCoordinatesTask", WriteResolvedCoordinatesTask.class, task -> {
                     task.getOutputFile()
                             .fileValue(new File(task.getTemporaryDir(), "resolved-module-identifiers.json"));
-
-                    task.getResolvedFiles()
-                            .from(GradleConfigurations.getResolvableConfigurations(project)
-                                    .map(configurations -> configurations.stream()
-                                            .filter(configuration ->
-                                                    !configuration.getName().startsWith("checkUnusedConstraints"))
-                                            .map(configuration -> configuration
-                                                    .getIncoming()
-                                                    .artifactView(view -> view.lenient(true))
-                                                    .getFiles())
-                                            .collect(Collectors.toList())));
-
-                    task.getRootComponents()
-                            .putAll(GradleConfigurations.getResolvableConfigurations(project)
-                                    .map(configurations -> configurations.stream()
-                                            .collect(Collectors.toMap(Named::getName, configuration -> configuration
-                                                    .getIncoming()
-                                                    .getResolutionResult()
-                                                    .getRoot()))));
+                    task.getResolvedFiles().from(resolvedFiles);
+                    task.getRootComponents().putAll(rootComponents);
                 });
 
         getConfigurations().register("checkUnusedConstraintsConsumable", consumable -> {
