@@ -31,6 +31,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 @GradlePluginTests
+@AdditionallyRunWithGradle("9.3.0")
 class CheckUnusedConstraintIntegrationTest {
 
     @BeforeEach
@@ -183,7 +184,6 @@ class CheckUnusedConstraintIntegrationTest {
     }
 
     @Test
-    @AdditionallyRunWithGradle("9.3.0")
     void checkUnusedConstraints_works_in_multiproject_build_with_cross_project_deps(
             GradleInvoker gradle, RootProject rootProject, SubProject foo, SubProject bar) {
         rootProject.file("versions.props").overwrite("""
@@ -219,7 +219,6 @@ class CheckUnusedConstraintIntegrationTest {
     }
 
     @Test
-    @AdditionallyRunWithGradle("9.3.0")
     void checkUnusedConstraints_with_platform_dependencies_on_root_project(
             GradleInvoker gradle, RootProject rootProject) {
         rootProject.file("versions.props").overwrite("""

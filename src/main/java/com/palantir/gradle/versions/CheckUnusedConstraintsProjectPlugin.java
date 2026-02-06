@@ -21,7 +21,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import javax.inject.Inject;
-import org.gradle.api.Named;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
@@ -66,7 +65,7 @@ public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Proj
                         .toList());
 
         Provider<Map<String, ResolvedComponentResult>> rootComponents = configurationsToCheck.map(configurations ->
-                configurations.stream().collect(Collectors.toMap(Named::getName, config -> config.getIncoming()
+                configurations.stream().collect(Collectors.toMap(configuration -> configuration.getName(), configuration -> configuration.getIncoming()
                         .getResolutionResult()
                         .getRoot())));
 
