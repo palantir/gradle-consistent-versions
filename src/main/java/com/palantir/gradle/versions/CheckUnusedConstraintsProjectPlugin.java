@@ -48,15 +48,21 @@ public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Proj
                     task.getOutputFile()
                             .fileValue(new File(task.getTemporaryDir(), "resolved-module-identifiers.json"));
 
+                    task.getResolvedFiles()
+                            .from(GradleConfigurations.getResolvableConfigurations(project)
+                                    .map(configurations -> configurations.stream()
+                                            .filter(configuration ->
+                                                    !configuration.getName().startsWith("checkUnusedConstraints"))
+                                            .map(config -> config.getIncoming().getFiles())
+                                            .collect(Collectors.toList())));
+
                     task.getRootComponents()
-                            .set(GradleConfigurations.getResolvableConfigurations(project)
+                            .putAll(GradleConfigurations.getResolvableConfigurations(project)
                                     .map(configurations -> configurations.stream()
                                             .collect(Collectors.toMap(
-                                                    Configuration::getName,
-                                                    config -> config.getIncoming()
+                                                    Configuration::getName, config -> config.getIncoming()
                                                             .getResolutionResult()
-                                                            .getRootComponent()
-                                                            .get()))));
+                                                            .getRoot()))));
                 });
 
         getConfigurations().register("checkUnusedConstraintsConsumable", consumable -> {
