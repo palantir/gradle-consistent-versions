@@ -30,7 +30,7 @@ import org.gradle.api.tasks.TaskProvider;
 
 public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Project> {
 
-    static final String OUTGOING_USAGE = "gcv-check-unused-constraints";
+    static final String USAGE = "gcv-check-unused-constraints";
 
     @Inject
     protected abstract TaskContainer getTasks();
@@ -74,7 +74,7 @@ public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Proj
             consumable.setVisible(false);
             consumable.setTransitive(false);
             consumable.attributes(attrs -> {
-                attrs.attribute(Usage.USAGE_ATTRIBUTE, getObjectFactory().named(Usage.class, OUTGOING_USAGE));
+                attrs.attribute(Usage.USAGE_ATTRIBUTE, getObjectFactory().named(Usage.class, USAGE));
             });
 
             consumable

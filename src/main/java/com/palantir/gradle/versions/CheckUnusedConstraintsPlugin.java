@@ -71,8 +71,7 @@ public abstract class CheckUnusedConstraintsPlugin implements Plugin<Project> {
                     resolvable.attributes(attrs -> {
                         attrs.attribute(
                                 Usage.USAGE_ATTRIBUTE,
-                                getObjectFactory()
-                                        .named(Usage.class, CheckUnusedConstraintsProjectPlugin.OUTGOING_USAGE));
+                                getObjectFactory().named(Usage.class, CheckUnusedConstraintsProjectPlugin.USAGE));
                     });
 
                     resolvable
