@@ -49,8 +49,6 @@ import org.gradle.language.base.plugins.LifecycleBasePlugin;
 
 public abstract class CheckUnusedConstraintsTask extends DefaultTask {
 
-    private static final TypeReference<Set<ResolvedCoordinate>> SET_OF_RESOLVED_MODULES = new TypeReference<>() {};
-
     private static final ObjectMapper OBJECT_MAPPER = new JsonMapper();
 
     public CheckUnusedConstraintsTask() {
@@ -119,7 +117,7 @@ public abstract class CheckUnusedConstraintsTask extends DefaultTask {
 
     private static Set<ResolvedCoordinate> readModulesFile(File file) {
         try {
-            return OBJECT_MAPPER.readValue(file, SET_OF_RESOLVED_MODULES);
+            return OBJECT_MAPPER.readValue(file, new TypeReference<>() {});
         } catch (IOException e) {
             throw new UncheckedIOException("Error reading " + file, e);
         }
