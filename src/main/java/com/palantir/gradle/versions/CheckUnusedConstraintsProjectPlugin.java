@@ -18,14 +18,11 @@ package com.palantir.gradle.versions;
 
 import java.io.File;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import javax.inject.Inject;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.ConfigurationContainer;
-import org.gradle.api.artifacts.component.ModuleComponentIdentifier;
-import org.gradle.api.artifacts.result.ResolvedComponentResult;
 import org.gradle.api.attributes.Usage;
 import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.tasks.TaskContainer;
@@ -51,20 +48,15 @@ public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Proj
                     task.getOutputFile()
                             .fileValue(new File(task.getTemporaryDir(), "resolved-module-identifiers.json"));
 
-                    task.getResolvedCoordinates()
+                    task.getRootComponents()
                             .set(GradleConfigurations.getResolvableConfigurations(project)
                                     .map(configurations -> configurations.stream()
-                                            .flatMap(CheckUnusedConstraintsProjectPlugin::resolvedCoordinateStream)
-                                            .collect(Collectors.toSet())));
-
-                    task.getResolvableConfigurationFiles()
-                            .from(GradleConfigurations.getResolvableConfigurations(project)
-                                    .map(configurations -> configurations.stream()
-                                            .filter(config -> !config.getName().startsWith("checkUnusedConstraints"))
-                                            .map(config -> config.getIncoming()
-                                                    .artifactView(view -> view.lenient(true))
-                                                    .getFiles())
-                                            .collect(Collectors.toList())));
+                                            .collect(Collectors.toMap(
+                                                    Configuration::getName,
+                                                    config -> config.getIncoming()
+                                                            .getResolutionResult()
+                                                            .getRootComponent()
+                                                            .get()))));
                 });
 
         getConfigurations().register("checkUnusedConstraintsConsumable", consumable -> {
@@ -80,19 +72,5 @@ public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Proj
                     .getOutgoing()
                     .artifact(writeResolvedCoordinatesTask.flatMap(WriteResolvedCoordinatesTask::getOutputFile));
         });
-    }
-
-    private static Stream<ResolvedCoordinate> resolvedCoordinateStream(Configuration configuration) {
-        try {
-            return configuration.getIncoming().getResolutionResult().getAllComponents().stream()
-                    .map(ResolvedComponentResult::getId)
-                    .filter(ModuleComponentIdentifier.class::isInstance)
-                    .map(ModuleComponentIdentifier.class::cast)
-                    .map(mcid -> ResolvedCoordinate.of(configuration.getName(), mcid.getGroup(), mcid.getModule()));
-        } catch (Exception e) {
-            throw new RuntimeException(
-                    String.format("Error during resolution of the dependency graph of configuration %s", configuration),
-                    e);
-        }
     }
 }

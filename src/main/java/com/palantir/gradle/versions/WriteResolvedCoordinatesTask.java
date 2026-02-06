@@ -21,16 +21,18 @@ import com.fasterxml.jackson.databind.json.JsonMapper;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Stream;
 import org.gradle.api.DefaultTask;
-import org.gradle.api.file.ConfigurableFileCollection;
+import org.gradle.api.artifacts.component.ModuleComponentIdentifier;
+import org.gradle.api.artifacts.result.ResolvedComponentResult;
+import org.gradle.api.artifacts.result.ResolvedDependencyResult;
 import org.gradle.api.file.RegularFileProperty;
-import org.gradle.api.provider.SetProperty;
+import org.gradle.api.provider.MapProperty;
 import org.gradle.api.tasks.Input;
-import org.gradle.api.tasks.InputFiles;
 import org.gradle.api.tasks.OutputFile;
-import org.gradle.api.tasks.PathSensitive;
-import org.gradle.api.tasks.PathSensitivity;
 import org.gradle.api.tasks.TaskAction;
 
 public abstract class WriteResolvedCoordinatesTask extends DefaultTask {
@@ -41,24 +43,44 @@ public abstract class WriteResolvedCoordinatesTask extends DefaultTask {
     public abstract RegularFileProperty getOutputFile();
 
     @Input
-    public abstract SetProperty<ResolvedCoordinate> getResolvedCoordinates();
-
-    /** Resolvable configuration files used solely to establish task ordering across projects. */
-    @InputFiles
-    @PathSensitive(PathSensitivity.NONE)
-    public abstract ConfigurableFileCollection getResolvableConfigurationFiles();
+    public abstract MapProperty<String, ResolvedComponentResult> getRootComponents();
 
     @TaskAction
     public final void writeResolvedCoordinates() {
-        List<ResolvedCoordinate> sorted = getResolvedCoordinates().get().stream()
-                .sorted(Comparator.comparing(ResolvedCoordinate::group)
+        List<ResolvedCoordinate> sorted = getRootComponents().get().entrySet().stream()
+                .flatMap(entry -> allComponents(entry.getValue())
+                        .map(ResolvedComponentResult::getId)
+                        .filter(ModuleComponentIdentifier.class::isInstance)
+                        .map(ModuleComponentIdentifier.class::cast)
+                        .map(mcid -> ResolvedCoordinate.of(entry.getKey(), mcid.getGroup(), mcid.getModule())))
+                .sorted(Comparator.comparing(ResolvedCoordinate::configuration)
                         .thenComparing(ResolvedCoordinate::module)
-                        .thenComparing(ResolvedCoordinate::configuration))
+                        .thenComparing(ResolvedCoordinate::group))
+                .distinct()
                 .toList();
         try {
             OBJECT_MAPPER.writeValue(getOutputFile().get().getAsFile(), sorted);
         } catch (IOException e) {
             throw new UncheckedIOException("Failed to write resolved module identifiers", e);
         }
+    }
+
+    private static Stream<ResolvedComponentResult> allComponents(ResolvedComponentResult root) {
+        Set<ResolvedComponentResult> visited = new HashSet<>();
+        return traverse(root, visited);
+    }
+
+    private static Stream<ResolvedComponentResult> traverse(
+            ResolvedComponentResult component, Set<ResolvedComponentResult> visited) {
+        if (!visited.add(component)) {
+            return Stream.empty();
+        }
+        return Stream.concat(
+                Stream.of(component),
+                component.getDependencies().stream()
+                        .filter(ResolvedDependencyResult.class::isInstance)
+                        .map(ResolvedDependencyResult.class::cast)
+                        .map(ResolvedDependencyResult::getSelected)
+                        .flatMap(child -> traverse(child, visited)));
     }
 }
