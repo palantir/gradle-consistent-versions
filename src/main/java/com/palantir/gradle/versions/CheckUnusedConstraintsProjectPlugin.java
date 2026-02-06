@@ -16,6 +16,7 @@
 
 package com.palantir.gradle.versions;
 
+import java.io.File;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -32,7 +33,6 @@ import org.gradle.api.artifacts.dsl.DependencyHandler;
 import org.gradle.api.artifacts.result.ResolutionResult;
 import org.gradle.api.artifacts.result.ResolvedComponentResult;
 import org.gradle.api.attributes.Usage;
-import org.gradle.api.file.ProjectLayout;
 import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.provider.ProviderFactory;
 import org.gradle.api.tasks.TaskProvider;
@@ -41,9 +41,6 @@ import org.gradle.util.GradleVersion;
 public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Project> {
 
     static final String OUTGOING_USAGE = "gcv-check-unused-constraints";
-
-    @Inject
-    protected abstract ProjectLayout getLayout();
 
     @Inject
     protected abstract ObjectFactory getObjectFactory();
@@ -81,9 +78,7 @@ public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Proj
         TaskProvider<WriteResolvedModulesTask> writeResolvedModulesTask = project.getTasks()
                 .register("writeResolvedModulesTask", WriteResolvedModulesTask.class, task -> {
                     task.getOutputFile()
-                            .set(getLayout()
-                                    .getBuildDirectory()
-                                    .file("tmp/check-unused-constraints/resolved-module-identifiers.json"));
+                            .fileValue(new File(task.getTemporaryDir(), "resolved-module-identifiers.json"));
 
                     task.getResolvedModules()
                             .set(getProviderFactory()
