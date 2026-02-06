@@ -53,7 +53,10 @@ public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Proj
                                     .map(configurations -> configurations.stream()
                                             .filter(configuration ->
                                                     !configuration.getName().startsWith("checkUnusedConstraints"))
-                                            .map(config -> config.getIncoming().getFiles())
+                                            .map(configuration -> configuration
+                                                    .getIncoming()
+                                                    .artifactView(view -> view.lenient(true))
+                                                    .getFiles())
                                             .collect(Collectors.toList())));
 
                     task.getRootComponents()
