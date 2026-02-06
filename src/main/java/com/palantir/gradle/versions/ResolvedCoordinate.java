@@ -31,11 +31,6 @@ interface ResolvedCoordinate extends Serializable {
 
     String module();
 
-    @Value.Derived
-    default String moduleIdentifier() {
-        return group() + ":" + module();
-    }
-
     static ResolvedCoordinate of(String configuration, String group, String module) {
         return ImmutableResolvedCoordinate.builder()
                 .configuration(configuration)

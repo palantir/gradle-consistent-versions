@@ -82,7 +82,7 @@ public abstract class CheckUnusedConstraintsTask extends DefaultTask {
                 .map(CheckUnusedConstraintsTask::readModulesFile)
                 .flatMap(Set::stream)
                 .filter(module -> !excludedConfigs.contains(module.configuration()))
-                .map(ResolvedCoordinate::moduleIdentifier)
+                .map(coord -> coord.group() + ":" + coord.module())
                 .collect(Collectors.toSet());
 
         VersionsProps versionsProps =

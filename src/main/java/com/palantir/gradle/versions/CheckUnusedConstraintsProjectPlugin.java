@@ -101,7 +101,9 @@ public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Proj
                 attrs.attribute(Usage.USAGE_ATTRIBUTE, getObjectFactory().named(Usage.class, OUTGOING_USAGE));
             });
 
-            consumable.getOutgoing().artifact(writeResolvedCoordinatesTask.flatMap(WriteResolvedCoordinatesTask::getOutputFile));
+            consumable
+                    .getOutgoing()
+                    .artifact(writeResolvedCoordinatesTask.flatMap(WriteResolvedCoordinatesTask::getOutputFile));
         });
     }
 
@@ -149,7 +151,6 @@ public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Proj
         try {
             return resolutionResult.getAllComponents().stream()
                     .map(ResolvedComponentResult::getId)
-                    .filter(cid -> !cid.equals(resolutionResult.getRoot().getId()))
                     .filter(ModuleComponentIdentifier.class::isInstance)
                     .map(ModuleComponentIdentifier.class::cast)
                     .map(mcid -> ResolvedCoordinate.of(configuration.getName(), mcid.getGroup(), mcid.getModule()));
