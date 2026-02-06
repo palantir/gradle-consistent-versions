@@ -58,13 +58,13 @@ public abstract class CheckUnusedConstraintsPlugin implements Plugin<Project> {
             subproject.getPluginManager().apply(CheckUnusedConstraintsProjectPlugin.class);
         });
 
-        NamedDomainObjectProvider<Configuration> collectedConfiguration = getConfigurations()
-                .register("collectedCheckUnusedConstraintsOutgoing", collected -> {
-                    collected.setCanBeConsumed(false);
-                    collected.setCanBeResolved(true);
-                    collected.setTransitive(false);
-                    collected.setVisible(false);
-                    collected.attributes(attrs -> {
+        NamedDomainObjectProvider<Configuration> resolvableCoordinates = getConfigurations()
+                .register("checkUnusedConstraintsAllResolvable", resolvable -> {
+                    resolvable.setCanBeConsumed(false);
+                    resolvable.setCanBeResolved(true);
+                    resolvable.setTransitive(false);
+                    resolvable.setVisible(false);
+                    resolvable.attributes(attrs -> {
                         attrs.attribute(
                                 Usage.USAGE_ATTRIBUTE,
                                 getObjectFactory()
@@ -73,7 +73,7 @@ public abstract class CheckUnusedConstraintsPlugin implements Plugin<Project> {
 
                     // withDependencies does not seem to work on Gradle 7.x.x with configuration-on-demand so use
                     // addAllLater instead
-                    collected
+                    resolvable
                             .getDependencies()
                             .addAllLater(getProviderFactory().provider(() -> rootProject.getAllprojects().stream()
                                     .map(subproject ->
@@ -84,7 +84,7 @@ public abstract class CheckUnusedConstraintsPlugin implements Plugin<Project> {
         TaskProvider<CheckUnusedConstraintsTask> checkNoUnusedConstraints = rootProject
                 .getTasks()
                 .register("checkUnusedConstraints", CheckUnusedConstraintsTask.class, task -> {
-                    task.getResolvedModulesFiles().from(collectedConfiguration.map(resolvable -> resolvable
+                    task.getResolvedCoordinatesFiles().from(resolvableCoordinates.map(resolvable -> resolvable
                             .getIncoming()
                             .artifactView(view -> view.lenient(true))
                             .getFiles()));

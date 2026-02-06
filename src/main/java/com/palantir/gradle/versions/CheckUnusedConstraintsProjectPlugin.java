@@ -58,18 +58,18 @@ public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Proj
     public final void apply(Project project) {
         // Create an incoming configuration that will resolve artifacts from dependent projects.
         // This establishes proper task ordering through Gradle's dependency resolution system.
-        NamedDomainObjectProvider<Configuration> incomingDependentProjectModules = getConfigurations()
-                .register("checkUnusedConstraintsIncoming", incoming -> {
-                    incoming.setCanBeConsumed(false);
-                    incoming.setCanBeResolved(true);
-                    incoming.setVisible(false);
-                    incoming.setTransitive(false);
-                    incoming.attributes(attrs -> {
+        NamedDomainObjectProvider<Configuration> resolvableDependentProjectCoordinates = getConfigurations()
+                .register("checkUnusedConstraintsResolvable", resolvable -> {
+                    resolvable.setCanBeConsumed(false);
+                    resolvable.setCanBeResolved(true);
+                    resolvable.setVisible(false);
+                    resolvable.setTransitive(false);
+                    resolvable.attributes(attrs -> {
                         attrs.attribute(
                                 Usage.USAGE_ATTRIBUTE, getObjectFactory().named(Usage.class, OUTGOING_USAGE));
                     });
 
-                    incoming.withDependencies(deps -> {
+                    resolvable.withDependencies(deps -> {
                         getDependentProjectPaths(project)
                                 .forEach(path -> deps.add(getDependencyHandler().project(Map.of("path", path))));
                     });
@@ -86,22 +86,22 @@ public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Proj
                                             .flatMap(CheckUnusedConstraintsProjectPlugin::resolvedModules)
                                             .collect(Collectors.toSet())));
 
-                    task.getDependentProjectModule()
-                            .from(incomingDependentProjectModules.map(config -> config.getIncoming()
+                    task.getDependentProjectCoordinates()
+                            .from(resolvableDependentProjectCoordinates.map(config -> config.getIncoming()
                                     .artifactView(view -> view.lenient(true))
                                     .getFiles()));
                 });
 
-        getConfigurations().register("checkUnusedConstraintsOutgoing", outgoing -> {
-            outgoing.setCanBeConsumed(true);
-            outgoing.setCanBeResolved(false);
-            outgoing.setVisible(false);
-            outgoing.setTransitive(false);
-            outgoing.attributes(attrs -> {
+        getConfigurations().register("checkUnusedConstraintsConsumable", consumable -> {
+            consumable.setCanBeConsumed(true);
+            consumable.setCanBeResolved(false);
+            consumable.setVisible(false);
+            consumable.setTransitive(false);
+            consumable.attributes(attrs -> {
                 attrs.attribute(Usage.USAGE_ATTRIBUTE, getObjectFactory().named(Usage.class, OUTGOING_USAGE));
             });
 
-            outgoing.getOutgoing().artifact(writeResolvedCoordinatesTask.flatMap(WriteResolvedCoordinatesTask::getOutputFile));
+            consumable.getOutgoing().artifact(writeResolvedCoordinatesTask.flatMap(WriteResolvedCoordinatesTask::getOutputFile));
         });
     }
 

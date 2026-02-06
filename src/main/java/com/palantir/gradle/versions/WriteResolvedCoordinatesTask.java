@@ -51,7 +51,7 @@ public abstract class WriteResolvedCoordinatesTask extends DefaultTask {
      */
     @InputFiles
     @PathSensitive(PathSensitivity.NONE)
-    public abstract ConfigurableFileCollection getDependentProjectModule();
+    public abstract ConfigurableFileCollection getDependentProjectCoordinates();
 
     @TaskAction
     public final void writeResolvedCoordinates() {
