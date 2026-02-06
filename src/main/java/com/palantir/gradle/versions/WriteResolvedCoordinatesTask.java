@@ -21,7 +21,6 @@ import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.palantir.gradle.utils.dependencygraph.DependencyGraphUtils;
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Stream;
 import org.gradle.api.DefaultTask;
@@ -73,9 +72,7 @@ public abstract class WriteResolvedCoordinatesTask extends DefaultTask {
                         return Stream.empty();
                     }
                 })
-                .sorted(Comparator.comparing(ResolvedCoordinate::configuration)
-                        .thenComparing(ResolvedCoordinate::module)
-                        .thenComparing(ResolvedCoordinate::group))
+                .sorted()
                 .distinct()
                 .toList();
         try {

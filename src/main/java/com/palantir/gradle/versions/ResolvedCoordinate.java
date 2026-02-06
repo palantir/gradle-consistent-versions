@@ -19,17 +19,27 @@ package com.palantir.gradle.versions;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import java.io.Serializable;
+import java.util.Comparator;
 import org.immutables.value.Value;
 
 @Value.Immutable
 @JsonSerialize(as = ImmutableResolvedCoordinate.class)
 @JsonDeserialize(as = ImmutableResolvedCoordinate.class)
-interface ResolvedCoordinate extends Serializable {
+interface ResolvedCoordinate extends Serializable, Comparable<ResolvedCoordinate> {
+    Comparator<ResolvedCoordinate> COMPARATOR = Comparator.comparing(ResolvedCoordinate::configuration)
+            .thenComparing(ResolvedCoordinate::module)
+            .thenComparing(ResolvedCoordinate::group);
+
     String configuration();
 
     String group();
 
     String module();
+
+    @Override
+    default int compareTo(ResolvedCoordinate other) {
+        return COMPARATOR.compare(this, other);
+    }
 
     static ResolvedCoordinate of(String configuration, String group, String module) {
         return ImmutableResolvedCoordinate.builder()
