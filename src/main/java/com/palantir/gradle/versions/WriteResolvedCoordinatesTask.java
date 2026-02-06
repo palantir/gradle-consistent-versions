@@ -33,7 +33,7 @@ import org.gradle.api.tasks.PathSensitive;
 import org.gradle.api.tasks.PathSensitivity;
 import org.gradle.api.tasks.TaskAction;
 
-public abstract class WriteResolvedModulesTask extends DefaultTask {
+public abstract class WriteResolvedCoordinatesTask extends DefaultTask {
 
     private static final ObjectMapper OBJECT_MAPPER = new JsonMapper();
 
@@ -41,10 +41,10 @@ public abstract class WriteResolvedModulesTask extends DefaultTask {
     public abstract RegularFileProperty getOutputFile();
 
     @Input
-    public abstract SetProperty<ResolvedModule> getResolvedModules();
+    public abstract SetProperty<ResolvedCoordinate> getResolvedCoordinates();
 
     /**
-     * Files from dependent projects' writeResolvedModulesTask.
+     * Files from dependent projects' writeResolvedCoordinatesTask.
      * This input establishes task ordering to prevent parallel resolution lock errors
      * when resolving configurations that have cross-project dependencies.
      * The actual file contents are not used; this is purely for ordering.
@@ -54,10 +54,11 @@ public abstract class WriteResolvedModulesTask extends DefaultTask {
     public abstract ConfigurableFileCollection getDependentProjectModule();
 
     @TaskAction
-    public final void writeResolvedModules() {
-        List<ResolvedModule> sorted = getResolvedModules().get().stream()
-                .sorted(Comparator.comparing(ResolvedModule::module)
-                        .thenComparing(ResolvedModule::configuration))
+    public final void writeResolvedCoordinates() {
+        List<ResolvedCoordinate> sorted = getResolvedCoordinates().get().stream()
+                .sorted(Comparator.comparing(ResolvedCoordinate::group)
+                        .thenComparing(ResolvedCoordinate::module)
+                        .thenComparing(ResolvedCoordinate::configuration))
                 .toList();
         try {
             OBJECT_MAPPER.writeValue(getOutputFile().get().getAsFile(), sorted);

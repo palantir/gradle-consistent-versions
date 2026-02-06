@@ -22,16 +22,24 @@ import java.io.Serializable;
 import org.immutables.value.Value;
 
 @Value.Immutable
-@JsonSerialize(as = ImmutableResolvedModule.class)
-@JsonDeserialize(as = ImmutableResolvedModule.class)
-interface ResolvedModule extends Serializable {
+@JsonSerialize(as = ImmutableResolvedCoordinate.class)
+@JsonDeserialize(as = ImmutableResolvedCoordinate.class)
+interface ResolvedCoordinate extends Serializable {
     String configuration();
+
+    String group();
 
     String module();
 
-    static ResolvedModule of(String configuration, String module) {
-        return ImmutableResolvedModule.builder()
+    @Value.Derived
+    default String moduleIdentifier() {
+        return group() + ":" + module();
+    }
+
+    static ResolvedCoordinate of(String configuration, String group, String module) {
+        return ImmutableResolvedCoordinate.builder()
                 .configuration(configuration)
+                .group(group)
                 .module(module)
                 .build();
     }

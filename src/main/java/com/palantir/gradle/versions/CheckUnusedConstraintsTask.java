@@ -49,7 +49,7 @@ import org.gradle.language.base.plugins.LifecycleBasePlugin;
 
 public abstract class CheckUnusedConstraintsTask extends DefaultTask {
 
-    private static final TypeReference<Set<ResolvedModule>> SET_OF_RESOLVED_MODULES = new TypeReference<>() {};
+    private static final TypeReference<Set<ResolvedCoordinate>> SET_OF_RESOLVED_MODULES = new TypeReference<>() {};
 
     private static final ObjectMapper OBJECT_MAPPER = new JsonMapper();
 
@@ -62,7 +62,7 @@ public abstract class CheckUnusedConstraintsTask extends DefaultTask {
 
     @InputFiles
     @PathSensitive(PathSensitivity.NONE)
-    public abstract ConfigurableFileCollection getResolvedModulesFiles();
+    public abstract ConfigurableFileCollection getResolvedCoordinatesFiles();
 
     @Input
     public abstract SetProperty<String> getExcludeConfigurations();
@@ -78,11 +78,11 @@ public abstract class CheckUnusedConstraintsTask extends DefaultTask {
     @TaskAction
     public final void checkNoUnusedPin() {
         Set<String> excludedConfigs = getExcludeConfigurations().get();
-        Set<String> artifacts = getResolvedModulesFiles().getFiles().stream()
+        Set<String> artifacts = getResolvedCoordinatesFiles().getFiles().stream()
                 .map(CheckUnusedConstraintsTask::readModulesFile)
                 .flatMap(Set::stream)
                 .filter(module -> !excludedConfigs.contains(module.configuration()))
-                .map(ResolvedModule::module)
+                .map(ResolvedCoordinate::moduleIdentifier)
                 .collect(Collectors.toSet());
 
         VersionsProps versionsProps =
@@ -117,7 +117,7 @@ public abstract class CheckUnusedConstraintsTask extends DefaultTask {
                 "./gradlew checkUnusedConstraints --fix");
     }
 
-    private static Set<ResolvedModule> readModulesFile(File file) {
+    private static Set<ResolvedCoordinate> readModulesFile(File file) {
         try {
             return OBJECT_MAPPER.readValue(file, SET_OF_RESOLVED_MODULES);
         } catch (IOException e) {

@@ -75,12 +75,12 @@ public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Proj
                     });
                 });
 
-        TaskProvider<WriteResolvedModulesTask> writeResolvedModulesTask = project.getTasks()
-                .register("writeResolvedModulesTask", WriteResolvedModulesTask.class, task -> {
+        TaskProvider<WriteResolvedCoordinatesTask> writeResolvedCoordinatesTask = project.getTasks()
+                .register("writeResolvedCoordinatesTask", WriteResolvedCoordinatesTask.class, task -> {
                     task.getOutputFile()
                             .fileValue(new File(task.getTemporaryDir(), "resolved-module-identifiers.json"));
 
-                    task.getResolvedModules()
+                    task.getResolvedCoordinates()
                             .set(getProviderFactory()
                                     .provider(() -> GradleConfigurations.getResolvableConfigurations(project).stream()
                                             .flatMap(CheckUnusedConstraintsProjectPlugin::resolvedModules)
@@ -101,7 +101,7 @@ public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Proj
                 attrs.attribute(Usage.USAGE_ATTRIBUTE, getObjectFactory().named(Usage.class, OUTGOING_USAGE));
             });
 
-            outgoing.getOutgoing().artifact(writeResolvedModulesTask.flatMap(WriteResolvedModulesTask::getOutputFile));
+            outgoing.getOutgoing().artifact(writeResolvedCoordinatesTask.flatMap(WriteResolvedCoordinatesTask::getOutputFile));
         });
     }
 
@@ -144,7 +144,7 @@ public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Proj
         return projectDependency.getPath();
     }
 
-    private static Stream<ResolvedModule> resolvedModules(Configuration configuration) {
+    private static Stream<ResolvedCoordinate> resolvedModules(Configuration configuration) {
         ResolutionResult resolutionResult = configuration.getIncoming().getResolutionResult();
         try {
             return resolutionResult.getAllComponents().stream()
@@ -152,7 +152,7 @@ public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Proj
                     .filter(cid -> !cid.equals(resolutionResult.getRoot().getId()))
                     .filter(ModuleComponentIdentifier.class::isInstance)
                     .map(ModuleComponentIdentifier.class::cast)
-                    .map(mcid -> ResolvedModule.of(configuration.getName(), mcid.getGroup() + ":" + mcid.getModule()));
+                    .map(mcid -> ResolvedCoordinate.of(configuration.getName(), mcid.getGroup(), mcid.getModule()));
         } catch (Exception e) {
             throw new RuntimeException(
                     String.format("Error during resolution of the dependency graph of configuration %s", configuration),
