@@ -25,11 +25,10 @@ import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.ConfigurationContainer;
 import org.gradle.api.artifacts.component.ModuleComponentIdentifier;
-import org.gradle.api.artifacts.result.ResolutionResult;
 import org.gradle.api.artifacts.result.ResolvedComponentResult;
 import org.gradle.api.attributes.Usage;
 import org.gradle.api.model.ObjectFactory;
-import org.gradle.api.provider.ProviderFactory;
+import org.gradle.api.tasks.TaskContainer;
 import org.gradle.api.tasks.TaskProvider;
 
 public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Project> {
@@ -37,30 +36,30 @@ public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Proj
     static final String OUTGOING_USAGE = "gcv-check-unused-constraints";
 
     @Inject
-    protected abstract ObjectFactory getObjectFactory();
+    protected abstract TaskContainer getTasks();
 
     @Inject
-    protected abstract ProviderFactory getProviderFactory();
+    protected abstract ObjectFactory getObjectFactory();
 
     @Inject
     protected abstract ConfigurationContainer getConfigurations();
 
     @Override
     public final void apply(Project project) {
-        TaskProvider<WriteResolvedCoordinatesTask> writeResolvedCoordinatesTask = project.getTasks()
+        TaskProvider<WriteResolvedCoordinatesTask> writeResolvedCoordinatesTask = getTasks()
                 .register("writeResolvedCoordinatesTask", WriteResolvedCoordinatesTask.class, task -> {
                     task.getOutputFile()
                             .fileValue(new File(task.getTemporaryDir(), "resolved-module-identifiers.json"));
 
                     task.getResolvedCoordinates()
-                            .set(getProviderFactory()
-                                    .provider(() -> GradleConfigurations.getResolvableConfigurations(project).stream()
-                                            .flatMap(CheckUnusedConstraintsProjectPlugin::resolvedModules)
+                            .set(GradleConfigurations.getResolvableConfigurations(project)
+                                    .map(configurations -> configurations.stream()
+                                            .flatMap(CheckUnusedConstraintsProjectPlugin::resolvedCoordinateStream)
                                             .collect(Collectors.toSet())));
 
                     task.getResolvableConfigurationFiles()
-                            .from(getProviderFactory()
-                                    .provider(() -> GradleConfigurations.getResolvableConfigurations(project).stream()
+                            .from(GradleConfigurations.getResolvableConfigurations(project)
+                                    .map(configurations -> configurations.stream()
                                             .filter(config -> !config.getName().startsWith("checkUnusedConstraints"))
                                             .map(config -> config.getIncoming()
                                                     .artifactView(view -> view.lenient(true))
@@ -83,10 +82,9 @@ public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Proj
         });
     }
 
-    private static Stream<ResolvedCoordinate> resolvedModules(Configuration configuration) {
-        ResolutionResult resolutionResult = configuration.getIncoming().getResolutionResult();
+    private static Stream<ResolvedCoordinate> resolvedCoordinateStream(Configuration configuration) {
         try {
-            return resolutionResult.getAllComponents().stream()
+            return configuration.getIncoming().getResolutionResult().getAllComponents().stream()
                     .map(ResolvedComponentResult::getId)
                     .filter(ModuleComponentIdentifier.class::isInstance)
                     .map(ModuleComponentIdentifier.class::cast)

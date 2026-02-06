@@ -22,6 +22,7 @@ import java.util.Set;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.plugins.JavaPluginExtension;
+import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.SourceSet;
 
 final class GradleConfigurations {
@@ -41,14 +42,16 @@ final class GradleConfigurations {
      * And even more defensive:
      * https://github.com/palantir/gradle-consistent-versions/pull/1307
      */
-    public static Set<Configuration> getResolvableConfigurations(Project project) {
-        Set<String> legacyJavaConfigurations = getLegacyJavaConfigurations(project);
-        return ImmutableSet.copyOf(project.getConfigurations()).stream()
-                .filter(Configuration::isCanBeResolved)
-                .filter(conf -> !legacyJavaConfigurations.contains(conf.getName()))
-                .filter(conf -> DEPRECATED_SOURCESET_SUFFIXES.stream()
-                        .noneMatch(suffix -> conf.getName().endsWith(suffix)))
-                .collect(ImmutableSet.toImmutableSet());
+    public static Provider<Set<Configuration>> getResolvableConfigurations(Project project) {
+        return project.provider(() -> {
+            Set<String> legacyJavaConfigurations = getLegacyJavaConfigurations(project);
+            return ImmutableSet.copyOf(project.getConfigurations()).stream()
+                    .filter(Configuration::isCanBeResolved)
+                    .filter(conf -> !legacyJavaConfigurations.contains(conf.getName()))
+                    .filter(conf -> DEPRECATED_SOURCESET_SUFFIXES.stream()
+                            .noneMatch(suffix -> conf.getName().endsWith(suffix)))
+                    .collect(ImmutableSet.toImmutableSet());
+        });
     }
 
     /**

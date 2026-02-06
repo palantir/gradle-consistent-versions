@@ -29,9 +29,13 @@ import org.gradle.api.attributes.Usage;
 import org.gradle.api.file.ProjectLayout;
 import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.provider.ProviderFactory;
+import org.gradle.api.tasks.TaskContainer;
 import org.gradle.api.tasks.TaskProvider;
 
 public abstract class CheckUnusedConstraintsPlugin implements Plugin<Project> {
+
+    @Inject
+    protected abstract TaskContainer getTasks();
 
     @Inject
     protected abstract ProjectLayout getLayout();
@@ -59,7 +63,7 @@ public abstract class CheckUnusedConstraintsPlugin implements Plugin<Project> {
         });
 
         NamedDomainObjectProvider<Configuration> resolvableCoordinates = getConfigurations()
-                .register("checkUnusedConstraintsAllResolvable", resolvable -> {
+                .register("checkUnusedConstraintsResolvable", resolvable -> {
                     resolvable.setCanBeConsumed(false);
                     resolvable.setCanBeResolved(true);
                     resolvable.setTransitive(false);
@@ -79,8 +83,7 @@ public abstract class CheckUnusedConstraintsPlugin implements Plugin<Project> {
                                     .toList()));
                 });
 
-        TaskProvider<CheckUnusedConstraintsTask> checkUnusedConstraintsTask = rootProject
-                .getTasks()
+        TaskProvider<CheckUnusedConstraintsTask> checkUnusedConstraintsTask = getTasks()
                 .register("checkUnusedConstraints", CheckUnusedConstraintsTask.class, task -> {
                     task.getResolvedCoordinatesFiles().from(resolvableCoordinates.map(resolvable -> resolvable
                             .getIncoming()
@@ -96,6 +99,6 @@ public abstract class CheckUnusedConstraintsPlugin implements Plugin<Project> {
                     task.getPropsFile().set(getLayout().getProjectDirectory().file("versions.props"));
                 });
 
-        rootProject.getTasks().named("check").configure(task -> task.dependsOn(checkUnusedConstraintsTask));
+        getTasks().named("check").configure(task -> task.dependsOn(checkUnusedConstraintsTask));
     }
 }
