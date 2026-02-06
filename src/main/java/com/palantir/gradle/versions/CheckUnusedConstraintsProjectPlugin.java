@@ -27,6 +27,7 @@ import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.ConfigurationContainer;
 import org.gradle.api.artifacts.result.ResolvedComponentResult;
 import org.gradle.api.attributes.Usage;
+import org.gradle.api.file.FileCollection;
 import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.provider.Provider;
 import org.gradle.api.provider.ProviderFactory;
@@ -64,18 +65,19 @@ public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Proj
                                         .getResolutionResult()
                                         .getRoot())));
 
+        Provider<List<FileCollection>> resolvedFiles =
+                configurationsToCheck.map(configurations -> configurations.stream()
+                        .map(configuration -> configuration
+                                .getIncoming()
+                                .artifactView(view -> view.lenient(true))
+                                .getFiles())
+                        .collect(Collectors.toList()));
+
         TaskProvider<WriteResolvedCoordinatesTask> writeResolvedCoordinatesTask = getTasks()
                 .register("writeResolvedCoordinatesTask", WriteResolvedCoordinatesTask.class, task -> {
                     task.getOutputFile()
                             .fileValue(new File(task.getTemporaryDir(), "resolved-module-identifiers.json"));
-
-                    task.getResolvedFiles().from(configurationsToCheck.map(configurations -> configurations.stream()
-                            .map(configuration -> configuration
-                                    .getIncoming()
-                                    .artifactView(view -> view.lenient(true))
-                                    .getFiles())
-                            .collect(Collectors.toList())));
-
+                    task.getResolvedFiles().from(resolvedFiles);
                     task.getRootComponents().putAll(rootComponents);
                 });
 
