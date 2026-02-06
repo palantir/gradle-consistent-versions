@@ -79,7 +79,7 @@ public abstract class CheckUnusedConstraintsPlugin implements Plugin<Project> {
                                     .toList()));
                 });
 
-        TaskProvider<CheckUnusedConstraintsTask> checkNoUnusedConstraints = rootProject
+        TaskProvider<CheckUnusedConstraintsTask> checkUnusedConstraintsTask = rootProject
                 .getTasks()
                 .register("checkUnusedConstraints", CheckUnusedConstraintsTask.class, task -> {
                     task.getResolvedCoordinatesFiles().from(resolvableCoordinates.map(resolvable -> resolvable
@@ -96,6 +96,6 @@ public abstract class CheckUnusedConstraintsPlugin implements Plugin<Project> {
                     task.getPropsFile().set(getLayout().getProjectDirectory().file("versions.props"));
                 });
 
-        rootProject.getTasks().named("check").configure(task -> task.dependsOn(checkNoUnusedConstraints));
+        rootProject.getTasks().named("check").configure(task -> task.dependsOn(checkUnusedConstraintsTask));
     }
 }
