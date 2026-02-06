@@ -43,15 +43,10 @@ public abstract class WriteResolvedCoordinatesTask extends DefaultTask {
     @Input
     public abstract SetProperty<ResolvedCoordinate> getResolvedCoordinates();
 
-    /**
-     * Files from dependent projects' writeResolvedCoordinatesTask.
-     * This input establishes task ordering to prevent parallel resolution lock errors
-     * when resolving configurations that have cross-project dependencies.
-     * The actual file contents are not used; this is purely for ordering.
-     */
+    /** Resolvable configuration files used solely to establish task ordering across projects. */
     @InputFiles
     @PathSensitive(PathSensitivity.NONE)
-    public abstract ConfigurableFileCollection getDependentProjectCoordinates();
+    public abstract ConfigurableFileCollection getResolvableConfigurationFiles();
 
     @TaskAction
     public final void writeResolvedCoordinates() {
