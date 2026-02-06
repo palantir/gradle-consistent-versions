@@ -23,11 +23,14 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Stream;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.artifacts.component.ModuleComponentIdentifier;
 import org.gradle.api.artifacts.result.ResolvedComponentResult;
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.RegularFileProperty;
+import org.gradle.api.logging.Logger;
+import org.gradle.api.logging.Logging;
 import org.gradle.api.provider.MapProperty;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputFiles;
@@ -38,6 +41,7 @@ import org.gradle.api.tasks.TaskAction;
 
 public abstract class WriteResolvedCoordinatesTask extends DefaultTask {
 
+    private static final Logger log = Logging.getLogger(WriteResolvedCoordinatesTask.class);
     private static final ObjectMapper OBJECT_MAPPER = new JsonMapper();
 
     @OutputFile
@@ -54,11 +58,21 @@ public abstract class WriteResolvedCoordinatesTask extends DefaultTask {
     @TaskAction
     public final void writeResolvedCoordinates() {
         List<ResolvedCoordinate> sorted = getRootComponents().get().entrySet().stream()
-                .flatMap(entry -> DependencyGraphUtils.allComponentResultsFromRoot(entry.getValue()).stream()
-                        .map(ResolvedComponentResult::getId)
-                        .filter(ModuleComponentIdentifier.class::isInstance)
-                        .map(ModuleComponentIdentifier.class::cast)
-                        .map(mcid -> ResolvedCoordinate.of(entry.getKey(), mcid.getGroup(), mcid.getModule())))
+                .flatMap(entry -> {
+                    try {
+                        return DependencyGraphUtils.allComponentResultsFromRoot(entry.getValue()).stream()
+                                .map(ResolvedComponentResult::getId)
+                                .filter(ModuleComponentIdentifier.class::isInstance)
+                                .map(ModuleComponentIdentifier.class::cast)
+                                .map(mcid -> ResolvedCoordinate.of(entry.getKey(), mcid.getGroup(), mcid.getModule()));
+                    } catch (RuntimeException e) {
+                        log.debug(
+                                "Skipping configuration '{}' due to unresolved dependencies: {}",
+                                entry.getKey(),
+                                e.getMessage());
+                        return Stream.empty();
+                    }
+                })
                 .sorted(Comparator.comparing(ResolvedCoordinate::configuration)
                         .thenComparing(ResolvedCoordinate::module)
                         .thenComparing(ResolvedCoordinate::group))

@@ -19,9 +19,9 @@ package com.palantir.gradle.versions;
 import java.io.File;
 import java.util.stream.Collectors;
 import javax.inject.Inject;
+import org.gradle.api.Named;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
-import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.ConfigurationContainer;
 import org.gradle.api.attributes.Usage;
 import org.gradle.api.model.ObjectFactory;
@@ -62,10 +62,10 @@ public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Proj
                     task.getRootComponents()
                             .putAll(GradleConfigurations.getResolvableConfigurations(project)
                                     .map(configurations -> configurations.stream()
-                                            .collect(Collectors.toMap(
-                                                    Configuration::getName, config -> config.getIncoming()
-                                                            .getResolutionResult()
-                                                            .getRoot()))));
+                                            .collect(Collectors.toMap(Named::getName, configuration -> configuration
+                                                    .getIncoming()
+                                                    .getResolutionResult()
+                                                    .getRoot()))));
                 });
 
         getConfigurations().register("checkUnusedConstraintsConsumable", consumable -> {
