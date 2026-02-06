@@ -40,7 +40,7 @@ import org.gradle.util.GradleVersion;
 
 public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Project> {
 
-    static final String OUTGOING_USAGE = "checkUnusedConstraintsOutgoingModuleIdentifiers";
+    static final String OUTGOING_USAGE = "gcv-check-unused-constraints";
 
     @Inject
     protected abstract ProjectLayout getLayout();
