@@ -69,10 +69,11 @@ public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Proj
                                 Usage.USAGE_ATTRIBUTE, getObjectFactory().named(Usage.class, OUTGOING_USAGE));
                     });
 
-                    resolvable.withDependencies(deps -> {
-                        getDependentProjectPaths(project)
-                                .forEach(path -> deps.add(getDependencyHandler().project(Map.of("path", path))));
-                    });
+                    resolvable
+                            .getDependencies()
+                            .addAllLater(getProviderFactory().provider(() -> getDependentProjectPaths(project).stream()
+                                    .map(path -> getDependencyHandler().project(Map.of("path", path)))
+                                    .toList()));
                 });
 
         TaskProvider<WriteResolvedCoordinatesTask> writeResolvedCoordinatesTask = project.getTasks()
