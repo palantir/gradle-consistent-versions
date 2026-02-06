@@ -20,6 +20,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.Comparator;
+import java.util.List;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.RegularFileProperty;
@@ -53,9 +55,12 @@ public abstract class WriteResolvedModulesTask extends DefaultTask {
 
     @TaskAction
     public final void writeResolvedModules() {
+        List<ResolvedModule> sorted = getResolvedModules().get().stream()
+                .sorted(Comparator.comparing(ResolvedModule::module)
+                        .thenComparing(ResolvedModule::configuration))
+                .toList();
         try {
-            OBJECT_MAPPER.writeValue(
-                    getOutputFile().get().getAsFile(), getResolvedModules().get());
+            OBJECT_MAPPER.writeValue(getOutputFile().get().getAsFile(), sorted);
         } catch (IOException e) {
             throw new UncheckedIOException("Failed to write resolved module identifiers", e);
         }
