@@ -336,20 +336,17 @@ class ConfigurationOnDemandSpec extends IntegrationSpec {
         gradleVersionNumber << GRADLE_VERSIONS
     }
 
-    def '#gradleVersionNumber: checkUnusedConstraints fails and warns when not all projects are configured'() {
+    def '#gradleVersionNumber: checkUnusedConstraints succeeds when not all projects are configured'() {
         setup:
         gradleVersion = gradleVersionNumber
 
         when:
         runTasks('--write-locks')
-        BuildResult result = runTasksAndFail(':checkUnusedConstraints')
+        BuildResult result = runTasks(':checkUnusedConstraints')
 
         then:
-        !result.output.contains('configuring upstream')
-        result.task(':checkUnusedConstraints').outcome == TaskOutcome.FAILED
-        result.output.contains("The gradle-consistent-versions checkUnusedConstraints task " +
-                "must have all projects configured to work accurately, but due to Gradle " +
-                "configuration-on-demand, not all projects were configured.")
+        result.task(':checkUnusedConstraints').outcome == TaskOutcome.SUCCESS
+        result.output.contains('configuring upstream')
 
         where:
         gradleVersionNumber << GRADLE_VERSIONS
@@ -384,7 +381,6 @@ class ConfigurationOnDemandSpec extends IntegrationSpec {
         runTasks('build')
 
         then:
-        runTasksAndFail(':checkUnusedConstraints')
         runTasksAndFail(':verifyLocks')
 
         where:

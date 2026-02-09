@@ -21,22 +21,23 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.palantir.gradle.testing.execution.GradleInvoker;
 import com.palantir.gradle.testing.execution.InvocationResult;
+import com.palantir.gradle.testing.junit.AdditionallyRunWithGradle;
 import com.palantir.gradle.testing.junit.DisabledConfigurationCache;
 import com.palantir.gradle.testing.junit.GradlePluginTests;
 import com.palantir.gradle.testing.project.RootProject;
+import com.palantir.gradle.testing.project.SubProject;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 @GradlePluginTests
-@DisabledConfigurationCache
+@AdditionallyRunWithGradle("9.3.0")
 class CheckUnusedConstraintIntegrationTest {
 
     @BeforeEach
     void setup(RootProject rootProject) {
         rootProject.buildGradle().plugins().add("java");
-        rootProject.buildGradle().plugins().add("com.palantir.versions-lock");
-        rootProject.buildGradle().plugins().add("com.palantir.versions-props");
+        rootProject.buildGradle().plugins().add("com.palantir.consistent-versions");
 
         rootProject.buildGradle().append("""
             repositories {
@@ -51,8 +52,6 @@ class CheckUnusedConstraintIntegrationTest {
             """, rootProject.directory(".").path().toUri());
 
         rootProject.gradlePropertiesFile().appendProperty("ignoreLockFile", "true");
-
-        rootProject.file("versions.props").createEmpty();
     }
 
     private InvocationResult buildSucceed(GradleInvoker gradle) {
@@ -120,6 +119,7 @@ class CheckUnusedConstraintIntegrationTest {
     }
 
     @Test
+    @DisabledConfigurationCache("Test modifies versions.props via --fix flag which invalidates cache")
     void most_specific_matching_version_should_win(GradleInvoker gradle, RootProject rootProject) {
         rootProject.file("versions.props").overwrite("""
             org.slf4j:slf4j-api = 1.7.25
@@ -138,6 +138,7 @@ class CheckUnusedConstraintIntegrationTest {
     }
 
     @Test
+    @DisabledConfigurationCache("Test modifies versions.props via --fix flag which invalidates cache")
     void most_specific_glob_should_win(GradleInvoker gradle, RootProject rootProject) {
         rootProject.file("versions.props").overwrite("""
             org.slf4j:slf4j-* = 1.7.25
@@ -157,6 +158,7 @@ class CheckUnusedConstraintIntegrationTest {
     }
 
     @Test
+    @DisabledConfigurationCache("Test modifies versions.props via --fix flag which invalidates cache")
     void unused_version_should_fail(GradleInvoker gradle, RootProject rootProject) {
         rootProject.file("versions.props").overwrite("notused:atall = 42.42");
 
@@ -179,6 +181,73 @@ class CheckUnusedConstraintIntegrationTest {
             """);
 
         buildSucceed(gradle);
+    }
+
+    @Test
+    void checkUnusedConstraints_works_in_multiproject_build_with_cross_project_deps(
+            GradleInvoker gradle, RootProject rootProject, SubProject foo, SubProject bar) {
+        rootProject.file("versions.props").overwrite("""
+            com.google.guava:guava = 33.0.0-jre
+            org.slf4j:slf4j-api = 2.0.9
+            """);
+
+        foo.buildGradle().plugins().add("java");
+        foo.buildGradle().append("""
+            repositories {
+                mavenCentral()
+            }
+            dependencies {
+                implementation 'com.google.guava:guava'
+            }
+            """);
+
+        bar.buildGradle().plugins().add("java");
+        bar.buildGradle().append("""
+            repositories {
+                mavenCentral()
+            }
+            dependencies {
+                implementation 'org.slf4j:slf4j-api'
+            }
+            """);
+
+        InvocationResult result =
+                gradle.withArgs("checkUnusedConstraints", "--parallel").buildsSuccessfully();
+        assertThat(result).task(":checkUnusedConstraints").succeeded();
+
+        assertThat(result).output().doesNotContain("without an exclusive lock");
+    }
+
+    @Test
+    void checkUnusedConstraints_with_platform_dependencies_on_root_project(
+            GradleInvoker gradle, RootProject rootProject) {
+        rootProject.file("versions.props").overwrite("""
+            com.fasterxml.jackson.core:jackson-databind = 2.18.2
+            """);
+
+        // Add a custom resolvable configuration to the root project with a platform dependency
+        rootProject.buildGradle().append("""
+            configurations {
+                rootConfiguration {
+                    canBeConsumed = false
+                    canBeResolved = true
+                }
+            }
+
+            repositories {
+                mavenCentral()
+            }
+
+            dependencies {
+                rootConfiguration platform('com.fasterxml.jackson:jackson-bom:2.18.2')
+                implementation 'com.fasterxml.jackson.core:jackson-databind'
+            }
+            """);
+
+        InvocationResult result =
+                gradle.withArgs("checkUnusedConstraints", "--parallel").buildsSuccessfully();
+
+        assertThat(result).task(":checkUnusedConstraints").succeeded();
     }
 
     private static String pomWithJarPackaging(String group, String artifact, String version) {

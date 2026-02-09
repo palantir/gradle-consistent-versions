@@ -24,7 +24,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Collectors;
 import org.gradle.api.GradleException;
 import org.gradle.api.NamedDomainObjectProvider;
 import org.gradle.api.Plugin;
@@ -72,24 +71,6 @@ public abstract class VersionsPropsPlugin implements Plugin<Project> {
 
         if (project.getRootProject().equals(project)) {
             applyToRootProject(project);
-
-            TaskProvider<CheckUnusedConstraintsTask> checkNoUnusedConstraints = project.getTasks()
-                    .register("checkUnusedConstraints", CheckUnusedConstraintsTask.class, task -> {
-                        if (project.getGradle().getStartParameter().isConfigureOnDemand()
-                                && project.getAllprojects().stream()
-                                        .anyMatch(p -> !p.getState().getExecuted())) {
-                            task.setShouldFailWithConfigurationOnDemandMessage(true);
-                        } else {
-                            task.getClasspath().set(project.provider(() -> project.getAllprojects().stream()
-                                    .flatMap(proj -> CheckUnusedConstraintsTask.getResolvedModuleIdentifiers(
-                                            proj,
-                                            project.getExtensions().getByType(VersionRecommendationsExtension.class)))
-                                    .collect(Collectors.toSet())));
-                        }
-                        task.getPropsFile()
-                                .set(project.getLayout().getProjectDirectory().file("versions.props"));
-                    });
-            project.getTasks().named("check").configure(task -> task.dependsOn(checkNoUnusedConstraints));
 
             project.getPluginManager().withPlugin("com.palantir.versions-lock", _plugin -> {
                 TaskProvider<CheckOverbroadConstraints> checkOverbroadConstraints = project.getTasks()
