@@ -76,10 +76,10 @@ public abstract class CheckUnusedConstraintsPlugin implements Plugin<Project> {
 
                     resolvable
                             .getDependencies()
-                            .addAllLater(getProviderFactory().provider(() -> rootProject.getAllprojects().stream()
+                            .addAll(rootProject.getAllprojects().stream()
                                     .map(subproject ->
                                             getDependencyHandler().project(Map.of("path", subproject.getPath())))
-                                    .toList()));
+                                    .toList());
                 });
 
         TaskProvider<CheckUnusedConstraintsTask> checkUnusedConstraintsTask = getTasks()
