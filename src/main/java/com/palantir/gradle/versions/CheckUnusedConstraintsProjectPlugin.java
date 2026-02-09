@@ -54,7 +54,7 @@ public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Proj
     public final void apply(Project project) {
         Provider<List<Configuration>> configurationsToCheck = getProviderFactory()
                 .provider(() -> GradleConfigurations.getResolvableConfigurations(project).stream()
-                        .filter(config -> !config.getName().startsWith("checkUnusedConstraints"))
+                        .filter(configuration -> !configuration.getName().startsWith("checkUnusedConstraints"))
                         .toList());
 
         Provider<Map<String, ResolvedComponentResult>> rootComponents =
@@ -71,7 +71,7 @@ public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Proj
                                 .getIncoming()
                                 .artifactView(view -> view.lenient(true))
                                 .getFiles())
-                        .collect(Collectors.toList()));
+                        .toList());
 
         TaskProvider<WriteResolvedCoordinatesTask> writeResolvedCoordinatesTask = getTasks()
                 .register("writeResolvedCoordinatesTask", WriteResolvedCoordinatesTask.class, task -> {
