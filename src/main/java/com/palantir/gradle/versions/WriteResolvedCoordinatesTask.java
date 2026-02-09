@@ -48,11 +48,11 @@ public abstract class WriteResolvedCoordinatesTask extends DefaultTask {
     public abstract ConfigurableFileCollection getResolvedFiles();
 
     @Input
-    public abstract MapProperty<String, ResolvedComponentResult> getRootComponents();
+    public abstract MapProperty<String, ResolvedComponentResult> getConfigurationNameToRootComponents();
 
     @TaskAction
     public final void writeResolvedCoordinates() {
-        List<ResolvedCoordinate> sorted = getRootComponents().get().entrySet().stream()
+        List<ResolvedCoordinate> sorted = getConfigurationNameToRootComponents().get().entrySet().stream()
                 .flatMap(entry -> DependencyGraphUtils.allComponentResultsFromRoot(entry.getValue()).stream()
                         .map(ResolvedComponentResult::getId)
                         .filter(ModuleComponentIdentifier.class::isInstance)
