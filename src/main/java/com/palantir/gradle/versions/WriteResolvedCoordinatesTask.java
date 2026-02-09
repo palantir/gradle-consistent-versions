@@ -42,7 +42,7 @@ public abstract class WriteResolvedCoordinatesTask extends DefaultTask {
     @OutputFile
     public abstract RegularFileProperty getOutputFile();
 
-    /** Resolved files from all resolvable configurations — establishes cross-project task ordering. */
+    /** Resolved files from all resolvable configurations — establishes cross-project ordering. */
     @InputFiles
     @PathSensitive(PathSensitivity.NONE)
     public abstract ConfigurableFileCollection getResolvedFiles();
