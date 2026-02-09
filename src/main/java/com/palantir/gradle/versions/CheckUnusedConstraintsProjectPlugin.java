@@ -71,7 +71,7 @@ public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Proj
                                 .getIncoming()
                                 .artifactView(view -> view.lenient(true))
                                 .getFiles())
-                        .toList());
+                        .collect(Collectors.toList()));
 
         TaskProvider<WriteResolvedCoordinatesTask> writeResolvedCoordinatesTask = getTasks()
                 .register("writeResolvedCoordinatesTask", WriteResolvedCoordinatesTask.class, task -> {
