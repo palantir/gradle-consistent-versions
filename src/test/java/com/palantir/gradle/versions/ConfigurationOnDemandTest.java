@@ -27,7 +27,6 @@ import com.palantir.gradle.testing.maven.MavenArtifact;
 import com.palantir.gradle.testing.maven.MavenRepo;
 import com.palantir.gradle.testing.project.RootProject;
 import com.palantir.gradle.testing.project.SubProject;
-import java.io.UncheckedIOException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -69,14 +68,13 @@ class ConfigurationOnDemandTest {
                 MavenArtifact.of("com.example:transitive-test-dep:1.1.0"),
                 MavenArtifact.of("com.example:transitive-test-dep:1.2.0"));
 
-        makePlatformPom(repo, "org", "platform", "1.0");
+        PomUtils.makePlatformPom(rootProject, repo, "org", "platform", "1.0");
 
         rootProject.buildGradle().plugins().add(PLUGIN_NAME);
-        rootProject.buildGradle().withMavenRepo(repo);
         rootProject.buildGradle().append("""
             allprojects {
                 repositories {
-                    maven { url "%s" }
+                    maven { url uri("%s") }
                 }
             }
             subprojects {
@@ -91,7 +89,7 @@ class ConfigurationOnDemandTest {
             versionRecommendations {
                 excludeConfigurations 'compile', 'runtime', 'testCompile', 'testRuntime'
             }
-            """, repo.path().toUri());
+            """, repo.path());
 
         rootProject.file("versions.props").overwrite("""
             com.example:dependency-of-upstream = 1.2.3
@@ -139,33 +137,6 @@ class ConfigurationOnDemandTest {
             """);
 
         rootProject.gradlePropertiesFile().appendProperty("org.gradle.configureondemand", "true");
-    }
-
-    // Helper method to create a platform POM similar to PomUtils.makePlatformPom
-    private void makePlatformPom(MavenRepo repo, String group, String name, String version) {
-        java.nio.file.Path pomPath =
-                repo.path().resolve(group).resolve(name).resolve(version).resolve("platform-1.0.pom");
-
-        try {
-            java.nio.file.Files.createDirectories(pomPath.getParent());
-            java.nio.file.Files.writeString(pomPath, """
-                <?xml version="1.0" encoding="UTF-8"?>
-                <project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
-                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-                  <modelVersion>4.0.0</modelVersion>
-                  <packaging>pom</packaging>
-                  <groupId>%s</groupId>
-                  <artifactId>%s</artifactId>
-                  <version>%s</version>
-                  <dependencyManagement>
-                    <dependencies>
-                    </dependencies>
-                  </dependencyManagement>
-                </project>
-                """.formatted(group, name, version));
-        } catch (java.io.IOException e) {
-            throw new UncheckedIOException(e);
-        }
     }
 
     @Test
@@ -246,42 +217,42 @@ class ConfigurationOnDemandTest {
 
     @Test
     void transitive_dependencies_cause_upstream_projects_to_be_configured_sufficiently_early(
-            GradleInvoker gradle, SubProject a, SubProject b, SubProject c, SubProject u) {
-        a.buildGradle().plugins().add("java");
-        a.buildGradle().append("""
+            GradleInvoker gradle, SubProject projectA, SubProject projectB, SubProject projectC, SubProject projectU) {
+        projectA.buildGradle().plugins().add("java");
+        projectA.buildGradle().append("""
             dependencies {
                 implementation 'com.example:transitive-test-dep:1.0.0'
             }
             """);
 
-        b.buildGradle().plugins().add("java");
-        b.buildGradle().append("""
+        projectB.buildGradle().plugins().add("java");
+        projectB.buildGradle().append("""
             dependencies {
-                implementation project(':a')
+                implementation project(':projectA')
             }
             """);
 
-        c.buildGradle().plugins().add("java");
-        c.buildGradle().append("""
+        projectC.buildGradle().plugins().add("java");
+        projectC.buildGradle().append("""
             dependencies {
-                implementation project(':b')
+                implementation project(':projectB')
             }
             tasks.register('writeClasspathOfA') {
                 doLast {
-                    println project(':a').configurations.runtimeClasspath.files
+                    println project(':projectA').configurations.runtimeClasspath.files
                 }
             }
             """);
 
-        u.buildGradle().plugins().add("java");
-        u.buildGradle().append("""
+        projectU.buildGradle().plugins().add("java");
+        projectU.buildGradle().append("""
             dependencies {
                 implementation 'com.example:transitive-test-dep:1.1.0'
             }
             """);
 
         gradle.withArgs("--write-locks").buildsSuccessfully();
-        InvocationResult result = gradle.withArgs(":c:writeClasspathOfA").buildsSuccessfully();
+        InvocationResult result = gradle.withArgs(":projectC:writeClasspathOfA").buildsSuccessfully();
 
         // Version used should be 1.1.0, indicating that the version.lock constraint was applied
         assertThat(result).output().contains("transitive-test-dep-1.1.0.jar");
@@ -289,35 +260,35 @@ class ConfigurationOnDemandTest {
 
     @Test
     void task_dependencies_cause_upstream_projects_to_be_configured_sufficiently_early(
-            GradleInvoker gradle, SubProject a, SubProject b, SubProject c, SubProject u) {
-        a.buildGradle().plugins().add("java");
-        a.buildGradle().append("""
+            GradleInvoker gradle, SubProject projectA, SubProject projectB, SubProject projectC, SubProject projectU) {
+        projectA.buildGradle().plugins().add("java");
+        projectA.buildGradle().append("""
             dependencies {
                 implementation 'com.example:transitive-test-dep:1.0.0'
             }
             """);
 
-        b.buildGradle().append("""
+        projectB.buildGradle().append("""
             tasks.register('foo') {
-                dependsOn ':a:writeClasspath'
+                dependsOn ':projectA:writeClasspath'
             }
             """);
 
-        c.buildGradle().append("""
+        projectC.buildGradle().append("""
             tasks.register('bar') {
-                dependsOn ':b:foo'
+                dependsOn ':projectB:foo'
             }
             """);
 
-        u.buildGradle().plugins().add("java");
-        u.buildGradle().append("""
+        projectU.buildGradle().plugins().add("java");
+        projectU.buildGradle().append("""
             dependencies {
                 implementation 'com.example:transitive-test-dep:1.1.0'
             }
             """);
 
         gradle.withArgs("--write-locks").buildsSuccessfully();
-        InvocationResult result = gradle.withArgs(":c:bar").buildsSuccessfully();
+        InvocationResult result = gradle.withArgs(":projectC:bar").buildsSuccessfully();
 
         // Version used should be 1.1.0, indicating that the version.lock constraint was applied
         assertThat(result).output().contains("transitive-test-dep-1.1.0.jar");
@@ -360,7 +331,7 @@ class ConfigurationOnDemandTest {
     // As failing tasks can't be considered UP-TO-DATE, we only need to check the case where the task passing
     // is followed by the task running with incomplete configuration.
     @Test
-    void verification_tasks_are_not_UP_TO_DATE_when_the_set_of_configured_projects_differs(GradleInvoker gradle) {
+    void verification_tasks_are_not_up_to_date_when_the_set_of_configured_projects_differs(GradleInvoker gradle) {
         gradle.withArgs("--write-locks").buildsSuccessfully();
         gradle.withArgs("build").buildsSuccessfully();
 
