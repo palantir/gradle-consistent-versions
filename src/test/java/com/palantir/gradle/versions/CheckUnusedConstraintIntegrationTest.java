@@ -32,7 +32,6 @@ import org.junit.jupiter.api.Test;
 
 @GradlePluginTests
 @AdditionallyRunWithGradle("9.3.0")
-@DisabledConfigurationCache
 class CheckUnusedConstraintIntegrationTest {
 
     @BeforeEach
