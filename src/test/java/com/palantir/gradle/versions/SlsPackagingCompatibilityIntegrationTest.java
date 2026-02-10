@@ -52,11 +52,6 @@ class SlsPackagingCompatibilityIntegrationTest {
                 .addWithoutApply("com.palantir.sls-java-service-distribution");
 
         rootProject.buildGradle().append("""
-            buildscript {
-                repositories {
-                    mavenCentral()
-                }
-            }
             allprojects {
                 repositories {
                     maven { url = uri('%s') }
