@@ -27,7 +27,7 @@ import groovy.transform.ToString
 @JsonIgnoreProperties(ignoreUnknown = true)
 @ToString(includePackage = false)
 @EqualsAndHashCode
-class MetadataFile {
+class GroovyMetadataFile {
     Set<Variant> variants
 
     @JsonIgnoreProperties(ignoreUnknown = true)

@@ -21,7 +21,7 @@ import org.gradle.util.GradleVersion
 import spock.lang.Unroll
 
 import static com.palantir.gradle.versions.GradleTestVersions.GRADLE_VERSIONS
-import static com.palantir.gradle.versions.PomUtils.makePlatformPom
+import static GroovyPomUtils.makePlatformPom
 
 @Unroll
 class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
@@ -368,25 +368,25 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         when:
         runTasks('--write-locks', 'generateMetadataFileForMavenPublication')
 
-        def logbackDep = new MetadataFile.Dependency(
+        def logbackDep = new GroovyMetadataFile.Dependency(
                 group: 'ch.qos.logback',
                 module: 'logback-classic',
                 version: [requires: '1.1.11'])
-        def slf4jDep = new MetadataFile.Dependency(
+        def slf4jDep = new GroovyMetadataFile.Dependency(
                 group: 'org.slf4j',
                 module: 'slf4j-api',
                 version: [requires: '1.7.25'])
 
         then: "foo's metadata file has the right dependency constraints"
         def fooMetadataFilename = new File(projectDir, "foo/build/publications/maven/module.json")
-        def fooMetadata = new ObjectMapper().readValue(fooMetadataFilename, MetadataFile)
+        def fooMetadata = new ObjectMapper().readValue(fooMetadataFilename, GroovyMetadataFile)
 
         fooMetadata.variants == [
-                new MetadataFile.Variant(
+                new GroovyMetadataFile.Variant(
                         name: 'apiElements',
                         dependencies: null,
                         dependencyConstraints: [logbackDep, slf4jDep]),
-                new MetadataFile.Variant(
+                new GroovyMetadataFile.Variant(
                         name: 'runtimeElements',
                         dependencies: [logbackDep],
                         dependencyConstraints: [logbackDep, slf4jDep]),

@@ -16,7 +16,7 @@
 
 package com.palantir.gradle.versions;
 
-final class PomUtils {
+final class GroovyPomUtils {
     static void makePlatformPom(File repo, String group, String name, String version) {
         def dir = new File(repo, "${group}/${name}/${version}")
         dir.mkdirs()

@@ -26,7 +26,7 @@ import org.gradle.util.GradleVersion
 import spock.lang.Unroll
 
 import static com.palantir.gradle.versions.GradleTestVersions.GRADLE_VERSIONS
-import static com.palantir.gradle.versions.PomUtils.makePlatformPom
+import static GroovyPomUtils.makePlatformPom
 
 @Unroll
 class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
@@ -904,37 +904,37 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         when:
         runTasks('generatePomFileForMavenPublication', 'generateMetadataFileForMavenPublication')
 
-        def junitDep = new MetadataFile.Dependency(
+        def junitDep = new GroovyMetadataFile.Dependency(
                 group: 'junit',
                 module: 'junit',
                 version: [requires: '4.10'])
-        def logbackDep = new MetadataFile.Dependency(
+        def logbackDep = new GroovyMetadataFile.Dependency(
                 group: 'ch.qos.logback',
                 module: 'logback-classic',
                 version: [requires: '1.2.3'])
-        def slf4jDep = new MetadataFile.Dependency(
+        def slf4jDep = new GroovyMetadataFile.Dependency(
                 group: 'org.slf4j',
                 module: 'slf4j-api',
                 version: [requires: '1.7.25'])
-        def fooDep = new MetadataFile.Dependency(
+        def fooDep = new GroovyMetadataFile.Dependency(
                 group: 'com.palantir.published-constraints',
                 module: 'foo',
                 version: [requires: '1.2.3'])
-        def barDep = new MetadataFile.Dependency(
+        def barDep = new GroovyMetadataFile.Dependency(
                 group: 'com.palantir.published-constraints',
                 module: 'bar',
                 version: [requires: '1.2.3'])
 
         then: "foo's metadata file has the right dependency constraints"
         def fooMetadataFilename = new File(projectDir, "foo/build/publications/maven/module.json")
-        def fooMetadata = new ObjectMapper().readValue(fooMetadataFilename, MetadataFile)
+        def fooMetadata = new ObjectMapper().readValue(fooMetadataFilename, GroovyMetadataFile)
 
         fooMetadata.variants == [
-                new MetadataFile.Variant(
+                new GroovyMetadataFile.Variant(
                         name: 'runtimeElements',
                         dependencies: [logbackDep],
                         dependencyConstraints: [barDep, junitDep, logbackDep, slf4jDep]),
-                new MetadataFile.Variant(
+                new GroovyMetadataFile.Variant(
                         name: 'apiElements',
                         dependencies: null,
                         dependencyConstraints: [barDep, junitDep, logbackDep, slf4jDep])
@@ -942,14 +942,14 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
 
         and: "bar's metadata file has the right dependency constraints"
         def barMetadataFilename = new File(projectDir, "bar/build/publications/maven/module.json")
-        def barMetadata = new ObjectMapper().readValue(barMetadataFilename, MetadataFile)
+        def barMetadata = new ObjectMapper().readValue(barMetadataFilename, GroovyMetadataFile)
 
         barMetadata.variants == [
-                new MetadataFile.Variant(
+                new GroovyMetadataFile.Variant(
                         name: 'runtimeElements',
                         dependencies: [junitDep],
                         dependencyConstraints: [fooDep, junitDep, logbackDep, slf4jDep]),
-                new MetadataFile.Variant(
+                new GroovyMetadataFile.Variant(
                         name: 'apiElements',
                         dependencies: null,
                         dependencyConstraints: [fooDep, junitDep, logbackDep, slf4jDep]),
@@ -998,29 +998,29 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
         when:
         runTasks('generatePomFileForMavenPublication', 'generateMetadataFileForMavenPublication')
 
-        def junitDep = new MetadataFile.Dependency(
+        def junitDep = new GroovyMetadataFile.Dependency(
                 group: 'junit',
                 module: 'junit',
                 version: [requires: '4.10'])
-        def logbackDep = new MetadataFile.Dependency(
+        def logbackDep = new GroovyMetadataFile.Dependency(
                 group: 'ch.qos.logback',
                 module: 'logback-classic',
                 version: [requires: '1.2.3'])
-        def slf4jDep = new MetadataFile.Dependency(
+        def slf4jDep = new GroovyMetadataFile.Dependency(
                 group: 'org.slf4j',
                 module: 'slf4j-api',
                 version: [requires: '1.7.25'])
 
         then: "foo's metadata file has the right dependency constraints"
         def fooMetadataFilename = new File(projectDir, "foo/build/publications/maven/module.json")
-        def fooMetadata = new ObjectMapper().readValue(fooMetadataFilename, MetadataFile)
+        def fooMetadata = new ObjectMapper().readValue(fooMetadataFilename, GroovyMetadataFile)
 
         fooMetadata.variants == [
-                new MetadataFile.Variant(
+                new GroovyMetadataFile.Variant(
                         name: 'apiElements',
                         dependencies: null,
                         dependencyConstraints: [junitDep, logbackDep, slf4jDep]),
-                new MetadataFile.Variant(
+                new GroovyMetadataFile.Variant(
                         name: 'runtimeElements',
                         dependencies: [logbackDep],
                         dependencyConstraints: [junitDep, logbackDep, slf4jDep]),
@@ -1028,14 +1028,14 @@ class VersionsLockPluginIntegrationSpec extends IntegrationSpec {
 
         and: "bar's metadata file has the right dependency constraints"
         def barMetadataFilename = new File(projectDir, "bar/build/publications/maven/module.json")
-        def barMetadata = new ObjectMapper().readValue(barMetadataFilename, MetadataFile)
+        def barMetadata = new ObjectMapper().readValue(barMetadataFilename, GroovyMetadataFile)
 
         barMetadata.variants == [
-                new MetadataFile.Variant(
+                new GroovyMetadataFile.Variant(
                         name: 'apiElements',
                         dependencies: null,
                         dependencyConstraints: [junitDep, logbackDep, slf4jDep]),
-                new MetadataFile.Variant(
+                new GroovyMetadataFile.Variant(
                         name: 'runtimeElements',
                         dependencies: [junitDep],
                         dependencyConstraints: [junitDep, logbackDep, slf4jDep]),
