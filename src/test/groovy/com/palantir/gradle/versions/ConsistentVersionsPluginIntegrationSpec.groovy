@@ -368,28 +368,16 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         when:
         runTasks('--write-locks', 'generateMetadataFileForMavenPublication')
 
-        def logbackDep = new MetadataFile.Dependency(
-                group: 'ch.qos.logback',
-                module: 'logback-classic',
-                version: [requires: '1.1.11'])
-        def slf4jDep = new MetadataFile.Dependency(
-                group: 'org.slf4j',
-                module: 'slf4j-api',
-                version: [requires: '1.7.25'])
+        def logbackDep = new MetadataFile.Dependency('ch.qos.logback', 'logback-classic', [requires: '1.1.11'])
+        def slf4jDep = new MetadataFile.Dependency('org.slf4j', 'slf4j-api', [requires: '1.7.25'])
 
         then: "foo's metadata file has the right dependency constraints"
         def fooMetadataFilename = new File(projectDir, "foo/build/publications/maven/module.json")
         def fooMetadata = new ObjectMapper().readValue(fooMetadataFilename, MetadataFile)
 
-        fooMetadata.variants == [
-                new MetadataFile.Variant(
-                        name: 'apiElements',
-                        dependencies: null,
-                        dependencyConstraints: [logbackDep, slf4jDep]),
-                new MetadataFile.Variant(
-                        name: 'runtimeElements',
-                        dependencies: [logbackDep],
-                        dependencyConstraints: [logbackDep, slf4jDep]),
+        fooMetadata.variants() == [
+                new MetadataFile.Variant('apiElements', null, [logbackDep, slf4jDep] as Set),
+                new MetadataFile.Variant('runtimeElements', [logbackDep] as Set, [logbackDep, slf4jDep] as Set),
         ] as Set
 
         where:
