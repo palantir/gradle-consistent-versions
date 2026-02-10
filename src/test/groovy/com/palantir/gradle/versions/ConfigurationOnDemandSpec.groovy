@@ -21,7 +21,7 @@ import org.gradle.testkit.runner.TaskOutcome
 import spock.lang.Unroll
 
 import static com.palantir.gradle.versions.GradleTestVersions.GRADLE_VERSIONS
-import static GroovyPomUtils.makePlatformPom
+import static com.palantir.gradle.versions.PomUtils.makePlatformPom
 
 /**
  * This tests the interaction of this plugin with Gradle's configuration-on-demand feature:
