@@ -17,11 +17,9 @@
 package com.palantir.gradle.versions;
 
 import static com.palantir.gradle.testing.assertion.GradlePluginTestAssertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThat;
 
 import com.palantir.gradle.testing.execution.GradleInvoker;
 import com.palantir.gradle.testing.execution.InvocationResult;
-import com.palantir.gradle.testing.junit.AdditionallyRunWithGradle;
 import com.palantir.gradle.testing.junit.DisabledConfigurationCache;
 import com.palantir.gradle.testing.junit.GradlePluginTests;
 import com.palantir.gradle.testing.maven.MavenArtifact;
@@ -38,7 +36,6 @@ import org.junit.jupiter.api.Test;
  * accidentally break it.
  */
 @GradlePluginTests
-@AdditionallyRunWithGradle({"7.6.4", "8.8"})
 @DisabledConfigurationCache
 class SlsPackagingCompatibilityIntegrationTest {
 
@@ -48,9 +45,6 @@ class SlsPackagingCompatibilityIntegrationTest {
     void setup(MavenRepo repo, RootProject rootProject) {
         repo.publish(MavenArtifact.of("org.slf4j:slf4j-api:1.7.24"));
 
-        // Note: sls-java-service-distribution requires a version, but the framework's plugins() API
-        // doesn't support versions. We need to add it via gradlePluginForTesting in build.gradle
-        // and then use addWithoutApply here.
         rootProject
                 .buildGradle()
                 .plugins()
@@ -65,17 +59,12 @@ class SlsPackagingCompatibilityIntegrationTest {
             }
             allprojects {
                 repositories {
-                    maven { url "file:///%s" }
+                    maven { url = uri('%s') }
                 }
             }
             """, repo.path());
     }
 
-    /**
-     * sls-packaging is creating a configuration as part of a task input, which is happening far too late.
-     * Once gradle has done a resolution, it will not look at any new Configurations that have popped up
-     * since then. See https://github.com/palantir/gradle-consistent-versions/pull/1443 for more details.
-     */
     @Test
     void can_consume_recommended_product_dependencies_project(
             GradleInvoker gradle, RootProject rootProject, SubProject api, SubProject service) {

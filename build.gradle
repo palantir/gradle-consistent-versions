@@ -81,7 +81,7 @@ dependencies {
     testAnnotationProcessor "org.immutables:value"
     testCompileOnly "org.immutables:value::annotations"
 
-    gradlePluginForTesting 'com.palantir.sls-packaging:gradle-sls-packaging:7.31.0'
+    gradlePluginForTesting 'com.palantir.sls-packaging:gradle-sls-packaging'
 }
 
 tasks.withType(Test) {
