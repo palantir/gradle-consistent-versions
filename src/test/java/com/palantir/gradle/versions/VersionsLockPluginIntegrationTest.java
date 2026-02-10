@@ -66,14 +66,6 @@ class VersionsLockPluginIntegrationTest {
 
         PomUtils.makePlatformPom(rootProject, repo, "org", "platform", "1.0");
 
-        rootProject.buildGradle().append("""
-            buildscript {
-                repositories {
-                    mavenCentral()
-                }
-            }
-            """);
-
         rootProject.buildGradle().plugins().add(PLUGIN_NAME);
 
         rootProject.buildGradle().append("""
