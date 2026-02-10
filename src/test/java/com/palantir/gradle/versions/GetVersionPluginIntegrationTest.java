@@ -42,18 +42,6 @@ class GetVersionPluginIntegrationTest {
     }
 
     @Test
-    void apply_does_not_throw_exceptions(GradleInvoker gradle) {
-        gradle.withArgs("help").buildsSuccessfully();
-    }
-
-    @Test
-    void apply_is_idempotent(GradleInvoker gradle) {
-        // Gradle plugin manager handles idempotent application, so applying
-        // com.palantir.consistent-versions (which applies GetVersionPlugin) is sufficient
-        gradle.withArgs("help").buildsSuccessfully();
-    }
-
-    @Test
     void get_version_is_callable_from_groovy_with_string_and_configuration_args(
             GradleInvoker gradle, RootProject project) {
         project.buildGradle().plugins().add("java");
