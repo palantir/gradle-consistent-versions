@@ -19,7 +19,6 @@ package com.palantir.gradle.versions;
 import static com.palantir.gradle.testing.assertion.GradlePluginTestAssertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.palantir.gradle.testing.execution.GradleInvoker;
 import com.palantir.gradle.testing.execution.InvocationResult;
@@ -65,7 +64,7 @@ class VersionsLockPluginIntegrationTest {
                         .addDependency("org:another-transitive-dependency:3.2.1")
                         .build());
 
-        makePlatformPom(rootProject, repo, "org", "platform", "1.0");
+        PomUtils.makePlatformPom(rootProject, repo, "org", "platform", "1.0");
 
         rootProject.buildGradle().append("""
             buildscript {
@@ -80,7 +79,7 @@ class VersionsLockPluginIntegrationTest {
         rootProject.buildGradle().append("""
             allprojects {
                 repositories {
-                    maven { url "file:///%s" }
+                    maven { url = uri('%s') }
                 }
 
                 task resolveConfigurations {
@@ -363,19 +362,17 @@ class VersionsLockPluginIntegrationTest {
 
     @Test
     void fails_if_dependency_was_removed_but_still_in_the_lock_file(
-            MavenRepo repo, GradleInvoker gradle, RootProject _rootProject, SubProject foo) {
+            GradleInvoker gradle, MavenRepo repo, SubProject foo) {
         String expectedError = "Locked dependencies missing from the resolution result";
 
         repo.publish(MavenArtifact.of("org:a:1.0"), MavenArtifact.of("org:b:1.0"));
-
-        foo.buildGradle().plugins().add("java");
 
         foo.buildGradle().append("""
             dependencies {
                 implementation 'org:a:1.0'
                 implementation 'org:b:1.0'
             }
-            """);
+            """).plugins().add("java");
 
         gradle.withArgs("--write-locks").buildsSuccessfully();
 
@@ -383,7 +380,7 @@ class VersionsLockPluginIntegrationTest {
             dependencies {
                 implementation 'org:a:1.0'
             }
-            """);
+            """).plugins().add("java");
 
         // then: 'Check fails because locks are not up to date'
         InvocationResult failure = gradle.withArgs(":check").buildsWithFailure();
@@ -452,8 +449,7 @@ class VersionsLockPluginIntegrationTest {
     // does_not_fail_if_subproject_evaluated_later_applies_base_plugin_in_own_build_file
     @Test
     void does_not_fail_if_subproject_evaluated_later_applies_base_plugin_in_own_build_file(
-            GradleInvoker gradle, RootProject rootProject) {
-        SubProject foo = rootProject.subproject("foo");
+            GradleInvoker gradle, SubProject foo) {
         foo.buildGradle().plugins().add("java-library");
         foo.buildGradle().append("""
             dependencies {
@@ -560,8 +556,8 @@ class VersionsLockPluginIntegrationTest {
     }
 
     @Test
-    void can_resolve_configuration_dependency(GradleInvoker gradle, RootProject rootProject) {
-        SubProject foo = rootProject.subproject("foo");
+    void can_resolve_configuration_dependency(
+            GradleInvoker gradle, RootProject rootProject, SubProject foo, SubProject bar) {
         foo.buildGradle().plugins().add("java");
         foo.buildGradle().append("""
             dependencies {
@@ -569,7 +565,6 @@ class VersionsLockPluginIntegrationTest {
             }
             """);
 
-        SubProject bar = rootProject.subproject("bar");
         bar.buildGradle().append("""
             configurations {
                 fun
@@ -598,8 +593,7 @@ class VersionsLockPluginIntegrationTest {
     }
 
     @Test
-    void inter_project_normal_dependency_works(GradleInvoker gradle, RootProject rootProject) {
-        SubProject foo = rootProject.subproject("foo");
+    void inter_project_normal_dependency_works(GradleInvoker gradle, SubProject foo, SubProject bar) {
         foo.buildGradle().plugins().add("java");
         foo.buildGradle().append("""
             dependencies {
@@ -607,13 +601,13 @@ class VersionsLockPluginIntegrationTest {
             }
             """);
 
-        SubProject bar = rootProject.subproject("bar");
         bar.buildGradle().plugins().add("java");
 
         gradle.withArgs("--write-locks", "classes").buildsSuccessfully();
     }
 
     @Test
+    @SuppressWarnings("RegexpMultiline")
     void test_dependencies_appear_in_a_separate_block(GradleInvoker gradle, RootProject rootProject) {
         rootProject.buildGradle().plugins().add("java");
         rootProject.buildGradle().append("""
@@ -643,6 +637,7 @@ class VersionsLockPluginIntegrationTest {
     }
 
     @Test
+    @SuppressWarnings("RegexpMultiline")
     void locks_dependencies_from_extra_source_sets_that_end_in_test(GradleInvoker gradle, RootProject rootProject) {
         rootProject.buildGradle().plugins().add("java");
         rootProject.buildGradle().append("""
@@ -678,6 +673,7 @@ class VersionsLockPluginIntegrationTest {
     }
 
     @Test
+    @SuppressWarnings("RegexpMultiline")
     void versionslock_testproject_works(GradleInvoker gradle, RootProject rootProject) {
         rootProject.buildGradle().plugins().add("java");
         rootProject.buildGradle().append("""
@@ -704,6 +700,7 @@ class VersionsLockPluginIntegrationTest {
     }
 
     @Test
+    @SuppressWarnings("RegexpMultiline")
     void constraints_on_production_do_not_affect_scope_of_test_only_dependencies(
             GradleInvoker gradle, RootProject rootProject) {
         rootProject.buildGradle().plugins().add("java");
@@ -737,13 +734,12 @@ class VersionsLockPluginIntegrationTest {
 
     @Test
     void published_constraints_are_derived_from_lock_file_with_local_constraints(
-            GradleInvoker gradle, RootProject rootProject) throws IOException {
+            GradleInvoker gradle, RootProject rootProject, SubProject foo, SubProject bar) throws IOException {
         // Test with local constraints enabled
         rootProject
                 .gradlePropertiesFile()
                 .appendProperty("com.palantir.gradle.versions.publishLocalConstraints", "true");
 
-        SubProject foo = rootProject.subproject("foo");
         foo.buildGradle().plugins().add("java");
         foo.buildGradle().plugins().add("maven-publish");
         foo.buildGradle().append("""
@@ -759,7 +755,6 @@ class VersionsLockPluginIntegrationTest {
             }
             """);
 
-        SubProject bar = rootProject.subproject("bar");
         bar.buildGradle().plugins().add("java");
         bar.buildGradle().plugins().add("maven-publish");
         bar.buildGradle().append("""
@@ -813,8 +808,7 @@ class VersionsLockPluginIntegrationTest {
 
     @Test
     void published_constraints_are_derived_from_lock_file_without_local_constraints(
-            GradleInvoker gradle, RootProject rootProject) throws IOException {
-        SubProject foo = rootProject.subproject("foo");
+            GradleInvoker gradle, SubProject foo, SubProject bar) throws IOException {
         foo.buildGradle().plugins().add("java");
         foo.buildGradle().plugins().add("maven-publish");
         foo.buildGradle().append("""
@@ -828,7 +822,6 @@ class VersionsLockPluginIntegrationTest {
             }
             """);
 
-        SubProject bar = rootProject.subproject("bar");
         bar.buildGradle().plugins().add("java");
         bar.buildGradle().plugins().add("maven-publish");
         bar.buildGradle().append("""
@@ -937,39 +930,5 @@ class VersionsLockPluginIntegrationTest {
         for (String line : lines) {
             assertThat(lockfile).contains(line + "=runtimeClasspath");
         }
-    }
-
-    static void makePlatformPom(RootProject rootProject, MavenRepo repo, String group, String name, String version) {
-        rootProject
-                .directory(repo.path()
-                        .resolve(group)
-                        .resolve(name)
-                        .resolve(version)
-                        .toString())
-                .file("platform-1.0.pom")
-                .overwrite("""
-                    <?xml version="1.0" encoding="UTF-8"?>
-                    <project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
-                        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-                      <modelVersion>4.0.0</modelVersion>
-                      <packaging>pom</packaging>
-                      <groupId>%s</groupId>
-                      <artifactId>%s</artifactId>
-                      <version>%s</version>
-                      <dependencyManagement>
-                        <dependencies>
-                        </dependencies>
-                      </dependencyManagement>
-                    </project>
-                    """, group, name, version);
-    }
-
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    record MetadataFile(Set<Variant> variants) {
-        @JsonIgnoreProperties(ignoreUnknown = true)
-        record Variant(String name, Set<Dependency> dependencies, Set<Dependency> dependencyConstraints) {}
-
-        @JsonIgnoreProperties(ignoreUnknown = true)
-        record Dependency(String group, String module, Map<String, String> version) {}
     }
 }
