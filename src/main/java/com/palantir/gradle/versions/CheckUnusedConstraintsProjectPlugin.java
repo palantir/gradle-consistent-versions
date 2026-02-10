@@ -19,6 +19,7 @@ package com.palantir.gradle.versions;
 import java.io.File;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import javax.inject.Inject;
 import org.gradle.api.Plugin;
@@ -57,13 +58,13 @@ public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Proj
                         .filter(configuration -> !configuration.getName().startsWith("checkUnusedConstraints"))
                         .toList());
 
-        Provider<Map<String, ResolvedComponentResult>> configurationNameToRootComponents =
+        Provider<Map<String, Set<ResolvedComponentResult>>> configurationNameToRootComponents =
                 configurationsToCheck.map(configurations -> configurations.stream()
                         .collect(Collectors.toMap(
                                 configuration -> configuration.getName(), configuration -> configuration
                                         .getIncoming()
                                         .getResolutionResult()
-                                        .getRoot())));
+                                        .getAllComponents())));
 
         Provider<List<FileCollection>> resolvedFiles =
                 configurationsToCheck.map(configurations -> configurations.stream()
