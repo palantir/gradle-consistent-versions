@@ -26,10 +26,6 @@ import com.palantir.gradle.testing.project.RootProject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-/**
- * Tests for {@link GetVersionPlugin}. Since GetVersionPlugin does not have its own plugin ID, we apply
- * {@code com.palantir.consistent-versions} which internally applies it.
- */
 @GradlePluginTests
 @DisabledConfigurationCache
 class GetVersionPluginIntegrationTest {
