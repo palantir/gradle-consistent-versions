@@ -19,7 +19,6 @@ package com.palantir.gradle.versions;
 import static com.palantir.gradle.testing.assertion.GradlePluginTestAssertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.palantir.gradle.testing.execution.GradleInvoker;
 import com.palantir.gradle.testing.execution.InvocationResult;
@@ -27,21 +26,16 @@ import com.palantir.gradle.testing.junit.DisabledConfigurationCache;
 import com.palantir.gradle.testing.junit.GradlePluginTests;
 import com.palantir.gradle.testing.maven.MavenArtifact;
 import com.palantir.gradle.testing.maven.MavenRepo;
-import com.palantir.gradle.testing.project.GradleProject;
 import com.palantir.gradle.testing.project.RootProject;
 import com.palantir.gradle.testing.project.SubProject;
 import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 @GradlePluginTests
-@DisabledConfigurationCache
 class ConsistentVersionsPluginIntegrationTest {
     private static final String PLUGIN_NAME = "com.palantir.consistent-versions";
 
@@ -58,15 +52,7 @@ class ConsistentVersionsPluginIntegrationTest {
                 MavenArtifact.of("test-alignment:module-that-should-be-aligned-up:1.1"),
                 MavenArtifact.of("test-alignment:module-with-higher-version:1.1"));
 
-        makePlatformPom(rootProject, repo, "org", "platform", "1.0");
-
-        rootProject.buildGradle().append("""
-            buildscript {
-                repositories {
-                    mavenCentral()
-                }
-            }
-            """);
+        PomUtils.makePlatformPom(rootProject, repo, "org", "platform", "1.0");
 
         rootProject.buildGradle().plugins().add(PLUGIN_NAME);
 
@@ -86,7 +72,7 @@ class ConsistentVersionsPluginIntegrationTest {
                 })
 
                 repositories {
-                    maven { url "file:///%s" }
+                    maven { url uri("%s") }
                 }
             }
 
@@ -98,6 +84,7 @@ class ConsistentVersionsPluginIntegrationTest {
     }
 
     @Test
+    @DisabledConfigurationCache
     void can_write_locks_using_write_locks(GradleInvoker gradle, RootProject rootProject) {
         gradle.withArgs("--write-locks").buildsSuccessfully();
 
@@ -107,71 +94,22 @@ class ConsistentVersionsPluginIntegrationTest {
 
     @Test
     void can_write_locks_using_write_versions_locks(GradleInvoker gradle, RootProject rootProject) {
-        InvocationResult firstRun =
-                gradle.withArgs("writeVersionsLocks", "--configuration-cache").buildsSuccessfully();
+        gradle.withArgs("writeVersionsLocks").buildsSuccessfully();
 
         rootProject.file("versions.lock").assertThat().exists();
         gradle.withArgs("resolveConfigurations").buildsSuccessfully();
-
-        assertThat(firstRun).output().contains("Configuration cache entry stored.");
-
-        InvocationResult secondRun =
-                gradle.withArgs("writeVersionsLocks", "--configuration-cache").buildsSuccessfully();
-
-        assertThat(secondRun).output().contains("Configuration cache entry reused.");
-
-        Path configCacheDir = rootProject.path().resolve(".gradle/configuration-cache");
-        if (Files.exists(configCacheDir)) {
-            try (Stream<Path> stream = Files.walk(configCacheDir)) {
-                stream.sorted((a, b) -> b.compareTo(a)) // reverse order for deletion
-                        .forEach(path -> {
-                            try {
-                                Files.delete(path);
-                            } catch (IOException e) {
-                                throw new UncheckedIOException(e);
-                            }
-                        });
-            } catch (IOException e) {
-                throw new UncheckedIOException(e);
-            }
-        }
-        assertThat(Files.exists(configCacheDir)).isFalse();
     }
 
     @Test
     void can_write_locks_using_abbreviated_write_versions_locks(GradleInvoker gradle, RootProject rootProject) {
-        InvocationResult firstRun =
-                gradle.withArgs("wVL", "--configuration-cache").buildsSuccessfully();
+        gradle.withArgs("wVL").buildsSuccessfully();
 
         rootProject.file("versions.lock").assertThat().exists();
         gradle.withArgs("resolveConfigurations").buildsSuccessfully();
-
-        assertThat(firstRun).output().contains("Configuration cache entry stored.");
-
-        InvocationResult secondRun =
-                gradle.withArgs("wVL", "--configuration-cache").buildsSuccessfully();
-
-        assertThat(secondRun).output().contains("Configuration cache entry reused.");
-
-        Path configCacheDir = rootProject.path().resolve(".gradle/configuration-cache");
-        if (Files.exists(configCacheDir)) {
-            try (Stream<Path> stream = Files.walk(configCacheDir)) {
-                stream.sorted((a, b) -> b.compareTo(a)) // reverse order for deletion
-                        .forEach(path -> {
-                            try {
-                                Files.delete(path);
-                            } catch (IOException e) {
-                                throw new UncheckedIOException(e);
-                            }
-                        });
-            } catch (IOException e) {
-                throw new UncheckedIOException(e);
-            }
-        }
-        assertThat(Files.exists(configCacheDir)).isFalse();
     }
 
     @Test
+    @DisabledConfigurationCache
     void locks_are_consistent_whether_or_not_we_do_write_locks_for_glob_forced_direct_dependency(
             GradleInvoker gradle, RootProject rootProject) {
         rootProject.buildGradle().plugins().add("java");
@@ -192,6 +130,7 @@ class ConsistentVersionsPluginIntegrationTest {
     }
 
     @Test
+    @DisabledConfigurationCache
     void get_version_function_works(GradleInvoker gradle, RootProject rootProject) {
         rootProject.buildGradle().plugins().add("java");
 
@@ -215,6 +154,7 @@ class ConsistentVersionsPluginIntegrationTest {
     }
 
     @Test
+    @DisabledConfigurationCache
     void get_version_function_works_even_when_writing_locks(GradleInvoker gradle, RootProject rootProject) {
         rootProject.buildGradle().plugins().add("java");
 
@@ -235,6 +175,7 @@ class ConsistentVersionsPluginIntegrationTest {
     }
 
     @Test
+    @DisabledConfigurationCache
     void virtual_platform_is_respected_across_projects(
             GradleInvoker gradle, RootProject rootProject, SubProject foo, SubProject bar) {
         foo.buildGradle().plugins().add("java");
@@ -270,6 +211,7 @@ class ConsistentVersionsPluginIntegrationTest {
     }
 
     @Test
+    @DisabledConfigurationCache
     void star_dependencies_in_the_absence_of_dependency_versions(
             GradleInvoker gradle, RootProject rootProject, SubProject foo) {
         foo.buildGradle().plugins().add("java");
@@ -300,10 +242,11 @@ class ConsistentVersionsPluginIntegrationTest {
     }
 
     @Test
+    @DisabledConfigurationCache
     void write_locks_and_verify_locks_work_in_the_presence_of_versions_props_constraints(
             GradleInvoker gradle, RootProject rootProject, SubProject foo, MavenRepo repo) {
-        makePlatformPom(rootProject, repo, "org1", "platform", "1.0");
-        makePlatformPom(rootProject, repo, "org2", "platform", "1.0");
+        PomUtils.makePlatformPom(rootProject, repo, "org1", "platform", "1.0");
+        PomUtils.makePlatformPom(rootProject, repo, "org2", "platform", "1.0");
 
         foo.buildGradle().plugins().add("java");
 
@@ -360,11 +303,10 @@ class ConsistentVersionsPluginIntegrationTest {
     }
 
     @Test
+    @DisabledConfigurationCache
     void versions_props_contents_do_not_get_published_as_constraints(
             GradleInvoker gradle, RootProject rootProject, SubProject foo) throws IOException {
-        rootProject.buildGradle().plugins().add("java");
-
-        foo.buildGradle().plugins().add("maven-publish");
+        foo.buildGradle().plugins().add("java").add("maven-publish");
 
         foo.buildGradle().append("""
             publishing.publications {
@@ -382,12 +324,6 @@ class ConsistentVersionsPluginIntegrationTest {
             org.slf4j:* = 1.7.25
             ch.qos.logback:* = 1.1.11
             should:not-publish = 1.0
-            """);
-
-        rootProject.settingsGradle().append("""
-            if (org.gradle.util.GradleVersion.current() < org.gradle.util.GradleVersion.version("6.0")) {
-                enableFeaturePreview('GRADLE_METADATA')
-            }
             """);
 
         gradle.withArgs("--write-locks", "generateMetadataFileForMavenPublication")
@@ -409,6 +345,7 @@ class ConsistentVersionsPluginIntegrationTest {
     }
 
     @Test
+    @DisabledConfigurationCache
     void intransitive_dependency_on_published_configuration_should_not_break_realizing_it_later(
             GradleInvoker gradle, RootProject rootProject, SubProject source, SubProject target) {
         source.buildGradle().append("""
@@ -467,6 +404,8 @@ class ConsistentVersionsPluginIntegrationTest {
     }
 
     @Test
+    @SuppressWarnings("MethodLength")
+    @DisabledConfigurationCache
     void works_with_included_builds(GradleInvoker gradle, RootProject rootProject, MavenRepo repo) {
         // add included build
         Path includedBuild = rootProject.directory("included-build").path();
@@ -475,20 +414,15 @@ class ConsistentVersionsPluginIntegrationTest {
             """);
 
         // configure the included build
-        rootProject.directory(includedBuild.toString()).file("settings.gradle").append("""
-            rootProject.name = 'included-build'
+        rootProject
+                .directory(includedBuild.toString())
+                .gradleFile("settings.gradle")
+                .append("""
+                    rootProject.name = 'included-build'
 
-            include 'innerA'
-            include 'innerB'
-            """);
-
-        rootProject.directory(includedBuild.toString()).file("build.gradle").append("""
-            buildscript {
-                repositories {
-                    mavenCentral()
-                }
-            }
-            """);
+                    include 'innerA'
+                    include 'innerB'
+                    """);
 
         rootProject
                 .directory(includedBuild.toString())
@@ -496,59 +430,81 @@ class ConsistentVersionsPluginIntegrationTest {
                 .plugins()
                 .add(PLUGIN_NAME);
 
-        rootProject.directory(includedBuild.toString()).file("build.gradle").append("""
-            allprojects {
-                group 'com.palantir.included-build'
-                version '1.0.0'
+        rootProject
+                .directory(includedBuild.toString())
+                .gradleFile("build.gradle")
+                .append("""
+                    allprojects {
+                        group 'com.palantir.included-build'
+                        version '1.0.0'
 
-                repositories {
-                    maven { url "file:///%s" }
-                }
-            }
-
-            subprojects {
-                apply plugin: 'java'
-                apply plugin: 'maven-publish'
-                publishing {
-                    repositories {
-                        maven {
-                            url = "%s"
+                        repositories {
+                            maven { url uri("%s") }
                         }
                     }
-
-                    publications {
-                        maven(MavenPublication) {
-                            from components.java
-                        }
-                    }
-                }
-            }
-
-            """, repo.path(), repo.path());
+                    """, repo.path());
 
         Path innerA = includedBuild.resolve("innerA");
-        rootProject.directory(innerA.toString()).file("build.gradle").append("""
-            apply plugin: 'java'
+        rootProject
+                .directory(innerA.toString())
+                .gradleFile("build.gradle")
+                .append("""
+                    dependencies {
+                        implementation 'org.slf4j:slf4j-api'
+                        runtimeOnly 'ch.qos.logback:logback-classic:1.1.11' // brings in slf4j-api 1.7.22
+                    }
 
-            dependencies {
-                implementation 'org.slf4j:slf4j-api'
-                runtimeOnly 'ch.qos.logback:logback-classic:1.1.11' // brings in slf4j-api 1.7.22
-            }
-            """);
+                    publishing {
+                        repositories {
+                            maven {
+                                url = "%s"
+                            }
+                        }
+
+                        publications {
+                            maven(MavenPublication) {
+                                from components.java
+                            }
+                        }
+                    }
+                    """, repo.path())
+                .plugins()
+                .add("java")
+                .add("maven-publish");
 
         Path innerB = includedBuild.resolve("innerB");
-        rootProject.directory(innerB.toString()).file("build.gradle").append("""
-            apply plugin: 'java'
+        rootProject
+                .directory(innerB.toString())
+                .gradleFile("build.gradle")
+                .append("""
+                    publishing {
+                        repositories {
+                            maven {
+                                url = "%s"
+                            }
+                        }
 
-            dependencies {
-                implementation 'test-alignment:module-with-higher-version'
-            }
-            """);
+                        publications {
+                            maven(MavenPublication) {
+                                from components.java
+                            }
+                        }
+                    }
+                    dependencies {
+                        implementation 'test-alignment:module-with-higher-version'
+                    }
+                    """, repo.path())
+                .plugins()
+                .add("java")
+                .add("maven-publish");
 
-        rootProject.directory(includedBuild.toString()).file("versions.props").append("""
-            org.slf4j:slf4j-api = 1.7.25
-            test-alignment:* = 1.1
-            """);
+        rootProject
+                .directory(includedBuild.toString())
+                .propertiesFile("versions.props")
+                .append("""
+                    org.slf4j:slf4j-api = 1.7.25
+                    test-alignment:* = 1.1
+                    """);
 
         // configure main build
         rootProject.buildGradle().plugins().add("java");
@@ -620,55 +576,17 @@ class ConsistentVersionsPluginIntegrationTest {
         // build succeeds
         gradle.withArgs("--write-locks").buildsSuccessfully();
 
-        InvocationResult publishResult = gradle.withArgs(
+        gradle.withArgs(
                         ":publishMavenPublicationToMavenRepository",
                         ":included-build:innerA:publishMavenPublicationToMavenRepository",
                         ":included-build:innerB:publishMavenPublicationToMavenRepository")
                 .buildsSuccessfully();
 
-        System.out.println(publishResult.output());
-
         // root build: dependency is bumped - there is a difference in resolution between Gradle versions hence why we
         // do not compare contents directly
-        String rootVersionsLock = rootProject.file("versions.lock").text();
-        assertThat(rootVersionsLock).contains("ch.qos.logback:logback-classic:1.1.11 (1 constraints: 36052a3b)");
-        assertThat(rootVersionsLock)
-                .contains("test-alignment:module-that-should-be-aligned-up:1.1 (1 constraints: a5041a2c)");
-        assertThat(rootVersionsLock)
+        assertThat(rootProject.file("versions.lock").text())
+                .contains("ch.qos.logback:logback-classic:1.1.11 (1 constraints: 36052a3b)")
+                .contains("test-alignment:module-that-should-be-aligned-up:1.1 (1 constraints: a5041a2c)")
                 .contains("test-alignment:module-with-higher-version:1.1 (1 constraints: a6041b2c)");
-    }
-
-    static void makePlatformPom(GradleProject project, MavenRepo repo, String group, String name, String version) {
-        project.directory(repo.path()
-                        .resolve(group)
-                        .resolve(name)
-                        .resolve(version)
-                        .toString())
-                .file("platform-1.0.pom")
-                .overwrite("""
-                    <?xml version="1.0" encoding="UTF-8"?>
-                    <project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
-                        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-                      <modelVersion>4.0.0</modelVersion>
-                      <packaging>pom</packaging>
-                      <groupId>%s</groupId>
-                      <artifactId>%s</artifactId>
-                      <version>%s</version>
-                      <dependencyManagement>
-                        <dependencies>
-                        </dependencies>
-                      </dependencyManagement>
-                    </project>
-                    """, group, name, version);
-    }
-
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    record MetadataFile(Set<Variant> variants) {
-
-        @JsonIgnoreProperties(ignoreUnknown = true)
-        record Variant(String name, Set<Dependency> dependencies, Set<Dependency> dependencyConstraints) {}
-
-        @JsonIgnoreProperties(ignoreUnknown = true)
-        record Dependency(String group, String module, Map<String, String> version) {}
     }
 }
