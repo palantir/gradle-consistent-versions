@@ -35,7 +35,7 @@ import org.junit.jupiter.api.Test;
  * https://docs.gradle.org/current/userguide/multi_project_configuration_and_execution.html#sec:configuration_on_demand
  */
 @GradlePluginTests
-@DisabledConfigurationCache
+@DisabledConfigurationCache("configuration cache cannot be reused due to --write-locks")
 class ConfigurationOnDemandTest {
 
     private static final String PLUGIN_NAME = "com.palantir.consistent-versions";
@@ -201,16 +201,15 @@ class ConfigurationOnDemandTest {
                 .doesNotContain("configuring unrelated");
     }
 
-    // after_lockfile_is_written_versions_constraints_due_to_non_configured_projects_are_still_respected
     @Test
     void after_lockfile_is_written_versions_constraints_due_to_non_configured_projects_are_still_respected(
             GradleInvoker gradle) {
         gradle.withArgs("--write-locks").buildsSuccessfully();
         InvocationResult result = gradle.withArgs(":downstream2:writeClasspath").buildsSuccessfully();
 
-        // Version used is 1.1.0 due to the unrelated project
         assertThat(result)
                 .output()
+                .as("Version used is 1.1.0 due to the unrelated project")
                 .contains("dep-with-version-bumped-by-unrelated-1.1.0.jar")
                 .doesNotContain("configured unrelated");
     }
@@ -254,8 +253,10 @@ class ConfigurationOnDemandTest {
         gradle.withArgs("--write-locks").buildsSuccessfully();
         InvocationResult result = gradle.withArgs(":projectC:writeClasspathOfA").buildsSuccessfully();
 
-        // Version used should be 1.1.0, indicating that the version.lock constraint was applied
-        assertThat(result).output().contains("transitive-test-dep-1.1.0.jar");
+        assertThat(result)
+                .output()
+                .as("Version used should be 1.1.0, indicating that the version.lock constraint was applied")
+                .contains("transitive-test-dep-1.1.0.jar");
     }
 
     @Test
@@ -290,8 +291,10 @@ class ConfigurationOnDemandTest {
         gradle.withArgs("--write-locks").buildsSuccessfully();
         InvocationResult result = gradle.withArgs(":projectC:bar").buildsSuccessfully();
 
-        // Version used should be 1.1.0, indicating that the version.lock constraint was applied
-        assertThat(result).output().contains("transitive-test-dep-1.1.0.jar");
+        assertThat(result)
+                .output()
+                .as("Version used should be 1.1.0, indicating that the version.lock constraint was applied")
+                .contains("transitive-test-dep-1.1.0.jar");
     }
 
     @Test
