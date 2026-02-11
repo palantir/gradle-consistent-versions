@@ -84,7 +84,7 @@ class ConsistentVersionsPluginIntegrationTest {
     }
 
     @Test
-    @DisabledConfigurationCache
+    @DisabledConfigurationCache("configuration cache cannot be reused due to --write-locks")
     void can_write_locks_using_write_locks(GradleInvoker gradle, RootProject rootProject) {
         gradle.withArgs("--write-locks").buildsSuccessfully();
 
@@ -109,7 +109,7 @@ class ConsistentVersionsPluginIntegrationTest {
     }
 
     @Test
-    @DisabledConfigurationCache
+    @DisabledConfigurationCache("configuration cache cannot be reused due to --write-locks")
     void locks_are_consistent_whether_or_not_we_do_write_locks_for_glob_forced_direct_dependency(
             GradleInvoker gradle, RootProject rootProject) {
         rootProject.buildGradle().plugins().add("java");
@@ -130,7 +130,9 @@ class ConsistentVersionsPluginIntegrationTest {
     }
 
     @Test
-    @DisabledConfigurationCache
+    @DisabledConfigurationCache(
+            "Cannot reference a Gradle script object from a Groovy closure as these are not supported with the"
+                    + " configuration cache")
     void get_version_function_works(GradleInvoker gradle, RootProject rootProject) {
         rootProject.buildGradle().plugins().add("java");
 
@@ -154,7 +156,9 @@ class ConsistentVersionsPluginIntegrationTest {
     }
 
     @Test
-    @DisabledConfigurationCache
+    @DisabledConfigurationCache(
+            "Cannot reference a Gradle script object from a Groovy closure as these are not supported with the"
+                    + " configuration cache")
     void get_version_function_works_even_when_writing_locks(GradleInvoker gradle, RootProject rootProject) {
         rootProject.buildGradle().plugins().add("java");
 
@@ -175,7 +179,7 @@ class ConsistentVersionsPluginIntegrationTest {
     }
 
     @Test
-    @DisabledConfigurationCache
+    @DisabledConfigurationCache("configuration cache cannot be reused due to --write-locks")
     void virtual_platform_is_respected_across_projects(
             GradleInvoker gradle, RootProject rootProject, SubProject foo, SubProject bar) {
         foo.buildGradle().plugins().add("java");
@@ -211,7 +215,7 @@ class ConsistentVersionsPluginIntegrationTest {
     }
 
     @Test
-    @DisabledConfigurationCache
+    @DisabledConfigurationCache("configuration cache cannot be reused due to --write-locks")
     void star_dependencies_in_the_absence_of_dependency_versions(
             GradleInvoker gradle, RootProject rootProject, SubProject foo) {
         foo.buildGradle().plugins().add("java");
@@ -242,7 +246,7 @@ class ConsistentVersionsPluginIntegrationTest {
     }
 
     @Test
-    @DisabledConfigurationCache
+    @DisabledConfigurationCache("configuration cache cannot be reused due to --write-locks")
     void write_locks_and_verify_locks_work_in_the_presence_of_versions_props_constraints(
             GradleInvoker gradle, RootProject rootProject, SubProject foo, MavenRepo repo) {
         PomUtils.makePlatformPom(rootProject, repo, "org1", "platform", "1.0");
@@ -303,7 +307,7 @@ class ConsistentVersionsPluginIntegrationTest {
     }
 
     @Test
-    @DisabledConfigurationCache
+    @DisabledConfigurationCache("configuration cache cannot be reused due to --write-locks")
     void versions_props_contents_do_not_get_published_as_constraints(
             GradleInvoker gradle, RootProject rootProject, SubProject foo) throws IOException {
         foo.buildGradle().plugins().add("java").add("maven-publish");
@@ -345,7 +349,7 @@ class ConsistentVersionsPluginIntegrationTest {
     }
 
     @Test
-    @DisabledConfigurationCache
+    @DisabledConfigurationCache("configuration cache cannot be reused due to --write-locks")
     void intransitive_dependency_on_published_configuration_should_not_break_realizing_it_later(
             GradleInvoker gradle, RootProject rootProject, SubProject source, SubProject target) {
         source.buildGradle().append("""
@@ -405,7 +409,7 @@ class ConsistentVersionsPluginIntegrationTest {
 
     @Test
     @SuppressWarnings("MethodLength")
-    @DisabledConfigurationCache
+    @DisabledConfigurationCache("configuration cache cannot be reused due to --write-locks")
     void works_with_included_builds(GradleInvoker gradle, RootProject rootProject, MavenRepo repo) {
         // add included build
         Path includedBuild = rootProject.directory("included-build").path();
