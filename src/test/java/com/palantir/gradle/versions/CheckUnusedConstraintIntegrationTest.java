@@ -281,7 +281,7 @@ class CheckUnusedConstraintIntegrationTest {
                 gradle.withArgs("checkUnusedConstraints", "--parallel").buildsSuccessfully();
         assertThat(result)
                 .output()
-                .as("writeResolvedCoordinatesTask should not trigger :lib:jar")
+                .as("checkUnusedConstraints should not trigger :lib:jar")
                 .doesNotContain(":lib:jar");
     }
 
