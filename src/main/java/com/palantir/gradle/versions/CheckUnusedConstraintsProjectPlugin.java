@@ -26,6 +26,7 @@ import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.ConfigurationContainer;
+import org.gradle.api.artifacts.component.ModuleComponentIdentifier;
 import org.gradle.api.artifacts.result.ResolvedComponentResult;
 import org.gradle.api.attributes.Usage;
 import org.gradle.api.file.FileCollection;
@@ -70,7 +71,10 @@ public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Proj
                 configurationsToCheck.map(configurations -> configurations.stream()
                         .map(configuration -> configuration
                                 .getIncoming()
-                                .artifactView(view -> view.lenient(true))
+                                .artifactView(view -> {
+                                    view.lenient(true);
+                                    view.componentFilter(ModuleComponentIdentifier.class::isInstance);
+                                })
                                 .getFiles())
                         .collect(Collectors.toList()));
 
