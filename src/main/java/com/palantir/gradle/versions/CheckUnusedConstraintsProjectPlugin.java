@@ -73,7 +73,7 @@ public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Proj
                                 .getIncoming()
                                 .artifactView(view -> {
                                     view.lenient(true);
-                                    view.componentFilter(id -> (id instanceof ModuleComponentIdentifier));
+                                    view.componentFilter(ModuleComponentIdentifier.class::isInstance);
                                 })
                                 .getFiles())
                         .collect(Collectors.toList()));
