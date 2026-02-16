@@ -27,7 +27,7 @@ import org.gradle.api.artifacts.component.ModuleComponentIdentifier;
 import org.gradle.api.artifacts.result.ResolvedComponentResult;
 import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.provider.MapProperty;
-import org.gradle.api.provider.SetProperty;
+import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.OutputFile;
 import org.gradle.api.tasks.TaskAction;
@@ -41,7 +41,7 @@ public abstract class WriteResolvedCoordinatesTask extends DefaultTask {
 
     /** Resolving this establishes cross-project task ordering for Gradle 9 --parallel. */
     @Input
-    public abstract SetProperty<ResolvedComponentResult> getOrderingResult();
+    public abstract Property<ResolvedComponentResult> getOrderingResult();
 
     @Input
     public abstract MapProperty<String, Set<ResolvedComponentResult>> getConfigurationNameToRootComponents();
