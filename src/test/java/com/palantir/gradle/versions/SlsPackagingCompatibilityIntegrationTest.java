@@ -60,6 +60,7 @@ class SlsPackagingCompatibilityIntegrationTest {
             """, repo.path());
     }
 
+    @SuppressWarnings("for-rollout:deprecation")
     @Test
     void can_consume_recommended_product_dependencies_project(
             GradleInvoker gradle, RootProject rootProject, SubProject api, SubProject service) {
