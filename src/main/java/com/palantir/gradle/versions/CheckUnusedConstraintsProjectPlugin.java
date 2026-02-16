@@ -58,7 +58,7 @@ public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Proj
                         .filter(configuration -> !configuration.getName().startsWith("checkUnusedConstraints"))
                         .toList());
 
-        Provider<Map<String, Set<ResolvedComponentResult>>> configurationNameToRootComponents =
+        Provider<Map<String, Set<ResolvedComponentResult>>> configurationNameToAllComponents =
                 configurationsToCheck.map(configurations -> configurations.stream()
                         .collect(Collectors.toMap(
                                 configuration -> configuration.getName(), configuration -> configuration
@@ -86,7 +86,7 @@ public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Proj
                     task.getOutputFile()
                             .fileValue(new File(task.getTemporaryDir(), "resolved-module-identifiers.json"));
                     task.getResolvedFiles().from(resolvedFiles);
-                    task.getConfigurationNameToRootComponents().putAll(configurationNameToRootComponents);
+                    task.getConfigurationNameToRootComponents().putAll(configurationNameToAllComponents);
                 });
 
         getConfigurations().register("checkUnusedConstraintsConsumable", consumable -> {
