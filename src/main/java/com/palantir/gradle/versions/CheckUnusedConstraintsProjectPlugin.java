@@ -22,13 +22,13 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import javax.inject.Inject;
+import org.gradle.api.NamedDomainObjectProvider;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.ConfigurationContainer;
 import org.gradle.api.artifacts.result.ResolvedComponentResult;
 import org.gradle.api.attributes.Usage;
-import org.gradle.api.file.FileCollection;
 import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.provider.Provider;
 import org.gradle.api.provider.ProviderFactory;
@@ -58,6 +58,17 @@ public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Proj
                         .filter(configuration -> !configuration.getName().startsWith("checkUnusedConstraints"))
                         .toList());
 
+        NamedDomainObjectProvider<Configuration> orderingConfiguration = getConfigurations()
+                .register("checkUnusedConstraintsOrdering", conf -> {
+                    conf.setCanBeConsumed(false);
+                    conf.setCanBeResolved(true);
+                    conf.setVisible(false);
+
+                    conf.withDependencies(_deps -> {
+                        configurationsToCheck.get().forEach(conf::extendsFrom);
+                    });
+                });
+
         Provider<Map<String, Set<ResolvedComponentResult>>> configurationNameToRootComponents =
                 configurationsToCheck.map(configurations -> configurations.stream()
                         .collect(Collectors.toMap(
@@ -66,26 +77,13 @@ public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Proj
                                         .getResolutionResult()
                                         .getAllComponents())));
 
-        Provider<List<FileCollection>> resolvedFiles =
-                configurationsToCheck.map(configurations -> configurations.stream()
-                        .map(configuration -> configuration
-                                .getIncoming()
-                                .artifactView(view -> {
-                                    view.lenient(true);
-                                    // Exclude all components so no artifact files are downloaded.
-                                    // The artifact view still triggers dependency graph resolution
-                                    // (the filter is applied after resolution), which is all we need
-                                    // for cross-project locking with --parallel on Gradle 9+.
-                                    view.componentFilter(_id -> false);
-                                })
-                                .getFiles())
-                        .collect(Collectors.toList()));
-
         TaskProvider<WriteResolvedCoordinatesTask> writeResolvedCoordinatesTask = getTasks()
                 .register("writeResolvedCoordinatesTask", WriteResolvedCoordinatesTask.class, task -> {
                     task.getOutputFile()
                             .fileValue(new File(task.getTemporaryDir(), "resolved-module-identifiers.json"));
-                    task.getResolvedFiles().from(resolvedFiles);
+                    task.getOrderingResult()
+                            .set(orderingConfiguration.flatMap(conf ->
+                                    conf.getIncoming().getResolutionResult().getRootComponent()));
                     task.getConfigurationNameToRootComponents().putAll(configurationNameToRootComponents);
                 });
 
