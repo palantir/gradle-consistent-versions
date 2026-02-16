@@ -72,6 +72,10 @@ public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Proj
                                 .getIncoming()
                                 .artifactView(view -> {
                                     view.lenient(true);
+                                    // Exclude all components so no artifact files are downloaded.
+                                    // The artifact view still triggers dependency graph resolution
+                                    // (the filter is applied after resolution), which is all we need
+                                    // for cross-project locking with --parallel on Gradle 9+.
                                     view.componentFilter(_id -> false);
                                 })
                                 .getFiles())
