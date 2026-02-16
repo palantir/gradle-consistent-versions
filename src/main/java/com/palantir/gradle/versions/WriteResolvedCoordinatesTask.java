@@ -18,10 +18,10 @@ package com.palantir.gradle.versions;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
-import com.palantir.gradle.utils.dependencygraph.DependencyGraphUtils;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.List;
+import java.util.Set;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.artifacts.component.ModuleComponentIdentifier;
 import org.gradle.api.artifacts.result.ResolvedComponentResult;
@@ -48,12 +48,12 @@ public abstract class WriteResolvedCoordinatesTask extends DefaultTask {
     public abstract ConfigurableFileCollection getResolvedFiles();
 
     @Input
-    public abstract MapProperty<String, ResolvedComponentResult> getConfigurationNameToRootComponents();
+    public abstract MapProperty<String, Set<ResolvedComponentResult>> getConfigurationNameToRootComponents();
 
     @TaskAction
     public final void writeResolvedCoordinates() {
         List<ResolvedCoordinate> sorted = getConfigurationNameToRootComponents().get().entrySet().stream()
-                .flatMap(entry -> DependencyGraphUtils.allComponentResultsFromRoot(entry.getValue()).stream()
+                .flatMap(entry -> entry.getValue().stream()
                         .map(ResolvedComponentResult::getId)
                         .filter(ModuleComponentIdentifier.class::isInstance)
                         .map(ModuleComponentIdentifier.class::cast)

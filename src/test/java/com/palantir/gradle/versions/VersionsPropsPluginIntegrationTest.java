@@ -71,7 +71,7 @@ class VersionsPropsPluginIntegrationTest {
                 MavenArtifact.of("com.fasterxml.jackson.core:jackson-annotations:2.9.7"),
                 MavenArtifact.of("com.fasterxml.jackson.core:jackson-databind:2.9.7"));
 
-        makePlatformPom(rootProject, repo, "org", "platform", "1.0");
+        PomUtils.makePlatformPom(rootProject, repo, "org", "platform", "1.0");
 
         rootProject.buildGradle().plugins().add(PLUGIN_NAME);
         rootProject.buildGradle().append("""
@@ -104,6 +104,7 @@ class VersionsPropsPluginIntegrationTest {
             """, repo.path());
     }
 
+    @SuppressWarnings("for-rollout:deprecation")
     @Test
     void star_dependency_constraint_is_injected_for_direct_dependency(
             GradleInvoker gradle, RootProject rootProject, SubProject foo) {
@@ -122,6 +123,7 @@ class VersionsPropsPluginIntegrationTest {
         verifyLockfile(foo, "org.slf4j:slf4j-api:1.7.24");
     }
 
+    @SuppressWarnings("for-rollout:deprecation")
     @Test
     void star_dependency_constraint_is_not_forcefully_downgraded_for_transitive_dependency(
             GradleInvoker gradle, RootProject rootProject, SubProject foo) {
@@ -144,6 +146,7 @@ class VersionsPropsPluginIntegrationTest {
         verifyLockfile(foo, "org.slf4j:slf4j-api:1.7.22");
     }
 
+    @SuppressWarnings("for-rollout:deprecation")
     @Test
     void star_dependency_constraint_upgrades_transitive_dependency(
             GradleInvoker gradle, RootProject rootProject, SubProject foo) {
@@ -166,6 +169,7 @@ class VersionsPropsPluginIntegrationTest {
         verifyLockfile(foo, "org.slf4j:slf4j-api:1.7.25");
     }
 
+    @SuppressWarnings("for-rollout:deprecation")
     @Test
     void imported_platform_generated_correctly_in_pom(GradleInvoker gradle, RootProject rootProject, SubProject foo)
             throws IOException {
@@ -217,6 +221,7 @@ class VersionsPropsPluginIntegrationTest {
         assertThat(actualDependencies).containsExactlyInAnyOrderElementsOf(expectedDependencies);
     }
 
+    @SuppressWarnings("for-rollout:deprecation")
     @Test
     void non_glob_module_forces_do_not_get_added_to_a_matching_platform_too(
             GradleInvoker gradle, RootProject rootProject) {
@@ -305,31 +310,6 @@ class VersionsPropsPluginIntegrationTest {
         for (String line : lines) {
             assertThat(lockfile).contains(line + "=runtimeClasspath");
         }
-    }
-
-    static void makePlatformPom(RootProject rootProject, MavenRepo repo, String group, String name, String version) {
-        rootProject
-                .directory(repo.path()
-                        .resolve(group)
-                        .resolve(name)
-                        .resolve(version)
-                        .toString())
-                .file("platform-1.0.pom")
-                .overwrite("""
-                    <?xml version="1.0" encoding="UTF-8"?>
-                    <project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
-                        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-                      <modelVersion>4.0.0</modelVersion>
-                      <packaging>pom</packaging>
-                      <groupId>%s</groupId>
-                      <artifactId>%s</artifactId>
-                      <version>%s</version>
-                      <dependencyManagement>
-                        <dependencies>
-                        </dependencies>
-                      </dependencyManagement>
-                    </project>
-                    """, group, name, version);
     }
 
     @Value.Immutable

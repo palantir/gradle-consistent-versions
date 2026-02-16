@@ -34,6 +34,7 @@ import org.junit.jupiter.api.Test;
 @AdditionallyRunWithGradle("9.3.0")
 class CheckUnusedConstraintIntegrationTest {
 
+    @SuppressWarnings("for-rollout:deprecation")
     @BeforeEach
     void setup(RootProject rootProject) {
         rootProject.buildGradle().plugins().add("java");
@@ -248,6 +249,41 @@ class CheckUnusedConstraintIntegrationTest {
                 gradle.withArgs("checkUnusedConstraints", "--parallel").buildsSuccessfully();
 
         assertThat(result).task(":checkUnusedConstraints").succeeded();
+    }
+
+    @Test
+    void checkUnusedConstraints_does_not_depend_on_project_jar_tasks(
+            GradleInvoker gradle, RootProject rootProject, SubProject lib) {
+        rootProject.file("versions.props").overwrite("""
+            com.google.guava:guava = 33.0.0-jre
+            """);
+
+        lib.buildGradle().plugins().add("java-library");
+        lib.buildGradle().append("""
+            repositories {
+                mavenCentral()
+            }
+            dependencies {
+                api 'com.google.guava:guava'
+            }
+            """);
+
+        rootProject.buildGradle().plugins().add("java-library");
+        rootProject.buildGradle().append("""
+            dependencies {
+                api project(':lib')
+            }
+            """);
+
+        // Without the componentFilter fix, the artifact view includes project jars which
+        // causes writeResolvedCoordinatesTask to unnecessarily depend on :lib:jar.
+        // With the fix, project components are filtered out so :lib:jar is not triggered.
+        InvocationResult result =
+                gradle.withArgs("checkUnusedConstraints", "--parallel").buildsSuccessfully();
+        assertThat(result)
+                .output()
+                .as("checkUnusedConstraints should not trigger :lib:jar")
+                .doesNotContain(":lib:jar");
     }
 
     private static String pomWithJarPackaging(String group, String artifact, String version) {

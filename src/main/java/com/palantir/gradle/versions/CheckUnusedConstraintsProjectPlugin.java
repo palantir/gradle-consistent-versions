@@ -19,12 +19,14 @@ package com.palantir.gradle.versions;
 import java.io.File;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import javax.inject.Inject;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.ConfigurationContainer;
+import org.gradle.api.artifacts.component.ModuleComponentIdentifier;
 import org.gradle.api.artifacts.result.ResolvedComponentResult;
 import org.gradle.api.attributes.Usage;
 import org.gradle.api.file.FileCollection;
@@ -57,19 +59,22 @@ public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Proj
                         .filter(configuration -> !configuration.getName().startsWith("checkUnusedConstraints"))
                         .toList());
 
-        Provider<Map<String, ResolvedComponentResult>> configurationNameToRootComponents =
+        Provider<Map<String, Set<ResolvedComponentResult>>> configurationNameToRootComponents =
                 configurationsToCheck.map(configurations -> configurations.stream()
                         .collect(Collectors.toMap(
                                 configuration -> configuration.getName(), configuration -> configuration
                                         .getIncoming()
                                         .getResolutionResult()
-                                        .getRoot())));
+                                        .getAllComponents())));
 
         Provider<List<FileCollection>> resolvedFiles =
                 configurationsToCheck.map(configurations -> configurations.stream()
                         .map(configuration -> configuration
                                 .getIncoming()
-                                .artifactView(view -> view.lenient(true))
+                                .artifactView(view -> {
+                                    view.lenient(true);
+                                    view.componentFilter(ModuleComponentIdentifier.class::isInstance);
+                                })
                                 .getFiles())
                         .collect(Collectors.toList()));
 
