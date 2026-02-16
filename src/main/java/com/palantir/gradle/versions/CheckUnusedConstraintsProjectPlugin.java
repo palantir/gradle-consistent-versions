@@ -86,7 +86,7 @@ public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Proj
                     task.getOutputFile()
                             .fileValue(new File(task.getTemporaryDir(), "resolved-module-identifiers.json"));
                     task.getResolvedFiles().from(resolvedFiles);
-                    task.getConfigurationNameToRootComponents().putAll(configurationNameToAllComponents);
+                    task.getConfigurationNameToAllComponents().putAll(configurationNameToAllComponents);
                 });
 
         getConfigurations().register("checkUnusedConstraintsConsumable", consumable -> {
