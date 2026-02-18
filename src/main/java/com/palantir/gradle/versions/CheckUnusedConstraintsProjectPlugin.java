@@ -26,10 +26,8 @@ import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.ConfigurationContainer;
-import org.gradle.api.artifacts.component.ModuleComponentIdentifier;
 import org.gradle.api.artifacts.result.ResolvedComponentResult;
 import org.gradle.api.attributes.Usage;
-import org.gradle.api.file.FileCollection;
 import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.provider.Provider;
 import org.gradle.api.provider.ProviderFactory;
@@ -59,7 +57,7 @@ public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Proj
                         .filter(configuration -> !configuration.getName().startsWith("checkUnusedConstraints"))
                         .toList());
 
-        Provider<Map<String, Set<ResolvedComponentResult>>> configurationNameToRootComponents =
+        Provider<Map<String, Set<ResolvedComponentResult>>> configurationNameToAllComponents =
                 configurationsToCheck.map(configurations -> configurations.stream()
                         .collect(Collectors.toMap(
                                 configuration -> configuration.getName(), configuration -> configuration
@@ -67,23 +65,11 @@ public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Proj
                                         .getResolutionResult()
                                         .getAllComponents())));
 
-        Provider<List<FileCollection>> resolvedFiles =
-                configurationsToCheck.map(configurations -> configurations.stream()
-                        .map(configuration -> configuration
-                                .getIncoming()
-                                .artifactView(view -> {
-                                    view.lenient(true);
-                                    view.componentFilter(ModuleComponentIdentifier.class::isInstance);
-                                })
-                                .getFiles())
-                        .collect(Collectors.toList()));
-
         TaskProvider<WriteResolvedCoordinatesTask> writeResolvedCoordinatesTask = getTasks()
                 .register("writeResolvedCoordinatesTask", WriteResolvedCoordinatesTask.class, task -> {
                     task.getOutputFile()
                             .fileValue(new File(task.getTemporaryDir(), "resolved-module-identifiers.json"));
-                    task.getResolvedFiles().from(resolvedFiles);
-                    task.getConfigurationNameToRootComponents().putAll(configurationNameToRootComponents);
+                    task.getConfigurationNameToAllComponents().putAll(configurationNameToAllComponents);
                 });
 
         getConfigurations().register("checkUnusedConstraintsConsumable", consumable -> {

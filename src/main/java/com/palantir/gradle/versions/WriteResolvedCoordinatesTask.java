@@ -25,14 +25,10 @@ import java.util.Set;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.artifacts.component.ModuleComponentIdentifier;
 import org.gradle.api.artifacts.result.ResolvedComponentResult;
-import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.provider.MapProperty;
 import org.gradle.api.tasks.Input;
-import org.gradle.api.tasks.InputFiles;
 import org.gradle.api.tasks.OutputFile;
-import org.gradle.api.tasks.PathSensitive;
-import org.gradle.api.tasks.PathSensitivity;
 import org.gradle.api.tasks.TaskAction;
 
 public abstract class WriteResolvedCoordinatesTask extends DefaultTask {
@@ -42,17 +38,12 @@ public abstract class WriteResolvedCoordinatesTask extends DefaultTask {
     @OutputFile
     public abstract RegularFileProperty getOutputFile();
 
-    /** Resolved files from all resolvable configurations — establishes cross-project task ordering. */
-    @InputFiles
-    @PathSensitive(PathSensitivity.NONE)
-    public abstract ConfigurableFileCollection getResolvedFiles();
-
     @Input
-    public abstract MapProperty<String, Set<ResolvedComponentResult>> getConfigurationNameToRootComponents();
+    public abstract MapProperty<String, Set<ResolvedComponentResult>> getConfigurationNameToAllComponents();
 
     @TaskAction
     public final void writeResolvedCoordinates() {
-        List<ResolvedCoordinate> sorted = getConfigurationNameToRootComponents().get().entrySet().stream()
+        List<ResolvedCoordinate> sorted = getConfigurationNameToAllComponents().get().entrySet().stream()
                 .flatMap(entry -> entry.getValue().stream()
                         .map(ResolvedComponentResult::getId)
                         .filter(ModuleComponentIdentifier.class::isInstance)
