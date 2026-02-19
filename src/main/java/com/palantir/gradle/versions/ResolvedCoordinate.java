@@ -25,7 +25,7 @@ import org.immutables.value.Value;
 @Value.Immutable
 @JsonSerialize(as = ImmutableResolvedCoordinate.class)
 @JsonDeserialize(as = ImmutableResolvedCoordinate.class)
-public interface ResolvedCoordinate extends Serializable, Comparable<ResolvedCoordinate> {
+interface ResolvedCoordinate extends Serializable, Comparable<ResolvedCoordinate> {
     Comparator<ResolvedCoordinate> COMPARATOR = Comparator.comparing(ResolvedCoordinate::configuration)
             .thenComparing(ResolvedCoordinate::module)
             .thenComparing(ResolvedCoordinate::group);
