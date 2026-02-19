@@ -21,12 +21,9 @@ import com.fasterxml.jackson.databind.json.JsonMapper;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.List;
-import java.util.Set;
 import org.gradle.api.DefaultTask;
-import org.gradle.api.artifacts.component.ModuleComponentIdentifier;
-import org.gradle.api.artifacts.result.ResolvedComponentResult;
 import org.gradle.api.file.RegularFileProperty;
-import org.gradle.api.provider.MapProperty;
+import org.gradle.api.provider.SetProperty;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.OutputFile;
 import org.gradle.api.tasks.TaskAction;
@@ -39,19 +36,12 @@ public abstract class WriteResolvedCoordinatesTask extends DefaultTask {
     public abstract RegularFileProperty getOutputFile();
 
     @Input
-    public abstract MapProperty<String, Set<ResolvedComponentResult>> getConfigurationNameToAllComponents();
+    public abstract SetProperty<ResolvedCoordinate> getResolvedCoordinates();
 
     @TaskAction
     public final void writeResolvedCoordinates() {
-        List<ResolvedCoordinate> sorted = getConfigurationNameToAllComponents().get().entrySet().stream()
-                .flatMap(entry -> entry.getValue().stream()
-                        .map(ResolvedComponentResult::getId)
-                        .filter(ModuleComponentIdentifier.class::isInstance)
-                        .map(ModuleComponentIdentifier.class::cast)
-                        .map(mcid -> ResolvedCoordinate.of(entry.getKey(), mcid.getGroup(), mcid.getModule())))
-                .sorted()
-                .distinct()
-                .toList();
+        List<ResolvedCoordinate> sorted =
+                getResolvedCoordinates().get().stream().sorted().toList();
         try {
             OBJECT_MAPPER.writeValue(getOutputFile().get().getAsFile(), sorted);
         } catch (IOException e) {
