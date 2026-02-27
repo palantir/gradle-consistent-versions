@@ -979,8 +979,11 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
             ProjectDependency locksDependency,
             List<DependencyConstraint> publishableConstraints,
             LockedConfigurations lockedConfigurations) {
-        subproject.getConfigurations().named(LOCK_CONSTRAINTS_CONFIGURATION_NAME, conf -> conf.getDependencies()
-                .add(locksDependency));
+        subproject
+                .getConfigurations()
+                .named(
+                        LOCK_CONSTRAINTS_CONFIGURATION_NAME,
+                        conf -> conf.getDependencies().add(locksDependency));
 
         Set<Configuration> configurationsToLock = lockedConfigurations.allConfigurations();
         log.info("Configuring locks for {}. Locked configurations: {}", subproject.getPath(), configurationsToLock);
