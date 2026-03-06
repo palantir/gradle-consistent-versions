@@ -22,6 +22,7 @@ import java.nio.file.Path;
 
 public final class Validators {
 
+    @SuppressWarnings("for-rollout:AnnotateFormatMethod")
     public static void checkResultOrThrow(boolean condition, String errorTemplate, String commandSuggestion) {
         if (!condition) {
             throw new ExceptionWithSuggestion(
