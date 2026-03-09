@@ -18,7 +18,6 @@ package com.palantir.gradle.versions;
 
 import java.io.File;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import javax.inject.Inject;
@@ -27,9 +26,7 @@ import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.ConfigurationContainer;
 import org.gradle.api.artifacts.component.ModuleComponentIdentifier;
-import org.gradle.api.artifacts.result.ResolvedComponentResult;
 import org.gradle.api.attributes.Usage;
-import org.gradle.api.file.FileCollection;
 import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.provider.Provider;
 import org.gradle.api.provider.ProviderFactory;
@@ -59,31 +56,21 @@ public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Proj
                         .filter(configuration -> !configuration.getName().startsWith("checkUnusedConstraints"))
                         .toList());
 
-        Provider<Map<String, Set<ResolvedComponentResult>>> configurationNameToRootComponents =
+        Provider<Set<ResolvedCoordinate>> resolvedCoordinates =
                 configurationsToCheck.map(configurations -> configurations.stream()
-                        .collect(Collectors.toMap(
-                                configuration -> configuration.getName(), configuration -> configuration
-                                        .getIncoming()
-                                        .getResolutionResult()
-                                        .getAllComponents())));
-
-        Provider<List<FileCollection>> resolvedFiles =
-                configurationsToCheck.map(configurations -> configurations.stream()
-                        .map(configuration -> configuration
-                                .getIncoming()
-                                .artifactView(view -> {
-                                    view.lenient(true);
-                                    view.componentFilter(ModuleComponentIdentifier.class::isInstance);
-                                })
-                                .getFiles())
-                        .collect(Collectors.toList()));
+                        .flatMap(configuration ->
+                                configuration.getIncoming().getResolutionResult().getAllComponents().stream()
+                                        .filter(component -> component.getId() instanceof ModuleComponentIdentifier)
+                                        .map(component -> (ModuleComponentIdentifier) component.getId())
+                                        .map(mcid -> ResolvedCoordinate.of(
+                                                configuration.getName(), mcid.getGroup(), mcid.getModule())))
+                        .collect(Collectors.toSet()));
 
         TaskProvider<WriteResolvedCoordinatesTask> writeResolvedCoordinatesTask = getTasks()
                 .register("writeResolvedCoordinatesTask", WriteResolvedCoordinatesTask.class, task -> {
                     task.getOutputFile()
                             .fileValue(new File(task.getTemporaryDir(), "resolved-module-identifiers.json"));
-                    task.getResolvedFiles().from(resolvedFiles);
-                    task.getConfigurationNameToRootComponents().putAll(configurationNameToRootComponents);
+                    task.getResolvedCoordinates().addAll(resolvedCoordinates);
                 });
 
         getConfigurations().register("checkUnusedConstraintsConsumable", consumable -> {
