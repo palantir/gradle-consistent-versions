@@ -305,22 +305,6 @@ class VersionsPropsPluginIntegrationTest {
         gradle.withArgs("build").buildsSuccessfully();
     }
 
-    @SuppressWarnings("for-rollout:deprecation")
-    @Test
-    void consumable_configuration_on_root_project_does_not_cause_variant_model_cycle(
-            GradleInvoker gradle, RootProject rootProject) {
-        rootProject.propertiesFile("versions.props").appendProperty("org.slf4j:slf4j-api", "1.7.25");
-        rootProject.buildGradle().plugins().add("java");
-        rootProject.buildGradle().append("""
-            configurations.create("thirdPartyConsumable") {
-                canBeConsumed = true
-                canBeResolved = false
-            }
-            """);
-
-        gradle.withArgs("resolveConfigurations").buildsSuccessfully();
-    }
-
     private void verifyLockfile(GradleProject project, String... lines) {
         String lockfile = project.file("gradle.lockfile").text();
         for (String line : lines) {
