@@ -22,5 +22,5 @@ public final class GradleTestVersions {
     private GradleTestVersions() {}
 
     public static final List<String> GRADLE_VERSIONS =
-            List.of(VersionsLockPlugin.MINIMUM_GRADLE_VERSION.getVersion(), "8.8", "8.14.3", "9.1.0");
+            List.of(VersionsLockPlugin.MINIMUM_GRADLE_VERSION.getVersion(), "8.8", "8.14.3", "9.4.0");
 }

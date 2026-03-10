@@ -173,6 +173,15 @@ public abstract class VersionsPropsPlugin implements Plugin<Project> {
             return;
         }
 
+        // Consumable-only configurations are published variants of a project — they don't resolve
+        // dependencies, so version constraints from rootConfiguration are useless on them. Extending
+        // rootConfiguration also creates a variant model cycle when rootConfiguration contains a
+        // ProjectDependency on the root project (see https://github.com/gradle/gradle/pull/36245).
+        if (conf.isCanBeConsumed() && !conf.isCanBeResolved()) {
+            log.debug("Not configuring consumable-only configuration: {}", conf);
+            return;
+        }
+
         // Must do all this in a withDependencies block so that it's run lazily, so that
         // `extension.shouldExcludeConfiguration` isn't queried too early (before the user had the change to configure).
         // However, we must not make this lazy using an afterEvaluate.
@@ -184,46 +193,58 @@ public abstract class VersionsPropsPlugin implements Plugin<Project> {
         // conf.getDependencies() is called.
         AtomicBoolean wasConfigured = new AtomicBoolean();
         conf.withDependencies(deps -> {
-            if (!wasConfigured.compareAndSet(false, true)) {
-                // We are configuring a copy of the original dependency, as they inherit the withDependenciesActions.
-                log.debug("Not configuring {} because it's a copy of an already configured configuration.", conf);
-                return;
+            setupConfigurationDependencies(
+                    subproject, extension, rootConfiguration, versionsProps, conf, deps, wasConfigured);
+        });
+    }
+
+    private static void setupConfigurationDependencies(
+            Project subproject,
+            VersionRecommendationsExtension extension,
+            Configuration rootConfiguration,
+            VersionsProps versionsProps,
+            Configuration conf,
+            DependencySet deps,
+            AtomicBoolean wasConfigured) {
+        if (!wasConfigured.compareAndSet(false, true)) {
+            // We are configuring a copy of the original dependency, as they inherit the withDependenciesActions.
+            log.debug("Not configuring {} because it's a copy of an already configured configuration.", conf);
+            return;
+        }
+        if (extension.shouldExcludeConfiguration(conf.getName())) {
+            log.debug("Not configuring {} because it's excluded", conf);
+            return;
+        }
+
+        // This will ensure that dependencies declared in almost all configurations - including ancestors of
+        // published configurations (such as `compile`, `runtimeOnly`) - have a version if there only
+        // a star-constraint in versions.props that matches them.
+        provideVersionsFromStarDependencies(versionsProps, deps);
+
+        // But don't configure any _ancestors_ of our published configurations to extend rootConfiguration, as we
+        // explicitly DO NOT WANT to republish the constraints that come from it (that come from versions.props).
+        if (configurationWillAffectPublishedConstraints(subproject, conf)) {
+            log.debug("Not configuring published java configuration or its ancestor: {}", conf);
+            return;
+        }
+
+        conf.extendsFrom(rootConfiguration);
+
+        // We must allow unifiedClasspath to be resolved at configuration-time.
+        if (VersionsLockPlugin.UNIFIED_CLASSPATH_CONFIGURATION_NAME.equals(conf.getName())) {
+            return;
+        }
+
+        // Add fail-safe error reporting
+        conf.getIncoming().beforeResolve(_resolvableDependencies -> {
+            if (GradleWorkarounds.isConfiguring(subproject.getState())) {
+                throw new GradleException(String.format(
+                        "Not allowed to resolve %s at "
+                                + "configuration time (https://guides.gradle.org/performance/"
+                                + "#don_t_resolve_dependencies_at_configuration_time). Please upgrade your "
+                                + "plugins and double-check your gradle scripts (see stacktrace)",
+                        conf));
             }
-            if (extension.shouldExcludeConfiguration(conf.getName())) {
-                log.debug("Not configuring {} because it's excluded", conf);
-                return;
-            }
-
-            // This will ensure that dependencies declared in almost all configurations - including ancestors of
-            // published configurations (such as `compile`, `runtimeOnly`) - have a version if there only
-            // a star-constraint in versions.props that matches them.
-            provideVersionsFromStarDependencies(versionsProps, deps);
-
-            // But don't configure any _ancestors_ of our published configurations to extend rootConfiguration, as we
-            // explicitly DO NOT WANT to republish the constraints that come from it (that come from versions.props).
-            if (configurationWillAffectPublishedConstraints(subproject, conf)) {
-                log.debug("Not configuring published java configuration or its ancestor: {}", conf);
-                return;
-            }
-
-            conf.extendsFrom(rootConfiguration);
-
-            // We must allow unifiedClasspath to be resolved at configuration-time.
-            if (VersionsLockPlugin.UNIFIED_CLASSPATH_CONFIGURATION_NAME.equals(conf.getName())) {
-                return;
-            }
-
-            // Add fail-safe error reporting
-            conf.getIncoming().beforeResolve(_resolvableDependencies -> {
-                if (GradleWorkarounds.isConfiguring(subproject.getState())) {
-                    throw new GradleException(String.format(
-                            "Not allowed to resolve %s at "
-                                    + "configuration time (https://guides.gradle.org/performance/"
-                                    + "#don_t_resolve_dependencies_at_configuration_time). Please upgrade your "
-                                    + "plugins and double-check your gradle scripts (see stacktrace)",
-                            conf));
-                }
-            });
         });
     }
 
