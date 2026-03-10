@@ -83,7 +83,7 @@ class VersionsPropsPluginIntegrationTest {
 
             allprojects {
                 repositories {
-                    maven { url uri("%s") }
+                    maven { url "file:///%s" }
                 }
             }
 
