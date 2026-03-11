@@ -353,6 +353,7 @@ class VersionsLockPluginIntegrationTest {
             """);
     }
 
+    @SuppressWarnings("for-rollout:deprecation")
     @Test
     void verifylocks_is_cacheable(GradleInvoker gradle, RootProject rootProject) {
         rootProject.buildGradle().plugins().add("java");
@@ -374,6 +375,7 @@ class VersionsLockPluginIntegrationTest {
                 .upToDate();
     }
 
+    @SuppressWarnings("for-rollout:deprecation")
     @Test
     void verifylocks_current_lock_state_does_not_get_poisoned_by_existing_lock_file(
             GradleInvoker gradle, RootProject rootProject) {
@@ -591,6 +593,7 @@ class VersionsLockPluginIntegrationTest {
             """);
     }
 
+    @SuppressWarnings("for-rollout:deprecation")
     @Test
     void published_constraints_are_derived_from_lock_file_with_local_constraints(
             GradleInvoker gradle, RootProject rootProject, SubProject foo, SubProject bar) throws IOException {
@@ -789,6 +792,7 @@ class VersionsLockPluginIntegrationTest {
 
     @Nested
     class MultiSubprojectWithConflictingVersions {
+        @SuppressWarnings("for-rollout:deprecation")
         @BeforeEach
         void setup(RootProject rootProject, SubProject foo, SubProject bar, SubProject forced) {
             foo.buildGradle().plugins().add("java");
