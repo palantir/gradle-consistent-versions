@@ -108,6 +108,7 @@ class ConsistentVersionsPluginIntegrationTest {
         gradle.withArgs("resolveConfigurations").buildsSuccessfully();
     }
 
+    @SuppressWarnings("for-rollout:deprecation")
     @Test
     @DisabledConfigurationCache("configuration cache cannot be reused due to --write-locks")
     void locks_are_consistent_whether_or_not_we_do_write_locks_for_glob_forced_direct_dependency(
@@ -129,6 +130,7 @@ class ConsistentVersionsPluginIntegrationTest {
         gradle.withArgs("resolve").buildsSuccessfully();
     }
 
+    @SuppressWarnings("for-rollout:deprecation")
     @Test
     @DisabledConfigurationCache(
             "Cannot reference a Gradle script object from a Groovy closure as these are not supported with the"
@@ -155,6 +157,7 @@ class ConsistentVersionsPluginIntegrationTest {
         assertThat(result).output().contains("demo=1.7.25");
     }
 
+    @SuppressWarnings("for-rollout:deprecation")
     @Test
     @DisabledConfigurationCache(
             "Cannot reference a Gradle script object from a Groovy closure as these are not supported with the"
