@@ -144,8 +144,6 @@ class VersionsLockPluginIntegrationTest {
     @Test
     void consolidates_subproject_dependencies(
             GradleInvoker gradle, RootProject rootProject, SubProject foo, SubProject bar, SubProject forced) {
-        String expectedError = "Locked by versions.lock";
-
         standardSetup(rootProject, foo, bar, forced);
 
         rootProject.buildGradle().append("""
@@ -171,7 +169,7 @@ class VersionsLockPluginIntegrationTest {
         InvocationResult incompatible =
                 gradle.withArgs("-Pbar_version=1.7.25", "resolveConfigurations").buildsWithFailure();
 
-        assertThat(incompatible).output().contains(expectedError);
+        assertThat(incompatible).output().contains("Locked by versions.lock");
     }
 
     @Test
@@ -193,8 +191,6 @@ class VersionsLockPluginIntegrationTest {
     @Test
     void get_a_conflict_even_if_no_lock_files_applied(
             GradleInvoker gradle, RootProject rootProject, SubProject foo, SubProject bar, SubProject forced) {
-        String expectedError = "Locked by versions.lock";
-
         standardSetup(rootProject, foo, bar, forced);
 
         gradle.withArgs("--write-locks").buildsSuccessfully();
@@ -207,15 +203,12 @@ class VersionsLockPluginIntegrationTest {
         InvocationResult incompatible =
                 gradle.withArgs("-Pbar_version=1.7.25", "resolveConfigurations").buildsWithFailure();
 
-        assertThat(incompatible).output().contains(expectedError);
+        assertThat(incompatible).output().contains("Locked by versions.lock");
     }
 
     @Test
     void fails_fast_when_subproject_that_is_depended_on_has_same_name_as_root_project(
             GradleInvoker gradle, RootProject rootProject, SubProject foobar, SubProject other) {
-        String expectedError =
-                "This plugin doesn't work if the root project shares both group and name with a subproject";
-
         rootProject.buildGradle().append("""
             allprojects {
                 group 'same'
@@ -236,13 +229,13 @@ class VersionsLockPluginIntegrationTest {
         rootProject.file("versions.lock").createEmpty();
 
         InvocationResult error = gradle.withArgs().buildsWithFailure();
-        assertThat(error).output().contains(expectedError);
+        assertThat(error)
+                .output()
+                .contains("This plugin doesn't work if the root project shares both group and name with a subproject");
     }
 
     @Test
     void fails_fast_when_multiple_subprojects_share_the_same_coordinate(GradleInvoker gradle, RootProject rootProject) {
-        String expectedError = "All subprojects must have unique $group:$name";
-
         rootProject.buildGradle().append("""
             allprojects {
                 group 'same'
@@ -255,7 +248,7 @@ class VersionsLockPluginIntegrationTest {
         rootProject.file("versions.lock").createEmpty();
 
         InvocationResult error = gradle.withArgs().buildsWithFailure();
-        assertThat(error).output().contains(expectedError);
+        assertThat(error).output().contains("All subprojects must have unique $group:$name");
     }
 
     @Test
@@ -289,9 +282,7 @@ class VersionsLockPluginIntegrationTest {
 
     @Test
     void fails_if_new_dependency_added_that_was_not_in_the_lock_file(
-            MavenRepo repo, GradleInvoker gradle, RootProject _rootProject, SubProject foo) {
-        String expectedError = "Found dependencies that were not in the lock state";
-
+            MavenRepo repo, GradleInvoker gradle, SubProject foo) {
         repo.publish(MavenArtifact.of("org:a:1.0"), MavenArtifact.of("org:b:1.0"));
 
         foo.buildGradle().plugins().add("java");
@@ -312,7 +303,7 @@ class VersionsLockPluginIntegrationTest {
 
         InvocationResult failure = gradle.withArgs(":check").buildsWithFailure();
         assertThat(failure).task(":verifyLocks").failed();
-        assertThat(failure).output().contains(expectedError);
+        assertThat(failure).output().contains("Found dependencies that were not in the lock state");
 
         gradle.withArgs("--write-locks").buildsSuccessfully();
         gradle.withArgs("verifyLocks").buildsSuccessfully();
@@ -339,8 +330,6 @@ class VersionsLockPluginIntegrationTest {
     @Test
     void fails_if_dependency_was_removed_but_still_in_the_lock_file(
             GradleInvoker gradle, MavenRepo repo, SubProject foo) {
-        String expectedError = "Locked dependencies missing from the resolution result";
-
         repo.publish(MavenArtifact.of("org:a:1.0"), MavenArtifact.of("org:b:1.0"));
 
         foo.buildGradle().append("""
@@ -360,7 +349,7 @@ class VersionsLockPluginIntegrationTest {
 
         InvocationResult failure = gradle.withArgs(":check").buildsWithFailure();
         assertThat(failure).task(":verifyLocks").failed();
-        assertThat(failure).output().contains(expectedError);
+        assertThat(failure).output().contains("Locked dependencies missing from the resolution result");
 
         gradle.withArgs("--write-locks").buildsSuccessfully();
         gradle.withArgs("verifyLocks").buildsSuccessfully();
@@ -593,7 +582,7 @@ class VersionsLockPluginIntegrationTest {
 
         gradle.withArgs("--write-locks").buildsSuccessfully();
 
-        String expected = """
+        assertThat(rootProject.file("versions.lock").text()).isEqualTo("""
             # Run ./gradlew writeVersionsLocks to regenerate this file. Blank lines are to minimize merge conflicts.
 
             ch.qos.logback:logback-classic:1.2.3 (1 constraints: 0805f935)
@@ -605,9 +594,7 @@ class VersionsLockPluginIntegrationTest {
             [Test dependencies]
 
             org:test-dep-that-logs:1.0 (1 constraints: a5041a2c)
-            """;
-
-        assertThat(rootProject.file("versions.lock").text()).isEqualTo(expected);
+            """);
     }
 
     @Test
@@ -627,7 +614,7 @@ class VersionsLockPluginIntegrationTest {
 
         gradle.withArgs("--write-locks").buildsSuccessfully();
 
-        String expected = """
+        assertThat(rootProject.file("versions.lock").text()).isEqualTo("""
             # Run ./gradlew writeVersionsLocks to regenerate this file. Blank lines are to minimize merge conflicts.
 
             ch.qos.logback:logback-classic:1.2.3 (1 constraints: 0805f935)
@@ -641,9 +628,7 @@ class VersionsLockPluginIntegrationTest {
             junit:junit:4.10 (1 constraints: d904fd30)
 
             org:test-dep-that-logs:1.0 (1 constraints: a5041a2c)
-            """;
-
-        assertThat(rootProject.file("versions.lock").text()).isEqualTo(expected);
+            """);
     }
 
     @Test
@@ -660,7 +645,7 @@ class VersionsLockPluginIntegrationTest {
 
         gradle.withArgs("--write-locks").buildsSuccessfully();
 
-        String expected = """
+        assertThat(rootProject.file("versions.lock").text()).isEqualTo("""
             # Run ./gradlew writeVersionsLocks to regenerate this file. Blank lines are to minimize merge conflicts.
 
 
@@ -668,9 +653,7 @@ class VersionsLockPluginIntegrationTest {
             [Test dependencies]
 
             junit:junit:4.10 (1 constraints: d904fd30)
-            """;
-
-        assertThat(rootProject.file("versions.lock").text()).isEqualTo(expected);
+            """);
     }
 
     @Test
@@ -691,7 +674,7 @@ class VersionsLockPluginIntegrationTest {
 
         gradle.withArgs("--write-locks").buildsSuccessfully();
 
-        String expected = """
+        assertThat(rootProject.file("versions.lock").text()).isEqualTo("""
             # Run ./gradlew writeVersionsLocks to regenerate this file. Blank lines are to minimize merge conflicts.
 
 
@@ -701,9 +684,7 @@ class VersionsLockPluginIntegrationTest {
             ch.qos.logback:logback-classic:1.2.3 (1 constraints: 0805f935)
 
             org.slf4j:slf4j-api:1.7.25 (1 constraints: 400d4d2a)
-            """;
-
-        assertThat(rootProject.file("versions.lock").text()).isEqualTo(expected);
+            """);
     }
 
     @Test
