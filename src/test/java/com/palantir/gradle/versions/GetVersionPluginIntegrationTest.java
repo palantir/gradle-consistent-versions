@@ -27,7 +27,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 @GradlePluginTests
-@DisabledConfigurationCache("Test uses project within a task")
+@DisabledConfigurationCache("Cannot reference a Gradle script object from a Groovy closure")
 class GetVersionPluginIntegrationTest {
 
     @BeforeEach
@@ -44,7 +44,7 @@ class GetVersionPluginIntegrationTest {
         project.buildGradle().append("""
             tasks.register('callGetVersion') {
                 doLast {
-                    project.ext['getVersion']('com.google.guava:guava', configurations.runtimeClasspath)
+                    getVersion('com.google.guava:guava', configurations.runtimeClasspath)
                 }
             }
             """);
@@ -61,7 +61,7 @@ class GetVersionPluginIntegrationTest {
         project.buildGradle().append("""
             tasks.register('callGetVersion') {
                 doLast {
-                    project.ext['getVersion']('com.google.guava', 'guava', configurations.runtimeClasspath)
+                    getVersion('com.google.guava', 'guava', configurations.runtimeClasspath)
                 }
             }
             """);
@@ -77,7 +77,7 @@ class GetVersionPluginIntegrationTest {
         project.buildGradle().append("""
             tasks.register('callGetVersion') {
                 doLast {
-                    project.ext['getVersion']('com.google.guava', 'guava')
+                    getVersion('com.google.guava', 'guava')
                 }
             }
             """);
