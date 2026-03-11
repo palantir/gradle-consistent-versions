@@ -203,15 +203,13 @@ class ConsistentVersionsPluginIntegrationTest {
 
         gradle.withArgs("--write-locks").buildsSuccessfully();
 
-        String expectedLock = """
+        assertThat(rootProject.file("versions.lock").text()).isEqualTo("""
             # Run ./gradlew writeVersionsLocks to regenerate this file. Blank lines are to minimize merge conflicts.
 
             test-alignment:module-that-should-be-aligned-up:1.1 (1 constraints: a5041a2c)
 
             test-alignment:module-with-higher-version:1.1 (1 constraints: a6041b2c)
-            """;
-
-        assertThat(rootProject.file("versions.lock").text()).isEqualTo(expectedLock);
+            """);
     }
 
     @Test
@@ -231,13 +229,11 @@ class ConsistentVersionsPluginIntegrationTest {
 
         gradle.withArgs("--write-locks").buildsSuccessfully();
 
-        String expectedLock = """
+        assertThat(rootProject.file("versions.lock").text()).isEqualTo("""
             # Run ./gradlew writeVersionsLocks to regenerate this file. Blank lines are to minimize merge conflicts.
 
             org.slf4j:slf4j-api:1.7.25 (1 constraints: 4105483b)
-            """;
-
-        assertThat(rootProject.file("versions.lock").text()).isEqualTo(expectedLock);
+            """);
 
         // Ensure that this is a required constraint
         InvocationResult whyResult =
@@ -289,7 +285,7 @@ class ConsistentVersionsPluginIntegrationTest {
 
         gradle.withArgs("--write-locks").buildsSuccessfully();
 
-        String expectedLock = """
+        assertThat(rootProject.file("versions.lock").text()).isEqualTo("""
             # Run ./gradlew writeVersionsLocks to regenerate this file. Blank lines are to minimize merge conflicts.
 
             org.slf4j:slf4j-api:1.7.25 (1 constraints: 4105483b)
@@ -297,9 +293,7 @@ class ConsistentVersionsPluginIntegrationTest {
             org1:platform:1.0 (1 constraints: a5041a2c)
 
             org2:platform:1.0 (1 constraints: a5041a2c)
-            """;
-
-        assertThat(rootProject.file("versions.lock").text()).isEqualTo(expectedLock);
+            """);
 
         // Ensure you can verify locks and resolve the actual locked configurations
         gradle.withArgs("verifyLocks", "resolveLockedConfigurations", "resolveNonLockedConfiguration")
@@ -543,31 +537,25 @@ class ConsistentVersionsPluginIntegrationTest {
 
         gradle.withArgs("--write-locks").buildsSuccessfully();
 
-        // inner versions lock is expected
-        String expectedInnerLock = """
-            # Run ./gradlew writeVersionsLocks to regenerate this file. Blank lines are to minimize merge conflicts.
-
-            ch.qos.logback:logback-classic:1.1.11 (1 constraints: 36052a3b)
-
-            org.slf4j:slf4j-api:1.7.25 (2 constraints: 7d12a137)
-
-            test-alignment:module-with-higher-version:1.1 (1 constraints: a6041b2c)
-            """;
-
         assertThat(rootProject
                         .directory(includedBuild.toString())
                         .file("versions.lock")
                         .text())
-                .isEqualTo(expectedInnerLock);
+                .isEqualTo("""
+                    # Run ./gradlew writeVersionsLocks to regenerate this file. Blank lines are to minimize merge conflicts.
 
-        // root build: versions lock is expected
-        String expectedRootLock = """
+                    ch.qos.logback:logback-classic:1.1.11 (1 constraints: 36052a3b)
+
+                    org.slf4j:slf4j-api:1.7.25 (2 constraints: 7d12a137)
+
+                    test-alignment:module-with-higher-version:1.1 (1 constraints: a6041b2c)
+                    """);
+
+        assertThat(rootProject.file("versions.lock").text()).isEqualTo("""
             # Run ./gradlew writeVersionsLocks to regenerate this file. Blank lines are to minimize merge conflicts.
 
             test-alignment:module-that-should-be-aligned-up:1.0 (1 constraints: a5041a2c)
-            """;
-
-        assertThat(rootProject.file("versions.lock").text()).isEqualTo(expectedRootLock);
+            """);
 
         // we add a dependencies on the inner build
         rootProject.buildGradle().append("""
