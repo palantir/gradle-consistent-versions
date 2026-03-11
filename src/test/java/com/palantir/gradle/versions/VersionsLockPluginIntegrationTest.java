@@ -35,6 +35,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @GradlePluginTests
@@ -86,90 +87,11 @@ class VersionsLockPluginIntegrationTest {
             """, repo.path());
     }
 
-    private void standardSetup(RootProject rootProject, SubProject foo, SubProject bar, SubProject forced) {
-        foo.buildGradle().plugins().add("java");
-        foo.buildGradle().append("""
-            dependencies {
-                implementation 'org.slf4j:slf4j-api:1.7.24'
-            }
-            """);
-
-        bar.buildGradle().plugins().add("java");
-        bar.buildGradle().append("""
-            dependencies {
-                implementation "org.slf4j:slf4j-api:${project.bar_version}"
-            }
-            """);
-        rootProject.gradlePropertiesFile().appendProperty("bar_version", "1.7.11");
-
-        forced.buildGradle().plugins().add("java");
-        forced.buildGradle().append("""
-            dependencies {
-                implementation "org.slf4j:slf4j-api"
-            }
-            configurations.all {
-                resolutionStrategy {
-                    force "org.slf4j:slf4j-api:1.7.20"
-                }
-            }
-            """);
-    }
-
     @Test
     void can_write_locks(GradleInvoker gradle, RootProject rootProject) {
         gradle.withArgs("--write-locks").buildsSuccessfully();
 
         rootProject.file("versions.lock").assertThat().exists();
-    }
-
-    @Test
-    void cannot_resolve_without_a_root_lock_file(
-            GradleInvoker gradle, RootProject rootProject, SubProject foo, SubProject bar, SubProject forced) {
-        standardSetup(rootProject, foo, bar, forced);
-
-        InvocationResult result = gradle.withArgs("resolveConfigurations").buildsWithFailure();
-
-        assertThat(result.output().lines())
-                .anyMatch(line -> line.matches(".*Root lock file '([^']+)' doesn't exist, please run.*"));
-    }
-
-    @Test
-    void can_resolve_without_a_root_lock_file_if_lock_file_is_ignored(
-            GradleInvoker gradle, RootProject rootProject, SubProject foo, SubProject bar, SubProject forced) {
-        standardSetup(rootProject, foo, bar, forced);
-
-        gradle.withArgs("resolveConfigurations", "-PignoreLockFile").buildsSuccessfully();
-    }
-
-    @Test
-    void consolidates_subproject_dependencies(
-            GradleInvoker gradle, RootProject rootProject, SubProject foo, SubProject bar, SubProject forced) {
-        standardSetup(rootProject, foo, bar, forced);
-
-        rootProject.buildGradle().append("""
-            subprojects {
-                configurations.matching { it.name == 'runtimeClasspath' }.all {
-                    resolutionStrategy.activateDependencyLocking()
-                }
-            }
-            """);
-
-        gradle.withArgs("resolveConfigurations", "--write-locks").buildsSuccessfully();
-
-        assertThat(rootProject.file("versions.lock").text().lines())
-                .anyMatch(line -> line.startsWith("org.slf4j:slf4j-api:1.7.24"));
-
-        verifyLockfile(foo, "org.slf4j:slf4j-api:1.7.24");
-        verifyLockfile(bar, "org.slf4j:slf4j-api:1.7.24");
-
-        verifyLockfile(forced, "org.slf4j:slf4j-api:1.7.20");
-
-        gradle.withArgs("resolveConfigurations").buildsSuccessfully();
-
-        InvocationResult incompatible =
-                gradle.withArgs("-Pbar_version=1.7.25", "resolveConfigurations").buildsWithFailure();
-
-        assertThat(incompatible).output().contains("Locked by versions.lock");
     }
 
     @Test
@@ -186,24 +108,6 @@ class VersionsLockPluginIntegrationTest {
         List<String> lines = rootProject.file("versions.lock").text().lines().toList();
         assertThat(lines).contains("ch.qos.logback:logback-classic:1.2.3 (1 constraints: 0805f935)");
         assertThat(lines).contains("org.slf4j:slf4j-api:1.7.25 (1 constraints: 400d4d2a)");
-    }
-
-    @Test
-    void get_a_conflict_even_if_no_lock_files_applied(
-            GradleInvoker gradle, RootProject rootProject, SubProject foo, SubProject bar, SubProject forced) {
-        standardSetup(rootProject, foo, bar, forced);
-
-        gradle.withArgs("--write-locks").buildsSuccessfully();
-
-        assertThat(rootProject.file("versions.lock").text().lines())
-                .anyMatch(line -> line.contains("org.slf4j:slf4j-api:1.7.24"));
-
-        gradle.withArgs("resolveConfigurations").buildsSuccessfully();
-
-        InvocationResult incompatible =
-                gradle.withArgs("-Pbar_version=1.7.25", "resolveConfigurations").buildsWithFailure();
-
-        assertThat(incompatible).output().contains("Locked by versions.lock");
     }
 
     @Test
@@ -880,6 +784,96 @@ class VersionsLockPluginIntegrationTest {
         String lockfile = project.file("gradle.lockfile").text();
         for (String line : lines) {
             assertThat(lockfile).contains(line + "=runtimeClasspath");
+        }
+    }
+
+    @Nested
+    class MultiSubprojectWithConflictingVersions {
+        @BeforeEach
+        void setup(RootProject rootProject, SubProject foo, SubProject bar, SubProject forced) {
+            foo.buildGradle().plugins().add("java");
+            foo.buildGradle().append("""
+                dependencies {
+                    implementation 'org.slf4j:slf4j-api:1.7.24'
+                }
+                """);
+
+            bar.buildGradle().plugins().add("java");
+            bar.buildGradle().append("""
+                dependencies {
+                    implementation "org.slf4j:slf4j-api:${project.bar_version}"
+                }
+                """);
+            rootProject.gradlePropertiesFile().appendProperty("bar_version", "1.7.11");
+
+            forced.buildGradle().plugins().add("java");
+            forced.buildGradle().append("""
+                dependencies {
+                    implementation "org.slf4j:slf4j-api"
+                }
+                configurations.all {
+                    resolutionStrategy {
+                        force "org.slf4j:slf4j-api:1.7.20"
+                    }
+                }
+                """);
+        }
+
+        @Test
+        void cannot_resolve_without_a_root_lock_file(GradleInvoker gradle) {
+            InvocationResult result = gradle.withArgs("resolveConfigurations").buildsWithFailure();
+
+            assertThat(result.output().lines())
+                    .anyMatch(line -> line.matches(".*Root lock file '([^']+)' doesn't exist, please run.*"));
+        }
+
+        @Test
+        void can_resolve_without_a_root_lock_file_if_lock_file_is_ignored(GradleInvoker gradle) {
+            gradle.withArgs("resolveConfigurations", "-PignoreLockFile").buildsSuccessfully();
+        }
+
+        @Test
+        void consolidates_subproject_dependencies(
+                GradleInvoker gradle, RootProject rootProject, SubProject foo, SubProject bar, SubProject forced) {
+            rootProject.buildGradle().append("""
+                subprojects {
+                    configurations.matching { it.name == 'runtimeClasspath' }.all {
+                        resolutionStrategy.activateDependencyLocking()
+                    }
+                }
+                """);
+
+            gradle.withArgs("resolveConfigurations", "--write-locks").buildsSuccessfully();
+
+            assertThat(rootProject.file("versions.lock").text().lines())
+                    .anyMatch(line -> line.startsWith("org.slf4j:slf4j-api:1.7.24"));
+
+            verifyLockfile(foo, "org.slf4j:slf4j-api:1.7.24");
+            verifyLockfile(bar, "org.slf4j:slf4j-api:1.7.24");
+
+            verifyLockfile(forced, "org.slf4j:slf4j-api:1.7.20");
+
+            gradle.withArgs("resolveConfigurations").buildsSuccessfully();
+
+            InvocationResult incompatible =
+                    gradle.withArgs("-Pbar_version=1.7.25", "resolveConfigurations").buildsWithFailure();
+
+            assertThat(incompatible).output().contains("Locked by versions.lock");
+        }
+
+        @Test
+        void get_a_conflict_even_if_no_lock_files_applied(GradleInvoker gradle, RootProject rootProject) {
+            gradle.withArgs("--write-locks").buildsSuccessfully();
+
+            assertThat(rootProject.file("versions.lock").text().lines())
+                    .anyMatch(line -> line.contains("org.slf4j:slf4j-api:1.7.24"));
+
+            gradle.withArgs("resolveConfigurations").buildsSuccessfully();
+
+            InvocationResult incompatible =
+                    gradle.withArgs("-Pbar_version=1.7.25", "resolveConfigurations").buildsWithFailure();
+
+            assertThat(incompatible).output().contains("Locked by versions.lock");
         }
     }
 }
