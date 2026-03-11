@@ -82,9 +82,11 @@ class VersionsPropsPluginIntegrationTest {
                 }
             }
 
+            println("file:///%s")
+
             allprojects {
                 repositories {
-                    maven { url uri("%s") }
+                    maven { url "file:///%s" }
                 }
             }
 
@@ -102,7 +104,7 @@ class VersionsPropsPluginIntegrationTest {
                     }
                 }
             }
-            """, repo.path());
+            """, repo.path(), repo.path());
     }
 
     @SuppressWarnings("for-rollout:deprecation")
