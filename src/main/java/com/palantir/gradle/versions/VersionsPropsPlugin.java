@@ -173,10 +173,11 @@ public abstract class VersionsPropsPlugin implements Plugin<Project> {
             return;
         }
 
-        // Consumable-only configurations are published variants of a project — they don't resolve
-        // dependencies, so version constraints from rootConfiguration are useless on them. Extending
-        // rootConfiguration also creates a variant model cycle when rootConfiguration contains a
-        // ProjectDependency on the root project
+        // Consumable-only configurations are published variants of a project — they never resolve
+        // dependencies, so version constraints from rootConfiguration are useless on them.
+        // Additionally, extending rootConfiguration here creates a variant model cycle on
+        // Gradle 9.4.0+. If a consumable config's outgoing artifacts provider resolves another config (e.g.
+        // compileClasspath) that also extends rootConfiguration.
         if (conf.isCanBeConsumed() && !conf.isCanBeResolved()) {
             log.debug("Not configuring consumable-only configuration: {}", conf);
             return;
