@@ -73,6 +73,7 @@ import org.gradle.api.artifacts.DependencyConstraint;
 import org.gradle.api.artifacts.DependencySet;
 import org.gradle.api.artifacts.ExternalModuleDependency;
 import org.gradle.api.artifacts.ModuleIdentifier;
+import org.gradle.api.artifacts.ModuleVersionIdentifier;
 import org.gradle.api.artifacts.ProjectDependency;
 import org.gradle.api.artifacts.VersionConstraint;
 import org.gradle.api.artifacts.component.ComponentSelector;
@@ -133,6 +134,7 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
             new TaskNameMatcher(WRITE_VERSIONS_LOCKS_TASK);
     private static final String PUBLISH_LOCAL_CONSTRAINTS_PROPERTY =
             "com.palantir.gradle.versions.publishLocalConstraints";
+    private static final String FILTER_LOCK_FILE_CONSTRAINTS = "com.palantir.gradle.versions.filterLockFileConstraints";
     private static final String GCV_PUBLISH_CONSTRAINTS_CONFIGURATION_NAME = "gcvPublishConstraints";
 
     public enum GcvUsage implements Named {
@@ -954,22 +956,18 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
             Map<Project, LockedConfigurations> lockedConfigurations,
             ProjectDependency locksDependency) {
 
-        List<DependencyConstraint> publishableConstraints = constructPublishableConstraintsFromLockFile(
+        List<DependencyConstraint> lockFileConstraints = constructConstraintsFromLockfile(
                 rootProject, gradleLockfile, rootProject.getDependencies().getConstraints()::create);
 
         rootProject.allprojects(subproject -> {
             // Avoid including the current project as a constraint -- it must already be present to provide constraints
             List<DependencyConstraint> localProjectConstraints = constructPublishableConstraintsFromLocalProjects(
                     subproject, rootProject.getDependencies().getConstraints()::create);
-            ImmutableList<DependencyConstraint> publishableConstraintsForSubproject =
-                    ImmutableList.<DependencyConstraint>builder()
-                            .addAll(localProjectConstraints)
-                            .addAll(publishableConstraints)
-                            .build();
             configureUsingConstraints(
                     subproject,
                     locksDependency,
-                    publishableConstraintsForSubproject,
+                    lockFileConstraints,
+                    localProjectConstraints,
                     lockedConfigurations.get(subproject));
         });
     }
@@ -977,7 +975,8 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
     private static void configureUsingConstraints(
             Project subproject,
             ProjectDependency locksDependency,
-            List<DependencyConstraint> publishableConstraints,
+            List<DependencyConstraint> lockFileConstraints,
+            List<DependencyConstraint> localProjectConstraints,
             LockedConfigurations lockedConfigurations) {
         subproject
                 .getConfigurations()
@@ -989,9 +988,44 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
         log.info("Configuring locks for {}. Locked configurations: {}", subproject.getPath(), configurationsToLock);
         configurationsToLock.forEach(VersionsLockPlugin::ensureNoFailOnVersionConflict);
 
-        subproject.getConfigurations().named(GCV_PUBLISH_CONSTRAINTS_CONFIGURATION_NAME, conf -> {
-            conf.getDependencyConstraints().addAll(publishableConstraints);
+        subproject.getPluginManager().withPlugin("java", _plugin -> {
+            subproject.getConfigurations().named(GCV_PUBLISH_CONSTRAINTS_CONFIGURATION_NAME, conf -> {
+                conf.getDependencyConstraints().addAll(localProjectConstraints);
+                conf.getDependencyConstraints()
+                        .addAllLater(maybeFilterConstraintsByUsage(subproject, lockFileConstraints));
+            });
         });
+    }
+
+    private static Provider<Collection<DependencyConstraint>> maybeFilterConstraintsByUsage(
+            Project project, List<DependencyConstraint> constraints) {
+
+        NamedDomainObjectProvider<Configuration> compileClasspath =
+                project.getConfigurations().named(JavaPlugin.COMPILE_CLASSPATH_CONFIGURATION_NAME);
+        NamedDomainObjectProvider<Configuration> runtimeClasspath =
+                project.getConfigurations().named(JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME);
+
+        return compileClasspath.zip(runtimeClasspath, (compile, runtime) -> {
+            if (!filterLockFileConstraints(project)) {
+                return constraints;
+            }
+
+            Set<ModuleIdentifier> usedModules = Stream.of(compile, runtime)
+                    .flatMap(config -> config.getIncoming().getResolutionResult().getAllComponents().stream())
+                    .map(ResolvedComponentResult::getModuleVersion)
+                    .filter(Objects::nonNull)
+                    .map(ModuleVersionIdentifier::getModule)
+                    .collect(Collectors.toSet());
+
+            return constraints.stream()
+                    .filter(constraint -> usedModules.contains(constraint.getModule()))
+                    .collect(Collectors.toList());
+        });
+    }
+
+    private static boolean filterLockFileConstraints(Project project) {
+        return project.hasProperty(FILTER_LOCK_FILE_CONSTRAINTS)
+                && "true".equals(project.property(FILTER_LOCK_FILE_CONSTRAINTS));
     }
 
     private static LockedConfigurations computeConfigurationsToLock(Project project, VersionsLockExtension ext) {
@@ -1080,7 +1114,7 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
                 .collect(Collectors.toList());
     }
 
-    private static List<DependencyConstraint> constructPublishableConstraintsFromLockFile(
+    private static List<DependencyConstraint> constructConstraintsFromLockfile(
             Project rootProject, Path gradleLockfile, DependencyConstraintCreator constraintCreator) {
         LockState lockState = new ConflictSafeLockFile(gradleLockfile).readLocks();
         // We only publish the production locks.
