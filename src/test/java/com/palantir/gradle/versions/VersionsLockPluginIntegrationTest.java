@@ -156,27 +156,21 @@ class VersionsLockPluginIntegrationTest {
             }
             """);
 
-        // when: "I write locks"
         gradle.withArgs("resolveConfigurations", "--write-locks").buildsSuccessfully();
 
-        // then: "Lock files are consistent with version resolved at root"
         assertThat(rootProject.file("versions.lock").text().lines())
                 .anyMatch(line -> line.startsWith("org.slf4j:slf4j-api:1.7.24"));
 
         verifyLockfile(foo, "org.slf4j:slf4j-api:1.7.24");
         verifyLockfile(bar, "org.slf4j:slf4j-api:1.7.24");
 
-        // then: "Manually forced version overrides unified dependency"
         verifyLockfile(forced, "org.slf4j:slf4j-api:1.7.20");
 
-        // then: "I can resolve configurations"
         gradle.withArgs("resolveConfigurations").buildsSuccessfully();
 
-        // when: "I make bar's version constraint incompatible with the force"
         InvocationResult incompatible =
                 gradle.withArgs("-Pbar_version=1.7.25", "resolveConfigurations").buildsWithFailure();
 
-        // then: "Resolution fails"
         assertThat(incompatible).output().contains(expectedError);
     }
 
@@ -203,21 +197,16 @@ class VersionsLockPluginIntegrationTest {
 
         standardSetup(rootProject, foo, bar, forced);
 
-        // when: "I write locks"
         gradle.withArgs("--write-locks").buildsSuccessfully();
 
-        // then: "Root lock file has expected resolution result"
         assertThat(rootProject.file("versions.lock").text().lines())
                 .anyMatch(line -> line.contains("org.slf4j:slf4j-api:1.7.24"));
 
-        // then: "I can resolve configurations"
         gradle.withArgs("resolveConfigurations").buildsSuccessfully();
 
-        // when: "I make bar's version constraint incompatible with the force"
         InvocationResult incompatible =
                 gradle.withArgs("-Pbar_version=1.7.25", "resolveConfigurations").buildsWithFailure();
 
-        // then: "Resolution fails"
         assertThat(incompatible).output().contains(expectedError);
     }
 
@@ -244,7 +233,6 @@ class VersionsLockPluginIntegrationTest {
             }
             """);
 
-        // Otherwise the lack of a lock file will throw first
         rootProject.file("versions.lock").createEmpty();
 
         InvocationResult error = gradle.withArgs().buildsWithFailure();
@@ -261,11 +249,9 @@ class VersionsLockPluginIntegrationTest {
             }
             """);
 
-        // both projects will have name = 'a'
         rootProject.subproject("foo").subproject("a");
         rootProject.subproject("bar").subproject("a");
 
-        // Otherwise the lack of a lock file will throw first
         rootProject.file("versions.lock").createEmpty();
 
         InvocationResult error = gradle.withArgs().buildsWithFailure();
@@ -324,12 +310,10 @@ class VersionsLockPluginIntegrationTest {
             }
             """);
 
-        // then: 'Check fails because locks are not up to date'
         InvocationResult failure = gradle.withArgs(":check").buildsWithFailure();
         assertThat(failure).task(":verifyLocks").failed();
         assertThat(failure).output().contains(expectedError);
 
-        // and: 'Can finally write locks once again'
         gradle.withArgs("--write-locks").buildsSuccessfully();
         gradle.withArgs("verifyLocks").buildsSuccessfully();
     }
@@ -374,12 +358,10 @@ class VersionsLockPluginIntegrationTest {
             }
             """).plugins().add("java");
 
-        // then: 'Check fails because locks are not up to date'
         InvocationResult failure = gradle.withArgs(":check").buildsWithFailure();
         assertThat(failure).task(":verifyLocks").failed();
         assertThat(failure).output().contains(expectedError);
 
-        // and: 'Can finally write locks once again'
         gradle.withArgs("--write-locks").buildsSuccessfully();
         gradle.withArgs("verifyLocks").buildsSuccessfully();
     }
@@ -397,8 +379,10 @@ class VersionsLockPluginIntegrationTest {
 
         InvocationResult result =
                 gradle.withArgs("why", "--dependency", "slf4j-api").buildsSuccessfully();
-        assertThat(result).output().contains("org.slf4j:slf4j-api:1.7.25");
-        assertThat(result).output().contains("ch.qos.logback:logback-classic -> 1.7.25");
+        assertThat(result)
+                .output()
+                .contains("org.slf4j:slf4j-api:1.7.25")
+                .contains("ch.qos.logback:logback-classic -> 1.7.25");
     }
 
     @Test
@@ -413,8 +397,10 @@ class VersionsLockPluginIntegrationTest {
         gradle.withArgs("--write-locks").buildsSuccessfully();
 
         InvocationResult result = gradle.withArgs("why", "--hash", "400d4d2a").buildsSuccessfully(); // slf4j-api
-        assertThat(result).output().contains("org.slf4j:slf4j-api:1.7.25");
-        assertThat(result).output().contains("ch.qos.logback:logback-classic -> 1.7.25");
+        assertThat(result)
+                .output()
+                .contains("org.slf4j:slf4j-api:1.7.25")
+                .contains("ch.qos.logback:logback-classic -> 1.7.25");
     }
 
     @Test
@@ -431,14 +417,14 @@ class VersionsLockPluginIntegrationTest {
 
         InvocationResult result =
                 gradle.withArgs("why", "--hash", "400d4d2a,050d6518").buildsSuccessfully(); // both transitive
-        // dependencies
-        assertThat(result).output().contains("org.slf4j:slf4j-api:1.7.25");
-        assertThat(result).output().contains("ch.qos.logback:logback-classic -> 1.7.25");
-        assertThat(result).output().contains("org:another-transitive-dependency:3.2.1");
-        assertThat(result).output().contains("org:another-direct-dependency -> 3.2.1");
+        assertThat(result)
+                .output()
+                .contains("org.slf4j:slf4j-api:1.7.25")
+                .contains("ch.qos.logback:logback-classic -> 1.7.25")
+                .contains("org:another-transitive-dependency:3.2.1")
+                .contains("org:another-direct-dependency -> 3.2.1");
     }
 
-    // does_not_fail_if_subproject_evaluated_later_applies_base_plugin_in_own_build_file
     @Test
     void does_not_fail_if_subproject_evaluated_later_applies_base_plugin_in_own_build_file(
             GradleInvoker gradle, SubProject foo) {
@@ -487,7 +473,6 @@ class VersionsLockPluginIntegrationTest {
 
         gradle.withArgs("--write-locks").buildsSuccessfully();
 
-        // then: 'verifyLocks is up to date the second time'
         assertThat(gradle.withArgs("verifyLocks").buildsSuccessfully())
                 .task(":verifyLocks")
                 .succeeded();
@@ -510,11 +495,9 @@ class VersionsLockPluginIntegrationTest {
 
         gradle.withArgs("--write-locks").buildsSuccessfully();
 
-        // then: 'verifyLocks fails if we lower the dep version'
         InvocationResult fail =
                 gradle.withArgs("verifyLocks", "-PdepVersion=1.7.11").buildsWithFailure();
 
-        // and: 'it expects the correct version to be 1.7.11'
         assertThat(fail).output().contains("""
             > Found dependencies whose dependents changed:
               -org.slf4j:slf4j-api:1.7.20 (1 constraints: 3c05433b)
@@ -537,7 +520,6 @@ class VersionsLockPluginIntegrationTest {
 
         gradle.withArgs("--write-locks").buildsSuccessfully();
 
-        // then: 'slf4j-api still appears in the lock file'
         assertThat(rootProject.file("versions.lock").text()).isEqualTo("""
             # Run ./gradlew writeVersionsLocks to regenerate this file. Blank lines are to minimize merge conflicts.
 
@@ -777,7 +759,6 @@ class VersionsLockPluginIntegrationTest {
         MetadataFile.Dependency barDep =
                 new MetadataFile.Dependency("com.palantir.published-constraints", "bar", Map.of("requires", "1.2.3"));
 
-        // then: "foo's metadata file has the right dependency constraints"
         Path fooMetadataFilename = foo.buildDir().path().resolve("publications/maven/module.json");
         MetadataFile fooMetadata = new ObjectMapper().readValue(fooMetadataFilename.toFile(), MetadataFile.class);
 
@@ -787,7 +768,6 @@ class VersionsLockPluginIntegrationTest {
                                 "runtimeElements", Set.of(logbackDep), Set.of(barDep, junitDep, logbackDep, slf4jDep)),
                         new MetadataFile.Variant("apiElements", null, Set.of(barDep, junitDep, logbackDep, slf4jDep)));
 
-        // and: "bar's metadata file has the right dependency constraints"
         Path barMetadataFilename = bar.buildDir().path().resolve("publications/maven/module.json");
         MetadataFile barMetadata = new ObjectMapper().readValue(barMetadataFilename.toFile(), MetadataFile.class);
 
@@ -838,7 +818,6 @@ class VersionsLockPluginIntegrationTest {
         MetadataFile.Dependency slf4jDep =
                 new MetadataFile.Dependency("org.slf4j", "slf4j-api", Map.of("requires", "1.7.25"));
 
-        // then: "foo's metadata file has the right dependency constraints"
         Path fooMetadataFilename = foo.buildDir().path().resolve("publications/maven/module.json");
         MetadataFile fooMetadata = new ObjectMapper().readValue(fooMetadataFilename.toFile(), MetadataFile.class);
 
@@ -848,7 +827,6 @@ class VersionsLockPluginIntegrationTest {
                         new MetadataFile.Variant(
                                 "runtimeElements", Set.of(logbackDep), Set.of(junitDep, logbackDep, slf4jDep)));
 
-        // and: "bar's metadata file has the right dependency constraints"
         Path barMetadataFilename = bar.buildDir().path().resolve("publications/maven/module.json");
         MetadataFile barMetadata = new ObjectMapper().readValue(barMetadataFilename.toFile(), MetadataFile.class);
 
