@@ -855,8 +855,8 @@ class VersionsLockPluginIntegrationTest {
 
             gradle.withArgs("resolveConfigurations").buildsSuccessfully();
 
-            InvocationResult incompatible =
-                    gradle.withArgs("-Pbar_version=1.7.25", "resolveConfigurations").buildsWithFailure();
+            InvocationResult incompatible = gradle.withArgs("-Pbar_version=1.7.25", "resolveConfigurations")
+                    .buildsWithFailure();
 
             assertThat(incompatible).output().contains("Locked by versions.lock");
         }
@@ -870,8 +870,8 @@ class VersionsLockPluginIntegrationTest {
 
             gradle.withArgs("resolveConfigurations").buildsSuccessfully();
 
-            InvocationResult incompatible =
-                    gradle.withArgs("-Pbar_version=1.7.25", "resolveConfigurations").buildsWithFailure();
+            InvocationResult incompatible = gradle.withArgs("-Pbar_version=1.7.25", "resolveConfigurations")
+                    .buildsWithFailure();
 
             assertThat(incompatible).output().contains("Locked by versions.lock");
         }
