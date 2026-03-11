@@ -18,21 +18,14 @@ package com.palantir.gradle.versions;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
-import com.palantir.gradle.utils.dependencygraph.DependencyGraphUtils;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.List;
 import org.gradle.api.DefaultTask;
-import org.gradle.api.artifacts.component.ModuleComponentIdentifier;
-import org.gradle.api.artifacts.result.ResolvedComponentResult;
-import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.RegularFileProperty;
-import org.gradle.api.provider.MapProperty;
+import org.gradle.api.provider.SetProperty;
 import org.gradle.api.tasks.Input;
-import org.gradle.api.tasks.InputFiles;
 import org.gradle.api.tasks.OutputFile;
-import org.gradle.api.tasks.PathSensitive;
-import org.gradle.api.tasks.PathSensitivity;
 import org.gradle.api.tasks.TaskAction;
 
 public abstract class WriteResolvedCoordinatesTask extends DefaultTask {
@@ -42,25 +35,13 @@ public abstract class WriteResolvedCoordinatesTask extends DefaultTask {
     @OutputFile
     public abstract RegularFileProperty getOutputFile();
 
-    /** Resolved files from all resolvable configurations — establishes cross-project task ordering. */
-    @InputFiles
-    @PathSensitive(PathSensitivity.NONE)
-    public abstract ConfigurableFileCollection getResolvedFiles();
-
     @Input
-    public abstract MapProperty<String, ResolvedComponentResult> getConfigurationNameToRootComponents();
+    public abstract SetProperty<ResolvedCoordinate> getResolvedCoordinates();
 
     @TaskAction
     public final void writeResolvedCoordinates() {
-        List<ResolvedCoordinate> sorted = getConfigurationNameToRootComponents().get().entrySet().stream()
-                .flatMap(entry -> DependencyGraphUtils.allComponentResultsFromRoot(entry.getValue()).stream()
-                        .map(ResolvedComponentResult::getId)
-                        .filter(ModuleComponentIdentifier.class::isInstance)
-                        .map(ModuleComponentIdentifier.class::cast)
-                        .map(mcid -> ResolvedCoordinate.of(entry.getKey(), mcid.getGroup(), mcid.getModule())))
-                .sorted()
-                .distinct()
-                .toList();
+        List<ResolvedCoordinate> sorted =
+                getResolvedCoordinates().get().stream().sorted().toList();
         try {
             OBJECT_MAPPER.writeValue(getOutputFile().get().getAsFile(), sorted);
         } catch (IOException e) {

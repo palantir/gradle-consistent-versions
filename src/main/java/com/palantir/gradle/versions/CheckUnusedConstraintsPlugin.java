@@ -84,10 +84,11 @@ public abstract class CheckUnusedConstraintsPlugin implements Plugin<Project> {
 
         TaskProvider<CheckUnusedConstraintsTask> checkUnusedConstraintsTask = getTasks()
                 .register("checkUnusedConstraints", CheckUnusedConstraintsTask.class, task -> {
-                    task.getResolvedCoordinatesFiles().from(resolvableCoordinates.map(resolvable -> resolvable
-                            .getIncoming()
-                            .artifactView(view -> view.lenient(true))
-                            .getFiles()));
+                    task.getResolvedCoordinatesFiles()
+                            .from(resolvableCoordinates.map(resolvable -> resolvable
+                                    .getIncoming()
+                                    .artifactView(view -> view.lenient(true))
+                                    .getFiles()));
 
                     task.getExcludeConfigurations()
                             .set(rootProject

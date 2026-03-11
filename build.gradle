@@ -7,16 +7,16 @@ buildscript {
     dependencies {
         classpath 'com.palantir.baseline-error-prone:gradle-baseline-error-prone:0.7.0'
         classpath 'com.palantir.jakartapackagealignment:jakarta-package-alignment:0.6.0'
-        classpath 'com.palantir.gradle.jdks:gradle-jdks:0.73.0'
+        classpath 'com.palantir.gradle.jdks:gradle-jdks:0.76.0'
         classpath 'com.palantir.gradle.jdkslatest:gradle-jdks-latest:0.26.0'
-        classpath 'com.palantir.gradle.plugintesting:gradle-plugin-testing:0.54.0'
-        classpath 'com.palantir.gradle.externalpublish:gradle-external-publish-plugin:1.33.0'
+        classpath 'com.palantir.gradle.plugintesting:gradle-plugin-testing:0.62.0'
+        classpath 'com.palantir.gradle.externalpublish:gradle-external-publish-plugin:1.35.0'
         classpath 'com.palantir.gradle.failure-reports:gradle-failure-reports:1.18.0'
-        classpath 'com.palantir.javaformat:gradle-palantir-java-format:2.86.0'
+        classpath 'com.palantir.javaformat:gradle-palantir-java-format:2.89.0'
         classpath 'com.palantir.suppressible-error-prone:gradle-suppressible-error-prone:2.28.0'
-        classpath 'com.palantir.gradle.consistentversions:gradle-consistent-versions:3.8.0'
-        classpath 'com.palantir.baseline:gradle-baseline-java:7.0.0'
-        classpath 'com.palantir.gradle.gitversion:gradle-git-version:4.3.0'
+        classpath 'com.palantir.gradle.consistentversions:gradle-consistent-versions:3.13.0'
+        classpath 'com.palantir.baseline:gradle-baseline-java:7.3.0'
+        classpath 'com.palantir.gradle.gitversion:gradle-git-version:5.0.0'
         classpath 'com.palantir.gradle.guide:gradle-guide:1.27.0'
         classpath 'com.palantir.gradle.idea-configuration:gradle-idea-configuration:0.8.0'
         classpath 'com.palantir.gradle.idea-language-injector:gradle-idea-language-injector:0.2.0'
@@ -24,7 +24,7 @@ buildscript {
 }
 
 plugins {
- id 'com.gradle.plugin-publish' version '2.0.0'
+ id 'com.gradle.plugin-publish' version '2.1.0'
 }
 
 apply plugin: 'com.palantir.external-publish'
@@ -64,7 +64,6 @@ dependencies {
     implementation 'com.fasterxml.jackson.datatype:jackson-datatype-guava'
     implementation 'one.util:streamex'
     implementation 'com.palantir.gradle.idea-configuration:gradle-idea-configuration'
-    implementation 'com.palantir.gradle.utils:dependency-graph-utils'
 
     testImplementation platform('org.junit:junit-bom')
     testImplementation 'com.netflix.nebula:nebula-test'
