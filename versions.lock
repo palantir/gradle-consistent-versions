@@ -44,13 +44,13 @@ cglib:cglib-nodep:3.2.2 (1 constraints: 490ded24)
 
 com.netflix.nebula:nebula-test:10.6.2 (2 constraints: d61de72d)
 
-com.palantir.gradle.plugintesting:configuration-cache-spec:0.62.0 (1 constraints: 3a053d3b)
+com.palantir.gradle.plugintesting:configuration-cache-spec:0.63.0 (1 constraints: 3b05403b)
 
-com.palantir.gradle.plugintesting:discover-tests-cli:0.62.0 (1 constraints: 3a053d3b)
+com.palantir.gradle.plugintesting:discover-tests-cli:0.63.0 (1 constraints: 3b05403b)
 
-com.palantir.gradle.plugintesting:gradle-plugin-testing-junit:0.62.0 (1 constraints: a607677e)
+com.palantir.gradle.plugintesting:gradle-plugin-testing-junit:0.63.0 (1 constraints: a7076b7e)
 
-com.palantir.gradle.plugintesting:plugin-testing-core:0.62.0 (1 constraints: 3a053d3b)
+com.palantir.gradle.plugintesting:plugin-testing-core:0.63.0 (1 constraints: 3b05403b)
 
 commons-io:commons-io:2.19.0 (1 constraints: db190cdf)
 
@@ -92,7 +92,7 @@ org.junit.platform:junit-platform-launcher:6.0.3 (3 constraints: 6824e9f5)
 
 org.junit.vintage:junit-vintage-engine:6.0.3 (1 constraints: 10097b95)
 
-org.mockito:mockito-core:5.22.0 (1 constraints: 3b054b3b)
+org.mockito:mockito-core:5.23.0 (1 constraints: 3c054e3b)
 
 org.objenesis:objenesis:3.3 (2 constraints: 9b17f557)
 
