@@ -604,4 +604,30 @@ class ConsistentVersionsPluginIntegrationSpec extends IntegrationSpec {
         where:
         gradleVersionNumber << GRADLE_VERSIONS
     }
+
+    def '#gradleVersionNumber: works when root project has java-library applied via allprojects'() {
+        setup:
+        gradleVersion = gradleVersionNumber
+
+        buildFile << """
+            allprojects {
+                apply plugin: 'java-library'
+            }
+        """.stripIndent(true)
+
+        addSubproject('foo', """
+            dependencies {
+                implementation 'org.slf4j:slf4j-api'
+            }
+        """.stripIndent(true))
+
+        file('versions.props') << 'org.slf4j:slf4j-api = 1.7.25'
+
+        expect:
+        runTasks('--write-locks')
+        runTasks('resolveConfigurations')
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
+    }
 }

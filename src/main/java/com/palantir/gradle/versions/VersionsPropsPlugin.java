@@ -19,6 +19,7 @@ package com.palantir.gradle.versions;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+import com.palantir.gradle.versions.ConsistentVersionsPlugin.GcvAttributes;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -34,6 +35,7 @@ import org.gradle.api.artifacts.DependencyConstraint;
 import org.gradle.api.artifacts.DependencySet;
 import org.gradle.api.artifacts.ExternalDependency;
 import org.gradle.api.artifacts.ModuleDependency;
+import org.gradle.api.artifacts.ProjectDependency;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 import org.gradle.api.plugins.JavaPlugin;
@@ -42,6 +44,7 @@ import org.gradle.api.provider.Provider;
 import org.gradle.api.publish.PublishingExtension;
 import org.gradle.api.publish.VariantVersionMappingStrategy;
 import org.gradle.api.publish.maven.MavenPublication;
+import org.gradle.api.tasks.Nested;
 import org.gradle.api.tasks.TaskProvider;
 import org.gradle.language.base.plugins.LifecycleBasePlugin;
 import org.gradle.util.GradleVersion;
@@ -52,11 +55,17 @@ public abstract class VersionsPropsPlugin implements Plugin<Project> {
     private static final GradleVersion MINIMUM_GRADLE_VERSION = GradleVersion.version("5.2");
     private static final ImmutableSet<String> JAVA_PUBLISHED_CONFIGURATION_NAMES =
             ImmutableSet.of(JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME, JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME);
+    private static final String GCV_VERSIONS_PROPS_CONSTRAINTS_CONFIGURATION_NAME = "gcvVersionsPropsConstraints";
     private static final String VERSION_PROPS_EXTENSION = "versionsProps";
+
+    @Nested
+    public abstract GcvAttributes getGcvAttributes();
 
     @Override
     public final void apply(Project project) {
         checkPreconditions();
+
+        String gcvVersionsPropsCapability = "gcv:versions-props:0";
 
         VersionsProps versionsProps = getVersionsProps(project.getRootProject());
 
@@ -77,6 +86,17 @@ public abstract class VersionsPropsPlugin implements Plugin<Project> {
                         });
                 project.getTasks().named("check").configure(task -> task.dependsOn(checkOverbroadConstraints));
             });
+
+            // Create "platform" configuration in root project, which will hold the versions props constraints
+            project.getConfigurations().register(GCV_VERSIONS_PROPS_CONSTRAINTS_CONFIGURATION_NAME, conf -> {
+                conf.attributes(getGcvAttributes()::configureGcvBaseAttributes);
+                conf.getOutgoing().capability(gcvVersionsPropsCapability);
+                conf.setCanBeResolved(false);
+                conf.setCanBeConsumed(true);
+                conf.setVisible(false);
+
+                addVersionsPropsConstraints(project.getDependencies().getConstraints()::create, conf, versionsProps);
+            });
         }
 
         VersionRecommendationsExtension extension =
@@ -88,9 +108,18 @@ public abstract class VersionsPropsPlugin implements Plugin<Project> {
                     conf.setCanBeConsumed(false);
                     conf.setVisible(false);
 
-                    // Directly add the dependency constraints from versions props to the rootConfiguration
-                    addVersionsPropsConstraints(
-                            project.getDependencies().getConstraints()::create, conf, versionsProps);
+                    if (project.getRootProject().equals(project)) {
+                        // Add constraints directly to the root project's rootConfiguration, rather than through
+                        // a ProjectDependency on itself, to avoid circular variant resolution when the root
+                        // project has resolvable configurations (e.g. from applying java-library).
+                        addVersionsPropsConstraints(
+                                project.getDependencies().getConstraints()::create, conf, versionsProps);
+                    } else {
+                        // Wire in the constraints from the root project's consumable configuration.
+                        conf.getDependencies()
+                                .add(createDepOnRootConstraintsConfiguration(
+                                        project, getGcvAttributes(), gcvVersionsPropsCapability));
+                    }
                 });
 
         project.getConfigurations().configureEach(conf -> {
@@ -104,6 +133,15 @@ public abstract class VersionsPropsPlugin implements Plugin<Project> {
 
         // This is to ensure that we're not producing broken POMs due to missing versions
         configureResolvedVersionsWithVersionMapping(project);
+    }
+
+    private static ProjectDependency createDepOnRootConstraintsConfiguration(
+            Project project, GcvAttributes gcvAttributes, String capability) {
+        ProjectDependency projectDep =
+                ((ProjectDependency) project.getDependencies().create(project.getRootProject()));
+        projectDep.capabilities(capabilities -> capabilities.requireCapability(capability));
+        projectDep.attributes(gcvAttributes::configureGcvBaseAttributes);
+        return projectDep;
     }
 
     @SuppressWarnings({"for-rollout:GradleTypesAsFields", "for-rollout:NonAbstractGradleType"})
@@ -126,6 +164,10 @@ public abstract class VersionsPropsPlugin implements Plugin<Project> {
         // For rootConfiguration, unlike other configurations, this is the only customization necessary.
         if (conf.getName().equals(ROOT_CONFIGURATION_NAME)) {
             conf.withDependencies(deps -> provideVersionsFromStarDependencies(versionsProps, deps));
+            return;
+        }
+
+        if (conf.getName().equals(GCV_VERSIONS_PROPS_CONSTRAINTS_CONFIGURATION_NAME)) {
             return;
         }
 

@@ -957,6 +957,12 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
         List<DependencyConstraint> publishableConstraints = constructPublishableConstraintsFromLockFile(
                 rootProject, gradleLockfile, rootProject.getDependencies().getConstraints()::create);
 
+        // Construct lock constraints for direct use on the root project, avoiding a self-referencing
+        // ProjectDependency which causes "Value for variants of root project : has not been calculated yet"
+        // when the root project has resolvable configurations (e.g. from applying java-library).
+        List<DependencyConstraint> lockFileConstraints = constructConstraintsFromLockFile(
+                gradleLockfile, rootProject.getDependencies().getConstraints()::create);
+
         rootProject.allprojects(subproject -> {
             // Avoid including the current project as a constraint -- it must already be present to provide constraints
             List<DependencyConstraint> localProjectConstraints = constructPublishableConstraintsFromLocalProjects(
@@ -967,23 +973,31 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
                             .addAll(publishableConstraints)
                             .build();
             configureUsingConstraints(
+                    rootProject,
                     subproject,
                     locksDependency,
+                    lockFileConstraints,
                     publishableConstraintsForSubproject,
                     lockedConfigurations.get(subproject));
         });
     }
 
     private static void configureUsingConstraints(
+            Project rootProject,
             Project subproject,
             ProjectDependency locksDependency,
+            List<DependencyConstraint> lockFileConstraints,
             List<DependencyConstraint> publishableConstraints,
             LockedConfigurations lockedConfigurations) {
-        subproject
-                .getConfigurations()
-                .named(
-                        LOCK_CONSTRAINTS_CONFIGURATION_NAME,
-                        conf -> conf.getDependencies().add(locksDependency));
+        subproject.getConfigurations().named(LOCK_CONSTRAINTS_CONFIGURATION_NAME, conf -> {
+            if (subproject == rootProject) {
+                // Add lock constraints directly to the root project's lockConstraints configuration,
+                // rather than through a ProjectDependency on itself, to avoid circular variant resolution.
+                conf.getDependencyConstraints().addAll(lockFileConstraints);
+            } else {
+                conf.getDependencies().add(locksDependency);
+            }
+        });
 
         Set<Configuration> configurationsToLock = lockedConfigurations.allConfigurations();
         log.info("Configuring locks for {}. Locked configurations: {}", subproject.getPath(), configurationsToLock);
