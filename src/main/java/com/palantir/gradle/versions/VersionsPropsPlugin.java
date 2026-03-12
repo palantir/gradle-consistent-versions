@@ -115,7 +115,6 @@ public abstract class VersionsPropsPlugin implements Plugin<Project> {
         project.subprojects(subproject -> subproject.getPluginManager().apply(VersionsPropsPlugin.class));
     }
 
-    @SuppressWarnings("checkstyle:CyclomaticComplexity")
     private static void setupConfiguration(
             Project subproject,
             VersionRecommendationsExtension extension,
