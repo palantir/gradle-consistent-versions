@@ -34,7 +34,6 @@ import org.junit.jupiter.api.Test;
 @AdditionallyRunWithGradle("9.3.0")
 class CheckUnusedConstraintIntegrationTest {
 
-    @SuppressWarnings("for-rollout:deprecation")
     @BeforeEach
     void setup(RootProject rootProject) {
         rootProject.buildGradle().plugins().add("java");

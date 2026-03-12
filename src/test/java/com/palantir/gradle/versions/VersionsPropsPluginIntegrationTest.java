@@ -104,7 +104,6 @@ class VersionsPropsPluginIntegrationTest {
             """, repo.path());
     }
 
-    @SuppressWarnings("for-rollout:deprecation")
     @Test
     void star_dependency_constraint_is_injected_for_direct_dependency(
             GradleInvoker gradle, RootProject rootProject, SubProject foo) {
@@ -123,7 +122,6 @@ class VersionsPropsPluginIntegrationTest {
         verifyLockfile(foo, "org.slf4j:slf4j-api:1.7.24");
     }
 
-    @SuppressWarnings("for-rollout:deprecation")
     @Test
     void star_dependency_constraint_is_not_forcefully_downgraded_for_transitive_dependency(
             GradleInvoker gradle, RootProject rootProject, SubProject foo) {
@@ -146,7 +144,6 @@ class VersionsPropsPluginIntegrationTest {
         verifyLockfile(foo, "org.slf4j:slf4j-api:1.7.22");
     }
 
-    @SuppressWarnings("for-rollout:deprecation")
     @Test
     void star_dependency_constraint_upgrades_transitive_dependency(
             GradleInvoker gradle, RootProject rootProject, SubProject foo) {
@@ -169,7 +166,6 @@ class VersionsPropsPluginIntegrationTest {
         verifyLockfile(foo, "org.slf4j:slf4j-api:1.7.25");
     }
 
-    @SuppressWarnings("for-rollout:deprecation")
     @Test
     void imported_platform_generated_correctly_in_pom(GradleInvoker gradle, RootProject rootProject, SubProject foo)
             throws IOException {
@@ -221,7 +217,6 @@ class VersionsPropsPluginIntegrationTest {
         assertThat(actualDependencies).containsExactlyInAnyOrderElementsOf(expectedDependencies);
     }
 
-    @SuppressWarnings("for-rollout:deprecation")
     @Test
     void non_glob_module_forces_do_not_get_added_to_a_matching_platform_too(
             GradleInvoker gradle, RootProject rootProject) {
