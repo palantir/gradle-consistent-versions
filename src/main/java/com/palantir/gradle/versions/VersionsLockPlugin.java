@@ -441,14 +441,22 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
             conf.getOutgoing().capability(capabilityFor(project, GcvScope.TEST));
         });
 
-        unifiedClasspath
-                .getDependencies()
-                .add(createDependencyOnProjectWithScope(
-                        project, GcvScope.PRODUCTION, getGcvAttributes().buildPath()));
-        unifiedClasspath
-                .getDependencies()
-                .add(createDependencyOnProjectWithScope(
-                        project, GcvScope.TEST, getGcvAttributes().buildPath()));
+        if (rootProject != project) {
+            // For subprojects, add a capability-based ProjectDependency so unifiedClasspath can discover
+            // their consistentVersionsProduction/Test configurations via variant selection.
+            // We skip this for the root project to avoid a self-referencing ProjectDependency which triggers
+            // variant model computation and cycles on Gradle 9.4.0+ when consumable configurations on the
+            // root project resolve other configurations. Root project configurations are handled directly
+            // in recursivelyCopyProjectDependencies.
+            unifiedClasspath
+                    .getDependencies()
+                    .add(createDependencyOnProjectWithScope(
+                            project, GcvScope.PRODUCTION, getGcvAttributes().buildPath()));
+            unifiedClasspath
+                    .getDependencies()
+                    .add(createDependencyOnProjectWithScope(
+                            project, GcvScope.TEST, getGcvAttributes().buildPath()));
+        }
     }
 
     private void setupPublishConstraintsForProject(Project subproject) {
@@ -589,6 +597,21 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
 
         Map<Configuration, String> copiedConfigurationsCache = new HashMap<>();
         DirectDependencyScopes.Builder scopes = new DirectDependencyScopes.Builder();
+
+        // Root project configurations are not in unifiedClasspath (to avoid self-referencing ProjectDependency),
+        // so we handle them directly here.
+        recursivelyCopyProjectDependenciesWithScope(
+                project,
+                project.getConfigurations().getByName(CONSISTENT_VERSIONS_PRODUCTION).getDependencies(),
+                copiedConfigurationsCache,
+                scopes,
+                GcvScope.PRODUCTION);
+        recursivelyCopyProjectDependenciesWithScope(
+                project,
+                project.getConfigurations().getByName(CONSISTENT_VERSIONS_TEST).getDependencies(),
+                copiedConfigurationsCache,
+                scopes,
+                GcvScope.TEST);
 
         findProjectDependencyWithTargetConfigurationName(depSet, CONSISTENT_VERSIONS_PRODUCTION)
                 .forEach(conf -> recursivelyCopyProjectDependenciesWithScope(

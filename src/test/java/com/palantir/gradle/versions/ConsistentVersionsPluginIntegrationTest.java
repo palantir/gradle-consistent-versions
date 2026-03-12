@@ -605,7 +605,7 @@ class ConsistentVersionsPluginIntegrationTest {
             }
             """);
 
-        rootProject.file("versions.lock").createEmpty();
+        gradle.withArgs("wVL").buildsSuccessfully();
 
         gradle.withArgs("resolveConfigurations").buildsSuccessfully();
     }
