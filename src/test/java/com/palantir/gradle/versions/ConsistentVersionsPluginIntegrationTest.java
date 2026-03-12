@@ -108,7 +108,6 @@ class ConsistentVersionsPluginIntegrationTest {
         gradle.withArgs("resolveConfigurations").buildsSuccessfully();
     }
 
-    @SuppressWarnings("for-rollout:deprecation")
     @Test
     @DisabledConfigurationCache("configuration cache cannot be reused due to --write-locks")
     void locks_are_consistent_whether_or_not_we_do_write_locks_for_glob_forced_direct_dependency(
@@ -124,13 +123,12 @@ class ConsistentVersionsPluginIntegrationTest {
             task resolve { doLast { configurations.runtimeClasspath.resolve() } }
             """);
 
-        rootProject.propertiesFile("versions.props").appendProperty("org.slf4j:*", "1.7.25");
+        rootProject.propertiesFile("versions.props").setProperty("org.slf4j:*", "1.7.25");
 
         gradle.withArgs("resolve", "--write-locks").buildsSuccessfully();
         gradle.withArgs("resolve").buildsSuccessfully();
     }
 
-    @SuppressWarnings("for-rollout:deprecation")
     @Test
     @DisabledConfigurationCache(
             "Cannot reference a Gradle script object from a Groovy closure as these are not supported with the"
@@ -151,13 +149,12 @@ class ConsistentVersionsPluginIntegrationTest {
         // Pretend we have a lock file
         rootProject.file("versions.lock").createEmpty();
 
-        rootProject.propertiesFile("versions.props").appendProperty("org.slf4j:*", "1.7.25");
+        rootProject.propertiesFile("versions.props").setProperty("org.slf4j:*", "1.7.25");
 
         InvocationResult result = gradle.withArgs("demo").buildsSuccessfully();
         assertThat(result).output().contains("demo=1.7.25");
     }
 
-    @SuppressWarnings("for-rollout:deprecation")
     @Test
     @DisabledConfigurationCache(
             "Cannot reference a Gradle script object from a Groovy closure as these are not supported with the"
@@ -175,7 +172,7 @@ class ConsistentVersionsPluginIntegrationTest {
             }
             """);
 
-        rootProject.propertiesFile("versions.props").appendProperty("org.slf4j:*", "1.7.25");
+        rootProject.propertiesFile("versions.props").setProperty("org.slf4j:*", "1.7.25");
 
         InvocationResult result = gradle.withArgs("demo", "--write-locks").buildsSuccessfully();
         assertThat(result).output().contains("demo=1.7.25");

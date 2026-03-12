@@ -34,7 +34,6 @@ import org.junit.jupiter.api.Test;
 @AdditionallyRunWithGradle("9.3.0")
 class CheckUnusedConstraintIntegrationTest {
 
-    @SuppressWarnings("for-rollout:deprecation")
     @BeforeEach
     void setup(RootProject rootProject) {
         rootProject.buildGradle().plugins().add("java");
@@ -52,7 +51,7 @@ class CheckUnusedConstraintIntegrationTest {
             }
             """, rootProject.directory(".").path().toUri());
 
-        rootProject.gradlePropertiesFile().appendProperty("ignoreLockFile", "true");
+        rootProject.gradlePropertiesFile().setProperty("ignoreLockFile", "true");
     }
 
     private InvocationResult buildSucceed(GradleInvoker gradle) {

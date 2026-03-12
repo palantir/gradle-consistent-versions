@@ -353,7 +353,6 @@ class VersionsLockPluginIntegrationTest {
             """);
     }
 
-    @SuppressWarnings("for-rollout:deprecation")
     @Test
     void verifylocks_is_cacheable(GradleInvoker gradle, RootProject rootProject) {
         rootProject.buildGradle().plugins().add("java");
@@ -363,7 +362,7 @@ class VersionsLockPluginIntegrationTest {
             }
             """);
 
-        rootProject.gradlePropertiesFile().appendProperty("depVersion", "1.7.20");
+        rootProject.gradlePropertiesFile().setProperty("depVersion", "1.7.20");
 
         gradle.withArgs("--write-locks").buildsSuccessfully();
 
@@ -375,7 +374,6 @@ class VersionsLockPluginIntegrationTest {
                 .upToDate();
     }
 
-    @SuppressWarnings("for-rollout:deprecation")
     @Test
     void verifylocks_current_lock_state_does_not_get_poisoned_by_existing_lock_file(
             GradleInvoker gradle, RootProject rootProject) {
@@ -386,7 +384,7 @@ class VersionsLockPluginIntegrationTest {
             }
             """);
 
-        rootProject.gradlePropertiesFile().appendProperty("depVersion", "1.7.20");
+        rootProject.gradlePropertiesFile().setProperty("depVersion", "1.7.20");
 
         gradle.withArgs("--write-locks").buildsSuccessfully();
 
@@ -593,14 +591,11 @@ class VersionsLockPluginIntegrationTest {
             """);
     }
 
-    @SuppressWarnings("for-rollout:deprecation")
     @Test
     void published_constraints_are_derived_from_lock_file_with_local_constraints(
             GradleInvoker gradle, RootProject rootProject, SubProject foo, SubProject bar) throws IOException {
         // Test with local constraints enabled
-        rootProject
-                .gradlePropertiesFile()
-                .appendProperty("com.palantir.gradle.versions.publishLocalConstraints", "true");
+        rootProject.gradlePropertiesFile().setProperty("com.palantir.gradle.versions.publishLocalConstraints", "true");
 
         foo.buildGradle().plugins().add("java");
         foo.buildGradle().plugins().add("maven-publish");
@@ -792,7 +787,6 @@ class VersionsLockPluginIntegrationTest {
 
     @Nested
     class MultiSubprojectWithConflictingVersions {
-        @SuppressWarnings("for-rollout:deprecation")
         @BeforeEach
         void setup(RootProject rootProject, SubProject foo, SubProject bar, SubProject forced) {
             foo.buildGradle().plugins().add("java");
@@ -808,7 +802,7 @@ class VersionsLockPluginIntegrationTest {
                     implementation "org.slf4j:slf4j-api:${project.bar_version}"
                 }
                 """);
-            rootProject.gradlePropertiesFile().appendProperty("bar_version", "1.7.11");
+            rootProject.gradlePropertiesFile().setProperty("bar_version", "1.7.11");
 
             forced.buildGradle().plugins().add("java");
             forced.buildGradle().append("""
