@@ -22,6 +22,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.palantir.gradle.testing.execution.GradleInvoker;
 import com.palantir.gradle.testing.execution.InvocationResult;
+import com.palantir.gradle.testing.junit.AdditionallyRunWithGradle;
 import com.palantir.gradle.testing.junit.DisabledConfigurationCache;
 import com.palantir.gradle.testing.junit.GradlePluginTests;
 import com.palantir.gradle.testing.maven.MavenArtifact;
@@ -580,5 +581,32 @@ class ConsistentVersionsPluginIntegrationTest {
                 .contains("ch.qos.logback:logback-classic:1.1.11 (1 constraints: 36052a3b)")
                 .contains("test-alignment:module-that-should-be-aligned-up:1.1 (1 constraints: a5041a2c)")
                 .contains("test-alignment:module-with-higher-version:1.1 (1 constraints: a6041b2c)");
+    }
+
+    @Test
+    @AdditionallyRunWithGradle("9.4.0")
+    void consumable_configuration_resolving_classpath_does_not_cause_variant_model_cycle(
+            GradleInvoker gradle, RootProject rootProject) {
+        rootProject.buildGradle().plugins().add("java");
+
+        // A consumable configuration whose artifacts resolve compileClasspath (like
+        // gradle-idea-language-injector does) triggers variant model computation on the root project.
+        // On Gradle 9.4.0+, the lazy extendsFrom hits the self-referencing ProjectDependency and cycles.
+        rootProject.buildGradle().append("""
+            configurations.consumable('customOutgoing') {
+                attributes {
+                    attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage, 'custom-usage'))
+                }
+                outgoing.artifacts(provider {
+                    configurations.compileClasspath.incoming.artifactView {
+                        attributes { attribute(Attribute.of('artifactType', String), 'jar') }
+                    }.files.files
+                })
+            }
+            """);
+
+        rootProject.file("versions.lock").createEmpty();
+
+        gradle.withArgs("resolveConfigurations").buildsSuccessfully();
     }
 }

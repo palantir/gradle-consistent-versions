@@ -26,7 +26,6 @@ import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlElementWrapper;
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty;
 import com.palantir.gradle.testing.execution.GradleInvoker;
 import com.palantir.gradle.testing.execution.InvocationResult;
-import com.palantir.gradle.testing.junit.AdditionallyRunWithGradle;
 import com.palantir.gradle.testing.junit.DisabledConfigurationCache;
 import com.palantir.gradle.testing.junit.GradlePluginTests;
 import com.palantir.gradle.testing.maven.MavenArtifact;
@@ -292,30 +291,6 @@ class VersionsPropsPluginIntegrationTest {
         Files.deleteIfExists(rootProject.file("versions.props").path());
 
         gradle.withArgs().buildsSuccessfully();
-    }
-
-    @Test
-    @AdditionallyRunWithGradle("9.4.0")
-    void consumable_only_configuration_on_root_project_does_not_cause_variant_model_cycle(
-            GradleInvoker gradle, RootProject rootProject) {
-        rootProject.propertiesFile("versions.props").setProperty("org.slf4j:*", "1.7.24");
-
-        rootProject.buildGradle().plugins().add("java");
-
-        rootProject.buildGradle().append("""
-            configurations.consumable('customOutgoing') {
-                attributes {
-                    attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage, 'custom-usage'))
-                }
-                outgoing.artifacts(provider {
-                    configurations.compileClasspath.incoming.artifactView {
-                        attributes { attribute(Attribute.of('artifactType', String), 'jar') }
-                    }.files.files
-                })
-            }
-            """);
-
-        gradle.withArgs("resolveConfigurations").buildsSuccessfully();
     }
 
     @Test
