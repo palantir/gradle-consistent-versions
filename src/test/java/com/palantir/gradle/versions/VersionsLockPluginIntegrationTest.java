@@ -22,6 +22,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.palantir.gradle.testing.execution.GradleInvoker;
 import com.palantir.gradle.testing.execution.InvocationResult;
+import com.palantir.gradle.testing.junit.AdditionallyRunWithGradle;
 import com.palantir.gradle.testing.junit.DisabledConfigurationCache;
 import com.palantir.gradle.testing.junit.GradlePluginTests;
 import com.palantir.gradle.testing.maven.MavenArtifact;
@@ -776,6 +777,22 @@ class VersionsLockPluginIntegrationTest {
         assertThat(rootProject.file("versions.lock").text()).isEqualTo(lockFileContent);
         assertThat(result).output().contains("Skipped writing lock state");
         assertThat(result).output().doesNotContain("Finished writing lock state");
+    }
+
+    @Test
+    @AdditionallyRunWithGradle("9.4.0")
+    void root_project_with_java_library_does_not_cause_variant_model_cycle(
+            GradleInvoker gradle, RootProject rootProject) {
+        rootProject.buildGradle().plugins().add("java-library");
+
+        rootProject.buildGradle().append("""
+            dependencies {
+                implementation 'ch.qos.logback:logback-classic:1.2.3'
+            }
+            """);
+
+        gradle.withArgs("--write-locks").buildsSuccessfully();
+        gradle.withArgs("resolveConfigurations").buildsSuccessfully();
     }
 
     private void verifyLockfile(GradleProject project, String... lines) {
