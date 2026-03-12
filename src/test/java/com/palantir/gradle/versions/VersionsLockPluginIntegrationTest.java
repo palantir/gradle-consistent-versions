@@ -363,7 +363,7 @@ class VersionsLockPluginIntegrationTest {
             }
             """);
 
-        rootProject.gradlePropertiesFile().appendProperty("depVersion", "1.7.20");
+        rootProject.gradlePropertiesFile().setProperty("depVersion", "1.7.20");
 
         gradle.withArgs("--write-locks").buildsSuccessfully();
 
@@ -386,7 +386,7 @@ class VersionsLockPluginIntegrationTest {
             }
             """);
 
-        rootProject.gradlePropertiesFile().appendProperty("depVersion", "1.7.20");
+        rootProject.gradlePropertiesFile().setProperty("depVersion", "1.7.20");
 
         gradle.withArgs("--write-locks").buildsSuccessfully();
 
@@ -600,7 +600,7 @@ class VersionsLockPluginIntegrationTest {
         // Test with local constraints enabled
         rootProject
                 .gradlePropertiesFile()
-                .appendProperty("com.palantir.gradle.versions.publishLocalConstraints", "true");
+                .setProperty("com.palantir.gradle.versions.publishLocalConstraints", "true");
 
         foo.buildGradle().plugins().add("java");
         foo.buildGradle().plugins().add("maven-publish");
@@ -808,7 +808,7 @@ class VersionsLockPluginIntegrationTest {
                     implementation "org.slf4j:slf4j-api:${project.bar_version}"
                 }
                 """);
-            rootProject.gradlePropertiesFile().appendProperty("bar_version", "1.7.11");
+            rootProject.gradlePropertiesFile().setProperty("bar_version", "1.7.11");
 
             forced.buildGradle().plugins().add("java");
             forced.buildGradle().append("""

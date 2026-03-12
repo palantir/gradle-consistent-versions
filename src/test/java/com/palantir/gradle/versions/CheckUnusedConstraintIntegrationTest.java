@@ -52,7 +52,7 @@ class CheckUnusedConstraintIntegrationTest {
             }
             """, rootProject.directory(".").path().toUri());
 
-        rootProject.gradlePropertiesFile().appendProperty("ignoreLockFile", "true");
+        rootProject.gradlePropertiesFile().setProperty("ignoreLockFile", "true");
     }
 
     private InvocationResult buildSucceed(GradleInvoker gradle) {
