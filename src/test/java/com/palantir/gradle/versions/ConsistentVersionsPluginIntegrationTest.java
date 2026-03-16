@@ -123,7 +123,7 @@ class ConsistentVersionsPluginIntegrationTest {
             task resolve { doLast { configurations.runtimeClasspath.resolve() } }
             """);
 
-        rootProject.propertiesFile("versions.props").appendProperty("org.slf4j:*", "1.7.25");
+        rootProject.propertiesFile("versions.props").setProperty("org.slf4j:*", "1.7.25");
 
         gradle.withArgs("resolve", "--write-locks").buildsSuccessfully();
         gradle.withArgs("resolve").buildsSuccessfully();
@@ -149,7 +149,7 @@ class ConsistentVersionsPluginIntegrationTest {
         // Pretend we have a lock file
         rootProject.file("versions.lock").createEmpty();
 
-        rootProject.propertiesFile("versions.props").appendProperty("org.slf4j:*", "1.7.25");
+        rootProject.propertiesFile("versions.props").setProperty("org.slf4j:*", "1.7.25");
 
         InvocationResult result = gradle.withArgs("demo").buildsSuccessfully();
         assertThat(result).output().contains("demo=1.7.25");
@@ -172,7 +172,7 @@ class ConsistentVersionsPluginIntegrationTest {
             }
             """);
 
-        rootProject.propertiesFile("versions.props").appendProperty("org.slf4j:*", "1.7.25");
+        rootProject.propertiesFile("versions.props").setProperty("org.slf4j:*", "1.7.25");
 
         InvocationResult result = gradle.withArgs("demo", "--write-locks").buildsSuccessfully();
         assertThat(result).output().contains("demo=1.7.25");

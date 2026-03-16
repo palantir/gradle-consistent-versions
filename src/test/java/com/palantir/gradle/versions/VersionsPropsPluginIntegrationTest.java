@@ -104,11 +104,10 @@ class VersionsPropsPluginIntegrationTest {
             """, repo.path());
     }
 
-    @SuppressWarnings("for-rollout:deprecation")
     @Test
     void star_dependency_constraint_is_injected_for_direct_dependency(
             GradleInvoker gradle, RootProject rootProject, SubProject foo) {
-        rootProject.propertiesFile("versions.props").appendProperty("org.slf4j:*", "1.7.24");
+        rootProject.propertiesFile("versions.props").setProperty("org.slf4j:*", "1.7.24");
 
         foo.buildGradle().plugins().add("java");
 
@@ -123,15 +122,14 @@ class VersionsPropsPluginIntegrationTest {
         verifyLockfile(foo, "org.slf4j:slf4j-api:1.7.24");
     }
 
-    @SuppressWarnings("for-rollout:deprecation")
     @Test
     void star_dependency_constraint_is_not_forcefully_downgraded_for_transitive_dependency(
             GradleInvoker gradle, RootProject rootProject, SubProject foo) {
-        rootProject.propertiesFile("versions.props").appendProperty("org.slf4j:*", "1.7.21");
+        rootProject.propertiesFile("versions.props").setProperty("org.slf4j:*", "1.7.21");
 
         rootProject
                 .propertiesFile("versions.props")
-                .appendProperty("ch.qos.logback:logback-classic", "1.1.11"); // brings in slf4j-api 1.7.22
+                .setProperty("ch.qos.logback:logback-classic", "1.1.11"); // brings in slf4j-api 1.7.22
 
         foo.buildGradle().plugins().add("java");
 
@@ -146,15 +144,14 @@ class VersionsPropsPluginIntegrationTest {
         verifyLockfile(foo, "org.slf4j:slf4j-api:1.7.22");
     }
 
-    @SuppressWarnings("for-rollout:deprecation")
     @Test
     void star_dependency_constraint_upgrades_transitive_dependency(
             GradleInvoker gradle, RootProject rootProject, SubProject foo) {
-        rootProject.propertiesFile("versions.props").appendProperty("org.slf4j:*", "1.7.25");
+        rootProject.propertiesFile("versions.props").setProperty("org.slf4j:*", "1.7.25");
 
         rootProject
                 .propertiesFile("versions.props")
-                .appendProperty("ch.qos.logback:logback-classic", "1.1.11"); // brings in slf4j-api 1.7.22
+                .setProperty("ch.qos.logback:logback-classic", "1.1.11"); // brings in slf4j-api 1.7.22
 
         foo.buildGradle().plugins().add("java");
 
@@ -169,15 +166,14 @@ class VersionsPropsPluginIntegrationTest {
         verifyLockfile(foo, "org.slf4j:slf4j-api:1.7.25");
     }
 
-    @SuppressWarnings("for-rollout:deprecation")
     @Test
     void imported_platform_generated_correctly_in_pom(GradleInvoker gradle, RootProject rootProject, SubProject foo)
             throws IOException {
-        rootProject.propertiesFile("versions.props").appendProperty("org:platform", "1.0");
+        rootProject.propertiesFile("versions.props").setProperty("org:platform", "1.0");
 
         rootProject
                 .propertiesFile("versions.props")
-                .appendProperty("other:constraint", "1.0.0"); // This shouldn't end up in the POM
+                .setProperty("other:constraint", "1.0.0"); // This shouldn't end up in the POM
 
         foo.buildGradle().plugins().add("java-library").add("maven-publish");
 
@@ -221,7 +217,6 @@ class VersionsPropsPluginIntegrationTest {
         assertThat(actualDependencies).containsExactlyInAnyOrderElementsOf(expectedDependencies);
     }
 
-    @SuppressWarnings("for-rollout:deprecation")
     @Test
     void non_glob_module_forces_do_not_get_added_to_a_matching_platform_too(
             GradleInvoker gradle, RootProject rootProject) {
@@ -235,8 +230,8 @@ class VersionsPropsPluginIntegrationTest {
 
         rootProject
                 .propertiesFile("versions.props")
-                .appendProperty("com.fasterxml.jackson.core:jackson-databind", "2.9.0")
-                .appendProperty("com.fasterxml.jackson.*:*", "2.9.7");
+                .setProperty("com.fasterxml.jackson.core:jackson-databind", "2.9.0")
+                .setProperty("com.fasterxml.jackson.*:*", "2.9.7");
 
         gradle.withArgs("resolveConfigurations", "--write-locks").buildsSuccessfully();
 
