@@ -60,11 +60,10 @@ class SlsPackagingCompatibilityIntegrationTest {
             """, repo.path());
     }
 
-    @SuppressWarnings("for-rollout:deprecation")
     @Test
     void can_consume_recommended_product_dependencies_project(
             GradleInvoker gradle, RootProject rootProject, SubProject api, SubProject service) {
-        rootProject.propertiesFile("versions.props").appendProperty("org.slf4j:*", "1.7.24");
+        rootProject.propertiesFile("versions.props").setProperty("org.slf4j:*", "1.7.24");
 
         rootProject.buildGradle().append("""
             allprojects {
