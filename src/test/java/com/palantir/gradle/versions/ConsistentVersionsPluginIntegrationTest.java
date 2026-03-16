@@ -403,7 +403,6 @@ class ConsistentVersionsPluginIntegrationTest {
     }
 
     @Test
-    @SuppressWarnings("MethodLength")
     @DisabledConfigurationCache("configuration cache cannot be reused due to --write-locks")
     void works_with_included_builds(
             GradleInvoker gradle, RootProject rootProject, IncludedBuild includedBuild, MavenRepo repo) {
