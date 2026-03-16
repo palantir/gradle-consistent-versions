@@ -136,7 +136,7 @@ class ConfigurationOnDemandTest {
             }
             """);
 
-        rootProject.gradlePropertiesFile().appendProperty("org.gradle.configureondemand", "true");
+        rootProject.gradlePropertiesFile().setProperty("org.gradle.configureondemand", "true");
     }
 
     @Test
