@@ -21,7 +21,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.palantir.gradle.testing.execution.GradleInvoker;
 import com.palantir.gradle.testing.execution.InvocationResult;
-import com.palantir.gradle.testing.junit.AdditionallyRunWithGradle;
 import com.palantir.gradle.testing.junit.DisabledConfigurationCache;
 import com.palantir.gradle.testing.junit.GradlePluginTests;
 import com.palantir.gradle.testing.project.RootProject;
@@ -31,7 +30,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 @GradlePluginTests
-@AdditionallyRunWithGradle("9.3.0")
 class CheckUnusedConstraintIntegrationTest {
 
     @BeforeEach

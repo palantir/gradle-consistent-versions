@@ -236,11 +236,6 @@ class ConfigurationOnDemandTest {
             dependencies {
                 implementation project(':projectB')
             }
-            tasks.register('writeClasspathOfA') {
-                doLast {
-                    println project(':projectA').configurations.runtimeClasspath.files
-                }
-            }
             """);
 
         projectU.buildGradle().plugins().add("java");
@@ -251,7 +246,7 @@ class ConfigurationOnDemandTest {
             """);
 
         gradle.withArgs("--write-locks").buildsSuccessfully();
-        InvocationResult result = gradle.withArgs(":projectC:writeClasspathOfA").buildsSuccessfully();
+        InvocationResult result = gradle.withArgs(":projectC:writeClasspath").buildsSuccessfully();
 
         assertThat(result)
                 .output()

@@ -44,7 +44,7 @@ cglib:cglib-nodep:3.2.2 (1 constraints: 490ded24)
 
 com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.21.1 (1 constraints: e113f16f)
 
-com.netflix.nebula:nebula-test:10.6.2 (2 constraints: d61de72d)
+com.netflix.nebula:nebula-test:10.6.2 (1 constraints: 9c18268f)
 
 com.palantir.gradle.plugintesting:configuration-cache-spec:0.64.0 (1 constraints: 3c05433b)
 
