@@ -26,6 +26,7 @@ import com.palantir.gradle.testing.junit.DisabledConfigurationCache;
 import com.palantir.gradle.testing.junit.GradlePluginTests;
 import com.palantir.gradle.testing.maven.MavenArtifact;
 import com.palantir.gradle.testing.maven.MavenRepo;
+import com.palantir.gradle.testing.project.IncludedBuild;
 import com.palantir.gradle.testing.project.RootProject;
 import com.palantir.gradle.testing.project.SubProject;
 import java.io.IOException;
@@ -402,50 +403,24 @@ class ConsistentVersionsPluginIntegrationTest {
     }
 
     @Test
-    @SuppressWarnings("MethodLength")
     @DisabledConfigurationCache("configuration cache cannot be reused due to --write-locks")
-    void works_with_included_builds(GradleInvoker gradle, RootProject rootProject, MavenRepo repo) {
-        // add included build
-        Path includedBuild = rootProject.directory("included-build").path();
-        rootProject.settingsGradle().append("""
-            includeBuild 'included-build'
-            """);
+    void works_with_included_builds(
+            GradleInvoker gradle, RootProject rootProject, IncludedBuild includedBuild, MavenRepo repo) {
+        includedBuild.buildGradle().plugins().add(PLUGIN_NAME);
+        includedBuild.buildGradle().append("""
+            allprojects {
+                group 'com.palantir.includedBuild'
+                version '1.0.0'
 
-        // configure the included build
-        rootProject
-                .directory(includedBuild.toString())
-                .gradleFile("settings.gradle")
-                .append("""
-                    rootProject.name = 'included-build'
+                repositories {
+                    maven { url uri("%s") }
+                }
+            }
+            """, repo.path());
 
-                    include 'innerA'
-                    include 'innerB'
-                    """);
-
-        rootProject
-                .directory(includedBuild.toString())
-                .gradleFile("build.gradle")
-                .plugins()
-                .add(PLUGIN_NAME);
-
-        rootProject
-                .directory(includedBuild.toString())
-                .gradleFile("build.gradle")
-                .append("""
-                    allprojects {
-                        group 'com.palantir.included-build'
-                        version '1.0.0'
-
-                        repositories {
-                            maven { url uri("%s") }
-                        }
-                    }
-                    """, repo.path());
-
-        Path innerA = includedBuild.resolve("innerA");
-        rootProject
-                .directory(innerA.toString())
-                .gradleFile("build.gradle")
+        includedBuild
+                .subproject("innerA")
+                .buildGradle()
                 .append("""
                     dependencies {
                         implementation 'org.slf4j:slf4j-api'
@@ -470,10 +445,9 @@ class ConsistentVersionsPluginIntegrationTest {
                 .add("java")
                 .add("maven-publish");
 
-        Path innerB = includedBuild.resolve("innerB");
-        rootProject
-                .directory(innerB.toString())
-                .gradleFile("build.gradle")
+        includedBuild
+                .subproject("innerB")
+                .buildGradle()
                 .append("""
                     publishing {
                         repositories {
@@ -496,13 +470,10 @@ class ConsistentVersionsPluginIntegrationTest {
                 .add("java")
                 .add("maven-publish");
 
-        rootProject
-                .directory(includedBuild.toString())
-                .propertiesFile("versions.props")
-                .append("""
-                    org.slf4j:slf4j-api = 1.7.25
-                    test-alignment:* = 1.1
-                    """);
+        includedBuild.propertiesFile("versions.props").append("""
+            org.slf4j:slf4j-api = 1.7.25
+            test-alignment:* = 1.1
+            """);
 
         // configure main build
         rootProject.buildGradle().plugins().add("java");
@@ -537,19 +508,15 @@ class ConsistentVersionsPluginIntegrationTest {
 
         gradle.withArgs("--write-locks").buildsSuccessfully();
 
-        assertThat(rootProject
-                        .directory(includedBuild.toString())
-                        .file("versions.lock")
-                        .text())
-                .isEqualTo("""
-                    # Run ./gradlew writeVersionsLocks to regenerate this file. Blank lines are to minimize merge conflicts.
+        assertThat(includedBuild.file("versions.lock").text()).isEqualTo("""
+            # Run ./gradlew writeVersionsLocks to regenerate this file. Blank lines are to minimize merge conflicts.
 
-                    ch.qos.logback:logback-classic:1.1.11 (1 constraints: 36052a3b)
+            ch.qos.logback:logback-classic:1.1.11 (1 constraints: 36052a3b)
 
-                    org.slf4j:slf4j-api:1.7.25 (2 constraints: 7d12a137)
+            org.slf4j:slf4j-api:1.7.25 (2 constraints: 7d12a137)
 
-                    test-alignment:module-with-higher-version:1.1 (1 constraints: a6041b2c)
-                    """);
+            test-alignment:module-with-higher-version:1.1 (1 constraints: a6041b2c)
+            """);
 
         assertThat(rootProject.file("versions.lock").text()).isEqualTo("""
             # Run ./gradlew writeVersionsLocks to regenerate this file. Blank lines are to minimize merge conflicts.
@@ -560,8 +527,8 @@ class ConsistentVersionsPluginIntegrationTest {
         // we add a dependencies on the inner build
         rootProject.buildGradle().append("""
             dependencies {
-              implementation 'com.palantir.included-build:innerA'
-              implementation 'com.palantir.included-build:innerB'
+              implementation 'com.palantir.includedBuild:innerA'
+              implementation 'com.palantir.includedBuild:innerB'
             }
             """);
 
@@ -570,8 +537,8 @@ class ConsistentVersionsPluginIntegrationTest {
 
         gradle.withArgs(
                         ":publishMavenPublicationToMavenRepository",
-                        ":included-build:innerA:publishMavenPublicationToMavenRepository",
-                        ":included-build:innerB:publishMavenPublicationToMavenRepository")
+                        ":includedBuild:innerA:publishMavenPublicationToMavenRepository",
+                        ":includedBuild:innerB:publishMavenPublicationToMavenRepository")
                 .buildsSuccessfully();
 
         // root build: dependency is bumped - there is a difference in resolution between Gradle versions hence why we
