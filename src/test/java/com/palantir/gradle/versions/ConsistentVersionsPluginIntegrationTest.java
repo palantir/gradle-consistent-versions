@@ -418,47 +418,57 @@ class ConsistentVersionsPluginIntegrationTest {
             }
             """, repo.path());
 
-        SubProject innerA = includedBuild.subproject("innerA");
-        innerA.buildGradle().append("""
-            dependencies {
-                implementation 'org.slf4j:slf4j-api'
-                runtimeOnly 'ch.qos.logback:logback-classic:1.1.11' // brings in slf4j-api 1.7.22
-            }
-
-            publishing {
-                repositories {
-                    maven {
-                        url = "%s"
+        includedBuild
+                .subproject("innerA")
+                .buildGradle()
+                .append("""
+                    dependencies {
+                        implementation 'org.slf4j:slf4j-api'
+                        runtimeOnly 'ch.qos.logback:logback-classic:1.1.11' // brings in slf4j-api 1.7.22
                     }
-                }
 
-                publications {
-                    maven(MavenPublication) {
-                        from components.java
-                    }
-                }
-            }
-            """, repo.path()).plugins().add("java").add("maven-publish");
+                    publishing {
+                        repositories {
+                            maven {
+                                url = "%s"
+                            }
+                        }
 
-        SubProject innerB = includedBuild.subproject("innerB");
-        innerB.buildGradle().append("""
-            publishing {
-                repositories {
-                    maven {
-                        url = "%s"
+                        publications {
+                            maven(MavenPublication) {
+                                from components.java
+                            }
+                        }
                     }
-                }
+                    """, repo.path())
+                .plugins()
+                .add("java")
+                .add("maven-publish");
 
-                publications {
-                    maven(MavenPublication) {
-                        from components.java
+        includedBuild
+                .subproject("innerB")
+                .buildGradle()
+                .append("""
+                    publishing {
+                        repositories {
+                            maven {
+                                url = "%s"
+                            }
+                        }
+
+                        publications {
+                            maven(MavenPublication) {
+                                from components.java
+                            }
+                        }
                     }
-                }
-            }
-            dependencies {
-                implementation 'test-alignment:module-with-higher-version'
-            }
-            """, repo.path()).plugins().add("java").add("maven-publish");
+                    dependencies {
+                        implementation 'test-alignment:module-with-higher-version'
+                    }
+                    """, repo.path())
+                .plugins()
+                .add("java")
+                .add("maven-publish");
 
         includedBuild.propertiesFile("versions.props").append("""
             org.slf4j:slf4j-api = 1.7.25
