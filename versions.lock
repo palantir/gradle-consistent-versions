@@ -26,7 +26,7 @@ com.google.j2objc:j2objc-annotations:3.1 (1 constraints: b809f1a0)
 
 com.palantir.gradle.failure-reports:gradle-failure-reports-exceptions:1.2.0 (1 constraints: 0505f635)
 
-com.palantir.gradle.idea-configuration:gradle-idea-configuration:0.7.0 (1 constraints: 09050036)
+com.palantir.gradle.idea-configuration:gradle-idea-configuration:0.8.0 (1 constraints: 0a050336)
 
 one.util:streamex:0.8.4 (1 constraints: 0e050736)
 
