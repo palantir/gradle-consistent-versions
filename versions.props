@@ -1,7 +1,7 @@
 com.fasterxml.jackson.*:* = 2.21.1
 com.fasterxml.jackson.core:jackson-annotations = 2.21
 com.google.guava:guava = 33.6.0-jre
-com.palantir.gradle.plugintesting:gradle-plugin-testing-junit = 0.67.0
+com.palantir.gradle.plugintesting:gradle-plugin-testing-junit = 0.68.0
 org.assertj:* = 3.27.7
 org.immutables:value = 2.12.1
 org.junit.jupiter:* = 6.0.3
