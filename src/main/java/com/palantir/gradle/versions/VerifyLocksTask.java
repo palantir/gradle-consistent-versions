@@ -42,11 +42,9 @@ public abstract class VerifyLocksTask extends DefaultTask {
     private static final String WRITE_LOCKS_SUGGESTION = "./gradlew writeVersionsLocks";
     private final File outputFile;
 
-    @SuppressWarnings("for-rollout:GradleTypesAsFields")
-    private final Property<LockState> persistedLockState;
+        private final Property<LockState> persistedLockState;
 
-    @SuppressWarnings("for-rollout:GradleTypesAsFields")
-    private final Property<LockState> currentLockState;
+        private final Property<LockState> currentLockState;
 
     public VerifyLocksTask() {
         setGroup(LifecycleBasePlugin.VERIFICATION_GROUP);

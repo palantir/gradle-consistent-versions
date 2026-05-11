@@ -191,8 +191,7 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
         return project.file("versions.lock").toPath();
     }
 
-    @SuppressWarnings({"for-rollout:GradleTypesAsFields", "for-rollout:NonAbstractGradleType"})
-    @Override
+        @Override
     public final void apply(Project project) {
         checkPreconditions(project);
         project.getPluginManager().apply(LifecycleBasePlugin.class);
@@ -206,8 +205,7 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
             });
         });
 
-        @SuppressWarnings("for-rollout:ConfigurationAvoidanceRegistration")
-        Configuration unifiedClasspath = project.getConfigurations()
+                Configuration unifiedClasspath = project.getConfigurations()
                 .create(UNIFIED_CLASSPATH_CONFIGURATION_NAME, conf -> {
                     conf.setVisible(false).setCanBeConsumed(false);
 
@@ -618,8 +616,7 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
      * {@link DependencySet}, and then amends their {@link ProjectDependency#getTargetConfiguration()} to point to the
      * copied configuration. It then eagerly configures any copied Configurations recursively.
      */
-    @SuppressWarnings("for-rollout:StringConcatToTextBlock")
-    private void recursivelyCopyProjectDependenciesWithScope(
+        private void recursivelyCopyProjectDependenciesWithScope(
             Project currentProject,
             DependencySet dependencySet,
             Map<Configuration, String> copiedConfigurationsCache,

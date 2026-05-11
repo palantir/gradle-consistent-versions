@@ -41,8 +41,7 @@ public final class GetVersionPlugin implements Plugin<Project> {
              * Groovy will invoke this method if they just supply one arg, e.g. 'com.google.guava:guava'. This is the
              * preferred signature because it's shortest.
              */
-            @SuppressWarnings("for-rollout:UnusedMethod")
-            public String doCall(Object moduleVersion) {
+                        public String doCall(Object moduleVersion) {
                 return doCall(
                         moduleVersion,
                         project.getRootProject()
@@ -51,8 +50,7 @@ public final class GetVersionPlugin implements Plugin<Project> {
             }
 
             /** Find a version from another configuration, e.g. from the gradle-docker plugin. */
-            @SuppressWarnings("for-rollout:FloggerArgumentToString")
-            public String doCall(Object moduleVersion, Configuration configuration) {
+                        public String doCall(Object moduleVersion, Configuration configuration) {
                 List<String> strings = Splitter.on(':').splitToList(moduleVersion.toString());
                 Preconditions.checkState(
                         strings.size() == 2, "Expected 'group:name', found: %s", moduleVersion.toString());
@@ -61,8 +59,7 @@ public final class GetVersionPlugin implements Plugin<Project> {
             }
 
             /** This matches the signature of nebula's dependencyRecommendations.getRecommendedVersion. */
-            @SuppressWarnings("for-rollout:UnusedMethod")
-            public String doCall(String group, String name) {
+                        public String doCall(String group, String name) {
                 return getVersion(
                         project,
                         group,
@@ -72,8 +69,7 @@ public final class GetVersionPlugin implements Plugin<Project> {
                                 .getByName(VersionsLockPlugin.UNIFIED_CLASSPATH_CONFIGURATION_NAME));
             }
 
-            @SuppressWarnings("for-rollout:UnusedMethod")
-            public String doCall(String group, String name, Configuration configuration) {
+                        public String doCall(String group, String name, Configuration configuration) {
                 return getVersion(project, group, name, configuration);
             }
         });
