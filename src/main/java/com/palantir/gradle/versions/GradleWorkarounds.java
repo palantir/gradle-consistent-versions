@@ -60,6 +60,7 @@ final class GradleWorkarounds {
      * Returns whether a dependency / component is a non-enforced platform, i.e. what you create with
      * {@link DependencyHandler#platform} or {@link DependencyConstraintHandler#platform}.
      */
+    @SuppressWarnings("for-rollout:InvalidLink")
     static boolean isPlatform(AttributeContainer attributes) {
         Category category = attributes.getAttribute(Category.CATEGORY_ATTRIBUTE);
         return category != null && Category.REGULAR_PLATFORM.equals(category.getName());
