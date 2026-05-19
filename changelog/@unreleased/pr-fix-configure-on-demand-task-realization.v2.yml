@@ -1,0 +1,13 @@
+type: fix
+fix:
+  description: Fix configure-on-demand workaround to not force-realize every task
+    in walked subprojects. The previous implementation iterated `project.getTasks()`,
+    which realized every lazy TaskProvider and ran each task's configuration action
+    under Gradle's cross-project mutation guard in "lazy" context — causing any
+    `Project#afterEvaluate(...)` call registered from that action (a pattern used by
+    BaselineNullAway and other plugins via `PluginManager#withPlugin`) to throw
+    IllegalMutationException. The workaround now walks only the specific tasks the
+    user asked for and their transitive string-typed dependsOn entries, realizing
+    each task individually via `findByName`.
+  links:
+  - https://github.com/palantir/gradle-consistent-versions/pull/

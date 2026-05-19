@@ -318,6 +318,50 @@ class ConfigurationOnDemandSpec extends IntegrationSpec {
         gradleVersionNumber << GRADLE_VERSIONS
     }
 
+    def '#gradleVersionNumber: configure-on-demand does not force-realize every task in walked subprojects'() {
+        // Regression test for the configure-on-demand workaround in
+        // GradleWorkarounds#makeEvaluationDependOnSubprojectsToBeEvaluated. The previous implementation iterated
+        // project.getTasks(), which forced realization of EVERY lazy TaskProvider in a walked subproject. That
+        // realization runs each task's configuration action under Gradle's cross-project mutation guard in
+        // "lazy" context — and any nested Project#afterEvaluate(...) call from that configuration action (a
+        // pattern used by BaselineNullAway and many other plugins) throws IllegalMutationException with message
+        // "...cannot be executed in the current context".
+        //
+        // The fix walks only the specific tasks the user asked for and their transitive string-typed dependsOn
+        // entries, so unrelated lazy tasks in the same project must remain unrealized when the user only asked
+        // for one task in that project.
+        setup:
+        gradleVersion = gradleVersionNumber
+
+        addSubproject("with-realize-marker", """
+            plugins { id 'java' }
+            tasks.register('shouldNotRealize') {
+                // Configuration action runs only if the task is realized.
+                println 'REALIZED_SHOULD_NOT_REALIZE'
+                project.afterEvaluate { /* registering afterEvaluate during realize is what fires
+                                          IllegalMutationException under the buggy workaround */ }
+            }
+        """.stripIndent(true))
+
+        when:
+        runTasks('--write-locks')
+        // Run a task that is registered by the parent setup() block ('writeClasspath') for every subproject.
+        // The complex configure-on-demand path in GradleWorkarounds only needs writeClasspath; the
+        // 'shouldNotRealize' task should not be realized as a side effect.
+        BuildResult result = runTasks(':with-realize-marker:writeClasspath')
+
+        then:
+        result.task(':with-realize-marker:writeClasspath').outcome == TaskOutcome.SUCCESS
+        // The buggy implementation realizes shouldNotRealize as part of iterating project.getTasks(),
+        // which prints the marker and also throws IllegalMutationException from the afterEvaluate call.
+        !result.output.contains('REALIZED_SHOULD_NOT_REALIZE')
+        !result.output.contains('IllegalMutationException')
+        !result.output.contains('cannot be executed in the current context')
+
+        where:
+        gradleVersionNumber << GRADLE_VERSIONS
+    }
+
     def '#gradleVersionNumber: verification tasks pass when all projects are configured'() {
         setup:
         gradleVersion = gradleVersionNumber
