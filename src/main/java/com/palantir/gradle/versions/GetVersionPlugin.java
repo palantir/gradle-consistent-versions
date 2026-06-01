@@ -77,7 +77,6 @@ public final class GetVersionPlugin implements Plugin<Project> {
                 .orElseThrow(() -> notFound(group, name, configuration));
     }
 
-    /** Reads the locked version straight from the root {@code gcvLocks} platform constraints, without resolving. */
     private static String versionFromLockConstraints(Project project, String group, String name) {
         if (GradleWorkarounds.isConfiguring(project.getState())) {
             throw new GradleException(String.format("""
@@ -110,7 +109,6 @@ public final class GetVersionPlugin implements Plugin<Project> {
         return singleVersion(versions, group, name, configuration.toString());
     }
 
-    /** The single version in the list: empty if none, or throwing if {@code group:name} matched more than one. */
     private static Optional<String> singleVersion(List<String> versions, String group, String name, String source) {
         if (versions.isEmpty()) {
             return Optional.empty();
