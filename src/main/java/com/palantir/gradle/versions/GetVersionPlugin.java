@@ -29,7 +29,6 @@ import org.gradle.api.GradleException;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
-import org.gradle.api.artifacts.DependencyConstraint;
 import org.gradle.api.artifacts.ModuleVersionIdentifier;
 import org.gradle.api.artifacts.result.ResolvedComponentResult;
 import org.gradle.api.provider.Provider;
@@ -103,11 +102,11 @@ public final class GetVersionPlugin implements Plugin<Project> {
                     group, name));
         }
 
+        // gcvLocks constraints are always created with 'strictly' (see VersionsLockPlugin)
         List<String> versions = gcvLocks.getDependencyConstraints().stream()
                 .filter(constraint -> constraint.getGroup().equals(group)
                         && constraint.getName().equals(name))
-                .map(GetVersionPlugin::lockedVersionOf)
-                .collect(toList());
+                .map(constraint -> constraint.getVersionConstraint().getStrictVersion()).toList();
 
         if (versions.isEmpty()) {
             return Optional.empty();
@@ -119,12 +118,6 @@ public final class GetVersionPlugin implements Plugin<Project> {
         }
 
         return Optional.of(Iterables.getOnlyElement(versions));
-    }
-
-    private static String lockedVersionOf(DependencyConstraint constraint) {
-        // The lock constraints are created with 'strictly', but fall back to the required version to be safe.
-        String strictVersion = constraint.getVersionConstraint().getStrictVersion();
-        return strictVersion.isEmpty() ? constraint.getVersionConstraint().getRequiredVersion() : strictVersion;
     }
 
     static Optional<String> getOptionalVersion(
