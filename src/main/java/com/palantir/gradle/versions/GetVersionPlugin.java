@@ -82,21 +82,6 @@ public final class GetVersionPlugin implements Plugin<Project> {
                 .orElseThrow(() -> notFound(group, name, configuration));
     }
 
-    /**
-     * Look up the locked version of {@code group:name} from the strict constraints that gradle-consistent-versions
-     * derives from {@code versions.lock}, without resolving any configuration.
-     *
-     * <p>Previously this resolved the root project's {@code unifiedClasspath} configuration. Gradle 9 forbids resolving
-     * another project's configuration from a task (it fails with "Resolution of the configuration was attempted without
-     * an exclusive lock"), which broke calls from subprojects. The locked versions are already held, fully resolved, as
-     * the strict dependency constraints of the root project's {@code gcvLocks} platform, so we read them from there
-     * instead. Reading the declared constraints is plain model access rather than resolution, so it is safe to do from
-     * any project.
-     *
-     * <p>The lookup is built lazily off the {@code gcvLocks} {@link org.gradle.api.NamedDomainObjectProvider} so that
-     * the platform is only realised (and read) when the provider is queried — which we defer to the last possible
-     * moment, when {@code getVersion} is actually invoked at execution time.
-     */
     private static Provider<String> versionProviderFromLockConstraints(Project project, String group, String name) {
         return project.getRootProject()
                 .getConfigurations()
