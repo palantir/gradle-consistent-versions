@@ -180,6 +180,29 @@ class ConsistentVersionsPluginIntegrationTest {
     }
 
     @Test
+    @DisabledConfigurationCache(
+            "Cannot reference a Gradle script object from a Groovy closure as these are not supported with the"
+                    + " configuration cache")
+    void get_version_function_works_from_subproject(GradleInvoker gradle, RootProject rootProject, SubProject child) {
+        rootProject.propertiesFile("versions.props").setProperty("org.slf4j:*", "1.7.25");
+
+        child.buildGradle().plugins().add("java");
+        child.buildGradle().append("""
+            dependencies {
+                implementation 'org.slf4j:slf4j-api'
+            }
+
+            task demo {
+                doLast { println "demo=" + getVersion('org.slf4j:slf4j-api') }
+            }
+            """);
+
+        InvocationResult result =
+                gradle.withArgs(":child:demo", "--write-locks").buildsSuccessfully();
+        assertThat(result).output().contains("demo=1.7.25");
+    }
+
+    @Test
     @DisabledConfigurationCache("configuration cache cannot be reused due to --write-locks")
     void virtual_platform_is_respected_across_projects(
             GradleInvoker gradle, RootProject rootProject, SubProject foo, SubProject bar) {

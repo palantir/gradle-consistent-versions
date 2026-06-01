@@ -208,9 +208,9 @@ task printGuavaVersion {
 }
 ```
 
-This function may not be invoked at [Gradle Configuration time](https://docs.gradle.org/current/userguide/build_lifecycle.html) as it involves resolving dependencies.  Put it inside a closure or provider to ensure it is only invoked at Execution time.
+This function may not be invoked at [Gradle Configuration time](https://docs.gradle.org/current/userguide/build_lifecycle.html). Put it inside a closure or provider to ensure it is only invoked at Execution time.
 
-By default, this function resolve the `unifiedClasspath` configuration to supply a version, but you can always supply a different configuration if you want to:
+By default, this function supplies the version locked in `versions.lock`, but you can always supply a different configuration to resolve a version from instead:
 
 ```gradle
 task printGuavaVersion {

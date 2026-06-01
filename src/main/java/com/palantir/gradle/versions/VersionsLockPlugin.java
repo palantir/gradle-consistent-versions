@@ -121,6 +121,9 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
     /** Configuration to which we apply the constraints from the lock file. */
     private static final String LOCK_CONSTRAINTS_CONFIGURATION_NAME = "lockConstraints";
 
+    /** Root project platform that holds the strict version constraints from the lock file. */
+    static final String GCV_LOCKS_CONFIGURATION_NAME = "gcvLocks";
+
     private static final String CONSISTENT_VERSIONS_PRODUCTION = "consistentVersionsProduction";
     private static final String CONSISTENT_VERSIONS_TEST = "consistentVersionsTest";
     private static final String VERSIONS_LOCK_EXTENSION = "versionsLock";
@@ -234,7 +237,7 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
 
         // Create "platform" configuration in root project, which will hold the strictConstraints
         NamedDomainObjectProvider<Configuration> gcvLocksConfiguration = project.getConfigurations()
-                .register("gcvLocks", conf -> {
+                .register(GCV_LOCKS_CONFIGURATION_NAME, conf -> {
                     conf.attributes(getGcvAttributes()::configureGcvBaseAttributes);
                     conf.getOutgoing().capability(GCV_LOCKS_CAPABILITY);
                     conf.setCanBeResolved(false);
