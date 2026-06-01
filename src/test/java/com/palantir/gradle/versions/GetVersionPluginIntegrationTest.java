@@ -73,7 +73,7 @@ class GetVersionPluginIntegrationTest {
     }
 
     @Test
-    void getVersion_is_callable_from_subproject(GradleInvoker gradle, SubProject child) {
+    void get_version_is_callable_from_subproject(GradleInvoker gradle, SubProject child) {
         child.buildGradle().plugins().add("java");
         child.buildGradle().append("""
             tasks.register('callGetVersion') {

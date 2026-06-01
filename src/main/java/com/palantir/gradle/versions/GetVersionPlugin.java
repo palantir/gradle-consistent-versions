@@ -41,15 +41,15 @@ public final class GetVersionPlugin implements Plugin<Project> {
              */
             @SuppressWarnings("for-rollout:UnusedMethod")
             public String doCall(Object moduleVersion) {
-                List<String> strings = splitModuleVersion(moduleVersion);
-                return versionFromLockConstraints(project, strings.get(0), strings.get(1));
+                GroupAndName groupAndName = splitModuleVersion(moduleVersion);
+                return versionFromLockConstraints(project, groupAndName.group(), groupAndName.name());
             }
 
             /** Find a version from another configuration, e.g. from the gradle-docker plugin. */
             @SuppressWarnings("for-rollout:UnusedMethod")
             public String doCall(Object moduleVersion, Configuration configuration) {
-                List<String> strings = splitModuleVersion(moduleVersion);
-                return getVersion(project, strings.get(0), strings.get(1), configuration);
+                GroupAndName groupAndName = splitModuleVersion(moduleVersion);
+                return getVersion(project, groupAndName.group(), groupAndName.name(), configuration);
             }
 
             /** This matches the signature of nebula's dependencyRecommendations.getRecommendedVersion. */
@@ -65,11 +65,13 @@ public final class GetVersionPlugin implements Plugin<Project> {
         });
     }
 
-    private static List<String> splitModuleVersion(Object moduleVersion) {
+    private record GroupAndName(String group, String name) {}
+
+    private static GroupAndName splitModuleVersion(Object moduleVersion) {
         String coordinate = moduleVersion.toString();
         List<String> strings = Splitter.on(':').splitToList(coordinate);
         Preconditions.checkState(strings.size() == 2, "Expected 'group:name', found: %s", coordinate);
-        return strings;
+        return new GroupAndName(strings.get(0), strings.get(1));
     }
 
     private static String getVersion(Project project, String group, String name, Configuration configuration) {
