@@ -31,7 +31,6 @@ import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.ModuleVersionIdentifier;
 import org.gradle.api.artifacts.result.ResolvedComponentResult;
-import org.gradle.api.provider.Provider;
 
 public final class GetVersionPlugin implements Plugin<Project> {
 
@@ -45,8 +44,7 @@ public final class GetVersionPlugin implements Plugin<Project> {
             @SuppressWarnings("for-rollout:UnusedMethod")
             public String doCall(Object moduleVersion) {
                 List<String> strings = splitModuleVersion(moduleVersion);
-                return versionProviderFromLockConstraints(project, strings.get(0), strings.get(1))
-                        .get();
+                return versionFromLockConstraints(project, strings.get(0), strings.get(1));
             }
 
             /** Find a version from another configuration, e.g. from the gradle-docker plugin. */
@@ -59,7 +57,7 @@ public final class GetVersionPlugin implements Plugin<Project> {
             /** This matches the signature of nebula's dependencyRecommendations.getRecommendedVersion. */
             @SuppressWarnings("for-rollout:UnusedMethod")
             public String doCall(String group, String name) {
-                return versionProviderFromLockConstraints(project, group, name).get();
+                return versionFromLockConstraints(project, group, name);
             }
 
             @SuppressWarnings("for-rollout:UnusedMethod")
@@ -81,16 +79,15 @@ public final class GetVersionPlugin implements Plugin<Project> {
                 .orElseThrow(() -> notFound(group, name, configuration));
     }
 
-    private static Provider<String> versionProviderFromLockConstraints(Project project, String group, String name) {
-        return project.getRootProject()
-                .getConfigurations()
-                .named(VersionsLockPlugin.GCV_LOCKS_CONFIGURATION_NAME)
-                .map(gcvLocks -> getOptionalVersionFromLockConstraints(project, gcvLocks, group, name)
-                        .orElseThrow(() -> new GradleException(String.format(
-                                "Unable to find '%s:%s' in configuration ':%s'. This may happen if you specify the"
-                                        + " version in versions.props but do not have a dependency on it anywhere in"
-                                        + " the project.",
-                                group, name, VersionsLockPlugin.UNIFIED_CLASSPATH_CONFIGURATION_NAME))));
+    private static String versionFromLockConstraints(Project project, String group, String name) {
+        Configuration gcvLocks =
+                project.getRootProject().getConfigurations().getByName(VersionsLockPlugin.GCV_LOCKS_CONFIGURATION_NAME);
+        return getOptionalVersionFromLockConstraints(project, gcvLocks, group, name)
+                .orElseThrow(() -> new GradleException(String.format(
+                        "Unable to find '%s:%s' in versions.lock. This may happen if you specify the version in"
+                                + " versions.props but do not have a dependency on it anywhere in the project, or if"
+                                + " versions.lock is out of date (run `./gradlew --write-locks`).",
+                        group, name)));
     }
 
     private static Optional<String> getOptionalVersionFromLockConstraints(
@@ -106,7 +103,8 @@ public final class GetVersionPlugin implements Plugin<Project> {
         List<String> versions = gcvLocks.getDependencyConstraints().stream()
                 .filter(constraint -> constraint.getGroup().equals(group)
                         && constraint.getName().equals(name))
-                .map(constraint -> constraint.getVersionConstraint().getStrictVersion()).toList();
+                .map(constraint -> constraint.getVersionConstraint().getStrictVersion())
+                .toList();
 
         if (versions.isEmpty()) {
             return Optional.empty();
