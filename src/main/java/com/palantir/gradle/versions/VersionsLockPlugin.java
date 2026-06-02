@@ -117,8 +117,7 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
 
     /**
      * Dependency-scope bucket holding the project dependencies collected from each project, so that the resolvable
-     * {@link #UNIFIED_CLASSPATH_CONFIGURATION_NAME} (and {@link GetVersionPlugin}'s consumable view) can extend it
-     * without mixing configuration roles (Gradle 9 flags a consumable extending a resolvable, and vice versa).
+     * {@link #UNIFIED_CLASSPATH_CONFIGURATION_NAME} (and {@link GetVersionPlugin}'s consumable view) can extend it.
      */
     static final String UNIFIED_CLASSPATH_DEPENDENCIES_CONFIGURATION_NAME = "unifiedClasspathDependencies";
 
@@ -127,9 +126,6 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
 
     /** Configuration to which we apply the constraints from the lock file. */
     private static final String LOCK_CONSTRAINTS_CONFIGURATION_NAME = "lockConstraints";
-
-    /** Root project platform that holds the strict version constraints from the lock file. */
-    static final String GCV_LOCKS_CONFIGURATION_NAME = "gcvLocks";
 
     private static final String CONSISTENT_VERSIONS_PRODUCTION = "consistentVersionsProduction";
     private static final String CONSISTENT_VERSIONS_TEST = "consistentVersionsTest";
@@ -201,20 +197,39 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
         return project.file("versions.lock").toPath();
     }
 
-    @SuppressWarnings({"for-rollout:GradleTypesAsFields", "for-rollout:NonAbstractGradleType"})
+    @SuppressWarnings({"for-rollout:GradleTypesAsFields", "for-rollout:NonAbstractGradleType", "MethodLength"})
     @Override
     public final void apply(Project project) {
         checkPreconditions(project);
         project.getPluginManager().apply(LifecycleBasePlugin.class);
 
-        registerGcvAttributesSchema(project);
+        project.allprojects(p -> {
+            AttributesSchema attributesSchema = p.getDependencies().getAttributesSchema();
+            attributesSchema.attribute(GCV_SCOPE_ATTRIBUTE);
+            attributesSchema.attribute(GCV_USAGE_ATTRIBUTE);
+            attributesSchema.attribute(Usage.USAGE_ATTRIBUTE, strategy -> {
+                strategy.getCompatibilityRules().add(EverythingIsCompatibleWithConsistentVersionsUsage.class);
+            });
+        });
 
-        // Dependency-scope bucket collecting every project's dependencies; the resolvable unifiedClasspath extends it.
         @SuppressWarnings("for-rollout:ConfigurationAvoidanceRegistration")
         Configuration unifiedClasspathDependencies = project.getConfigurations()
                 .create(UNIFIED_CLASSPATH_DEPENDENCIES_CONFIGURATION_NAME, conf -> {
                     conf.setCanBeConsumed(false);
                     conf.setCanBeResolved(false);
+                });
+
+        @SuppressWarnings("for-rollout:ConfigurationAvoidanceRegistration")
+        Configuration unifiedClasspath = project.getConfigurations()
+                .create(UNIFIED_CLASSPATH_CONFIGURATION_NAME, conf -> {
+                    conf.setVisible(false).setCanBeConsumed(false);
+                    conf.extendsFrom(unifiedClasspathDependencies);
+
+                    // Attributes declared here will become required attributes when resolving this configuration
+                    conf.getAttributes().attribute(GCV_USAGE_ATTRIBUTE, GcvUsage.GCV_SOURCE);
+                    conf.getAttributes()
+                            .attribute(
+                                    GcvBuildPath.ATTRIBUTE, getGcvAttributes().buildPath());
                 });
 
         project.allprojects(subproject -> {
@@ -233,7 +248,7 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
 
         // Create "platform" configuration in root project, which will hold the strictConstraints
         NamedDomainObjectProvider<Configuration> gcvLocksConfiguration = project.getConfigurations()
-                .register(GCV_LOCKS_CONFIGURATION_NAME, conf -> {
+                .register("gcvLocks", conf -> {
                     conf.attributes(getGcvAttributes()::configureGcvBaseAttributes);
                     conf.getOutgoing().capability(GCV_LOCKS_CAPABILITY);
                     conf.setCanBeResolved(false);
@@ -253,21 +268,6 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
                 .register(WRITE_VERSIONS_LOCKS_TASK, WriteVersionsLocksMarkerTask.class, writeVersionsLocks -> {
                     writeVersionsLocks.getShouldWriteLocks().set(VersionsLockPlugin.shouldWriteLocks(project));
                     writeVersionsLocks.doNotTrackState("This task should always run.");
-                });
-
-        // All the project dependencies have now been collected into the bucket; create the resolvable view that
-        // extends it and is used to compute the lock state.
-        @SuppressWarnings("for-rollout:ConfigurationAvoidanceRegistration")
-        Configuration unifiedClasspath = project.getConfigurations()
-                .create(UNIFIED_CLASSPATH_CONFIGURATION_NAME, conf -> {
-                    conf.setVisible(false).setCanBeConsumed(false);
-                    conf.extendsFrom(unifiedClasspathDependencies);
-
-                    // Attributes declared here will become required attributes when resolving this configuration
-                    conf.getAttributes().attribute(GCV_USAGE_ATTRIBUTE, GcvUsage.GCV_SOURCE);
-                    conf.getAttributes()
-                            .attribute(
-                                    GcvBuildPath.ATTRIBUTE, getGcvAttributes().buildPath());
                 });
 
         // afterEvaluate is necessary to ensure all projects' dependencies have been configured, because we
@@ -351,17 +351,6 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
         project.getTasks().register("why", WhyDependencyTask.class, t -> {
             t.lockfile(rootLockfile);
             t.fullLockState(fullLockStateProperty);
-        });
-    }
-
-    private static void registerGcvAttributesSchema(Project project) {
-        project.allprojects(p -> {
-            AttributesSchema attributesSchema = p.getDependencies().getAttributesSchema();
-            attributesSchema.attribute(GCV_SCOPE_ATTRIBUTE);
-            attributesSchema.attribute(GCV_USAGE_ATTRIBUTE);
-            attributesSchema.attribute(Usage.USAGE_ATTRIBUTE, strategy -> {
-                strategy.getCompatibilityRules().add(EverythingIsCompatibleWithConsistentVersionsUsage.class);
-            });
         });
     }
 
