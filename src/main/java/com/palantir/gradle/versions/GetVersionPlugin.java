@@ -16,144 +16,85 @@
 
 package com.palantir.gradle.versions;
 
-import com.google.common.base.Preconditions;
-import com.google.common.base.Splitter;
 import com.google.common.collect.Iterables;
-import groovy.lang.Closure;
+import com.palantir.gradle.versions.ConsistentVersionsPlugin.GcvAttributes;
+import com.palantir.gradle.versions.ConsistentVersionsPlugin.GcvBuildPath;
+import com.palantir.gradle.versions.VersionsLockPlugin.GcvUsage;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
+import javax.inject.Inject;
 import org.gradle.api.GradleException;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
+import org.gradle.api.artifacts.ConfigurationContainer;
 import org.gradle.api.artifacts.ModuleVersionIdentifier;
 import org.gradle.api.artifacts.result.ResolvedComponentResult;
+import org.gradle.api.model.ObjectFactory;
 
-public final class GetVersionPlugin implements Plugin<Project> {
+public abstract class GetVersionPlugin implements Plugin<Project> {
+
+    private static final String GET_VERSION_ELEMENTS_CONFIGURATION_NAME = "gcvGetVersionElements";
+
+    static final String GET_VERSIONS_CAPABILITY = "gcv:get-versions:0";
+
+    @Inject
+    protected abstract ConfigurationContainer getConfigurations();
+
+    @Inject
+    protected abstract ObjectFactory getObjects();
 
     @Override
-    public void apply(Project project) {
-        project.getExtensions().getExtraProperties().set("getVersion", new Closure<String>(project, project) {
-            /**
-             * Groovy will invoke this method if they just supply one arg, e.g. 'com.google.guava:guava'. This is the
-             * preferred signature because it's shortest.
-             */
-            @SuppressWarnings("for-rollout:UnusedMethod")
-            public String doCall(Object moduleVersion) {
-                GroupAndName groupAndName = splitModuleVersion(moduleVersion);
-                return versionFromLockConstraints(project, groupAndName.group(), groupAndName.name());
-            }
-
-            /** Find a version from another configuration, e.g. from the gradle-docker plugin. */
-            @SuppressWarnings("for-rollout:UnusedMethod")
-            public String doCall(Object moduleVersion, Configuration configuration) {
-                GroupAndName groupAndName = splitModuleVersion(moduleVersion);
-                return getVersion(project, groupAndName.group(), groupAndName.name(), configuration);
-            }
-
-            /** This matches the signature of nebula's dependencyRecommendations.getRecommendedVersion. */
-            @SuppressWarnings("for-rollout:UnusedMethod")
-            public String doCall(String group, String name) {
-                return versionFromLockConstraints(project, group, name);
-            }
-
-            @SuppressWarnings("for-rollout:UnusedMethod")
-            public String doCall(String group, String name, Configuration configuration) {
-                return getVersion(project, group, name, configuration);
-            }
-        });
-    }
-
-    private record GroupAndName(String group, String name) {}
-
-    private static GroupAndName splitModuleVersion(Object moduleVersion) {
-        String coordinate = moduleVersion.toString();
-        List<String> strings = Splitter.on(':').splitToList(coordinate);
-        Preconditions.checkState(strings.size() == 2, "Expected 'group:name', found: %s", coordinate);
-        return new GroupAndName(strings.get(0), strings.get(1));
-    }
-
-    private static String getVersion(Project project, String group, String name, Configuration configuration) {
-        return getOptionalVersion(project, group, name, configuration)
-                .orElseThrow(() -> notFound(group, name, configuration));
-    }
-
-    private static String versionFromLockConstraints(Project project, String group, String name) {
-        if (GradleWorkarounds.isConfiguring(project.getState())) {
-            throw new GradleException(String.format("""
-                Not allowed to call gradle-consistent-versions's getVersion("%s", "%s") at configuration time
-                """, group, name));
+    public final void apply(Project rootProject) {
+        if (!rootProject.getRootProject().equals(rootProject)) {
+            throw new GradleException("GetVersionPlugin must be applied only to root project");
         }
-        Configuration gcvLocks =
-                project.getRootProject().getConfigurations().getByName(VersionsLockPlugin.GCV_LOCKS_CONFIGURATION_NAME);
-        // gcvLocks constraints are always created with 'strictly' (see VersionsLockPlugin)
-        List<String> versions = gcvLocks.getDependencyConstraints().stream()
-                .filter(constraint -> constraint.getGroup().equals(group)
-                        && constraint.getName().equals(name))
-                .map(constraint -> constraint.getVersionConstraint().getStrictVersion())
-                .toList();
-        return singleVersion(versions, group, name, "versions.lock")
-                // versions.lock only records external modules, never project dependencies, so fall back to matching
-                // a project in this build by its coordinates.
-                .or(() -> versionFromProjectDependency(project, group, name))
-                .orElseThrow(() -> notFoundInLockFile(group, name));
-    }
 
-    private static Optional<String> versionFromProjectDependency(Project project, String group, String name) {
-        List<String> versions = project.getRootProject().getAllprojects().stream()
-                .filter(candidate -> candidate.getGroup().toString().equals(group)
-                        && candidate.getName().equals(name))
-                .map(candidate -> candidate.getVersion().toString())
-                .toList();
-        return singleVersion(versions, group, name, "projects in this build");
+        getConfigurations().register(GET_VERSION_ELEMENTS_CONFIGURATION_NAME, configuration -> {
+            configuration.setCanBeConsumed(true);
+            configuration.setCanBeResolved(false);
+            configuration.extendsFrom(getConfigurations()
+                    .getByName(VersionsLockPlugin.UNIFIED_CLASSPATH_DEPENDENCIES_CONFIGURATION_NAME));
+            configuration.getOutgoing().capability(GET_VERSIONS_CAPABILITY);
+            configuration.getAttributes().attribute(VersionsLockPlugin.GCV_USAGE_ATTRIBUTE, GcvUsage.GCV_SOURCE);
+            configuration
+                    .getAttributes()
+                    .attribute(
+                            GcvBuildPath.ATTRIBUTE,
+                            getObjects().newInstance(GcvAttributes.class).buildPath());
+        });
+
+        rootProject
+                .getAllprojects()
+                .forEach(project -> project.getPluginManager().apply(GetVersionProjectPlugin.class));
     }
 
     static Optional<String> getOptionalVersion(
             Project project, String group, String name, Configuration configuration) {
         if (GradleWorkarounds.isConfiguring(project.getState())) {
-            throw new GradleException(String.format("""
-                Not allowed to call gradle-consistent-versions's getVersion("%s", "%s", configurations.%s) at configuration time
-                """, group, name, configuration.getName()));
+            throw new GradleException(String.format(
+                    "Not allowed to call gradle-consistent-versions's getVersion(\"%s\", \"%s\", "
+                            + "configurations.%s) "
+                            + "at configuration time",
+                    group, name, configuration.getName()));
         }
-        List<String> versions = configuration.getIncoming().getResolutionResult().getAllComponents().stream()
-                .map(ResolvedComponentResult::getModuleVersion)
-                .filter(item -> item.getGroup().equals(group) && item.getName().equals(name))
-                .map(ModuleVersionIdentifier::getVersion)
-                .toList();
-        return singleVersion(versions, group, name, configuration.toString());
-    }
 
-    private static Optional<String> singleVersion(List<String> versions, String group, String name, String source) {
-        if (versions.isEmpty()) {
+        List<ModuleVersionIdentifier> list =
+                configuration.getIncoming().getResolutionResult().getAllComponents().stream()
+                        .map(ResolvedComponentResult::getModuleVersion)
+                        .filter(item ->
+                                item.getGroup().equals(group) && item.getName().equals(name))
+                        .toList();
+
+        if (list.isEmpty()) {
             return Optional.empty();
         }
-        if (versions.size() > 1) {
+
+        if (list.size() > 1) {
             throw new GradleException(
-                    String.format("Multiple versions matching '%s:%s' in %s: %s", group, name, source, versions));
+                    String.format("Multiple modules matching '%s:%s' in %s: %s", group, name, configuration, list));
         }
-        return Optional.of(Iterables.getOnlyElement(versions));
-    }
 
-    private static GradleException notFound(String group, String name, Configuration configuration) {
-        String actual = configuration.getIncoming().getResolutionResult().getAllComponents().stream()
-                .map(ResolvedComponentResult::getModuleVersion)
-                .map(mvi -> String.format("\t- %s:%s:%s", mvi.getGroup(), mvi.getName(), mvi.getVersion()))
-                .collect(Collectors.joining("\n"));
-        return new GradleException(String.format("""
-            Unable to find '%s:%s' in %s.
-            This may happen if you specify the version in versions.props but do not have a
-            dependency in the configuration. The configuration contained:
-            %s
-            """, group, name, configuration, actual));
-    }
-
-    private static GradleException notFoundInLockFile(String group, String name) {
-        return new GradleException(String.format("""
-            Unable to find '%s:%s' in versions.lock.
-            This may happen if you specify the version in versions.props but do not have a
-            dependency on it anywhere in the project, or if versions.lock is out of date
-            (run `./gradlew writeVersionsLock`).
-            """, group, name));
+        return Optional.of(Iterables.getOnlyElement(list).getVersion());
     }
 }

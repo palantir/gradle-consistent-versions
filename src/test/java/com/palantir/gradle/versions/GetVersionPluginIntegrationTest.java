@@ -83,7 +83,7 @@ class GetVersionPluginIntegrationTest {
             }
             """);
         InvocationResult result = gradle.withArgs(":child:callGetVersion").buildsWithFailure();
-        assertThat(result).output().contains("Unable to find 'com.google.guava:guava' in versions.lock");
+        assertThat(result).output().contains("Unable to find 'com.google.guava:guava' in");
     }
 
     @Test
@@ -97,6 +97,6 @@ class GetVersionPluginIntegrationTest {
             }
             """);
         InvocationResult result = gradle.withArgs("callGetVersion").buildsWithFailure();
-        assertThat(result).output().contains("Unable to find 'com.google.guava:guava' in versions.lock");
+        assertThat(result).output().contains("Unable to find 'com.google.guava:guava' in");
     }
 }
