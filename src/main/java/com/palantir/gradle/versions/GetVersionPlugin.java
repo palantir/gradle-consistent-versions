@@ -20,8 +20,6 @@ import static java.util.stream.Collectors.toList;
 
 import com.google.common.collect.Iterables;
 import com.palantir.gradle.versions.ConsistentVersionsPlugin.GcvAttributes;
-import com.palantir.gradle.versions.ConsistentVersionsPlugin.GcvBuildPath;
-import com.palantir.gradle.versions.VersionsLockPlugin.GcvUsage;
 import java.util.List;
 import java.util.Optional;
 import javax.inject.Inject;
@@ -58,12 +56,7 @@ public abstract class GetVersionPlugin implements Plugin<Project> {
             configuration.extendsFrom(getConfigurations()
                     .getByName(VersionsLockPlugin.UNIFIED_CLASSPATH_DEPENDENCIES_CONFIGURATION_NAME));
             configuration.getOutgoing().capability(GET_VERSIONS_CAPABILITY);
-            configuration.getAttributes().attribute(VersionsLockPlugin.GCV_USAGE_ATTRIBUTE, GcvUsage.GCV_SOURCE);
-            configuration
-                    .getAttributes()
-                    .attribute(
-                            GcvBuildPath.ATTRIBUTE,
-                            getObjects().newInstance(GcvAttributes.class).buildPath());
+            configuration.attributes(getObjects().newInstance(GcvAttributes.class)::configureGcvBaseAttributes);
         });
 
         rootProject
