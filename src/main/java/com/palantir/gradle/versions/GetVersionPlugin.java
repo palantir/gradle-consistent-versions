@@ -93,7 +93,21 @@ public final class GetVersionPlugin implements Plugin<Project> {
                         && constraint.getName().equals(name))
                 .map(constraint -> constraint.getVersionConstraint().getStrictVersion())
                 .toList();
-        return singleVersion(versions, group, name, "versions.lock").orElseThrow(() -> notFoundInLockFile(group, name));
+        return singleVersion(versions, group, name, "versions.lock")
+                // versions.lock only records external modules, never project dependencies, so fall back to matching
+                // a project in this build by its coordinates. This keeps getVersion working for coordinates that
+                // resolve to a local project (e.g. when used to set an sls minimumVersion).
+                .or(() -> versionFromProjectDependency(project, group, name))
+                .orElseThrow(() -> notFoundInLockFile(group, name));
+    }
+
+    private static Optional<String> versionFromProjectDependency(Project project, String group, String name) {
+        List<String> versions = project.getRootProject().getAllprojects().stream()
+                .filter(candidate -> candidate.getGroup().toString().equals(group)
+                        && candidate.getName().equals(name))
+                .map(candidate -> candidate.getVersion().toString())
+                .toList();
+        return singleVersion(versions, group, name, "projects in this build");
     }
 
     static Optional<String> getOptionalVersion(

@@ -203,6 +203,34 @@ class ConsistentVersionsPluginIntegrationTest {
     }
 
     @Test
+    @DisabledConfigurationCache(
+            "Cannot reference a Gradle script object from a Groovy closure as these are not supported with the"
+                    + " configuration cache")
+    void get_version_function_works_for_a_project_dependency(
+            GradleInvoker gradle, SubProject lib, SubProject consumer) {
+        lib.buildGradle().plugins().add("java");
+        lib.buildGradle().append("""
+            group = 'com.example'
+            version = '1.2.3'
+            """);
+
+        consumer.buildGradle().plugins().add("java");
+        consumer.buildGradle().append("""
+            dependencies {
+                implementation project(':lib')
+            }
+
+            task demo {
+                doLast { println "demo=" + getVersion('com.example:lib') }
+            }
+            """);
+
+        InvocationResult result =
+                gradle.withArgs(":consumer:demo", "--write-locks").buildsSuccessfully();
+        assertThat(result).output().contains("demo=1.2.3");
+    }
+
+    @Test
     @DisabledConfigurationCache("configuration cache cannot be reused due to --write-locks")
     void virtual_platform_is_respected_across_projects(
             GradleInvoker gradle, RootProject rootProject, SubProject foo, SubProject bar) {
