@@ -16,6 +16,8 @@
 
 package com.palantir.gradle.versions;
 
+import static java.util.stream.Collectors.toList;
+
 import com.google.common.collect.Iterables;
 import com.palantir.gradle.versions.ConsistentVersionsPlugin.GcvAttributes;
 import com.palantir.gradle.versions.ConsistentVersionsPlugin.GcvBuildPath;
@@ -84,7 +86,7 @@ public abstract class GetVersionPlugin implements Plugin<Project> {
                         .map(ResolvedComponentResult::getModuleVersion)
                         .filter(item ->
                                 item.getGroup().equals(group) && item.getName().equals(name))
-                        .toList();
+                        .collect(toList());
 
         if (list.isEmpty()) {
             return Optional.empty();
