@@ -95,8 +95,7 @@ public final class GetVersionPlugin implements Plugin<Project> {
                 .toList();
         return singleVersion(versions, group, name, "versions.lock")
                 // versions.lock only records external modules, never project dependencies, so fall back to matching
-                // a project in this build by its coordinates. This keeps getVersion working for coordinates that
-                // resolve to a local project (e.g. when used to set an sls minimumVersion).
+                // a project in this build by its coordinates.
                 .or(() -> versionFromProjectDependency(project, group, name))
                 .orElseThrow(() -> notFoundInLockFile(group, name));
     }
