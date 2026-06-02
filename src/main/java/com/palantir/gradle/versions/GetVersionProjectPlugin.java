@@ -42,13 +42,13 @@ public abstract class GetVersionProjectPlugin implements Plugin<Project> {
     private static final String GET_VERSIONS_CONFIGURATION_NAME = "gcvGetVersions";
 
     @Inject
-    protected abstract ConfigurationContainer getConfigurations();
-
-    @Inject
     protected abstract ObjectFactory getObjects();
 
     @Inject
     protected abstract DependencyHandler getDependencies();
+
+    @Inject
+    protected abstract ConfigurationContainer getConfigurations();
 
     @Override
     public final void apply(Project project) {

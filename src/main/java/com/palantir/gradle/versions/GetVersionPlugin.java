@@ -39,10 +39,10 @@ public abstract class GetVersionPlugin implements Plugin<Project> {
     static final String GET_VERSIONS_CAPABILITY = "gcv:get-versions:0";
 
     @Inject
-    protected abstract ConfigurationContainer getConfigurations();
+    protected abstract ObjectFactory getObjects();
 
     @Inject
-    protected abstract ObjectFactory getObjects();
+    protected abstract ConfigurationContainer getConfigurations();
 
     @Override
     public final void apply(Project rootProject) {
