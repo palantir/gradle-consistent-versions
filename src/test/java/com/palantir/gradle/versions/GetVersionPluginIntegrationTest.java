@@ -85,7 +85,7 @@ class GetVersionPluginIntegrationTest {
         InvocationResult result = gradle.withArgs(":child:callGetVersion").buildsWithFailure();
         assertThat(result)
                 .output()
-                .contains("Unable to find 'com.google.guava:guava' in configuration ':gcvGetVersions'");
+                .contains("Unable to find 'com.google.guava:guava' in configuration ':child:gcvGetVersions'");
     }
 
     @Test
