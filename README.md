@@ -210,7 +210,7 @@ task printGuavaVersion {
 
 This function may not be invoked at [Gradle Configuration time](https://docs.gradle.org/current/userguide/build_lifecycle.html) as it involves resolving dependencies. Put it inside a closure or provider to ensure it is only invoked at Execution time.
 
-By default, this function resolves a per-project view of the unified dependency graph to supply a version (see [ADR 1](docs/adr/0001-getversion-per-project-resolution.md) for how this works). You can also supply a different configuration to resolve a version from instead. Note that any configuration you supply must live in the project that `getVersion` is being called from:
+By default, this function will eventually resolve the `unifiedClasspath` configuration located in the root project to supply a version ([how this works](docs/adr/0001-getversion-per-project-resolution.md)). You can also supply a different configuration to resolve a version from instead. Note that any configuration you supply must live in the project that `getVersion` is being called from:
 
 ```gradle
 task printGuavaVersion {
