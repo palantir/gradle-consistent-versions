@@ -16,20 +16,12 @@
 
 package com.palantir.gradle.versions;
 
-import static java.util.stream.Collectors.toList;
-
-import com.google.common.collect.Iterables;
 import com.palantir.gradle.versions.ConsistentVersionsPlugin.GcvAttributes;
-import java.util.List;
-import java.util.Optional;
 import javax.inject.Inject;
 import org.gradle.api.GradleException;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
-import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.ConfigurationContainer;
-import org.gradle.api.artifacts.ModuleVersionIdentifier;
-import org.gradle.api.artifacts.result.ResolvedComponentResult;
 import org.gradle.api.model.ObjectFactory;
 
 public abstract class GetVersionPlugin implements Plugin<Project> {
@@ -62,34 +54,5 @@ public abstract class GetVersionPlugin implements Plugin<Project> {
         rootProject
                 .getAllprojects()
                 .forEach(project -> project.getPluginManager().apply(GetVersionProjectPlugin.class));
-    }
-
-    static Optional<String> getOptionalVersion(
-            Project project, String group, String name, Configuration configuration) {
-        if (GradleWorkarounds.isConfiguring(project.getState())) {
-            throw new GradleException(String.format(
-                    "Not allowed to call gradle-consistent-versions's getVersion(\"%s\", \"%s\", "
-                            + "configurations.%s) "
-                            + "at configuration time",
-                    group, name, configuration.getName()));
-        }
-
-        List<ModuleVersionIdentifier> list =
-                configuration.getIncoming().getResolutionResult().getAllComponents().stream()
-                        .map(ResolvedComponentResult::getModuleVersion)
-                        .filter(item ->
-                                item.getGroup().equals(group) && item.getName().equals(name))
-                        .collect(toList());
-
-        if (list.isEmpty()) {
-            return Optional.empty();
-        }
-
-        if (list.size() > 1) {
-            throw new GradleException(
-                    String.format("Multiple modules matching '%s:%s' in %s: %s", group, name, configuration, list));
-        }
-
-        return Optional.of(Iterables.getOnlyElement(list).getVersion());
     }
 }
