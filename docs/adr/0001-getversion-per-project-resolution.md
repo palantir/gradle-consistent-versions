@@ -29,10 +29,8 @@ root project's configuration. It commonly surfaces via `sls-packaging`'s
   lock" error only applies to *resolution* — reading a configuration's declared
   `DependencyConstraint`s is fine, so the no-config lookup could read the strict
   constraints off the root `gcvLocks` platform instead. This works for the common case
-  but still reads the root project's model from a subproject, is not
-  isolated-projects-compatible, and needs special-casing for the
-  `getVersion('group:name', configuration)` and `getVersion(project(...))` cases (the
-  supplied/queried configuration must come from the calling project).
+  but still reads the root project's model from a subproject, it needs special-casing for the
+  `getVersion(project(...))` case.
 - **Per-project view of the unified graph (chosen).** Each project resolves its *own*
   configuration instead of reaching into the root's `unifiedClasspath`. This is the
   isolated-projects-shaped route and is the only one that keeps all `getVersion`
