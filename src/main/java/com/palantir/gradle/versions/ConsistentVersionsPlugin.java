@@ -108,6 +108,11 @@ public class ConsistentVersionsPlugin implements Plugin<Project> {
             attributes.attribute(Usage.USAGE_ATTRIBUTE, gradleUsageForGcv());
             attributes.attribute(GcvBuildPath.ATTRIBUTE, buildPath());
         }
+
+        public final void configureGcvSourceAttributes(AttributeContainer attributes) {
+            attributes.attribute(VersionsLockPlugin.GCV_USAGE_ATTRIBUTE, VersionsLockPlugin.GcvUsage.GCV_SOURCE);
+            attributes.attribute(GcvBuildPath.ATTRIBUTE, buildPath());
+        }
     }
 
     public abstract static class GcvBuildPath implements Named {

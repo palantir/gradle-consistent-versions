@@ -226,10 +226,7 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
                     conf.extendsFrom(unifiedClasspathDependencies);
 
                     // Attributes declared here will become required attributes when resolving this configuration
-                    conf.getAttributes().attribute(GCV_USAGE_ATTRIBUTE, GcvUsage.GCV_SOURCE);
-                    conf.getAttributes()
-                            .attribute(
-                                    GcvBuildPath.ATTRIBUTE, getGcvAttributes().buildPath());
+                    conf.attributes(getGcvAttributes()::configureGcvSourceAttributes);
                 });
 
         project.allprojects(subproject -> {

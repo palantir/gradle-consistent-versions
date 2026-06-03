@@ -22,7 +22,7 @@ import org.gradle.api.GradleException;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.ConfigurationContainer;
-import org.gradle.api.model.ObjectFactory;
+import org.gradle.api.tasks.Nested;
 
 public abstract class GetVersionPlugin implements Plugin<Project> {
 
@@ -30,8 +30,8 @@ public abstract class GetVersionPlugin implements Plugin<Project> {
 
     static final String GET_VERSIONS_CAPABILITY = "gcv:get-versions:0";
 
-    @Inject
-    protected abstract ObjectFactory getObjects();
+    @Nested
+    protected abstract GcvAttributes getAttributes();
 
     @Inject
     protected abstract ConfigurationContainer getConfigurations();
@@ -48,7 +48,7 @@ public abstract class GetVersionPlugin implements Plugin<Project> {
             configuration.extendsFrom(getConfigurations()
                     .getByName(VersionsLockPlugin.UNIFIED_CLASSPATH_DEPENDENCIES_CONFIGURATION_NAME));
             configuration.getOutgoing().capability(GET_VERSIONS_CAPABILITY);
-            configuration.attributes(getObjects().newInstance(GcvAttributes.class)::configureGcvBaseAttributes);
+            configuration.attributes(getAttributes()::configureGcvBaseAttributes);
         });
 
         rootProject

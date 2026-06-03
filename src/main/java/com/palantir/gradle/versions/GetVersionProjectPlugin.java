@@ -22,8 +22,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Iterables;
 import com.palantir.gradle.versions.ConsistentVersionsPlugin.GcvAttributes;
-import com.palantir.gradle.versions.ConsistentVersionsPlugin.GcvBuildPath;
-import com.palantir.gradle.versions.VersionsLockPlugin.GcvUsage;
 import groovy.lang.Closure;
 import java.util.List;
 import java.util.Map;
@@ -40,14 +38,14 @@ import org.gradle.api.artifacts.ModuleVersionIdentifier;
 import org.gradle.api.artifacts.ProjectDependency;
 import org.gradle.api.artifacts.dsl.DependencyHandler;
 import org.gradle.api.artifacts.result.ResolvedComponentResult;
-import org.gradle.api.model.ObjectFactory;
+import org.gradle.api.tasks.Nested;
 
 public abstract class GetVersionProjectPlugin implements Plugin<Project> {
 
     private static final String GET_VERSIONS_CONFIGURATION_NAME = "gcvGetVersions";
 
-    @Inject
-    protected abstract ObjectFactory getObjects();
+    @Nested
+    protected abstract GcvAttributes getAttributes();
 
     @Inject
     protected abstract DependencyHandler getDependencies();
@@ -61,16 +59,7 @@ public abstract class GetVersionProjectPlugin implements Plugin<Project> {
                 .register(GET_VERSIONS_CONFIGURATION_NAME, configuration -> {
                     configuration.setCanBeConsumed(false);
                     configuration.setCanBeResolved(true);
-                    configuration
-                            .getAttributes()
-                            .attribute(VersionsLockPlugin.GCV_USAGE_ATTRIBUTE, GcvUsage.GCV_SOURCE);
-                    configuration
-                            .getAttributes()
-                            .attribute(
-                                    GcvBuildPath.ATTRIBUTE,
-                                    getObjects()
-                                            .newInstance(GcvAttributes.class)
-                                            .buildPath());
+                    configuration.attributes(getAttributes()::configureGcvSourceAttributes);
 
                     ProjectDependency rootDependency = (ProjectDependency) getDependencies()
                             .project(Map.of("path", project.getRootProject().getPath()));
