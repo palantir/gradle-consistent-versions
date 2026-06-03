@@ -18,12 +18,12 @@ package com.palantir.gradle.versions;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
-import com.google.common.collect.ImmutableMap;
 import com.palantir.gradle.versions.ConsistentVersionsPlugin.GcvAttributes;
 import com.palantir.gradle.versions.ConsistentVersionsPlugin.GcvBuildPath;
 import com.palantir.gradle.versions.VersionsLockPlugin.GcvUsage;
 import groovy.lang.Closure;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import javax.inject.Inject;
 import org.gradle.api.GradleException;
@@ -67,8 +67,8 @@ public abstract class GetVersionProjectPlugin implements Plugin<Project> {
                                             .newInstance(GcvAttributes.class)
                                             .buildPath());
 
-                    ProjectDependency rootDependency =
-                            (ProjectDependency) getDependencies().project(ImmutableMap.of("path", ":"));
+                    ProjectDependency rootDependency = (ProjectDependency) getDependencies()
+                            .project(Map.of("path", project.getRootProject().getPath()));
                     rootDependency.capabilities(
                             handler -> handler.requireCapabilities(GetVersionPlugin.GET_VERSIONS_CAPABILITY));
                     configuration.getDependencies().add(rootDependency);
