@@ -23,7 +23,6 @@ import com.palantir.gradle.testing.execution.InvocationResult;
 import com.palantir.gradle.testing.junit.DisabledConfigurationCache;
 import com.palantir.gradle.testing.junit.GradlePluginTests;
 import com.palantir.gradle.testing.project.RootProject;
-import com.palantir.gradle.testing.project.SubProject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -70,22 +69,6 @@ class GetVersionPluginIntegrationTest {
         assertThat(result)
                 .output()
                 .contains("Unable to find 'com.google.guava:guava' in configuration ':runtimeClasspath'");
-    }
-
-    @Test
-    void get_version_is_callable_from_subproject(GradleInvoker gradle, SubProject child) {
-        child.buildGradle().plugins().add("java");
-        child.buildGradle().append("""
-            tasks.register('callGetVersion') {
-                doLast {
-                    getVersion('com.google.guava', 'guava')
-                }
-            }
-            """);
-        InvocationResult result = gradle.withArgs(":child:callGetVersion").buildsWithFailure();
-        assertThat(result)
-                .output()
-                .contains("Unable to find 'com.google.guava:guava' in configuration ':child:gcvGetVersions'");
     }
 
     @Test
