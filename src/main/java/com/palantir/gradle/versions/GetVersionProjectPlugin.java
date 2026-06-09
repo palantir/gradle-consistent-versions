@@ -102,8 +102,21 @@ public abstract class GetVersionProjectPlugin implements Plugin<Project> {
     }
 
     private static String getVersion(Project project, String group, String name, Configuration configuration) {
+        checkConfigurationBelongsToProject(project, configuration);
         return getOptionalVersion(project, group, name, configuration)
                 .orElseThrow(() -> notFound(group, name, configuration));
+    }
+
+    private static void checkConfigurationBelongsToProject(Project project, Configuration configuration) {
+        Configuration ownConfiguration = project.getConfigurations().findByName(configuration.getName());
+        if (ownConfiguration != configuration) {
+            throw new GradleException(
+                    String.format("""
+                        Cannot call getVersion with %s as it does not belong to project '%s'. getVersion can only \
+                        resolve a configuration that lives in the project it is called from. Either supply a \
+                        configuration from '%s', or call getVersion from the project that owns %s.\
+                        """, configuration, project.getPath(), project.getPath(), configuration));
+        }
     }
 
     static Optional<String> getOptionalVersion(

@@ -258,6 +258,31 @@ class ConsistentVersionsPluginIntegrationTest {
     }
 
     @Test
+    @DisabledConfigurationCache(
+            "Cannot reference a Gradle script object from a Groovy closure as these are not supported with the"
+                    + " configuration cache")
+    void get_version_function_fails_clearly_when_configuration_belongs_to_another_project(
+            GradleInvoker gradle, SubProject lib, SubProject consumer) {
+        lib.buildGradle().plugins().add("java");
+
+        consumer.buildGradle().plugins().add("java");
+        consumer.buildGradle().append("""
+            task demo {
+                doLast {
+                    println getVersion('org.slf4j:slf4j-api', project(':lib').configurations.runtimeClasspath)
+                }
+            }
+            """);
+
+        InvocationResult result =
+                gradle.withArgs(":consumer:demo", "--write-locks").buildsWithFailure();
+        assertThat(result)
+                .output()
+                .contains("does not belong to project ':consumer'")
+                .contains("getVersion can only resolve a configuration that lives in the project it is called from");
+    }
+
+    @Test
     @DisabledConfigurationCache("configuration cache cannot be reused due to --write-locks")
     void virtual_platform_is_respected_across_projects(
             GradleInvoker gradle, RootProject rootProject, SubProject foo, SubProject bar) {
