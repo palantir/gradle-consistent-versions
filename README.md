@@ -210,7 +210,7 @@ task printGuavaVersion {
 
 This function may not be invoked at [Gradle Configuration time](https://docs.gradle.org/current/userguide/build_lifecycle.html) as it involves resolving dependencies. Put it inside a closure or provider to ensure it is only invoked at Execution time.
 
-By default, this function will resolve the calling project's `gcvGetVersions` configuration to supply a version ([how this works](docs/adr/0001-getversion-per-project-resolution.md)). You can also supply a different configuration to resolve a version from instead. Note that any configuration you supply must live in the project that `getVersion` is being called from:
+By default, this function will resolve the calling project's `gcvGetVersions` configuration to supply a version ([how this works](docs/adr/0001-getversion-per-project-resolution.md)). You can also supply a different configuration to resolve a version from instead:
 
 ```gradle
 task printGuavaVersion {
@@ -220,6 +220,9 @@ task printGuavaVersion {
     }
 }
 ```
+
+> [!NOTE]
+> Any configuration you supply must live in the project that `getVersion` is being called from.
 
 ### BOMs
 Gradle has [first-class support][bom] for sourcing version constraints from published BOMs so they work fine with gradle-consistent-versions:
