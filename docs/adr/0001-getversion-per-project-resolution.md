@@ -37,18 +37,17 @@ Each project resolves a per-project view of the unified dependency graph instead
 
 This follows Gradle's intended separation of configuration roles. On the root project, a **dependency-scope configuration** holds the declared dependencies, and both the resolvable view that computes the locks and the consumable view that exposes them extend it. Each project then gets its own resolvable configuration that *consumes* that root view through a project dependency requesting its capability.
 
-- **`VersionsLockPlugin`** (root): collects every project's production + test deps into a new dependency-scope configuration, `unifiedClasspathDependencies`. `unifiedClasspath` (resolvable) now just `extendsFrom` it and still computes the lock state — behaviour is unchanged, `unifiedClasspathDependencies` is purely an intermediate.
-- **`GetVersionPlugin`** (root): adds `gcvGetVersionElements`, a *consumable* view that also extends `unifiedClasspathDependencies`, carrying capability `gcv:get-versions:0` and the `GCV_SOURCE` usage. Applies `GetVersionProjectPlugin` to every project.
-- **`GetVersionProjectPlugin`** (new, per-project): registers a resolvable `gcvGetVersions` configuration that depends on `project(':')` requesting the same capability, and wires the `getVersion(...)` ? to resolve that configuration.
+- **`VersionsLockPlugin`** (root): collects every project's production + test deps into a new dependency-scope configuration, `unifiedClasspathDependencies`. Two views extend it: `unifiedClasspath` (resolvable) still computes the lock state — behaviour is unchanged — and a new `unifiedClasspathElements` (consumable) exposes the same graph to other projects under capability `gcv:unified-classpath:0`.
+- **`GetVersionPlugin`** (applied to every project): registers a resolvable `gcvGetVersions` configuration that depends on `project(':')` requesting capability `gcv:unified-classpath:0`, and wires `getVersion(...)` to resolve that configuration.
 
 ```mermaid
 flowchart TD
     subgraph root["root project"]
         deps["<b>unifiedClasspathDependencies</b><br/><i>dependency-scope configuration</i><br/>(every project's prod + test deps)"]
-        elements["<b>gcvGetVersionElements</b><br/><i>consumable</i> · cap gcv:get-versions:0"]
+        elements["<b>unifiedClasspathElements</b><br/><i>consumable</i> · cap gcv:unified-classpath:0"]
         unified["<b>unifiedClasspath</b><br/><i>resolvable</i> → writeLocks / verifyLocks"]
-        deps -->|extendsFrom| elements
-        deps -->|extendsFrom| unified
+        elements -->|extendsFrom| deps
+        unified -->|extendsFrom| deps
     end
     subgraph child[":child (and every project)"]
         getv["<b>gcvGetVersions</b><br/><i>resolvable</i>"]
