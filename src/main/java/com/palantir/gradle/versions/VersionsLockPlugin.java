@@ -115,11 +115,14 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
     /** Root project configuration that collects all the dependencies from each project. */
     static final String UNIFIED_CLASSPATH_CONFIGURATION_NAME = "unifiedClasspath";
 
-    /**
-     * Dependency-scope bucket holding the project dependencies collected from each project, so that the resolvable
-     * {@link #UNIFIED_CLASSPATH_CONFIGURATION_NAME} (and {@link GetVersionPlugin}'s consumable view) can extend it.
-     */
+    /** Dependency-scope bucket that both the resolvable and consumable unified classpath configurations extend. */
     static final String UNIFIED_CLASSPATH_DEPENDENCIES_CONFIGURATION_NAME = "unifiedClasspathDependencies";
+
+    /** Consumable view of the unified classpath, selected via {@link #UNIFIED_CLASSPATH_CAPABILITY}. */
+    static final String UNIFIED_CLASSPATH_ELEMENTS_CONFIGURATION_NAME = "unifiedClasspathElements";
+
+    /** Capability used to select the {@link #UNIFIED_CLASSPATH_ELEMENTS_CONFIGURATION_NAME} variant. */
+    static final String UNIFIED_CLASSPATH_CAPABILITY = "gcv:unified-classpath:0";
 
     /** Per-project configuration that gets resolved when resolving the user's inter-project dependencies. */
     private static final String PLACEHOLDER_CONFIGURATION_NAME = "consistentVersionsPlaceholder";
@@ -228,6 +231,14 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
                     // Attributes declared here will become required attributes when resolving this configuration
                     conf.attributes(getGcvAttributes()::configureGcvSourceAttributes);
                 });
+
+        project.getConfigurations().register(UNIFIED_CLASSPATH_ELEMENTS_CONFIGURATION_NAME, conf -> {
+            conf.setCanBeConsumed(true);
+            conf.setCanBeResolved(false);
+            conf.extendsFrom(unifiedClasspathDependencies);
+            conf.getOutgoing().capability(UNIFIED_CLASSPATH_CAPABILITY);
+            conf.attributes(getGcvAttributes()::configureGcvBaseAttributes);
+        });
 
         project.allprojects(subproject -> {
             subproject.getExtensions().create(VERSIONS_LOCK_EXTENSION, VersionsLockExtension.class, subproject);

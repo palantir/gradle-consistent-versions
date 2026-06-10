@@ -63,7 +63,7 @@ public class FixLegacyJavaConfigurationsPlugin implements Plugin<Project> {
                     injectVersions(
                             conf,
                             (group, name) ->
-                                    GetVersionProjectPlugin.getOptionalVersion(project, group, name, unifiedClasspath));
+                                    GetVersionPlugin.getOptionalVersion(project, group, name, unifiedClasspath));
                 });
     }
 
