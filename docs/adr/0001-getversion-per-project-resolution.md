@@ -43,21 +43,40 @@ This follows Gradle's intended separation of configuration roles. On the root pr
 ```mermaid
 flowchart TD
     subgraph root["root project"]
-        dependencies["<b>unifiedClasspathDependencies</b><br/><i>dependency-scope configuration</i><br/>(every project's prod + test dependencies)"]
-        elements["<b>unifiedClasspathElements</b><br/><i>consumable</i> · cap gcv:unified-classpath:0"]
-        unified["<b>unifiedClasspath</b><br/><i>resolvable</i> → writeLocks / verifyLocks"]
+        dependencies["<b>unifiedClasspathDependencies</b><br/>(dependencies from every project's locked configurations)"]
+        elements["<b>unifiedClasspathElements</b><br/>capability gcv:unified-classpath:0"]
+        unified["<b>unifiedClasspath</b><br/>→ writeLocks / verifyLocks"]
         elements -->|extendsFrom| dependencies
         unified -->|extendsFrom| dependencies
     end
-    subgraph child[":child (and every project)"]
-        getv["<b>gcvGetVersions</b><br/><i>resolvable</i>"]
-        gv["getVersion('g:n')<br/><i>reads its own resolution result</i>"]
-        getv --> gv
+    subgraph child["every subproject (including root)"]
+        gv["getVersion('group:name')"]
+        getv["<b>gcvGetVersions</b>"]
+        gv -->|resolves| getv
     end
-    getv -->|"project(':') + requireCapabilities"| elements
+    getv -->|"depends on, with capability gcv:unified-classpath:0"| elements
+
+    subgraph legend["legend"]
+        direction LR
+        lDep["dependency-scope"]:::declarable
+        lRes["resolvable"]:::resolvable
+        lCon["consumable"]:::consumable
+        lFn["plain function"]:::func
+    end
+
+    classDef declarable fill:#cfe2ff,stroke:#3b82f6,color:#111
+    classDef resolvable fill:#e9d5ff,stroke:#9333ea,color:#111
+    classDef consumable fill:#d1fae5,stroke:#10b981,color:#111
+    classDef func fill:#e5e7eb,stroke:#9ca3af,color:#111
+
+    class dependencies declarable
+    class unified,getv resolvable
+    class elements consumable
+    class gv func
 
     style root fill:none,stroke:#bbb,color:#111
     style child fill:none,stroke:#bbb,color:#111
+    style legend fill:none,stroke:#bbb,color:#111
 ```
 
 ## Consequences
