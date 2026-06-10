@@ -35,7 +35,7 @@ distribution {
 
 Each project resolves a per-project view of the unified dependency graph instead of reaching into the root's `unifiedClasspath`.
 
-The trick is a **dependency-scope configuration** that both the resolvable (lock-computing) and consumable (per-project) views extend, so no configuration extends one of a different role (Gradle 9 warns on a consumable extending a resolvable, and vice versa).
+This follows Gradle's intended separation of configuration roles: a **dependency-scope configuration** holds the declared dependencies, and both the resolvable (lock-computing) and consumable (per-project) views extend it, so no configuration extends one of a different role (Gradle 9 warns on a consumable extending a resolvable, and vice versa).
 
 - **`VersionsLockPlugin`** (root): collects every project's production + test deps into a new dependency-scope configuration, `unifiedClasspathDependencies`. `unifiedClasspath` (resolvable) now just `extendsFrom` it and still computes the lock state — behaviour is unchanged, `unifiedClasspathDependencies` is purely an intermediate.
 - **`GetVersionPlugin`** (root): adds `gcvGetVersionElements`, a *consumable* view that also extends `unifiedClasspathDependencies`, carrying capability `gcv:get-versions:0` and the `GCV_SOURCE` usage. Applies `GetVersionProjectPlugin` to every project.
