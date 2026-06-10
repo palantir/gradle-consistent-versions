@@ -62,4 +62,6 @@ flowchart TD
 
 ## Consequences
 
-Because `getVersion` resolves the unified graph in the *calling* project, the result still carries both locked external versions and in-build project versions, and it never resolves a cross-project configuration — so the exclusive-lock error is gone and the `getVersion('group:name', configuration)` / `getVersion(project(...))` cases keep working with no special-casing.
+`getVersion` now resolves the calling project's own `gcvGetVersions` configuration. Via the capability-selected consumable view, that configuration sees exactly the same set of dependencies collected into `unifiedClasspathDependencies`, so the version returned is identical to before. The only difference is that the resolution happens in the calling project rather than reaching into another project's configuration, so the exclusive-lock error is gone.
+
+An additional guard keeps the error from recurring through the explicit-configuration overload, `getVersion('group:name', configuration)`: since a caller can pass any configuration, `getVersion` now checks it belongs to the calling project and fails fast with a clear error otherwise.
