@@ -3,11 +3,11 @@
 ## Context
 
 `getVersion('group:name')` (from `GetVersionPlugin`) lets build scripts look up the
-version GCV settled on for a dependency. The no-configuration overloads originally
+version GCV settled on for a dependency. Originally, this
 worked by resolving the **root** project's `unifiedClasspath` configuration to read the
 version back out, regardless of which project `getVersion` was called from.
 
-On Gradle 9 this fails when `getVersion` is called from a subproject:
+On Gradle 9 this fails when it is called from a subproject:
 
 ```
 Caused by: org.gradle.api.internal.artifacts.configurations.DefaultConfiguration$IllegalResolutionException:
@@ -25,8 +25,7 @@ root project's configuration. It commonly surfaces via `sls-packaging`'s
 
 - **Read the `versions.lock` file directly.** All the information is there, but reading
   the lockfile from a subproject feels against the intent of GCV.
-- **Read the `gcvLocks` constraints instead of resolving.** The "without an exclusive
-  lock" error only applies to *resolution* — reading a configuration's declared
+- **Read the `gcvLocks` constraints instead of resolving.** The above error only applies to *resolution* — reading a configuration's declared
   `DependencyConstraint`s is fine, so the no-config lookup could read the strict
   constraints off the root `gcvLocks` platform instead. This works for the common case
   but still reads the root project's model from a subproject, it needs special-casing for the
@@ -53,8 +52,8 @@ role (Gradle 9 warns on a consumable extending a resolvable, and vice versa).
   also extends the bucket, carrying capability `gcv:get-versions:0` and the `GCV_SOURCE`
   usage. Applies `GetVersionProjectPlugin` to every project.
 - **`GetVersionProjectPlugin`** (new, per-project): registers a resolvable
-  `gcvGetVersions` that depends on `project(':')` requesting that capability, and wires
-  the `getVersion(...)` extension to resolve that configuration.
+  `gcvGetVersions` configuration that depends on `project(':')` requesting the same capability, and wires
+  the `getVersion(...)` ? to resolve that configuration.
 
 ```mermaid
 flowchart TD
