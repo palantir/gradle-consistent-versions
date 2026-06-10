@@ -35,20 +35,20 @@ distribution {
 
 Each project resolves a per-project view of the unified dependency graph instead of reaching into the root's `unifiedClasspath`.
 
-The trick is a **dependency-scope bucket** that both the resolvable (lock-computing) and consumable (per-project) views extend, so no configuration extends one of a different role (Gradle 9 warns on a consumable extending a resolvable, and vice versa).
+The trick is a **dependency-scope configuration** that both the resolvable (lock-computing) and consumable (per-project) views extend, so no configuration extends one of a different role (Gradle 9 warns on a consumable extending a resolvable, and vice versa).
 
-- **`VersionsLockPlugin`** (root): collects every project's production + test deps into a new dependency-scope bucket, `unifiedClasspathDependencies`. `unifiedClasspath` (resolvable) now just `extendsFrom` the bucket and still computes the lock state — behaviour is unchanged, the bucket is purely an intermediate.
-- **`GetVersionPlugin`** (root): adds `gcvGetVersionElements`, a *consumable* view that also extends the bucket, carrying capability `gcv:get-versions:0` and the `GCV_SOURCE` usage. Applies `GetVersionProjectPlugin` to every project.
+- **`VersionsLockPlugin`** (root): collects every project's production + test deps into a new dependency-scope configuration, `unifiedClasspathDependencies`. `unifiedClasspath` (resolvable) now just `extendsFrom` it and still computes the lock state — behaviour is unchanged, `unifiedClasspathDependencies` is purely an intermediate.
+- **`GetVersionPlugin`** (root): adds `gcvGetVersionElements`, a *consumable* view that also extends `unifiedClasspathDependencies`, carrying capability `gcv:get-versions:0` and the `GCV_SOURCE` usage. Applies `GetVersionProjectPlugin` to every project.
 - **`GetVersionProjectPlugin`** (new, per-project): registers a resolvable `gcvGetVersions` configuration that depends on `project(':')` requesting the same capability, and wires the `getVersion(...)` ? to resolve that configuration.
 
 ```mermaid
 flowchart TD
     subgraph root["root project"]
-        bucket["<b>unifiedClasspathDependencies</b><br/><i>dependency-scope bucket</i><br/>(every project's prod + test deps)"]
+        deps["<b>unifiedClasspathDependencies</b><br/><i>dependency-scope configuration</i><br/>(every project's prod + test deps)"]
         elements["<b>gcvGetVersionElements</b><br/><i>consumable</i> · cap gcv:get-versions:0"]
         unified["<b>unifiedClasspath</b><br/><i>resolvable</i> → writeLocks / verifyLocks"]
-        bucket -->|extendsFrom| elements
-        bucket -->|extendsFrom| unified
+        deps -->|extendsFrom| elements
+        deps -->|extendsFrom| unified
     end
     subgraph child[":child (and every project)"]
         getv["<b>gcvGetVersions</b><br/><i>resolvable</i>"]
