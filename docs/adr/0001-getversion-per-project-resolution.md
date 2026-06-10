@@ -56,17 +56,9 @@ flowchart TD
     end
     getv -->|"depends on, with capability gcv:unified-classpath:0"| elements
 
-    subgraph legend["legend"]
-        direction LR
-        lDep["dependency-scope"]:::declarable
-        lRes["resolvable"]:::resolvable
-        lCon["consumable"]:::consumable
-        lFn["plain function"]:::func
-    end
-
-    classDef declarable fill:#cfe2ff,stroke:#3b82f6,color:#111
-    classDef resolvable fill:#e9d5ff,stroke:#9333ea,color:#111
-    classDef consumable fill:#d1fae5,stroke:#10b981,color:#111
+    classDef declarable fill:#3b82f6,stroke:#1d4ed8,color:#fff
+    classDef resolvable fill:#a855f7,stroke:#7e22ce,color:#fff
+    classDef consumable fill:#22c55e,stroke:#15803d,color:#fff
     classDef func fill:#e5e7eb,stroke:#9ca3af,color:#111
 
     class dependencies declarable
@@ -76,8 +68,9 @@ flowchart TD
 
     style root fill:none,stroke:#bbb,color:#111
     style child fill:none,stroke:#bbb,color:#111
-    style legend fill:none,stroke:#bbb,color:#111
 ```
+
+Box colours by configuration role: 🟦 **blue** = dependency-scope, 🟪 **purple** = resolvable, 🟩 **green** = consumable, ⬜ **grey** = plain function.
 
 ## Consequences
 
