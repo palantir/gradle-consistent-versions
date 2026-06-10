@@ -13,7 +13,17 @@ Resolution of the configuration ':unifiedClasspath' was attempted without an exc
         at com.palantir.gradle.versions.GetVersionPlugin.getVersion(GetVersionPlugin.java:83)
 ```
 
-This was a warning on Gradle 8 and is now an error: a subproject may not resolve the root project's configuration. It commonly surfaces via `sls-packaging`'s `minimumVersion` usage inside `subprojects { ... }`, but affects any subproject `getVersion` call.
+This affects any subproject `getVersion` call but commonly surfaces via `sls-packaging`'s `minimumVersion` usage:
+```groovy
+distribution {
+    productDependency {
+        productGroup = "com.palantir.group"
+        productName = "my-service"
+        minimumVersion = getVersion('com.palantir.group', 'my-service-module-api')
+        maximumVersion = "1.x.x"
+    }
+}
+```
 
 ### Approaches considered
 
