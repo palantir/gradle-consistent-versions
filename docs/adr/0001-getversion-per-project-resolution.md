@@ -38,7 +38,9 @@ Each project resolves its own configuration of the unified dependency graph inst
 This follows Gradle's intended separation of configuration roles. On the root project, a **dependency-scope configuration** holds the declared dependencies, and both the resolvable configuration that computes the locks and the consumable configuration that exposes them extend it. Each project then gets its own resolvable configuration that *consumes* that root configuration through a project dependency requesting its capability.
 
 - **`VersionsLockPlugin`** (root): collects every project's production + test dependencies into a new dependency-scope configuration, `unifiedClasspathDependencies`. Two configurations extend it: `unifiedClasspath` (resolvable) still computes the lock state — behaviour is unchanged — and a new `unifiedClasspathElements` (consumable) exposes the same graph to other projects under capability `gcv:unified-classpath:0`.
-- **`GetVersionPlugin`** (applied to every project): registers a resolvable `gcvGetVersions` configuration that depends on `project(':')` requesting capability `gcv:unified-classpath:0`, and wires `getVersion(...)` to resolve that configuration.
+- **`GetVersionPlugin`** (applied to every project):
+    - registers a resolvable `gcvGetVersions` configuration that effectively points to `unifiedClasspathElements` from above by depending on the root project and requiring the same capability: `gcv:unified-classpath:0`.
+    - `getVersion('group:name')` is then configured to resolve against `gcvGetVersions` in the same project instead of the `unifiedClasspath` configuration that resides in the root project.
 
 ```mermaid
 flowchart TD
