@@ -221,8 +221,8 @@ task printGuavaVersion {
 }
 ```
 
-> [!NOTE]
-> Any configuration you supply must live in the project that `getVersion` is being called from.
+> [!WARNING]
+> Any configuration you supply **must** live in the project that `getVersion` is being called from.
 
 ### BOMs
 Gradle has [first-class support][bom] for sourcing version constraints from published BOMs so they work fine with gradle-consistent-versions:
