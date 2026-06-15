@@ -28,8 +28,8 @@ distribution {
 ### Approaches considered
 
 - **Read the `versions.lock` file directly.** The `getVersion('group:name')` lookup could parse the resolved version straight out of `versions.lock`. But `GetVersionPlugin` is as part of GCV itself, it has direct access to the very same resolved dependency model GCV uses to *write* `versions.lock`, so re-parsing its own serialised output would be backwards. It also wouldn't work: the lockfile only records *external* modules, so it couldn't serve a `getVersion` lookup that resolves to another project in the same build.
-- **Read the `gcvLocks` constraints instead of resolving.** The above error only applies to *resolution* — reading a configuration's declared `DependencyConstraint`s is fine, so the lookup could read the strict constraints off the root `gcvLocks` platform instead. This works for the common case but still reads the root project's model from a subproject, it needs special-casing for the `getVersion(project(...))` case.
-- **Per-project resolution of the unified graph (chosen).** Each project resolves its *own* configuration instead of reaching into the root's `unifiedClasspath`. This is the isolated-projects-shaped route and is the only one that keeps all `getVersion` overloads working without special-casing.
+- **Read the `gcvLocks` constraints instead of resolving.** The above error only applies to *resolution* — reading a configuration's declared `DependencyConstraint`s is fine, so the lookup could read the strict constraints off the root `gcvLocks` platform instead. This works for the common case but still reads the root project's model from a subproject, and the constraints only cover external modules, so it can't serve a lookup that resolves to another project in the same build.
+- **Per-project resolution of the unified graph (chosen).** Each project resolves its *own* configuration instead of reaching into the root's `unifiedClasspath`. This is the isolated-projects-shaped route, and since it resolves the real graph rather than reading lock constraints, it works for in-build project lookups too, not just external modules.
 
 ## Decision
 
