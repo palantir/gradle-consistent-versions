@@ -267,7 +267,7 @@ class ConsistentVersionsPluginIntegrationTest {
                     + " configuration cache")
     @ParameterizedByGradleVersion(when = @WhenVersion(lessThan = "9.0", stringValue = "warn"), otherwiseString = "fail")
     @AdditionallyRunWithGradle("9.3.0")
-    void get_version_function_rejects_a_configuration_belonging_to_another_project(
+    void get_version_function_flags_a_configuration_belonging_to_another_project(
             GradleInvoker gradle,
             RootProject rootProject,
             SubProject lib,
