@@ -222,7 +222,7 @@ task printGuavaVersion {
 ```
 
 > [!WARNING]
-> Any configuration you supply **must** live in the project that `getVersion` is being called from.
+> Any configuration you supply **must** live in the project that `getVersion` is being called from. Resolving another project's configuration is an error in Gradle 9, so `getVersion` will fail with a helpful message when run on Gradle 9 or later. On earlier versions it logs a warning instead, to give you a chance to fix it before upgrading.
 
 ### BOMs
 Gradle has [first-class support][bom] for sourcing version constraints from published BOMs so they work fine with gradle-consistent-versions:

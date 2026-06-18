@@ -22,8 +22,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.palantir.gradle.testing.execution.GradleInvoker;
 import com.palantir.gradle.testing.execution.InvocationResult;
+import com.palantir.gradle.testing.junit.AdditionallyRunWithGradle;
 import com.palantir.gradle.testing.junit.DisabledConfigurationCache;
 import com.palantir.gradle.testing.junit.GradlePluginTests;
+import com.palantir.gradle.testing.junit.InjectByGradleVersion;
+import com.palantir.gradle.testing.junit.ParameterizedByGradleVersion;
+import com.palantir.gradle.testing.junit.ParameterizedByGradleVersion.WhenVersion;
 import com.palantir.gradle.testing.maven.MavenArtifact;
 import com.palantir.gradle.testing.maven.MavenRepo;
 import com.palantir.gradle.testing.project.IncludedBuild;
@@ -261,25 +265,47 @@ class ConsistentVersionsPluginIntegrationTest {
     @DisabledConfigurationCache(
             "Cannot reference a Gradle script object from a Groovy closure as these are not supported with the"
                     + " configuration cache")
-    void get_version_function_fails_clearly_when_configuration_belongs_to_another_project(
-            GradleInvoker gradle, SubProject lib, SubProject consumer) {
+    @ParameterizedByGradleVersion(when = @WhenVersion(lessThan = "9.0", stringValue = "warn"), otherwiseString = "fail")
+    @AdditionallyRunWithGradle("9.3.0")
+    void get_version_function_rejects_a_configuration_belonging_to_another_project(
+            GradleInvoker gradle,
+            RootProject rootProject,
+            SubProject lib,
+            SubProject consumer,
+            @InjectByGradleVersion String behaviourOnForeignConfiguration) {
+        rootProject.propertiesFile("versions.props").setProperty("org.slf4j:*", "1.7.25");
+
         lib.buildGradle().plugins().add("java");
+        lib.buildGradle().append("""
+            dependencies {
+                implementation 'org.slf4j:slf4j-api'
+            }
+            """);
 
         consumer.buildGradle().plugins().add("java");
         consumer.buildGradle().append("""
             task demo {
                 doLast {
-                    println getVersion('org.slf4j:slf4j-api', project(':lib').configurations.runtimeClasspath)
+                    println "demo=" + getVersion('org.slf4j:slf4j-api', project(':lib').configurations.runtimeClasspath)
                 }
             }
             """);
 
-        InvocationResult result =
-                gradle.withArgs(":consumer:demo", "--write-locks").buildsWithFailure();
-        assertThat(result)
-                .output()
-                .contains("does not belong to project ':consumer'")
-                .contains("getVersion can only resolve a configuration that lives in the project it is called from");
+        // Resolving another project's configuration breaks on Gradle 9, so getVersion fails hard there. On earlier
+        // versions it still works, so we only warn to avoid blocking consumers until they upgrade.
+        if (behaviourOnForeignConfiguration.equals("fail")) {
+            InvocationResult result =
+                    gradle.withArgs(":consumer:demo", "--write-locks").buildsWithFailure();
+            assertThat(result)
+                    .output()
+                    .contains("does not belong to project ':consumer'")
+                    .contains(
+                            "getVersion can only resolve a configuration that lives in the project it is called from");
+        } else {
+            InvocationResult result =
+                    gradle.withArgs(":consumer:demo", "--write-locks").buildsSuccessfully();
+            assertThat(result).output().contains("demo=1.7.25").contains("does not belong to project ':consumer'");
+        }
     }
 
     @Test

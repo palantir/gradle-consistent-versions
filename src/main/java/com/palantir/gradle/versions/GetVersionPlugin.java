@@ -38,10 +38,15 @@ import org.gradle.api.artifacts.ModuleVersionIdentifier;
 import org.gradle.api.artifacts.ProjectDependency;
 import org.gradle.api.artifacts.dsl.DependencyHandler;
 import org.gradle.api.artifacts.result.ResolvedComponentResult;
+import org.gradle.api.logging.Logger;
+import org.gradle.api.logging.Logging;
 import org.gradle.api.tasks.Nested;
+import org.gradle.util.GradleVersion;
 
 public abstract class GetVersionPlugin implements Plugin<Project> {
 
+    private static final Logger log = Logging.getLogger(GetVersionPlugin.class);
+    private static final GradleVersion GRADLE_9 = GradleVersion.version("9.0");
     private static final String GET_VERSIONS_CONFIGURATION_NAME = "gcvGetVersions";
 
     @Nested
@@ -110,12 +115,16 @@ public abstract class GetVersionPlugin implements Plugin<Project> {
     private static void checkConfigurationBelongsToProject(Project project, Configuration configuration) {
         Configuration ownConfiguration = project.getConfigurations().findByName(configuration.getName());
         if (ownConfiguration != configuration) {
-            throw new GradleException(
-                    String.format("""
-                        Cannot call getVersion with %s as it does not belong to project '%s'. getVersion can only \
-                        resolve a configuration that lives in the project it is called from. Either supply a \
-                        configuration from '%s', or call getVersion from the project that owns %s.\
-                        """, configuration, project.getPath(), project.getPath(), configuration));
+            String message = String.format("""
+                Cannot call getVersion with %s as it does not belong to project '%s'. getVersion can only \
+                resolve a configuration that lives in the project it is called from. Either supply a \
+                configuration from '%s', or call getVersion from the project that owns %s.\
+                """, configuration, project.getPath(), project.getPath(), configuration);
+            if (GradleVersion.current().compareTo(GRADLE_9) >= 0) {
+                throw new GradleException(message);
+            } else {
+                log.warn(message);
+            }
         }
     }
 
