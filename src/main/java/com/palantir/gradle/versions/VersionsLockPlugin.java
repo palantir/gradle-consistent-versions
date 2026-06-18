@@ -115,6 +115,15 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
     /** Root project configuration that collects all the dependencies from each project. */
     static final String UNIFIED_CLASSPATH_CONFIGURATION_NAME = "unifiedClasspath";
 
+    /** Dependency-scope bucket that both the resolvable and consumable unified classpath configurations extend. */
+    static final String UNIFIED_CLASSPATH_DEPENDENCIES_CONFIGURATION_NAME = "unifiedClasspathDependencies";
+
+    /** Consumable view of the unified classpath, selected via {@link #UNIFIED_CLASSPATH_CAPABILITY}. */
+    static final String UNIFIED_CLASSPATH_ELEMENTS_CONFIGURATION_NAME = "unifiedClasspathElements";
+
+    /** Capability used to select the {@link #UNIFIED_CLASSPATH_ELEMENTS_CONFIGURATION_NAME} variant. */
+    static final String UNIFIED_CLASSPATH_CAPABILITY = "gcv:unified-classpath:0";
+
     /** Per-project configuration that gets resolved when resolving the user's inter-project dependencies. */
     private static final String PLACEHOLDER_CONFIGURATION_NAME = "consistentVersionsPlaceholder";
 
@@ -125,7 +134,7 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
     private static final String CONSISTENT_VERSIONS_TEST = "consistentVersionsTest";
     private static final String VERSIONS_LOCK_EXTENSION = "versionsLock";
 
-    private static final Attribute<GcvUsage> GCV_USAGE_ATTRIBUTE =
+    static final Attribute<GcvUsage> GCV_USAGE_ATTRIBUTE =
             Attribute.of("com.palantir.consistent-versions.usage", GcvUsage.class);
     private static final String GCV_LOCKS_CAPABILITY = "gcv:locks:0";
     private static final String WRITE_VERSIONS_LOCKS_TASK = "writeVersionsLocks";
@@ -191,7 +200,7 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
         return project.file("versions.lock").toPath();
     }
 
-    @SuppressWarnings({"for-rollout:GradleTypesAsFields", "for-rollout:NonAbstractGradleType"})
+    @SuppressWarnings({"for-rollout:GradleTypesAsFields", "for-rollout:NonAbstractGradleType", "MethodLength"})
     @Override
     public final void apply(Project project) {
         checkPreconditions(project);
@@ -207,20 +216,33 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
         });
 
         @SuppressWarnings("for-rollout:ConfigurationAvoidanceRegistration")
+        Configuration unifiedClasspathDependencies = project.getConfigurations()
+                .create(UNIFIED_CLASSPATH_DEPENDENCIES_CONFIGURATION_NAME, conf -> {
+                    conf.setCanBeConsumed(false);
+                    conf.setCanBeResolved(false);
+                });
+
+        @SuppressWarnings("for-rollout:ConfigurationAvoidanceRegistration")
         Configuration unifiedClasspath = project.getConfigurations()
                 .create(UNIFIED_CLASSPATH_CONFIGURATION_NAME, conf -> {
                     conf.setVisible(false).setCanBeConsumed(false);
+                    conf.extendsFrom(unifiedClasspathDependencies);
 
                     // Attributes declared here will become required attributes when resolving this configuration
-                    conf.getAttributes().attribute(GCV_USAGE_ATTRIBUTE, GcvUsage.GCV_SOURCE);
-                    conf.getAttributes()
-                            .attribute(
-                                    GcvBuildPath.ATTRIBUTE, getGcvAttributes().buildPath());
+                    conf.attributes(getGcvAttributes()::configureGcvSourceAttributes);
                 });
+
+        project.getConfigurations().register(UNIFIED_CLASSPATH_ELEMENTS_CONFIGURATION_NAME, conf -> {
+            conf.setCanBeConsumed(true);
+            conf.setCanBeResolved(false);
+            conf.extendsFrom(unifiedClasspathDependencies);
+            conf.getOutgoing().capability(UNIFIED_CLASSPATH_CAPABILITY);
+            conf.attributes(getGcvAttributes()::configureGcvBaseAttributes);
+        });
 
         project.allprojects(subproject -> {
             subproject.getExtensions().create(VERSIONS_LOCK_EXTENSION, VersionsLockExtension.class, subproject);
-            setupDependenciesToProject(project, unifiedClasspath, subproject);
+            setupDependenciesToProject(project, unifiedClasspathDependencies, subproject);
             setupPublishConstraintsForProject(subproject);
         });
 
@@ -400,7 +422,8 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
      * {@link #UNIFIED_CLASSPATH_CONFIGURATION_NAME} to these configurations. It doesn't wire up the actual
      * configurations that we intend to lock, because that will be done later, in afterEvaluate.
      */
-    private void setupDependenciesToProject(Project rootProject, Configuration unifiedClasspath, Project project) {
+    private void setupDependenciesToProject(
+            Project rootProject, Configuration unifiedClasspathDependencies, Project project) {
         // Parallel 'resolveConfigurations' sometimes breaks unless we force the root one to run first.
         if (rootProject != project) {
             project.getPluginManager().withPlugin("com.palantir.configuration-resolver", _plugin -> {
@@ -441,11 +464,11 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
             conf.getOutgoing().capability(capabilityFor(project, GcvScope.TEST));
         });
 
-        unifiedClasspath
+        unifiedClasspathDependencies
                 .getDependencies()
                 .add(createDependencyOnProjectWithScope(
                         project, GcvScope.PRODUCTION, getGcvAttributes().buildPath()));
-        unifiedClasspath
+        unifiedClasspathDependencies
                 .getDependencies()
                 .add(createDependencyOnProjectWithScope(
                         project, GcvScope.TEST, getGcvAttributes().buildPath()));

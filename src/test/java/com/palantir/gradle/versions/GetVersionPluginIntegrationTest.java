@@ -84,6 +84,19 @@ class GetVersionPluginIntegrationTest {
         InvocationResult result = gradle.withArgs("callGetVersion").buildsWithFailure();
         assertThat(result)
                 .output()
-                .contains("Unable to find 'com.google.guava:guava' in configuration ':unifiedClasspath'");
+                .contains("Unable to find 'com.google.guava:guava' in configuration ':gcvGetVersions'");
+    }
+
+    @Test
+    void get_version_fails_when_called_at_configuration_time(GradleInvoker gradle, RootProject project) {
+        project.buildGradle().plugins().add("java");
+        project.buildGradle().append("""
+            getVersion('com.google.guava', 'guava')
+            """);
+        InvocationResult result = gradle.withArgs("help").buildsWithFailure();
+        assertThat(result).output().contains("""
+            Not allowed to call gradle-consistent-versions's \
+            getVersion("com.google.guava", "guava", configurations.gcvGetVersions) at configuration time\
+            """);
     }
 }

@@ -21,21 +21,58 @@ import static java.util.stream.Collectors.toList;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Iterables;
+import com.palantir.gradle.versions.ConsistentVersionsPlugin.GcvAttributes;
 import groovy.lang.Closure;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import javax.inject.Inject;
 import org.gradle.api.GradleException;
+import org.gradle.api.NamedDomainObjectProvider;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
+import org.gradle.api.artifacts.ConfigurationContainer;
 import org.gradle.api.artifacts.ModuleVersionIdentifier;
+import org.gradle.api.artifacts.ProjectDependency;
+import org.gradle.api.artifacts.dsl.DependencyHandler;
 import org.gradle.api.artifacts.result.ResolvedComponentResult;
+import org.gradle.api.logging.Logger;
+import org.gradle.api.logging.Logging;
+import org.gradle.api.tasks.Nested;
+import org.gradle.util.GradleVersion;
 
-public final class GetVersionPlugin implements Plugin<Project> {
+public abstract class GetVersionPlugin implements Plugin<Project> {
+
+    private static final Logger log = Logging.getLogger(GetVersionPlugin.class);
+    private static final GradleVersion GRADLE_9 = GradleVersion.version("9.0");
+    private static final String GET_VERSIONS_CONFIGURATION_NAME = "gcvGetVersions";
+
+    @Nested
+    protected abstract GcvAttributes getAttributes();
+
+    @Inject
+    protected abstract DependencyHandler getDependencies();
+
+    @Inject
+    protected abstract ConfigurationContainer getConfigurations();
 
     @Override
-    public void apply(Project project) {
+    public final void apply(Project project) {
+        NamedDomainObjectProvider<Configuration> getVersions = getConfigurations()
+                .register(GET_VERSIONS_CONFIGURATION_NAME, configuration -> {
+                    configuration.setCanBeConsumed(false);
+                    configuration.setCanBeResolved(true);
+                    configuration.attributes(getAttributes()::configureGcvSourceAttributes);
+
+                    ProjectDependency rootDependency = (ProjectDependency) getDependencies()
+                            .project(Map.of("path", project.getRootProject().getPath()));
+                    rootDependency.capabilities(
+                            handler -> handler.requireCapabilities(VersionsLockPlugin.UNIFIED_CLASSPATH_CAPABILITY));
+                    configuration.getDependencies().add(rootDependency);
+                });
+
         project.getExtensions().getExtraProperties().set("getVersion", new Closure<String>(project, project) {
             /**
              * Groovy will invoke this method if they just supply one arg, e.g. 'com.google.guava:guava'. This is the
@@ -43,11 +80,7 @@ public final class GetVersionPlugin implements Plugin<Project> {
              */
             @SuppressWarnings("for-rollout:UnusedMethod")
             public String doCall(Object moduleVersion) {
-                return doCall(
-                        moduleVersion,
-                        project.getRootProject()
-                                .getConfigurations()
-                                .getByName(VersionsLockPlugin.UNIFIED_CLASSPATH_CONFIGURATION_NAME));
+                return doCall(moduleVersion, getVersions.get());
             }
 
             /** Find a version from another configuration, e.g. from the gradle-docker plugin. */
@@ -63,13 +96,7 @@ public final class GetVersionPlugin implements Plugin<Project> {
             /** This matches the signature of nebula's dependencyRecommendations.getRecommendedVersion. */
             @SuppressWarnings("for-rollout:UnusedMethod")
             public String doCall(String group, String name) {
-                return getVersion(
-                        project,
-                        group,
-                        name,
-                        project.getRootProject()
-                                .getConfigurations()
-                                .getByName(VersionsLockPlugin.UNIFIED_CLASSPATH_CONFIGURATION_NAME));
+                return getVersion(project, group, name, getVersions.get());
             }
 
             @SuppressWarnings("for-rollout:UnusedMethod")
@@ -80,18 +107,34 @@ public final class GetVersionPlugin implements Plugin<Project> {
     }
 
     private static String getVersion(Project project, String group, String name, Configuration configuration) {
+        checkConfigurationBelongsToProject(project, configuration);
         return getOptionalVersion(project, group, name, configuration)
                 .orElseThrow(() -> notFound(group, name, configuration));
+    }
+
+    private static void checkConfigurationBelongsToProject(Project project, Configuration configuration) {
+        Configuration ownConfiguration = project.getConfigurations().findByName(configuration.getName());
+        if (ownConfiguration != configuration) {
+            String message = String.format("""
+                Cannot call getVersion with %s as it does not belong to project '%s'. getVersion can only \
+                resolve a configuration that lives in the project it is called from. Either supply a \
+                configuration from '%s', or call getVersion from the project that owns %s.\
+                """, configuration, project.getPath(), project.getPath(), configuration);
+            if (GradleVersion.current().compareTo(GRADLE_9) >= 0) {
+                throw new GradleException(message);
+            } else {
+                log.warn(message);
+            }
+        }
     }
 
     static Optional<String> getOptionalVersion(
             Project project, String group, String name, Configuration configuration) {
         if (GradleWorkarounds.isConfiguring(project.getState())) {
-            throw new GradleException(String.format(
-                    "Not allowed to call gradle-consistent-versions's getVersion(\"%s\", \"%s\", "
-                            + "configurations.%s) "
-                            + "at configuration time",
-                    group, name, configuration.getName()));
+            throw new GradleException(String.format("""
+                Not allowed to call gradle-consistent-versions's getVersion("%s", "%s", configurations.%s) at \
+                configuration time\
+                """, group, name, configuration.getName()));
         }
 
         List<ModuleVersionIdentifier> list =
@@ -118,10 +161,10 @@ public final class GetVersionPlugin implements Plugin<Project> {
                 .map(ResolvedComponentResult::getModuleVersion)
                 .map(mvi -> String.format("\t- %s:%s:%s", mvi.getGroup(), mvi.getName(), mvi.getVersion()))
                 .collect(Collectors.joining("\n"));
-        return new GradleException(String.format(
-                "Unable to find '%s:%s' in %s. This may happen if you specify the version in versions.props"
-                        + " but do not have a dependency in the configuration. The configuration contained:\n"
-                        + "%s",
-                group, name, configuration, actual));
+        return new GradleException(String.format("""
+            Unable to find '%s:%s' in %s. This may happen if you specify the version in versions.props but do not have \
+            a dependency in the configuration. The configuration contained:
+            %s\
+            """, group, name, configuration, actual));
     }
 }

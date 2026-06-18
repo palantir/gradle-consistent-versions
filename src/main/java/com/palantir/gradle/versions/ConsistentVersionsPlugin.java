@@ -47,7 +47,6 @@ public class ConsistentVersionsPlugin implements Plugin<Project> {
         });
         project.getPluginManager().apply(VersionsLockPlugin.class);
         project.getPluginManager().apply(VersionsPropsPlugin.class);
-        project.getPluginManager().apply(GetVersionPlugin.class);
         project.getPluginManager().apply(VersionsPropsIdeaPlugin.class);
         project.getPluginManager().apply(CheckUnusedConstraintsPlugin.class);
 
@@ -56,6 +55,8 @@ public class ConsistentVersionsPlugin implements Plugin<Project> {
         extension.getExternalDependencies().register("gradle-consistent-versions", dep -> dep.atLeastVersion("0.9.0"));
 
         project.allprojects(proj -> {
+            proj.getPluginManager().apply(GetVersionPlugin.class);
+
             proj.getPluginManager().withPlugin("java", _plugin -> {
                 proj.getPluginManager().apply(FixLegacyJavaConfigurationsPlugin.class);
             });
@@ -106,6 +107,11 @@ public class ConsistentVersionsPlugin implements Plugin<Project> {
 
         public final void configureGcvBaseAttributes(AttributeContainer attributes) {
             attributes.attribute(Usage.USAGE_ATTRIBUTE, gradleUsageForGcv());
+            attributes.attribute(GcvBuildPath.ATTRIBUTE, buildPath());
+        }
+
+        public final void configureGcvSourceAttributes(AttributeContainer attributes) {
+            attributes.attribute(VersionsLockPlugin.GCV_USAGE_ATTRIBUTE, VersionsLockPlugin.GcvUsage.GCV_SOURCE);
             attributes.attribute(GcvBuildPath.ATTRIBUTE, buildPath());
         }
     }
