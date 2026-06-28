@@ -1,4 +1,4 @@
-com.fasterxml.jackson.*:* = 2.21.1
+com.fasterxml.jackson.*:* = 2.21.4
 com.fasterxml.jackson.core:jackson-annotations = 2.21
 com.google.guava:guava = 33.6.0-jre
 com.palantir.gradle.plugintesting:gradle-plugin-testing-junit = 0.69.0
