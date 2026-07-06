@@ -200,7 +200,7 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
         return project.file("versions.lock").toPath();
     }
 
-    @SuppressWarnings({"for-rollout:GradleTypesAsFields", "for-rollout:NonAbstractGradleType", "MethodLength"})
+    @SuppressWarnings({"MethodLength", "for-rollout:GradleTypesAsFields", "for-rollout:NonAbstractGradleType"})
     @Override
     public final void apply(Project project) {
         checkPreconditions(project);
