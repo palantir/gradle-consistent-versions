@@ -1,18 +1,18 @@
 # Run ./gradlew writeVersionsLocks to regenerate this file. Blank lines are to minimize merge conflicts.
 
-com.fasterxml.jackson.core:jackson-annotations:2.21 (4 constraints: 4844f0b2)
+com.fasterxml.jackson.core:jackson-annotations:2.22 (4 constraints: 4c445cb4)
 
-com.fasterxml.jackson.core:jackson-core:2.21.4 (4 constraints: 94565607)
+com.fasterxml.jackson.core:jackson-core:2.22.1 (4 constraints: 8c566404)
 
-com.fasterxml.jackson.core:jackson-databind:2.21.4 (4 constraints: 4649df40)
+com.fasterxml.jackson.core:jackson-databind:2.22.1 (4 constraints: 3e49ed3d)
 
-com.fasterxml.jackson.dataformat:jackson-dataformat-xml:2.21.4 (3 constraints: 113bb28b)
+com.fasterxml.jackson.dataformat:jackson-dataformat-xml:2.22.1 (3 constraints: 0f3b888a)
 
-com.fasterxml.jackson.datatype:jackson-datatype-guava:2.21.4 (2 constraints: df1f98df)
+com.fasterxml.jackson.datatype:jackson-datatype-guava:2.22.1 (2 constraints: dd1f04df)
 
-com.fasterxml.jackson.datatype:jackson-datatype-jdk8:2.21.4 (1 constraints: a51a8b21)
+com.fasterxml.jackson.datatype:jackson-datatype-jdk8:2.22.1 (1 constraints: a51a8b21)
 
-com.fasterxml.woodstox:woodstox-core:7.1.1 (1 constraints: 3d174926)
+com.fasterxml.woodstox:woodstox-core:7.2.0 (1 constraints: 3d174b26)
 
 com.google.errorprone:error_prone_annotations:2.47.0 (2 constraints: 840f31a1)
 
@@ -32,7 +32,7 @@ com.palantir.gradle.idea-configuration:gradle-idea-configuration:0.8.0 (1 constr
 
 one.util:streamex:0.9.0 (1 constraints: 0b050636)
 
-org.codehaus.woodstox:stax2-api:4.2.2 (2 constraints: 6a278bd2)
+org.codehaus.woodstox:stax2-api:4.3.0 (2 constraints: 682760d2)
 
 org.immutables:value:2.12.2 (1 constraints: 3905373b)
 
