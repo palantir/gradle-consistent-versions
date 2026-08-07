@@ -78,17 +78,17 @@ org.jetbrains:annotations:26.1.0 (1 constraints: d81910df)
 
 org.junit:junit-bom:6.1.2 (1 constraints: 0b050e36)
 
-org.junit.jupiter:junit-jupiter:6.1.2 (2 constraints: 591097d1)
+org.junit.jupiter:junit-jupiter:6.1.3 (2 constraints: 5a10b5d1)
 
-org.junit.jupiter:junit-jupiter-api:6.1.2 (7 constraints: 166e2144)
+org.junit.jupiter:junit-jupiter-api:6.1.3 (7 constraints: 1a6eda45)
 
-org.junit.jupiter:junit-jupiter-engine:6.1.2 (2 constraints: 1517c23b)
+org.junit.jupiter:junit-jupiter-engine:6.1.3 (2 constraints: 1617c33b)
 
-org.junit.jupiter:junit-jupiter-params:6.1.2 (3 constraints: d32d1254)
+org.junit.jupiter:junit-jupiter-params:6.1.3 (3 constraints: d42d1354)
 
-org.junit.platform:junit-platform-commons:6.1.3 (3 constraints: e929de2a)
+org.junit.platform:junit-platform-commons:6.1.3 (3 constraints: ea29102b)
 
-org.junit.platform:junit-platform-engine:6.1.3 (5 constraints: b449cef4)
+org.junit.platform:junit-platform-engine:6.1.3 (5 constraints: b54957f5)
 
 org.junit.platform:junit-platform-launcher:6.1.3 (3 constraints: 692448f6)
 
