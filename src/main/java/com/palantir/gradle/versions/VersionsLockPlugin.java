@@ -445,6 +445,11 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
             conf.getAttributes().attribute(GCV_USAGE_ATTRIBUTE, GcvUsage.GCV_SOURCE);
         });
 
+        project.getPluginManager().withPlugin("java", _plugin -> {
+            ensureBaseGcvConsumable(project, JavaPlugin.COMPILE_CLASSPATH_CONFIGURATION_NAME);
+            ensureBaseGcvConsumable(project, JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME);
+        });
+
         project.getConfigurations().register(CONSISTENT_VERSIONS_PRODUCTION, conf -> {
             conf.setDescription(
                     "Outgoing configuration for production dependencies meant to be used by consistent-versions");
@@ -494,6 +499,48 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
                     .getConfigurations()
                     .named(JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME)
                     .configure(conf -> conf.extendsFrom(publishConstraints.get()));
+        });
+    }
+
+    private void ensureBaseGcvConsumable(Project project, String baseConfName) {
+        if (!project.getConfigurations().getNames().contains(baseConfName)) {
+            return;
+        }
+        String gcvName = baseConfName + "GcvConsumable";
+        if (project.getConfigurations().findByName(gcvName) != null) {
+            return;
+        }
+
+        Configuration baseConf = project.getConfigurations().getByName(baseConfName);
+        Configuration copiedTargetConfResolvable = baseConf.copyRecursive();
+
+        if (GradleVersion.current().compareTo(GradleVersion.version("8.14")) < 0) {
+            project.getConfigurations().add(copiedTargetConfResolvable);
+            copiedTargetConfResolvable.outgoing(outgoing -> outgoing.capability(String.format(
+                    "gcv:%s-%s-%s-%s:extra",
+                    project.getGroup(),
+                    project.getName(),
+                    project.getVersion(),
+                    copiedTargetConfResolvable.getName())));
+        }
+
+        project.getConfigurations().register(gcvName, conf -> {
+            conf.setDescription(String.format(
+                    "Copy of the '%s' configuration that can be resolved by"
+                            + " com.palantir.consistent-versions without resolving the '%s' configuration itself.",
+                    baseConf.getName(), baseConf.getName()));
+            conf.setCanBeResolved(false);
+            conf.setCanBeConsumed(true);
+            conf.extendsFrom(copiedTargetConfResolvable);
+            conf.attributes(getGcvAttributes()::configureGcvBaseAttributes);
+
+            if (GradleVersion.current().compareTo(GradleVersion.version("9.0")) < 0) {
+                conf.setVisible(false);
+            }
+
+            conf.outgoing(outgoing -> outgoing.capability(String.format(
+                    "gcv:%s-%s-%s-%s:extra",
+                    project.getGroup(), project.getName(), project.getVersion(), conf.getName())));
         });
     }
 
@@ -698,36 +745,34 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
                         copiedTargetConfResolvable.getName())));
             }
 
-            Configuration copiedConf = projectDep
-                    .getConfigurations()
-                    .register(targetConf.getName() + "GcvConsumable", conf -> {
-                        conf.setDescription(String.format(
-                                "Copy of the '%s' configuration that can be resolved by"
-                                        + " com.palantir.consistent-versions without resolving the '%s' configuration"
-                                        + " itself.",
-                                targetConf.getName(), targetConf.getName()));
-                        conf.setCanBeResolved(false);
-                        // Must set this because we depend on this configuration when resolving unifiedClasspath.
-                        conf.setCanBeConsumed(true);
-                        conf.extendsFrom(copiedTargetConfResolvable);
-                        conf.attributes(getGcvAttributes()::configureGcvBaseAttributes);
+            String copiedName = targetConf.getName() + "GcvConsumable";
+            Configuration existingCopied = projectDep.getConfigurations().findByName(copiedName);
 
-                        // Since we only depend on these from the same project (via CONSISTENT_VERSIONS_PRODUCTION or
-                        // CONSISTENT_VERSIONS_TEST), we shouldn't allow them to be visible outside this project.
-                        conf.setVisible(false);
+            // If the configuration already exists (created by ensureBaseGcvConsumable during setup),
+            // we need to update its extendsFrom to use the latest copy that includes all dependencies
+            // (dependencies are only fully available in afterEvaluate)
+            if (existingCopied != null) {
+                // Check if configuration state allows modification
+                org.gradle.api.internal.artifacts.configurations.ConfigurationInternal confInternal =
+                        (org.gradle.api.internal.artifacts.configurations.ConfigurationInternal) existingCopied;
+                if (confInternal.isCanBeMutated()) {
+                    existingCopied.setExtendsFrom(java.util.Collections.singleton(copiedTargetConfResolvable));
+                }
+            }
 
-                        // This is so we can get back the scope from the ResolutionResult.
-                        conf.getAllDependencies()
-                                .withType(ExternalModuleDependency.class)
-                                .all(externalDep -> dependencyScopes.record(externalDep.getModule(), scope));
+            Configuration copiedConf;
+            if (existingCopied != null) {
+                copiedConf = existingCopied;
+            } else {
+                copiedConf = registerGcvConsumableConfiguration(
+                        projectDep, copiedName, targetConf, copiedTargetConfResolvable, dependencyScopes, scope);
+            }
 
-                        // To avoid capability based conflict detection between all these copied configurations (where
-                        // they conflict as each has no capabilities), we give each of them a capability
-                        conf.outgoing(outgoing -> outgoing.capability(String.format(
-                                "gcv:%s-%s-%s-%s:extra",
-                                projectDep.getGroup(), projectDep.getName(), projectDep.getVersion(), conf.getName())));
-                    })
-                    .get();
+            // Ensure scope recording is applied even if the configuration already existed.
+            copiedConf
+                    .getAllDependencies()
+                    .withType(ExternalModuleDependency.class)
+                    .all(externalDep -> dependencyScopes.record(externalDep.getModule(), scope));
 
             // Update state about what we've seen
             copiedConfigurationsCache.put(targetConf, copiedConf.getName());
@@ -748,6 +793,52 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
             recursivelyCopyProjectDependenciesWithScope(
                     projectDep, copiedConf.getAllDependencies(), copiedConfigurationsCache, dependencyScopes, scope);
         });
+    }
+
+    private Configuration registerGcvConsumableConfiguration(
+            Project projectDep,
+            String copiedName,
+            Configuration targetConf,
+            Configuration copiedTargetConfResolvable,
+            DirectDependencyScopes.Builder dependencyScopes,
+            GcvScope scope) {
+        return projectDep
+                .getConfigurations()
+                .register(copiedName, conf -> {
+                    conf.setDescription(String.format(
+                            "Copy of the '%s' configuration that can be resolved by"
+                                    + " com.palantir.consistent-versions without resolving the '%s'"
+                                    + " configuration itself.",
+                            targetConf.getName(), targetConf.getName()));
+                    conf.setCanBeResolved(false);
+                    // Must set this because we depend on this configuration when resolving unifiedClasspath.
+                    conf.setCanBeConsumed(true);
+                    conf.extendsFrom(copiedTargetConfResolvable);
+                    conf.attributes(getGcvAttributes()::configureGcvBaseAttributes);
+
+                    // In Gradle 9+, setVisible(false) prevents this configuration from being discovered
+                    // by variant selection from other projects. Since inherited project dependencies
+                    // (like api(project(":foo"))) need to resolve to this configuration via
+                    // variant selection, we need to keep it visible in Gradle 9+.
+                    if (GradleVersion.current().compareTo(GradleVersion.version("9.0")) < 0) {
+                        // Since we only depend on these from the same project (via
+                        // CONSISTENT_VERSIONS_PRODUCTION or CONSISTENT_VERSIONS_TEST), we shouldn't allow
+                        // them to be visible outside this project.
+                        conf.setVisible(false);
+                    }
+
+                    // This is so we can get back the scope from the ResolutionResult.
+                    conf.getAllDependencies()
+                            .withType(ExternalModuleDependency.class)
+                            .all(externalDep -> dependencyScopes.record(externalDep.getModule(), scope));
+
+                    // To avoid capability based conflict detection between all these copied configurations
+                    // (where they conflict as each has no capabilities), we give each of them a capability
+                    conf.outgoing(outgoing -> outgoing.capability(String.format(
+                            "gcv:%s-%s-%s-%s:extra",
+                            projectDep.getGroup(), projectDep.getName(), projectDep.getVersion(), conf.getName())));
+                })
+                .get();
     }
 
     /**

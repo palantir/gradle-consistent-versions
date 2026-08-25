@@ -1,0 +1,7 @@
+type: fix
+fix:
+  description: Fix GcvConsumable configuration creation for Gradle 9+ compatibility
+    by pre-creating configurations during plugin setup and making them visible for
+    variant selection discovery.
+  links:
+  - https://github.com/palantir/gradle-consistent-versions/pull/1520
