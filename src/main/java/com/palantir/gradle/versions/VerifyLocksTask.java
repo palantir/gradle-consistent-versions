@@ -36,9 +36,7 @@ import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.OutputFile;
 import org.gradle.api.tasks.TaskAction;
 import org.gradle.language.base.plugins.LifecycleBasePlugin;
-import org.gradle.work.DisableCachingByDefault;
 
-@DisableCachingByDefault(because = "Not opting into build caching; explicit opt-out is required by Gradle 9.7")
 public abstract class VerifyLocksTask extends DefaultTask {
 
     private static final String WRITE_LOCKS_SUGGESTION = "./gradlew writeVersionsLocks";

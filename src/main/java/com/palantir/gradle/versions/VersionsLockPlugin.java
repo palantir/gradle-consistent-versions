@@ -30,6 +30,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 import com.google.common.collect.Streams;
+import com.palantir.gradle.utils.projectdependency.ProjectDependencyUtils;
 import com.palantir.gradle.versions.ConsistentVersionsPlugin.GcvAttributes;
 import com.palantir.gradle.versions.ConsistentVersionsPlugin.GcvBuildPath;
 import com.palantir.gradle.versions.internal.MyModuleIdentifier;
@@ -188,9 +189,6 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
     @Nested
     public abstract GcvAttributes getGcvAttributes();
 
-    @Nested
-    protected abstract ProjectDependencyWorkarounds getProjectDependencyWorkarounds();
-
     @Inject
     public VersionsLockPlugin(Gradle gradle) {
         showStacktrace = gradle.getStartParameter().getShowStacktrace();
@@ -226,6 +224,7 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
         Configuration unifiedClasspath = project.getConfigurations()
                 .create(UNIFIED_CLASSPATH_CONFIGURATION_NAME, conf -> {
                     conf.setCanBeConsumed(false);
+                    GradleWorkarounds.hideConfiguration(conf);
                     conf.extendsFrom(unifiedClasspathDependencies);
 
                     // Attributes declared here will become required attributes when resolving this configuration
@@ -260,6 +259,7 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
                     conf.attributes(getGcvAttributes()::configureGcvBaseAttributes);
                     conf.getOutgoing().capability(GCV_LOCKS_CAPABILITY);
                     conf.setCanBeResolved(false);
+                    GradleWorkarounds.hideConfiguration(conf);
                 });
 
         ProjectDependency locksDependency =
@@ -390,6 +390,7 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
                     .register(LOCK_CONSTRAINTS_CONFIGURATION_NAME, locksConf -> {
                         locksConf.setCanBeConsumed(false);
                         locksConf.setCanBeResolved(false);
+                        GradleWorkarounds.hideConfiguration(locksConf);
                     });
 
             if (rootProject.getGradle().getStartParameter().isConfigureOnDemand()
@@ -433,6 +434,7 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
         // inter-project dependencies.
         project.getConfigurations().register(PLACEHOLDER_CONFIGURATION_NAME, conf -> {
             conf.setCanBeResolved(false);
+            GradleWorkarounds.hideConfiguration(conf);
 
             // Make sure it can never be selected as part of normal resolution that declares a required usage.
             conf.attributes(getGcvAttributes()::configureGcvBaseAttributes);
@@ -449,6 +451,7 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
             // needn't be visible from other projects
             conf.setCanBeConsumed(true);
             conf.setCanBeResolved(false);
+            GradleWorkarounds.hideConfiguration(conf);
             conf.attributes(getGcvAttributes()::configureGcvBaseAttributes);
             conf.getOutgoing().capability(capabilityFor(project, GcvScope.PRODUCTION));
         });
@@ -458,6 +461,7 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
             // needn't be visible from other projects
             conf.setCanBeConsumed(true);
             conf.setCanBeResolved(false);
+            GradleWorkarounds.hideConfiguration(conf);
             conf.attributes(getGcvAttributes()::configureGcvBaseAttributes);
             conf.getOutgoing().capability(capabilityFor(project, GcvScope.TEST));
         });
@@ -611,11 +615,11 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
         Map<Configuration, String> copiedConfigurationsCache = new HashMap<>();
         DirectDependencyScopes.Builder scopes = new DirectDependencyScopes.Builder();
 
-        findProjectDependencyWithTargetConfigurationName(depSet, CONSISTENT_VERSIONS_PRODUCTION)
+        findProjectDependencyWithTargetConfigurationName(project, depSet, CONSISTENT_VERSIONS_PRODUCTION)
                 .forEach(conf -> recursivelyCopyProjectDependenciesWithScope(
                         project, conf.getDependencies(), copiedConfigurationsCache, scopes, GcvScope.PRODUCTION));
 
-        findProjectDependencyWithTargetConfigurationName(depSet, CONSISTENT_VERSIONS_TEST)
+        findProjectDependencyWithTargetConfigurationName(project, depSet, CONSISTENT_VERSIONS_TEST)
                 .forEach(conf -> recursivelyCopyProjectDependenciesWithScope(
                         project, conf.getDependencies(), copiedConfigurationsCache, scopes, GcvScope.TEST));
 
@@ -623,12 +627,12 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
     }
 
     private List<Configuration> findProjectDependencyWithTargetConfigurationName(
-            DependencySet depSet, String configurationName) {
+            Project project, DependencySet depSet, String configurationName) {
         return depSet.stream()
                 .filter(dep -> dep instanceof ProjectDependency)
                 .map(dependency -> {
                     ProjectDependency projectDependency = (ProjectDependency) dependency;
-                    return findConfigurationUsingCapabilities(projectDependency);
+                    return findConfigurationUsingCapabilities(project, projectDependency);
                 })
                 .filter(conf -> conf.getName().equals(configurationName))
                 .collect(Collectors.toList());
@@ -647,15 +651,14 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
             DirectDependencyScopes.Builder dependencyScopes,
             GcvScope scope) {
         dependencySet.withType(ProjectDependency.class).all(projectDependency -> {
-            Project projectDep = getProjectDependencyWorkarounds().getDependencyProject(projectDependency);
-
             String targetConfiguration = projectDependency.getTargetConfiguration();
             if (targetConfiguration == null) {
                 // Not handling variant-based selection in this code path
                 return;
             }
 
-            Configuration targetConf = getTargetConfiguration(dependencySet, projectDependency);
+            Project projectDep = resolveProjectDependency(currentProject, projectDependency);
+            Configuration targetConf = getTargetConfiguration(currentProject, dependencySet, projectDependency);
 
             if (log.isDebugEnabled()) {
                 log.debug(
@@ -712,6 +715,7 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
 
                         // Since we only depend on these from the same project (via CONSISTENT_VERSIONS_PRODUCTION or
                         // CONSISTENT_VERSIONS_TEST), we shouldn't allow them to be visible outside this project.
+                        GradleWorkarounds.hideConfiguration(conf);
 
                         // This is so we can get back the scope from the ResolutionResult.
                         conf.getAllDependencies()
@@ -734,7 +738,7 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
                         "Recursively copied {}'s '{}' configuration, which has\n"
                                 + " - dependencies: {}\n"
                                 + " - constraints: {}",
-                        getProjectDependencyWorkarounds().getPath(projectDependency),
+                        ProjectDependencyUtils.getProjectPath(projectDependency),
                         targetConfiguration,
                         ImmutableList.copyOf(copiedConf.getAllDependencies()),
                         ImmutableList.copyOf(copiedConf.getAllDependencyConstraints()));
@@ -756,25 +760,25 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
         conf.getIncoming().getDependencies();
     }
 
-    private Configuration getTargetConfiguration(DependencySet depSet, ProjectDependency projectDependency) {
+    private Configuration getTargetConfiguration(
+            Project project, DependencySet depSet, ProjectDependency projectDependency) {
         String targetConfiguration = Preconditions.checkNotNull(
                 projectDependency.getTargetConfiguration(),
                 "Expected dependency to have a targetConfiguration: %s",
                 formatProjectDependency(projectDependency));
-        Configuration targetConf = getProjectDependencyWorkarounds()
-                .getDependencyProject(projectDependency)
+        Configuration targetConf = resolveProjectDependency(project, projectDependency)
                 .getConfigurations()
                 .getByName(targetConfiguration);
         Preconditions.checkNotNull(
                 targetConf,
                 "Target configuration of project dependency was null: %s -> %s",
                 depSet,
-                getProjectDependencyWorkarounds().getPath(projectDependency));
+                ProjectDependencyUtils.getProjectPath(projectDependency));
         return targetConf;
     }
 
-    private Configuration findConfigurationUsingCapabilities(ProjectDependency projectDependency) {
-        Project dependencyProject = getProjectDependencyWorkarounds().getDependencyProject(projectDependency);
+    private Configuration findConfigurationUsingCapabilities(Project project, ProjectDependency projectDependency) {
+        Project dependencyProject = resolveProjectDependency(project, projectDependency);
         Set<Configuration> confs = dependencyProject.getConfigurations().stream()
                 .filter(conf ->
                         conf.getOutgoing().getCapabilities().containsAll(projectDependency.getRequestedCapabilities()))
@@ -794,9 +798,13 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
         return Iterables.getOnlyElement(confs);
     }
 
+    private static Project resolveProjectDependency(Project project, ProjectDependency projectDependency) {
+        return project.getRootProject().project(ProjectDependencyUtils.getProjectPath(projectDependency));
+    }
+
     private String formatProjectDependency(ProjectDependency dep) {
         StringBuilder builder = new StringBuilder();
-        builder.append(getProjectDependencyWorkarounds().getPath(dep));
+        builder.append(ProjectDependencyUtils.getProjectPath(dep));
         if (dep.getTargetConfiguration() != null) {
             builder.append(" (configuration: ");
             builder.append(dep.getTargetConfiguration());
@@ -1194,44 +1202,5 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
         StartParameter startParameter = project.getGradle().getStartParameter();
         return startParameter.isWriteDependencyLocks()
                 || WRITE_VERSIONS_LOCKS_TASK_NAME_MATCHER.matchesAny(startParameter.getTaskNames());
-    }
-
-    @SuppressWarnings("deprecation")
-    protected abstract static class ProjectDependencyWorkarounds {
-
-        @Inject
-        protected abstract Gradle getGradle();
-
-        /**
-         * {@link ProjectDependency#getPath} was introduced in Gradle 8.11, and
-         * {@link ProjectDependency#getDependencyProject} was not deprecated yet. Fallback to using the latter on
-         * versions prior to 8.11.
-         */
-        public String getPath(ProjectDependency projectDependency) {
-            GradleVersion requiredVersion = GradleVersion.version("8.11");
-            if (GradleVersion.current().compareTo(requiredVersion) < 0) {
-                return projectDependency.getDependencyProject().getPath();
-            } else {
-                return projectDependency.getPath();
-            }
-        }
-
-        /**
-         * {@link ProjectDependency#getDependencyProject} was deprecated in Gradle 8.11 and will be removed in Gradle
-         * 9.0. Without a considerable rethinking of how GCV works with Isolated projects, it may be easier to
-         * continue to reach into subprojects at will for now.
-         *
-         */
-        public Project getDependencyProject(ProjectDependency projectDependency) {
-            GradleVersion removedVersion = GradleVersion.version("9.0");
-            if (GradleVersion.current().compareTo(removedVersion) < 0) {
-                return projectDependency.getDependencyProject();
-            }
-
-            return getGradle().getRootProject().project(projectDependency.getPath());
-        }
-
-        @Inject
-        public ProjectDependencyWorkarounds() {}
     }
 }

@@ -19,6 +19,7 @@ package com.palantir.gradle.versions
 import groovy.transform.CompileStatic
 import nebula.test.IntegrationTestKitSpec
 import nebula.test.dependencies.DependencyGraph
+import nebula.test.dependencies.DependencyGraphNode
 import nebula.test.dependencies.GradleDependencyGenerator
 
 class IntegrationSpec extends IntegrationTestKitSpec {
@@ -31,8 +32,16 @@ class IntegrationSpec extends IntegrationTestKitSpec {
     @CompileStatic
     protected File generateMavenRepo(String... graph) {
         DependencyGraph dependencyGraph = new DependencyGraph(graph)
+        dependencyGraph.nodes = dependencyGraph.nodes.collect { DependencyGraphNode node ->
+            new DependencyGraphNode(node.coordinate, node.dependencies, node.status, 17)
+        }
         GradleDependencyGenerator generator = new GradleDependencyGenerator(
                 dependencyGraph, new File(projectDir, "build/testrepogen").toString())
+        new File(generator.gradleRoot, "build.gradle") << '''
+            subprojects {
+                java.targetCompatibility = JavaVersion.VERSION_1_8
+            }
+        '''.stripIndent()
         return generator.generateTestMavenRepo()
     }
 

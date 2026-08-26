@@ -16,11 +16,12 @@
 
 package com.palantir.gradle.versions;
 
-import com.palantir.gradle.versions.VersionsLockPlugin.ProjectDependencyWorkarounds;
+import com.palantir.gradle.utils.projectdependency.ProjectDependencyUtils;
 import groovy.lang.GString;
 import java.lang.reflect.InvocationTargetException;
 import java.util.LinkedHashSet;
 import java.util.Set;
+import org.gradle.api.GradleException;
 import org.gradle.api.Project;
 import org.gradle.api.ProjectState;
 import org.gradle.api.Task;
@@ -33,6 +34,7 @@ import org.gradle.api.attributes.AttributeContainer;
 import org.gradle.api.attributes.Category;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
+import org.gradle.util.GradleVersion;
 
 @SuppressWarnings("UnstableApiUsage")
 final class GradleWorkarounds {
@@ -74,6 +76,17 @@ final class GradleWorkarounds {
         return conflictResolution == org.gradle.api.internal.artifacts.configurations.ConflictResolution.strict;
     }
 
+    static void hideConfiguration(Configuration configuration) {
+        if (GradleVersion.current().compareTo(GradleVersion.version("9.0")) >= 0) {
+            return;
+        }
+        try {
+            Configuration.class.getMethod("setVisible", boolean.class).invoke(configuration, false);
+        } catch (ReflectiveOperationException e) {
+            throw new GradleException("Failed to hide configuration " + configuration.getName(), e);
+        }
+    }
+
     @SuppressWarnings("CyclomaticComplexity")
     public static void makeEvaluationDependOnSubprojectsToBeEvaluated(Project rootProject) {
         if (!rootProject.getGradle().getStartParameter().isConfigureOnDemand()
@@ -85,9 +98,6 @@ final class GradleWorkarounds {
             rootProject.getSubprojects().forEach(subproject -> rootProject.evaluationDependsOn(subproject.getPath()));
             return;
         }
-
-        ProjectDependencyWorkarounds projectDependencyWorkarounds =
-                rootProject.getObjects().newInstance(ProjectDependencyWorkarounds.class);
 
         Set<String> projectPathsToEval = new LinkedHashSet<>();
         for (String taskPath : rootProject.getGradle().getStartParameter().getTaskNames()) {
@@ -126,10 +136,9 @@ final class GradleWorkarounds {
             for (Configuration configuration : project.getConfigurations()) {
                 for (Dependency dependency : configuration.getDependencies()) {
                     if (dependency instanceof ProjectDependency projectDependency) {
-                        Project dependencyProject =
-                                projectDependencyWorkarounds.getDependencyProject(projectDependency);
-                        if (dependencyProject != rootProject) {
-                            projectPathsToEval.add(dependencyProject.getPath());
+                        String dependencyProjectPath = ProjectDependencyUtils.getProjectPath(projectDependency);
+                        if (!dependencyProjectPath.equals(rootProject.getPath())) {
+                            projectPathsToEval.add(dependencyProjectPath);
                         }
                     }
                 }

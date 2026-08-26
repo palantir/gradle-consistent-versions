@@ -37,10 +37,8 @@ import org.gradle.api.provider.SetProperty;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.OutputFile;
 import org.gradle.api.tasks.TaskAction;
-import org.gradle.work.DisableCachingByDefault;
 import org.immutables.value.Value;
 
-@DisableCachingByDefault(because = "Not opting into build caching; explicit opt-out is required by Gradle 9.7")
 public abstract class GenerateMavenRepositoriesTask extends DefaultTask {
 
     private static final ObjectMapper XML_MAPPER =

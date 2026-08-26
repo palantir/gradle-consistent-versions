@@ -76,7 +76,7 @@ public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Proj
         getConfigurations().register("checkUnusedConstraintsConsumable", consumable -> {
             consumable.setCanBeConsumed(true);
             consumable.setCanBeResolved(false);
-
+            GradleWorkarounds.hideConfiguration(consumable);
             consumable.setTransitive(false);
             consumable.attributes(attrs -> {
                 attrs.attribute(Usage.USAGE_ATTRIBUTE, getObjectFactory().named(Usage.class, USAGE));

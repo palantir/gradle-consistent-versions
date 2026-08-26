@@ -93,6 +93,7 @@ public abstract class VersionsPropsPlugin implements Plugin<Project> {
                 conf.getOutgoing().capability(gcvVersionsPropsCapability);
                 conf.setCanBeResolved(false);
                 conf.setCanBeConsumed(true);
+                GradleWorkarounds.hideConfiguration(conf);
 
                 addVersionsPropsConstraints(project.getDependencies().getConstraints()::create, conf, versionsProps);
             });
@@ -105,6 +106,7 @@ public abstract class VersionsPropsPlugin implements Plugin<Project> {
                 .register(ROOT_CONFIGURATION_NAME, conf -> {
                     conf.setCanBeResolved(false);
                     conf.setCanBeConsumed(false);
+                    GradleWorkarounds.hideConfiguration(conf);
 
                     // Wire in the constraints from the main configuration.
                     conf.getDependencies()
