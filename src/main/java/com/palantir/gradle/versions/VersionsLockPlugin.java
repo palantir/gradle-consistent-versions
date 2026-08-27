@@ -451,6 +451,7 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
             // needn't be visible from other projects
             conf.setCanBeConsumed(true);
             conf.setCanBeResolved(false);
+            // needn't be visible from other projects
             GradleWorkarounds.hideConfiguration(conf);
             conf.attributes(getGcvAttributes()::configureGcvBaseAttributes);
             conf.getOutgoing().capability(capabilityFor(project, GcvScope.PRODUCTION));
