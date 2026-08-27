@@ -434,7 +434,10 @@ class VersionsLockPluginIntegrationTest {
 
         bar.buildGradle().append("""
             configurations {
-                fun
+                fun {
+                    canBeConsumed = true
+                    canBeResolved = false
+                }
             }
 
             dependencies {
@@ -457,6 +460,9 @@ class VersionsLockPluginIntegrationTest {
             """);
 
         gradle.withArgs("--write-locks", "classes").buildsSuccessfully();
+
+        assertThat(rootProject.file("versions.lock").text())
+                .contains("ch.qos.logback:logback-classic:1.2.3", "org.slf4j:slf4j-api:1.7.25");
     }
 
     @Test
