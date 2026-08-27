@@ -101,7 +101,7 @@ public class ConsistentVersionsPlugin implements Plugin<Project> {
             if (GradleVersion.current().compareTo(GradleVersion.version("8.3")) >= 0) {
                 return getGradle().getRootProject().getBuildTreePath();
             } else {
-                return ((GradleInternal) getGradle()).getIdentityPath().getPath();
+                return ((GradleInternal) getGradle()).getIdentityPath().toString();
             }
         }
 
