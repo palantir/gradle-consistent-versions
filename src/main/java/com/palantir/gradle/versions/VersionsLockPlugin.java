@@ -69,7 +69,6 @@ import org.gradle.api.NamedDomainObjectProvider;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
-import org.gradle.api.artifacts.ConfigurationContainer;
 import org.gradle.api.artifacts.Dependency;
 import org.gradle.api.artifacts.DependencyConstraint;
 import org.gradle.api.artifacts.DependencySet;
@@ -240,9 +239,7 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
             conf.attributes(getGcvAttributes()::configureGcvBaseAttributes);
         });
 
-        Map<String, ConfigurationContainer> configurationsByProjectPath = new HashMap<>();
         project.allprojects(subproject -> {
-            configurationsByProjectPath.put(subproject.getPath(), subproject.getConfigurations());
             subproject.getExtensions().create(VERSIONS_LOCK_EXTENSION, VersionsLockExtension.class, subproject);
             setupDependenciesToProject(project, unifiedClasspathDependencies, subproject);
             setupPublishConstraintsForProject(subproject);
@@ -296,11 +293,8 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
             // Recursively copy all project dependencies, so that the constraints we add below won't affect the
             // resolution of unifiedClasspath.
             Map<Project, LockedConfigurations> lockedConfigurations = wireUpLockedConfigurationsByProject(project);
-            Preconditions.checkState(
-                    project.getState().getExecuted(),
-                    "recursivelyCopyProjectDependenciesWithScope should be called in afterEvaluate");
             DirectDependencyScopes directDependencyScopes = recursivelyCopyProjectDependencies(
-                    unifiedClasspath.getIncoming().getDependencies(), configurationsByProjectPath);
+                    project, unifiedClasspath.getIncoming().getDependencies());
 
             StartParameter startParameter = project.getGradle().getStartParameter();
             Supplier<FullLockState> fullLockStateSupplier = Suppliers.memoize(() -> {
@@ -613,51 +607,34 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
      * @return a Map from each {@link ModuleIdentifier external module} that was being directly depend on (from some
      *     locked configuration) to the {@link GcvScope} we attributed to it.
      */
-    private DirectDependencyScopes recursivelyCopyProjectDependencies(
-            DependencySet depSet, Map<String, ConfigurationContainer> configurationsByProjectPath) {
+    private DirectDependencyScopes recursivelyCopyProjectDependencies(Project project, DependencySet depSet) {
+        Preconditions.checkState(
+                project.getState().getExecuted(),
+                "recursivelyCopyProjectDependenciesWithScope should be called in afterEvaluate");
+
         Map<Configuration, String> copiedConfigurationsCache = new HashMap<>();
         DirectDependencyScopes.Builder scopes = new DirectDependencyScopes.Builder();
 
-        findProjectDependenciesWithScope(depSet, configurationsByProjectPath, GcvScope.PRODUCTION)
-                .forEach(projectConfiguration -> recursivelyCopyProjectDependenciesWithScope(
-                        projectConfiguration.projectPath(),
-                        projectConfiguration.configuration().getDependencies(),
-                        configurationsByProjectPath,
-                        copiedConfigurationsCache,
-                        scopes,
-                        GcvScope.PRODUCTION));
+        findProjectDependencyWithTargetConfigurationName(project, depSet, CONSISTENT_VERSIONS_PRODUCTION)
+                .forEach(conf -> recursivelyCopyProjectDependenciesWithScope(
+                        project, conf.getDependencies(), copiedConfigurationsCache, scopes, GcvScope.PRODUCTION));
 
-        findProjectDependenciesWithScope(depSet, configurationsByProjectPath, GcvScope.TEST)
-                .forEach(projectConfiguration -> recursivelyCopyProjectDependenciesWithScope(
-                        projectConfiguration.projectPath(),
-                        projectConfiguration.configuration().getDependencies(),
-                        configurationsByProjectPath,
-                        copiedConfigurationsCache,
-                        scopes,
-                        GcvScope.TEST));
+        findProjectDependencyWithTargetConfigurationName(project, depSet, CONSISTENT_VERSIONS_TEST)
+                .forEach(conf -> recursivelyCopyProjectDependenciesWithScope(
+                        project, conf.getDependencies(), copiedConfigurationsCache, scopes, GcvScope.TEST));
 
         return scopes.build();
     }
 
-    private static List<ProjectConfiguration> findProjectDependenciesWithScope(
-            DependencySet depSet, Map<String, ConfigurationContainer> configurationsByProjectPath, GcvScope scope) {
-        String configurationName =
-                switch (scope) {
-                    case PRODUCTION -> CONSISTENT_VERSIONS_PRODUCTION;
-                    case TEST -> CONSISTENT_VERSIONS_TEST;
-                };
+    private List<Configuration> findProjectDependencyWithTargetConfigurationName(
+            Project project, DependencySet depSet, String configurationName) {
         return depSet.stream()
                 .filter(dep -> dep instanceof ProjectDependency)
-                .map(ProjectDependency.class::cast)
-                .filter(projectDependency ->
-                        scope.equals(projectDependency.getAttributes().getAttribute(GCV_SCOPE_ATTRIBUTE)))
-                .map(projectDependency -> {
-                    String projectPath = ProjectDependencyUtils.getProjectPath(projectDependency);
-                    Configuration configuration = getConfigurationsByProjectPath(
-                                    configurationsByProjectPath, projectPath)
-                            .getByName(configurationName);
-                    return new ProjectConfiguration(projectPath, configuration);
+                .map(dependency -> {
+                    ProjectDependency projectDependency = (ProjectDependency) dependency;
+                    return findConfigurationUsingCapabilities(project, projectDependency);
                 })
+                .filter(conf -> conf.getName().equals(configurationName))
                 .collect(Collectors.toList());
     }
 
@@ -668,9 +645,8 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
      */
     @SuppressWarnings("for-rollout:StringConcatToTextBlock")
     private void recursivelyCopyProjectDependenciesWithScope(
-            String currentProjectPath,
+            Project currentProject,
             DependencySet dependencySet,
-            Map<String, ConfigurationContainer> configurationsByProjectPath,
             Map<Configuration, String> copiedConfigurationsCache,
             DirectDependencyScopes.Builder dependencyScopes,
             GcvScope scope) {
@@ -681,11 +657,8 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
                 return;
             }
 
-            String targetProjectPath = ProjectDependencyUtils.getProjectPath(projectDependency);
-            ConfigurationContainer targetProjectConfigurations =
-                    getConfigurationsByProjectPath(configurationsByProjectPath, targetProjectPath);
-            Configuration targetConf =
-                    getTargetConfiguration(targetProjectConfigurations, dependencySet, projectDependency);
+            Project projectDep = resolveProjectDependency(currentProject, projectDependency);
+            Configuration targetConf = getTargetConfiguration(currentProject, dependencySet, projectDependency);
 
             if (log.isDebugEnabled()) {
                 log.debug(
@@ -698,7 +671,7 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
                 String copiedConf = copiedConfigurationsCache.get(targetConf);
                 log.debug(
                         "Re-using already copied target configuration for dep {} -> {}: {}",
-                        currentProjectPath,
+                        currentProject,
                         targetConf,
                         copiedConf);
                 projectDependency.setTargetConfiguration(copiedConf);
@@ -710,20 +683,24 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
             // Without this, they'd just be propagated to the copiedConf and probably never run!
             causeWithDependenciesActionsToRun(targetConf);
 
-            Configuration copiedTargetConfResolvable =
-                    copyConfigurationRecursively(targetProjectConfigurations, targetConf);
+            Configuration copiedTargetConfResolvable = targetConf.copyRecursive();
 
             // This is required in Gradle 7 otherwise we won't see any dependencies
             // It works without this in Gradle 8
             // It is however *illegal* in Gradle 9, so we have to remove it.
             // When we drop Gradle 7
             if (GradleVersion.current().compareTo(GradleVersion.version("8.14")) < 0) {
-                targetProjectConfigurations.add(copiedTargetConfResolvable);
-                copiedTargetConfResolvable.outgoing(outgoing -> outgoing.capability(
-                        copiedConfigurationCapability(targetProjectPath, copiedTargetConfResolvable.getName())));
+                projectDep.getConfigurations().add(copiedTargetConfResolvable);
+                copiedTargetConfResolvable.outgoing(outgoing -> outgoing.capability(String.format(
+                        "gcv:%s-%s-%s-%s:extra",
+                        projectDep.getGroup(),
+                        projectDep.getName(),
+                        projectDep.getVersion(),
+                        copiedTargetConfResolvable.getName())));
             }
 
-            Configuration copiedConf = targetProjectConfigurations
+            Configuration copiedConf = projectDep
+                    .getConfigurations()
                     .register(targetConf.getName() + "GcvConsumable", conf -> {
                         conf.setDescription(String.format(
                                 "Copy of the '%s' configuration that can be resolved by"
@@ -747,8 +724,9 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
 
                         // To avoid capability based conflict detection between all these copied configurations (where
                         // they conflict as each has no capabilities), we give each of them a capability
-                        conf.outgoing(outgoing ->
-                                outgoing.capability(copiedConfigurationCapability(targetProjectPath, conf.getName())));
+                        conf.outgoing(outgoing -> outgoing.capability(String.format(
+                                "gcv:%s-%s-%s-%s:extra",
+                                projectDep.getGroup(), projectDep.getName(), projectDep.getVersion(), conf.getName())));
                     })
                     .get();
 
@@ -769,20 +747,8 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
             projectDependency.setTargetConfiguration(copiedConf.getName());
 
             recursivelyCopyProjectDependenciesWithScope(
-                    targetProjectPath,
-                    copiedConf.getAllDependencies(),
-                    configurationsByProjectPath,
-                    copiedConfigurationsCache,
-                    dependencyScopes,
-                    scope);
+                    projectDep, copiedConf.getAllDependencies(), copiedConfigurationsCache, dependencyScopes, scope);
         });
-    }
-
-    private static Map<String, String> copiedConfigurationCapability(String projectPath, String configurationName) {
-        return ImmutableMap.of(
-                "group", "gcv",
-                "name", String.format("path=%s configuration=%s", projectPath, configurationName),
-                "version", "extra");
     }
 
     /**
@@ -794,26 +760,15 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
         conf.getIncoming().getDependencies();
     }
 
-    private static Configuration copyConfigurationRecursively(
-            ConfigurationContainer configurations, Configuration configuration) {
-        Configuration resolvableProxy = configurations
-                .register(configuration.getName() + "GcvResolvable", resolvableConfiguration -> {
-                    resolvableConfiguration.setCanBeResolved(true);
-                    resolvableConfiguration.setCanBeConsumed(false);
-                    resolvableConfiguration.extendsFrom(configuration);
-                    GradleWorkarounds.hideConfiguration(resolvableConfiguration);
-                })
-                .get();
-        return resolvableProxy.copyRecursive();
-    }
-
-    private static Configuration getTargetConfiguration(
-            ConfigurationContainer configurations, DependencySet depSet, ProjectDependency projectDependency) {
+    private Configuration getTargetConfiguration(
+            Project project, DependencySet depSet, ProjectDependency projectDependency) {
         String targetConfiguration = Preconditions.checkNotNull(
                 projectDependency.getTargetConfiguration(),
                 "Expected dependency to have a targetConfiguration: %s",
                 formatProjectDependency(projectDependency));
-        Configuration targetConf = configurations.getByName(targetConfiguration);
+        Configuration targetConf = resolveProjectDependency(project, projectDependency)
+                .getConfigurations()
+                .getByName(targetConfiguration);
         Preconditions.checkNotNull(
                 targetConf,
                 "Target configuration of project dependency was null: %s -> %s",
@@ -822,13 +777,32 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
         return targetConf;
     }
 
-    private static ConfigurationContainer getConfigurationsByProjectPath(
-            Map<String, ConfigurationContainer> configurationsByProjectPath, String projectPath) {
-        return Preconditions.checkNotNull(
-                configurationsByProjectPath.get(projectPath), "Could not find project with path: %s", projectPath);
+    private Configuration findConfigurationUsingCapabilities(Project project, ProjectDependency projectDependency) {
+        Project dependencyProject = resolveProjectDependency(project, projectDependency);
+        Set<Configuration> confs = dependencyProject.getConfigurations().stream()
+                .filter(conf ->
+                        conf.getOutgoing().getCapabilities().containsAll(projectDependency.getRequestedCapabilities()))
+                .collect(Collectors.toSet());
+
+        Preconditions.checkArgument(
+                confs.size() == 1,
+                "Expected to only find one target configuration with capability %s but found %s with names: %s\n%s",
+                projectDependency.getRequestedCapabilities(),
+                confs.size(),
+                confs,
+                dependencyProject.getConfigurations().stream()
+                        .map(conf -> String.format(
+                                "- %s -> %s", conf, conf.getOutgoing().getCapabilities()))
+                        .collect(Collectors.joining("\n")));
+
+        return Iterables.getOnlyElement(confs);
     }
 
-    private static String formatProjectDependency(ProjectDependency dep) {
+    private static Project resolveProjectDependency(Project project, ProjectDependency projectDependency) {
+        return project.getRootProject().project(ProjectDependencyUtils.getProjectPath(projectDependency));
+    }
+
+    private String formatProjectDependency(ProjectDependency dep) {
         StringBuilder builder = new StringBuilder();
         builder.append(ProjectDependencyUtils.getProjectPath(dep));
         if (dep.getTargetConfiguration() != null) {
@@ -842,8 +816,6 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
         }
         return builder.toString();
     }
-
-    private record ProjectConfiguration(String projectPath, Configuration configuration) {}
 
     private static boolean haveSameGroupAndName(Project project, Project subproject) {
         return project.getName().equals(subproject.getName())
