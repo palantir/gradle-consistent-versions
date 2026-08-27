@@ -37,11 +37,6 @@ class IntegrationSpec extends IntegrationTestKitSpec {
         }
         GradleDependencyGenerator generator = new GradleDependencyGenerator(
                 dependencyGraph, new File(projectDir, "build/testrepogen").toString())
-        new File(generator.gradleRoot, "build.gradle") << '''
-            subprojects {
-                java.targetCompatibility = JavaVersion.VERSION_1_8
-            }
-        '''.stripIndent()
         return generator.generateTestMavenRepo()
     }
 
