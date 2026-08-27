@@ -449,6 +449,7 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
             conf.setDescription(
                     "Outgoing configuration for production dependencies meant to be used by consistent-versions");
             // needn't be visible from other projects
+            GradleWorkarounds.hideConfiguration(conf);
             conf.setCanBeConsumed(true);
             conf.setCanBeResolved(false);
             // needn't be visible from other projects
