@@ -460,6 +460,7 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
         project.getConfigurations().register(CONSISTENT_VERSIONS_TEST, conf -> {
             conf.setDescription("Outgoing configuration for test dependencies meant to be used by consistent-versions");
             // needn't be visible from other projects
+            GradleWorkarounds.hideConfiguration(conf);
             conf.setCanBeConsumed(true);
             conf.setCanBeResolved(false);
             GradleWorkarounds.hideConfiguration(conf);
