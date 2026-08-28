@@ -224,7 +224,6 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
         Configuration unifiedClasspath = project.getConfigurations()
                 .create(UNIFIED_CLASSPATH_CONFIGURATION_NAME, conf -> {
                     conf.setCanBeConsumed(false);
-                    GradleWorkarounds.hideConfiguration(conf);
                     conf.extendsFrom(unifiedClasspathDependencies);
 
                     // Attributes declared here will become required attributes when resolving this configuration
@@ -259,7 +258,6 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
                     conf.attributes(getGcvAttributes()::configureGcvBaseAttributes);
                     conf.getOutgoing().capability(GCV_LOCKS_CAPABILITY);
                     conf.setCanBeResolved(false);
-                    GradleWorkarounds.hideConfiguration(conf);
                 });
 
         ProjectDependency locksDependency =
@@ -390,7 +388,6 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
                     .register(LOCK_CONSTRAINTS_CONFIGURATION_NAME, locksConf -> {
                         locksConf.setCanBeConsumed(false);
                         locksConf.setCanBeResolved(false);
-                        GradleWorkarounds.hideConfiguration(locksConf);
                     });
 
             if (rootProject.getGradle().getStartParameter().isConfigureOnDemand()
@@ -434,7 +431,6 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
         // inter-project dependencies.
         project.getConfigurations().register(PLACEHOLDER_CONFIGURATION_NAME, conf -> {
             conf.setCanBeResolved(false);
-            GradleWorkarounds.hideConfiguration(conf);
 
             // Make sure it can never be selected as part of normal resolution that declares a required usage.
             conf.attributes(getGcvAttributes()::configureGcvBaseAttributes);
@@ -450,16 +446,12 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
                     "Outgoing configuration for production dependencies meant to be used by consistent-versions");
             conf.setCanBeConsumed(true);
             conf.setCanBeResolved(false);
-            // needn't be visible from other projects
-            GradleWorkarounds.hideConfiguration(conf);
             conf.attributes(getGcvAttributes()::configureGcvBaseAttributes);
             conf.getOutgoing().capability(capabilityFor(project, GcvScope.PRODUCTION));
         });
 
         project.getConfigurations().register(CONSISTENT_VERSIONS_TEST, conf -> {
             conf.setDescription("Outgoing configuration for test dependencies meant to be used by consistent-versions");
-            // needn't be visible from other projects
-            GradleWorkarounds.hideConfiguration(conf);
             conf.setCanBeConsumed(true);
             conf.setCanBeResolved(false);
             conf.attributes(getGcvAttributes()::configureGcvBaseAttributes);
@@ -712,10 +704,6 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
                         conf.setCanBeConsumed(true);
                         conf.extendsFrom(copiedTargetConfResolvable);
                         conf.attributes(getGcvAttributes()::configureGcvBaseAttributes);
-
-                        // Since we only depend on these from the same project (via CONSISTENT_VERSIONS_PRODUCTION or
-                        // CONSISTENT_VERSIONS_TEST), we shouldn't allow them to be visible outside this project.
-                        GradleWorkarounds.hideConfiguration(conf);
 
                         // This is so we can get back the scope from the ResolutionResult.
                         conf.getAllDependencies()

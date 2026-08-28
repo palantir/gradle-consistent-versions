@@ -21,7 +21,6 @@ import groovy.lang.GString;
 import java.lang.reflect.InvocationTargetException;
 import java.util.LinkedHashSet;
 import java.util.Set;
-import org.gradle.api.GradleException;
 import org.gradle.api.Project;
 import org.gradle.api.ProjectState;
 import org.gradle.api.Task;
@@ -34,7 +33,6 @@ import org.gradle.api.attributes.AttributeContainer;
 import org.gradle.api.attributes.Category;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
-import org.gradle.util.GradleVersion;
 
 @SuppressWarnings("UnstableApiUsage")
 final class GradleWorkarounds {
@@ -74,17 +72,6 @@ final class GradleWorkarounds {
                                 conf.getResolutionStrategy())
                         .getConflictResolution();
         return conflictResolution == org.gradle.api.internal.artifacts.configurations.ConflictResolution.strict;
-    }
-
-    static void hideConfiguration(Configuration configuration) {
-        if (GradleVersion.current().compareTo(GradleVersion.version("9.0")) >= 0) {
-            return;
-        }
-        try {
-            Configuration.class.getMethod("setVisible", boolean.class).invoke(configuration, false);
-        } catch (ReflectiveOperationException e) {
-            throw new GradleException("Failed to hide configuration " + configuration.getName(), e);
-        }
     }
 
     @SuppressWarnings("CyclomaticComplexity")

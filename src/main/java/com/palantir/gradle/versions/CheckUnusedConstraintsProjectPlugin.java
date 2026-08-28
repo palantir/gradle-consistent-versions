@@ -50,6 +50,7 @@ public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Proj
     protected abstract ConfigurationContainer getConfigurations();
 
     @Override
+    @SuppressWarnings("deprecation")
     public final void apply(Project project) {
         Provider<List<Configuration>> configurationsToCheck = getProviderFactory()
                 .provider(() -> GradleConfigurations.getResolvableConfigurations(project).stream()
@@ -76,7 +77,7 @@ public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Proj
         getConfigurations().register("checkUnusedConstraintsConsumable", consumable -> {
             consumable.setCanBeConsumed(true);
             consumable.setCanBeResolved(false);
-            GradleWorkarounds.hideConfiguration(consumable);
+            consumable.setVisible(false);
             consumable.setTransitive(false);
             consumable.attributes(attrs -> {
                 attrs.attribute(Usage.USAGE_ATTRIBUTE, getObjectFactory().named(Usage.class, USAGE));

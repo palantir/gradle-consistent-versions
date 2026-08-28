@@ -103,6 +103,12 @@ class CheckUnusedConstraintIntegrationTest {
     }
 
     @Test
+    void assemble_does_not_run_writeResolvedCoordinatesTask(GradleInvoker gradle) {
+        InvocationResult result = gradle.withArgs("assemble", "--dry-run").buildsSuccessfully();
+        assertThat(result).output().doesNotContain(":writeResolvedCoordinatesTask");
+    }
+
+    @Test
     void version_props_conflict_should_succeed(GradleInvoker gradle, RootProject rootProject) {
         rootProject.file("versions.props").overwrite("""
             com.fasterxml.jackson.*:* = 2.9.3
