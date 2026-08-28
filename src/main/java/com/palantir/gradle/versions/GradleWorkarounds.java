@@ -123,9 +123,10 @@ final class GradleWorkarounds {
             for (Configuration configuration : project.getConfigurations()) {
                 for (Dependency dependency : configuration.getDependencies()) {
                     if (dependency instanceof ProjectDependency projectDependency) {
-                        String dependencyProjectPath = ProjectDependencyUtils.getProjectPath(projectDependency);
-                        if (!dependencyProjectPath.equals(rootProject.getPath())) {
-                            projectPathsToEval.add(dependencyProjectPath);
+                        Project dependencyProject =
+                                ProjectDependencyUtils.resolveProjectDependency(project, projectDependency);
+                        if (dependencyProject != rootProject) {
+                            projectPathsToEval.add(dependencyProject.getPath());
                         }
                     }
                 }
