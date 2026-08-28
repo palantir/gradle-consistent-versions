@@ -83,7 +83,7 @@ class VersionsPropsPluginIntegrationTest {
 
             allprojects {
                 repositories {
-                    maven { url "file:///%s" }
+                    maven { url "%s" }
                 }
             }
 
@@ -101,7 +101,7 @@ class VersionsPropsPluginIntegrationTest {
                     }
                 }
             }
-            """, repo.path());
+            """, repo.path().toUri());
     }
 
     @Test

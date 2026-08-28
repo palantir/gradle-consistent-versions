@@ -16,7 +16,7 @@
 
 package com.palantir.gradle.versions;
 
-import com.palantir.gradle.versions.VersionsLockPlugin.ProjectDependencyWorkarounds;
+import com.palantir.gradle.utils.projectdependency.ProjectDependencyUtils;
 import groovy.lang.GString;
 import java.lang.reflect.InvocationTargetException;
 import java.util.LinkedHashSet;
@@ -86,9 +86,6 @@ final class GradleWorkarounds {
             return;
         }
 
-        ProjectDependencyWorkarounds projectDependencyWorkarounds =
-                rootProject.getObjects().newInstance(ProjectDependencyWorkarounds.class);
-
         Set<String> projectPathsToEval = new LinkedHashSet<>();
         for (String taskPath : rootProject.getGradle().getStartParameter().getTaskNames()) {
             if (!taskPath.contains(":")) {
@@ -127,7 +124,7 @@ final class GradleWorkarounds {
                 for (Dependency dependency : configuration.getDependencies()) {
                     if (dependency instanceof ProjectDependency projectDependency) {
                         Project dependencyProject =
-                                projectDependencyWorkarounds.getDependencyProject(projectDependency);
+                                ProjectDependencyUtils.resolveProjectDependency(project, projectDependency);
                         if (dependencyProject != rootProject) {
                             projectPathsToEval.add(dependencyProject.getPath());
                         }

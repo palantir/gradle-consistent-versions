@@ -67,7 +67,6 @@ public abstract class CheckUnusedConstraintsPlugin implements Plugin<Project> {
                     resolvable.setCanBeConsumed(false);
                     resolvable.setCanBeResolved(true);
                     resolvable.setTransitive(false);
-                    resolvable.setVisible(false);
                     resolvable.attributes(attributes -> {
                         attributes.attribute(
                                 Usage.USAGE_ATTRIBUTE,

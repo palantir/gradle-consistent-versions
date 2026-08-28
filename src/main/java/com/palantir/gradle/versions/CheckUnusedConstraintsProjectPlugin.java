@@ -50,6 +50,7 @@ public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Proj
     protected abstract ConfigurationContainer getConfigurations();
 
     @Override
+    @SuppressWarnings("deprecation")
     public final void apply(Project project) {
         Provider<List<Configuration>> configurationsToCheck = getProviderFactory()
                 .provider(() -> GradleConfigurations.getResolvableConfigurations(project).stream()

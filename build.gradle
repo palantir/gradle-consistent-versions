@@ -60,6 +60,7 @@ allprojects {
 dependencies {
     implementation 'com.google.guava:guava'
     implementation 'com.palantir.gradle.failure-reports:gradle-failure-reports-exceptions'
+    implementation 'com.palantir.gradle.utils:project-dependency-utils'
     implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-xml'
     implementation 'com.fasterxml.jackson.datatype:jackson-datatype-guava'
     implementation 'one.util:streamex'
@@ -79,6 +80,9 @@ dependencies {
 
     testAnnotationProcessor "org.immutables:value"
     testCompileOnly "org.immutables:value::annotations"
+    testImplementation 'org.spockframework:spock-core'
+    testCompileOnly 'junit:junit'
+    testRuntimeOnly 'org.spockframework:spock-junit4'
 }
 
 tasks.withType(Test) {
