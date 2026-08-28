@@ -79,6 +79,9 @@ dependencies {
 
     testAnnotationProcessor "org.immutables:value"
     testCompileOnly "org.immutables:value::annotations"
+    testImplementation 'org.spockframework:spock-core'
+    testCompileOnly 'junit:junit'
+    testRuntimeOnly 'org.spockframework:spock-junit4'
 }
 
 tasks.withType(Test) {
