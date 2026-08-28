@@ -649,7 +649,7 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
                 return;
             }
 
-            Project projectDep = resolveProjectDependency(currentProject, projectDependency);
+            Project projectDep = ProjectDependencyUtils.resolveProjectDependency(currentProject, projectDependency);
             Configuration targetConf = getTargetConfiguration(currentProject, dependencySet, projectDependency);
 
             if (log.isDebugEnabled()) {
@@ -754,7 +754,7 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
                 projectDependency.getTargetConfiguration(),
                 "Expected dependency to have a targetConfiguration: %s",
                 formatProjectDependency(projectDependency));
-        Configuration targetConf = resolveProjectDependency(project, projectDependency)
+        Configuration targetConf = ProjectDependencyUtils.resolveProjectDependency(project, projectDependency)
                 .getConfigurations()
                 .getByName(targetConfiguration);
         Preconditions.checkNotNull(
@@ -766,7 +766,7 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
     }
 
     private Configuration findConfigurationUsingCapabilities(Project project, ProjectDependency projectDependency) {
-        Project dependencyProject = resolveProjectDependency(project, projectDependency);
+        Project dependencyProject = ProjectDependencyUtils.resolveProjectDependency(project, projectDependency);
         Set<Configuration> confs = dependencyProject.getConfigurations().stream()
                 .filter(conf ->
                         conf.getOutgoing().getCapabilities().containsAll(projectDependency.getRequestedCapabilities()))
@@ -784,10 +784,6 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
                         .collect(Collectors.joining("\n")));
 
         return Iterables.getOnlyElement(confs);
-    }
-
-    private static Project resolveProjectDependency(Project project, ProjectDependency projectDependency) {
-        return project.getRootProject().project(ProjectDependencyUtils.getProjectPath(projectDependency));
     }
 
     private String formatProjectDependency(ProjectDependency dep) {
