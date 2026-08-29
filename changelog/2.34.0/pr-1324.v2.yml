@@ -1,6 +1,0 @@
-type: fix
-fix:
-  description: Avoid `getProject()` in `checkUnusedConstraints` that prevents intra
-    project task parallelism.
-  links:
-  - https://github.com/palantir/gradle-consistent-versions/pull/1324

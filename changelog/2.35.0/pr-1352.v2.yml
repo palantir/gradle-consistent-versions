@@ -1,5 +1,0 @@
-type: fix
-fix:
-  description: make `writeVersionsLock` task configuration cacheable
-  links:
-  - https://github.com/palantir/gradle-consistent-versions/pull/1352
