@@ -1,5 +1,0 @@
-type: improvement
-improvement:
-  description: versions.props is only loaded once
-  links:
-  - https://github.com/palantir/gradle-consistent-versions/pull/948

@@ -1,6 +1,0 @@
-type: improvement
-improvement:
-  description: Require gradle-consitent-versions idea plugin for all projects using
-    GCV
-  links:
-  - https://github.com/palantir/gradle-consistent-versions/pull/1272

@@ -1,5 +1,0 @@
-type: improvement
-improvement:
-  description: Add property to skip writing lock file
-  links:
-  - https://github.com/palantir/gradle-consistent-versions/pull/613

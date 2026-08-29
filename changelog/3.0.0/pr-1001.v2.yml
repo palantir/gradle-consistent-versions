@@ -1,9 +1,0 @@
-type: break
-break:
-  description: Add one blank line between each entry in `versions.lock` to minimise
-    merge conflicts. GCV will still support reading the old lockfile format, but the
-    next time you run `./gradlew writeVerisonsLocks`, it will output the new format.
-    It's recommended to run `./gradlew writeVerisonsLocks` as part of upgrading the
-    plugin.
-  links:
-  - https://github.com/palantir/gradle-consistent-versions/pull/1001

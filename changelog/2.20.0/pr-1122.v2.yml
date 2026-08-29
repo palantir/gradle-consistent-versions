@@ -1,5 +1,0 @@
-type: improvement
-improvement:
-  description: More specific command in versions.lock header comment
-  links:
-  - https://github.com/palantir/gradle-consistent-versions/pull/1122

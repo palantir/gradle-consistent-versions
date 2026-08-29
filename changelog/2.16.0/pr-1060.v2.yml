@@ -1,5 +1,0 @@
-type: improvement
-improvement:
-  description: Add gradle 8 compatibility
-  links:
-  - https://github.com/palantir/gradle-consistent-versions/pull/1060
