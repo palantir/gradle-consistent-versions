@@ -47,7 +47,7 @@ public abstract class GetVersionPlugin implements Plugin<Project> {
 
     private static final Logger log = Logging.getLogger(GetVersionPlugin.class);
     private static final GradleVersion GRADLE_9 = GradleVersion.version("9.0");
-    private static final String GET_VERSIONS_CONFIGURATION_NAME = "gcvGetVersions";
+    static final String GET_VERSIONS_CONFIGURATION_NAME = "gcvGetVersions";
 
     @Nested
     protected abstract GcvAttributes getAttributes();

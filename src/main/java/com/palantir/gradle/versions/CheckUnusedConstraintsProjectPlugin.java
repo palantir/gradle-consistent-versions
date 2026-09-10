@@ -54,7 +54,11 @@ public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Proj
     public final void apply(Project project) {
         Provider<List<Configuration>> configurationsToCheck = getProviderFactory()
                 .provider(() -> GradleConfigurations.getResolvableConfigurations(project).stream()
-                        .filter(configuration -> !configuration.getName().startsWith("checkUnusedConstraints"))
+                        .filter(configuration -> {
+                            String name = configuration.getName();
+                            return !(name.startsWith("checkUnusedConstraints")
+                                    || name.equals(GetVersionPlugin.GET_VERSIONS_CONFIGURATION_NAME));
+                        })
                         .toList());
 
         Provider<Set<ResolvedCoordinate>> resolvedCoordinates =
