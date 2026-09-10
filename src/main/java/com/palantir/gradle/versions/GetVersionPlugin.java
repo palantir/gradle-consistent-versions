@@ -78,13 +78,11 @@ public abstract class GetVersionPlugin implements Plugin<Project> {
              * Groovy will invoke this method if they just supply one arg, e.g. 'com.google.guava:guava'. This is the
              * preferred signature because it's shortest.
              */
-            @SuppressWarnings("for-rollout:UnusedMethod")
             public String doCall(Object moduleVersion) {
                 return doCall(moduleVersion, getVersions.get());
             }
 
             /** Find a version from another configuration, e.g. from the gradle-docker plugin. */
-            @SuppressWarnings("for-rollout:FloggerArgumentToString")
             public String doCall(Object moduleVersion, Configuration configuration) {
                 List<String> strings = Splitter.on(':').splitToList(moduleVersion.toString());
                 Preconditions.checkState(
@@ -94,12 +92,10 @@ public abstract class GetVersionPlugin implements Plugin<Project> {
             }
 
             /** This matches the signature of nebula's dependencyRecommendations.getRecommendedVersion. */
-            @SuppressWarnings("for-rollout:UnusedMethod")
             public String doCall(String group, String name) {
                 return getVersion(project, group, name, getVersions.get());
             }
 
-            @SuppressWarnings("for-rollout:UnusedMethod")
             public String doCall(String group, String name, Configuration configuration) {
                 return getVersion(project, group, name, configuration);
             }

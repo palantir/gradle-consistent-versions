@@ -635,7 +635,6 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
      * {@link DependencySet}, and then amends their {@link ProjectDependency#getTargetConfiguration()} to point to the
      * copied configuration. It then eagerly configures any copied Configurations recursively.
      */
-    @SuppressWarnings("for-rollout:StringConcatToTextBlock")
     private void recursivelyCopyProjectDependenciesWithScope(
             Project currentProject,
             DependencySet dependencySet,
