@@ -56,8 +56,8 @@ public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Proj
                 .provider(() -> GradleConfigurations.getResolvableConfigurations(project).stream()
                         .filter(configuration -> {
                             String name = configuration.getName();
-                            return !name.startsWith("checkUnusedConstraints");
-                            // || name.equals(GetVersionPlugin.GET_VERSIONS_CONFIGURATION_NAME));
+                            return !(name.startsWith("checkUnusedConstraints")
+                                    || name.equals(GetVersionPlugin.GET_VERSIONS_CONFIGURATION_NAME));
                         })
                         .toList());
 
