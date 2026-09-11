@@ -225,6 +225,49 @@ class CheckUnusedConstraintIntegrationTest {
     }
 
     @Test
+    void subproject_coordinate_task_does_not_resolve_unrelated_project_dependencies(
+            GradleInvoker gradle, RootProject rootProject, SubProject foo, SubProject bar) {
+        rootProject.file("versions.props").overwrite("""
+            com.google.guava:guava = 33.0.0-jre
+            org.slf4j:slf4j-api = 2.0.9
+            """);
+
+        foo.buildGradle().plugins().add("java");
+        foo.buildGradle().append("""
+            repositories {
+                mavenCentral()
+            }
+            dependencies {
+                implementation 'com.google.guava:guava'
+                components {
+                    all { details ->
+                        println "Inspected dependency: ${details.id}"
+                    }
+                }
+            }
+            """);
+
+        bar.buildGradle().plugins().add("java");
+        bar.buildGradle().append("""
+            repositories {
+                mavenCentral()
+            }
+            dependencies {
+                implementation 'org.slf4j:slf4j-api'
+            }
+            """);
+
+        InvocationResult result =
+                gradle.withArgs(":foo:writeResolvedCoordinatesTask").buildsSuccessfully();
+
+        assertThat(result).task(":foo:writeResolvedCoordinatesTask").succeeded();
+        assertThat(result)
+                .output()
+                .contains("Inspected dependency: com.google.guava:guava:33.0.0-jre")
+                .doesNotContain("Inspected dependency: org.slf4j:slf4j-api:2.0.9");
+    }
+
+    @Test
     void checkUnusedConstraints_with_platform_dependencies_on_root_project(
             GradleInvoker gradle, RootProject rootProject) {
         rootProject.file("versions.props").overwrite("""
