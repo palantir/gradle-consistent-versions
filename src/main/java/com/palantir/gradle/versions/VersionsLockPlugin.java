@@ -418,6 +418,7 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
      * {@link #UNIFIED_CLASSPATH_CONFIGURATION_NAME} to these configurations. It doesn't wire up the actual
      * configurations that we intend to lock, because that will be done later, in afterEvaluate.
      */
+    @SuppressWarnings("for-rollout:ReferenceEquality")
     private void setupDependenciesToProject(
             Project rootProject, Configuration unifiedClasspathDependencies, Project project) {
         // Parallel 'resolveConfigurations' sometimes breaks unless we force the root one to run first.

@@ -72,6 +72,7 @@ public class FixLegacyJavaConfigurationsPlugin implements Plugin<Project> {
     }
 
     /** Inject versions of _all_ dependencies into the given {@code conf}, by polling the {@code getVersion}. */
+    @SuppressWarnings("for-rollout:ReferenceEquality")
     private void injectVersions(Configuration conf, GetVersion getVersion) {
         ResolvableDependencies incoming = conf.getIncoming();
         incoming.beforeResolve(dependencies -> {
