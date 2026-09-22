@@ -52,6 +52,7 @@ public abstract class CheckUnusedConstraintsPlugin implements Plugin<Project> {
     @Inject
     protected abstract ConfigurationContainer getConfigurations();
 
+    @SuppressWarnings("for-rollout:ReferenceEquality")
     @Override
     public final void apply(Project rootProject) {
         if (rootProject != rootProject.getRootProject()) {

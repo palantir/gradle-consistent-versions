@@ -112,6 +112,7 @@ public abstract class GetVersionPlugin implements Plugin<Project> {
                 .orElseThrow(() -> notFound(group, name, configuration));
     }
 
+    @SuppressWarnings("for-rollout:ReferenceEquality")
     private static void checkConfigurationBelongsToProject(Project project, Configuration configuration) {
         Configuration ownConfiguration = project.getConfigurations().findByName(configuration.getName());
         if (ownConfiguration != configuration) {

@@ -74,7 +74,7 @@ final class GradleWorkarounds {
         return conflictResolution == org.gradle.api.internal.artifacts.configurations.ConflictResolution.strict;
     }
 
-    @SuppressWarnings("CyclomaticComplexity")
+    @SuppressWarnings({"CyclomaticComplexity", "for-rollout:ReferenceEquality"})
     public static void makeEvaluationDependOnSubprojectsToBeEvaluated(Project rootProject) {
         if (!rootProject.getGradle().getStartParameter().isConfigureOnDemand()
                 || VersionsLockPlugin.shouldWriteLocks(rootProject)
