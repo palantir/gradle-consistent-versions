@@ -2,15 +2,15 @@
 
 com.fasterxml.jackson.core:jackson-annotations:2.22 (4 constraints: 4c445cb4)
 
-com.fasterxml.jackson.core:jackson-core:2.22.1 (4 constraints: 8c566404)
+com.fasterxml.jackson.core:jackson-core:2.22.3 (4 constraints: 94565e07)
 
-com.fasterxml.jackson.core:jackson-databind:2.22.1 (4 constraints: 3e49ed3d)
+com.fasterxml.jackson.core:jackson-databind:2.22.3 (4 constraints: 4649e740)
 
-com.fasterxml.jackson.dataformat:jackson-dataformat-xml:2.22.1 (3 constraints: 0f3b888a)
+com.fasterxml.jackson.dataformat:jackson-dataformat-xml:2.22.3 (3 constraints: 113bb48b)
 
-com.fasterxml.jackson.datatype:jackson-datatype-guava:2.22.1 (2 constraints: dd1f04df)
+com.fasterxml.jackson.datatype:jackson-datatype-guava:2.22.3 (2 constraints: df1f9adf)
 
-com.fasterxml.jackson.datatype:jackson-datatype-jdk8:2.22.1 (1 constraints: a51a8b21)
+com.fasterxml.jackson.datatype:jackson-datatype-jdk8:2.22.3 (1 constraints: a51a8b21)
 
 com.fasterxml.woodstox:woodstox-core:7.2.0 (1 constraints: 3d174b26)
 
