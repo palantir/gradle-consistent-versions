@@ -918,6 +918,12 @@ public abstract class VersionsLockPlugin implements Plugin<Project> {
 
     private static Dependents extractDependents(ResolvedComponentResult component) {
         return Dependents.of(component.getDependents().stream()
+                // A request for a substituted module does not constrain the replacement module's version.
+                // Compare only group and name so version-only substitutions and conflict resolution retain constraints.
+                .filter(dep -> !(dep.getRequested() instanceof ModuleComponentSelector requested)
+                        || requested
+                                .getModuleIdentifier()
+                                .equals(component.getModuleVersion().getModule()))
                 .collect(Collectors.groupingBy(
                         dep -> dep.getFrom().getId(),
                         () -> new TreeMap<>(GradleComparators.COMPONENT_IDENTIFIER_COMPARATOR),

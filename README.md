@@ -317,6 +317,11 @@ Adding explicit `it` calls works around this error:
  }
 ```
 
+When dependency substitution replaces a module with a different group or name, requests for the original module are
+excluded from the replacement's constraint hash and `why` output. Adding, changing or removing an obsolete
+`versions.props` recommendation for the original module therefore leaves the lock file unchanged. Constraints that
+request the replacement module still contribute, as do constraints for substitutions that only change the version.
+
 ### Common workflow: internal test utility projects
 Sometimes, devs have multiple test projects (unit tests, integration tests) that use a subset of common test classes.
 ```
