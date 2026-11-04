@@ -20,7 +20,6 @@ import static com.palantir.gradle.testing.assertion.GradlePluginTestAssertions.a
 
 import com.palantir.gradle.testing.execution.GradleInvoker;
 import com.palantir.gradle.testing.junit.AdditionallyRunWithGradle;
-import com.palantir.gradle.testing.junit.DisabledConfigurationCache;
 import com.palantir.gradle.testing.junit.GradlePluginTests;
 import com.palantir.gradle.testing.maven.MavenArtifact;
 import com.palantir.gradle.testing.maven.MavenRepo;
@@ -30,7 +29,6 @@ import org.junit.jupiter.api.Test;
 
 @GradlePluginTests
 @AdditionallyRunWithGradle("7.6.4")
-@DisabledConfigurationCache("why is not compatible with the configuration cache")
 class RenamingResolveRuleIntegrationTest {
     @BeforeEach
     void setup(RootProject rootProject, MavenRepo repo) {
