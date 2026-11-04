@@ -78,19 +78,25 @@ public abstract class CheckUnusedConstraintsTask extends DefaultTask {
     @TaskAction
     public final void checkNoUnusedPin() {
         Set<String> excludedConfigs = getExcludeConfigurations().get();
-        Set<String> artifacts = getResolvedCoordinatesFiles().getFiles().stream()
+        Set<ResolvedCoordinate> coordinates = getResolvedCoordinatesFiles().getFiles().stream()
                 .map(CheckUnusedConstraintsTask::readModulesFile)
                 .flatMap(Set::stream)
                 .filter(module -> !excludedConfigs.contains(module.configuration()))
-                .map(coordinate -> coordinate.group() + ":" + coordinate.module())
+                .collect(Collectors.toSet());
+        Set<String> requestedArtifacts =
+                coordinates.stream().map(CheckUnusedConstraintsTask::notation).collect(Collectors.toSet());
+        // Glob pins only apply to resolved modules, as they work by assigning resolved components to a platform
+        Set<String> resolvedArtifacts = coordinates.stream()
+                .filter(coordinate -> !coordinate.substituted())
+                .map(CheckUnusedConstraintsTask::notation)
                 .collect(Collectors.toSet());
 
         VersionsProps versionsProps =
                 VersionsProps.loadFromFile(getPropsFile().get().getAsFile().toPath());
 
         Set<String> exactConstraints = versionsProps.getFuzzyResolver().exactMatches();
-        Set<String> unusedConstraints = new HashSet<>(Sets.difference(exactConstraints, artifacts));
-        Set<String> unmatchedArtifacts = new HashSet<>(Sets.difference(artifacts, exactConstraints));
+        Set<String> unusedConstraints = new HashSet<>(Sets.difference(exactConstraints, requestedArtifacts));
+        Set<String> unmatchedArtifacts = new HashSet<>(Sets.difference(resolvedArtifacts, exactConstraints));
 
         // assumes globs are sorted by specificity
         for (FuzzyPatternResolver.Glob glob : versionsProps.getFuzzyResolver().globs()) {
@@ -115,6 +121,10 @@ public abstract class CheckUnusedConstraintsTask extends DefaultTask {
                 "There are unused pins in your versions.props: \n" + unusedConstraints + "\n\n"
                         + "Run ./gradlew checkUnusedConstraints --fix to remove them.",
                 "./gradlew checkUnusedConstraints --fix");
+    }
+
+    private static String notation(ResolvedCoordinate coordinate) {
+        return coordinate.group() + ":" + coordinate.module();
     }
 
     private static Set<ResolvedCoordinate> readModulesFile(File file) {

@@ -20,6 +20,7 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import java.io.Serializable;
 import java.util.Comparator;
+import org.gradle.api.artifacts.ModuleIdentifier;
 import org.immutables.value.Value;
 
 @Value.Immutable
@@ -36,16 +37,20 @@ public interface ResolvedCoordinate extends Serializable, Comparable<ResolvedCoo
 
     String module();
 
+    /** Whether this module was requested but replaced by a substitution rule, so never resolved itself. */
+    boolean substituted();
+
     @Override
     default int compareTo(ResolvedCoordinate other) {
         return COMPARATOR.compare(this, other);
     }
 
-    static ResolvedCoordinate of(String configuration, String group, String module) {
+    static ResolvedCoordinate of(String configuration, ModuleIdentifier module, boolean substituted) {
         return ImmutableResolvedCoordinate.builder()
                 .configuration(configuration)
-                .group(group)
-                .module(module)
+                .group(module.getGroup())
+                .module(module.getName())
+                .substituted(substituted)
                 .build();
     }
 }

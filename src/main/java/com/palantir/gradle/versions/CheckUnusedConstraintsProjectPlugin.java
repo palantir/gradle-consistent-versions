@@ -17,15 +17,22 @@
 package com.palantir.gradle.versions;
 
 import java.io.File;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.inject.Inject;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.ConfigurationContainer;
+import org.gradle.api.artifacts.ModuleIdentifier;
 import org.gradle.api.artifacts.component.ModuleComponentIdentifier;
+import org.gradle.api.artifacts.component.ModuleComponentSelector;
+import org.gradle.api.artifacts.result.DependencyResult;
+import org.gradle.api.artifacts.result.ResolutionResult;
+import org.gradle.api.artifacts.result.ResolvedComponentResult;
 import org.gradle.api.attributes.Usage;
 import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.provider.Provider;
@@ -63,12 +70,9 @@ public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Proj
 
         Provider<Set<ResolvedCoordinate>> resolvedCoordinates =
                 configurationsToCheck.map(configurations -> configurations.stream()
-                        .flatMap(configuration ->
-                                configuration.getIncoming().getResolutionResult().getAllComponents().stream()
-                                        .filter(component -> component.getId() instanceof ModuleComponentIdentifier)
-                                        .map(component -> (ModuleComponentIdentifier) component.getId())
-                                        .map(mcid -> ResolvedCoordinate.of(
-                                                configuration.getName(), mcid.getGroup(), mcid.getModule())))
+                        .flatMap(configuration -> coordinates(
+                                configuration.getName(),
+                                configuration.getIncoming().getResolutionResult()))
                         .collect(Collectors.toSet()));
 
         TaskProvider<WriteResolvedCoordinatesTask> writeResolvedCoordinatesTask = getTasks()
@@ -91,5 +95,29 @@ public abstract class CheckUnusedConstraintsProjectPlugin implements Plugin<Proj
                     .getOutgoing()
                     .artifact(writeResolvedCoordinatesTask.flatMap(WriteResolvedCoordinatesTask::getOutputFile));
         });
+    }
+
+    /**
+     * Resolved modules, plus modules that were requested but never resolved because a substitution rule replaced
+     * them: an exact pin on such a module still constrains its replacement.
+     */
+    private static Stream<ResolvedCoordinate> coordinates(String configurationName, ResolutionResult resolutionResult) {
+        Set<ModuleIdentifier> resolved = new HashSet<>();
+        Set<ModuleIdentifier> requested = new HashSet<>();
+        for (ResolvedComponentResult component : resolutionResult.getAllComponents()) {
+            if (component.getId() instanceof ModuleComponentIdentifier id) {
+                resolved.add(id.getModuleIdentifier());
+            }
+            for (DependencyResult dependency : component.getDependencies()) {
+                if (!dependency.isConstraint()
+                        && dependency.getRequested() instanceof ModuleComponentSelector selector) {
+                    requested.add(selector.getModuleIdentifier());
+                }
+            }
+        }
+        requested.removeAll(resolved);
+        return Stream.concat(
+                resolved.stream().map(module -> ResolvedCoordinate.of(configurationName, module, false)),
+                requested.stream().map(module -> ResolvedCoordinate.of(configurationName, module, true)));
     }
 }
