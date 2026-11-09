@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 import org.immutables.value.Value;
 
@@ -30,6 +31,12 @@ import org.immutables.value.Value;
 @Value.Immutable
 @SuppressWarnings("checkstyle:DesignForExtension")
 public abstract class FuzzyPatternResolver {
+    /**
+     * The result of {@link #patternFor} for each key that isn't an exact match. The same modules are looked up for
+     * every configuration of every project, and the globs never change, so each key is matched against them once.
+     */
+    private final Map<String, Optional<String>> patternsByKey = new ConcurrentHashMap<>();
+
     protected FuzzyPatternResolver() {}
 
     abstract Map<String, String> versions();
@@ -59,6 +66,10 @@ public abstract class FuzzyPatternResolver {
             return Optional.empty();
         }
 
+        return patternsByKey.computeIfAbsent(key, this::mostSpecificMatchingGlob);
+    }
+
+    private Optional<String> mostSpecificMatchingGlob(String key) {
         for (Glob glob : globs()) {
             if (glob.matches(key)) {
                 return Optional.of(glob.rawPattern);
